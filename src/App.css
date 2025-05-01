@@ -1,0 +1,50 @@
+body {
+  font-family: "Inter", serif;
+  font-optical-sizing: auto;
+}
+html, body, #root {
+  height: 100%;
+}
+#root {
+  /* max-width: 1280px; */
+  margin: 0 auto;
+  /* padding: 2rem; */
+  text-align: center;
+}
+@media (min-width: 1279px) and (max-width: 1400px) {
+  .card-font-size {
+    font-size: 14px;
+  }
+}
+@media (max-width:1352px) {
+  .dash-box-big-text {
+    font-size: 37px;
+  }
+  .dash-box-small-text {
+    margin-top:1rem;
+  }
+}
+@media (max-width:1280px) {
+  .dash-box-big-text {
+    font-size: 3rem;
+  }
+  .dash-box-small-text {
+    margin-top:1.75rem;
+  }
+}
+@media (max-width:812px) {
+  .dash-box-big-text {
+    font-size: 35px;
+  }
+  .dash-box-small-text {
+    margin-top:1rem;
+  }
+}
+@media (max-width:767px) {
+  .dash-box-big-text {
+    font-size: 3rem;
+  }
+  .dash-box-small-text {
+    margin-top:1.75rem;
+  }
+}
