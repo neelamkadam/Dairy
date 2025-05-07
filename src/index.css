@@ -3,10 +3,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
-
-@tailwind utilities;
-
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -80,23 +76,9 @@
   }
 }
 
-@layer base {
-  * {
-    @apply border-border;
-    /* @apply text-[#0f172a]; */
-    /* @apply text-[#f8fafc]; */
-  }
-
-  body {
-    @apply bg-background text-foreground;
-    font-family: "Roboto";
-  }
-}
 
 /* Hide number spinner for input type number in Firefox */
-input[type="number"] {
-  -moz-appearance: textfield;
-}
+
 
 /* Hide number spinner for input type number in Chrome, Safari, and Edge */
 input[type="number"]::-webkit-inner-spin-button,
@@ -114,20 +96,6 @@ input[type="number"] {
   input,
   select {
     font-size: 16px !important;
-  }
-}
-
-/* Roboto font color */
-@layer base {
-  @font-face {
-    font-family: "Roboto";
-    font-style: normal;
-    font-weight: 400;
-    font-display: swap;
-    src: url(/fonts/Roboto.woff2) format("woff2");
-  }
-  .prose {
-    @apply font-roboto;
   }
 }
 

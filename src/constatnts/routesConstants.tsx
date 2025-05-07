@@ -1,11 +1,12 @@
-
-export const ROUTES ={
-    LANDING_PAGE: "/start",
+export const ROUTES = {
+  AUTH: {
     LOGIN: `/login`,
-    SIGNUP: `/register`,
+    SIGNUP: `/signup`,
     OTP_VERIFICATION: `/otp-verification`,
     RESET_PWD: `/reset-password`,
     SET_NEW_PWD: `/set-password`,
-    DASHBOARD: `/`,
-    VLCC_COLLECTION_ENTRY:`/vlcc-collection-entry`
-}
+  },
+  LANDING_PAGE: "/start",
+  DASHBOARD: `/`,
+  VLCC_COLLECTION_ENTRY: `/vlcc-collection-entry`,
+};

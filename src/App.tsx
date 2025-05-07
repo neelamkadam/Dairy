@@ -1,14 +1,12 @@
 
+import { RouterProvider } from "react-router-dom";
 import "./App.css";
-
+import { AppRoutes } from "./routes/AppRoutes";
 
 function App() {
 
-  return (
-    <>
-    <h1>hello</h1>
-    </>
-  );
+  return <RouterProvider router={AppRoutes}/>
+  
 }
 
 export default App;
