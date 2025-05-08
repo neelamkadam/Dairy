@@ -9,7 +9,7 @@ const AppButton = ({label,className,onClick,type="button",disabled=false}:Button
   return (
     <button
     type={type}
-    className={`bg-primary border-white text-white border-[1px] border-opacity-25 rounded-[900px] w-[150px] h-[47px] mt-10 ${className}`}
+    className={`bg-primary border-white text-white border-[1px] border-opacity-25 rounded-lg w-[380px] px-2.5 py-2.5 mt-10 ${className}`}
     onClick={onClick}
     disabled ={disabled}
     >

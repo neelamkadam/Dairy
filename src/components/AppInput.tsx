@@ -87,13 +87,13 @@ const AppInputField = <T extends FieldValues>({
           }
         }}
         style={{
-          fontSize: "17px",
+          fontSize: "15px",
           color: form.formState.errors[name]?.message?.toString()
             ? "#1A2435"
             : "#1A2435",
         }}
         className={cn(
-          `mt-1 block w-full px-3 py-3 border !border-[#E6E7E9] rounded-md shadow-[0px_1px_2px_0px_rgba(16,24,40,0.04)] focus:outline-none focus:ring-2 focus:ring-[#526279] sm:text-sm ${
+          `mt-1 block w-[380px] px-2.5 py-2.5 border !border-[#E6E7E9] rounded-lg shadow-[0px_1px_2px_0px_rgba(16,24,40,0.04)] focus:outline-none focus:ring-2 focus:ring-[#526279] sm:text-sm ${
             readonly ? "bg-slate-50" : "bg-white "
           }`,
           form.formState.errors[name]?.message?.toString()
