@@ -4,14 +4,10 @@ import { persistReducer, persistStore } from "redux-persist";
 import storage from "redux-persist/lib/storage"; // Import storage from redux-persist
 import { TypedUseSelectorHook, useSelector, useDispatch } from "react-redux";
 import { themeSlice } from "./themeSlice";
-import { registerUserSlice } from "./RegisterUser";
-import { searchSlice } from "./GlobalSearch";
 
 const rootReducer = combineReducers({
   authData: authDataReducer,
   theme: themeSlice,
-  registerUserData: registerUserSlice,
-  searchData: searchSlice,
 });
 
 const persistConfig = {

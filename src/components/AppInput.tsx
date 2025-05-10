@@ -7,9 +7,10 @@ import {
   UseFormReturn,
 } from "react-hook-form";
 
+
 interface InputFieldProps<T extends FieldValues> {
   name: Path<T>;
-  form: UseFormReturn<T, any, undefined>;
+  // form: UseFormReturn<T, any, undefined>;
   type?: "text" | "email" | "password" | "number" | "url";
   label?: string;
   validation?: RegisterOptions<T, Path<T>>;
@@ -18,12 +19,15 @@ interface InputFieldProps<T extends FieldValues> {
   onChange?: (event: ChangeEvent<HTMLInputElement>) => void;
   onBlure?: (event: FocusEvent<HTMLInputElement>) => void;
   maxLength?: number; // Added maxLength prop
+  form: UseFormReturn<T>;
+  className?:string;
 }
 
 const AppInputField = <T extends FieldValues>({
   name,
   type = "text",
   label,
+  className,
   validation,
   placeholder,
   form,
@@ -35,25 +39,25 @@ const AppInputField = <T extends FieldValues>({
   // Determine validation options, directly using validation object
   const validationOptions = validation
     ? {
-        ...validation,
-        required:
-          typeof validation.required === "string"
-            ? validation.required
-            : validation.required === true
+      ...validation,
+      required:
+        typeof validation.required === "string"
+          ? validation.required
+          : validation.required === true
             ? "Required"
             : undefined,
-      }
+    }
     : {};
 
   // const isError = !!form.formState.errors[name]; // Check if there's an error for this field
 
   return (
-    <div className="mb-4">
+    <div className="mb-1 ">
       {label && (
         <div className="flex space-x-1">
           <label
             htmlFor={name}
-            className="block text-sm font-medium text-[#1A2435] mb-1"
+            className="block text-sm xl:text-[15px] font-bold text-[#394557]"
           >
             {label}
           </label>
@@ -66,11 +70,8 @@ const AppInputField = <T extends FieldValues>({
         id={name}
         type={type}
         disabled={readonly}
-        placeholder={
-          form.formState.errors[name]?.message?.toString()
-            ? form.formState.errors[name]?.message?.toString()
-            : placeholder
-        }
+        placeholder={placeholder} 
+        // placeholder={form.formState.errors[name]?.message?.toString() ? form.formState.errors[name]?.message?.toString() : placeholder} 
         autoComplete="off"
         maxLength={maxLength} // Apply maxLength here
         {...form.register(name, validationOptions)}
@@ -86,18 +87,15 @@ const AppInputField = <T extends FieldValues>({
             onBlure(event);
           }
         }}
+
         style={{
-          fontSize: "15px",
-          color: form.formState.errors[name]?.message?.toString()
-            ? "#1A2435"
-            : "#1A2435",
-        }}
+          fontSize: "17px",
+          color: form.formState.errors[name]?.message?.toString() ? "black" : "#293343",
+        }} 
         className={cn(
-          `mt-1 block w-[380px] px-2.5 py-2.5 border !border-[#E6E7E9] rounded-lg shadow-[0px_1px_2px_0px_rgba(16,24,40,0.04)] focus:outline-none focus:ring-2 focus:ring-[#526279] sm:text-sm ${
-            readonly ? "bg-slate-50" : "bg-white "
-          }`,
+          `mt-1 block w-full px-3 py-3 !border-none bg-white focus:bg-[#f5f5f5] rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#526279] sm:text-sm xl:text-[18px] ${className}`,
           form.formState.errors[name]?.message?.toString()
-            ? "!border-red-500 placeholder-#ADB1B7 text-white-500 focus:ring-2 focus:ring-red-500 bg-[#fff2f4] !border-1px-sold"
+            ? "!border-red-500 placeholder-#F3F4F6 text-white-500 focus:ring-2 focus:ring-red-500 bg-[#fff2f4] !border-1px-sold"
             : ""
         )}
       />
