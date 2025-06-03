@@ -30,6 +30,7 @@ import ShiftReports from "@/pages/Reports/ShiftReports";
 import TotalCollectionReport from "@/pages/Reports/TotalCollectionReport";
 import VlcCommissionReport from "@/pages/Reports/VlcCommissionReport";
 import VlcDifferenceReport from "@/pages/Reports/VlcDifferenceReport";
+import GeneralSettings from "@/pages/Settings/GeneralSettings";
 import { createBrowserRouter } from "react-router-dom";
 
 export const AppRoutes = createBrowserRouter([
@@ -156,6 +157,10 @@ export const AppRoutes = createBrowserRouter([
         {
         path:ROUTES.REPORTS.VLC_DIFFERENCE_REPORT,
         element:<VlcDifferenceReport/>,
+        },
+        {
+        path:ROUTES.SETTINGS.GENERAL_SETTINGS,
+        element:<GeneralSettings/>,
         },
         ],
     },

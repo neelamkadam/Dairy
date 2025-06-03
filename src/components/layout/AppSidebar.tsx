@@ -80,7 +80,7 @@ const menuItems: MenuItem[] = [
     title: "Settings",
     icon: "⚙️",
     children: [
-      { title: "General Settings", icon: "", href: "/settings/general" },
+      { title: "General Settings", icon: "", href: ROUTES.SETTINGS.GENERAL_SETTINGS },
       { title: "VLC App Settings", icon: "", href: "/settings/vlc-app" }
     ]
   }

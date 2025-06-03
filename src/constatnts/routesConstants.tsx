@@ -43,5 +43,8 @@ export const ROUTES = {
     TOTAL_COLLECTION_REPORT:`/total-collection-report`,
     VLC_COMMISSION_REPORT:`/vlc-commission-report`,
     VLC_DIFFERENCE_REPORT: `/vlc-diffrerence-report`,
-  }
+  },
+  SETTINGS:{
+    GENERAL_SETTINGS:`/general-settings`,
+  },
 };

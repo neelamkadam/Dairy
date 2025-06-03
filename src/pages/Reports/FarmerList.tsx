@@ -1,11 +1,112 @@
-import React from 'react'
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useNavigate } from "react-router-dom";
+
+const farmers = [
+  { id: "001", name: "John Smith", contact: "+91 98765 43210", village: "Green Valley", userId: "RV0001" },
+  { id: "002", name: "Mary Johnson", contact: "+91 98765 43211", village: "Riverside", userId: "RV0001" },
+  { id: "003", name: "Robert Wilson", contact: "+91 98765 43212", village: "Hillside", userId: "RV0001" },
+  { id: "004", name: "Sarah Davis", contact: "+91 98765 43213", village: "Lakeside", userId: "RV0001" },
+  { id: "005", name: "Michael Brown", contact: "+91 98765 43214", village: "Mountain View", userId: "RV0001" },
+  { id: "006", name: "Emma Taylor", contact: "+91 98765 43215", village: "Sunnydale", userId: "RV0001" },
+  { id: "007", name: "James Anderson", contact: "+91 98765 43216", village: "Pine Grove", userId: "RV0001" },
+  { id: "008", name: "Patricia Martinez", contact: "+91 98765 43217", village: "Oak Ridge", userId: "RV0001" },
+  { id: "009", name: "David Thompson", contact: "+91 98765 43218", village: "Cedar Hills", userId: "RV0001" },
+  { id: "010", name: "Linda Garcia", contact: "+91 98765 43219", village: "Maple Woods", userId: "RV0001" },
+];
 
 const FarmerList = () => {
-  return (
-    <div>
-      
-    </div>
-  )
-}
+  const [selectedVlcc, setSelectedVlcc] = useState("");
+  const navigate = useNavigate();
 
-export default FarmerList
+  return (
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Farmer List</h1>
+        <p className="text-gray-600">Manage and view all farmers</p>
+      </div>
+
+      <Card>
+        <CardHeader className="pb-4">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <CardTitle>Farmers Database</CardTitle>
+            <div className="flex gap-3">
+              <Select value={selectedVlcc} onValueChange={setSelectedVlcc}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Select VLCC" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All VLCCs</SelectItem>
+                  <SelectItem value="green-valley">Green Valley VLCC</SelectItem>
+                  <SelectItem value="riverside">Riverside VLCC</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button className="bg-blue-600 hover:bg-blue-700">Show</Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Farmer ID</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Contact Number</TableHead>
+                  <TableHead>Village</TableHead>
+                  <TableHead>User ID</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {farmers.map((farmer) => (
+                  <TableRow key={farmer.id} className="hover:bg-gray-50">
+                    <TableCell className="font-medium">{farmer.id}</TableCell>
+                    <TableCell>{farmer.name}</TableCell>
+                    <TableCell>{farmer.contact}</TableCell>
+                    <TableCell>{farmer.village}</TableCell>
+                    <TableCell>{farmer.userId}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate('/passbook')}
+                        className="hover:bg-blue-50"
+                      >
+                        View PassBook
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          
+          <div className="flex items-center justify-between mt-6">
+            <p className="text-sm text-gray-600">Showing 1-10 of 100 entries</p>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm">Previous</Button>
+              <Button variant="outline" size="sm" className="bg-blue-600 text-white">1</Button>
+              <Button variant="outline" size="sm">2</Button>
+              <Button variant="outline" size="sm">3</Button>
+              <span className="text-gray-500">...</span>
+              <Button variant="outline" size="sm">10</Button>
+              <Button variant="outline" size="sm">Next</Button>
+            </div>
+          </div>
+
+          <div className="flex gap-3 mt-6">
+            <Button className="bg-blue-600 hover:bg-blue-700">Excel Export</Button>
+            <Button variant="destructive">PDF Export</Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default FarmerList;
+
