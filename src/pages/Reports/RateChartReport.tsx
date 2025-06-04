@@ -1,4 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -30,20 +29,16 @@ const RateChartReport = () => {
   const snfColumns = ["7.0", "7.1", "7.2", "7.3", "7.4", "7.5", "7.6", "7.7", "7.8", "7.9", "8.0", "8.1", "8.2", "8.3", "8.4", "8.5"];
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>VLCC Rate Chart</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
+    <div className="w-full h-screen bg-white">
+    <h1 className="p-4 text-left font-bold bg-gray-100">VLCC Rate Chart</h1>
         {/* Controls */}
-        <div className="flex flex-col sm:flex-row gap-4 items-end">
+        <div className="flex flex-col sm:flex-row gap-4 items-end bg-white p-4" >
           <div>
-            <label className="text-sm font-medium mb-2 block">Select VLCC</label>
             <Select defaultValue="select">
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="w-48 border-gray-200">
                 <SelectValue placeholder="Select VLCC" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white">
                 <SelectItem value="select">Select VLCC</SelectItem>
                 <SelectItem value="vlcc1">VLCC 1</SelectItem>
                 <SelectItem value="vlcc2">VLCC 2</SelectItem>
@@ -51,7 +46,7 @@ const RateChartReport = () => {
               </SelectContent>
             </Select>
           </div>
-          <Button className="bg-blue-600 hover:bg-blue-700">Show</Button>
+          <Button className="bg-blue-600 hover:bg-blue-700 text-white">Show</Button>
           <div className="ml-auto">
             <Button variant="outline" className="bg-blue-600 text-white hover:bg-blue-700">
               Excel Export
@@ -60,11 +55,11 @@ const RateChartReport = () => {
         </div>
 
         {/* Rate Chart Table */}
-        <div className="border rounded-lg overflow-x-auto">
-          <div className="min-w-[800px]">
+        <div className="border rounded-lg overflow-x-auto m-4">
+          <div className="min-w-[750px]">
             <table className="w-full">
               <thead>
-                <tr className="bg-gray-50 border-b">
+                <tr className="bg-gray-50 border-b ">
                   <th className="p-3 text-left font-semibold border-r">FAT/SNF</th>
                   {snfColumns.map((snf) => (
                     <th key={snf} className="p-3 text-center font-semibold border-r last:border-r-0 min-w-16">
@@ -88,9 +83,8 @@ const RateChartReport = () => {
             </table>
           </div>
         </div>
-      </CardContent>
-    </Card>
-  );
+    </div>
+  );      
 };
 
 export default RateChartReport;

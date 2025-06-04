@@ -50,6 +50,7 @@ export const AddFarmer: React.FC = () => {
                     value={formData.farmerId}
                     onChange={(e) => setFormData({...formData, farmerId: e.target.value})}
                     disabled
+                    className='border-gray-200 bg-gray-100'
                   />
                   <Label htmlFor="fullName" className='mt-3 mb-1'>Full Name<span className='text-red-600'>*</span></Label>
                   <Input
@@ -58,6 +59,7 @@ export const AddFarmer: React.FC = () => {
                     value={formData.fullName}
                     onChange={(e) => setFormData({...formData, fullName: e.target.value})}
                     required
+                    className='border-gray-200'
                   />
 
               </div>
@@ -75,7 +77,7 @@ export const AddFarmer: React.FC = () => {
                     <Input
                       id="phoneNumber"
                       placeholder="Enter phone number"
-                      className="rounded"
+                      className="rounded border-gray-200"
                       value={formData.phoneNumber}
                       onChange={(e) => setFormData({...formData, phoneNumber: e.target.value})}
                       required
@@ -88,6 +90,7 @@ export const AddFarmer: React.FC = () => {
                     placeholder="Enter email address"
                     value={formData.email}
                     onChange={(e) => setFormData({...formData, email: e.target.value})}
+                      className='border-gray-200'
                   />
 
                 <div className="md:col-span-2 mt-3 mb-1">
@@ -98,6 +101,7 @@ export const AddFarmer: React.FC = () => {
                     value={formData.address}
                     onChange={(e) => setFormData({...formData, address: e.target.value})}
                     required
+                      className='border-gray-200'
                   />
                 </div>
               </div>
@@ -112,15 +116,15 @@ export const AddFarmer: React.FC = () => {
               >
                 <div className="flex items-center space-x-6">
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="cow" id="cow" />
+                    <RadioGroupItem value="cow" id="cow" className='border-gray-300' />
                     <Label htmlFor="cow">Cow</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="buffalo" id="buffalo" />
+                    <RadioGroupItem value="buffalo" id="buffalo" className='border-gray-300' />
                     <Label htmlFor="buffalo">Buffalo</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="both" id="both" />
+                    <RadioGroupItem value="both" id="both" className='border-gray-300' />
                     <Label htmlFor="both">Both</Label>
                   </div>
                 </div>
@@ -131,7 +135,7 @@ export const AddFarmer: React.FC = () => {
             <div>
               <Label htmlFor="rateChart" className='mb-1'>Rate Chart<span className='text-red-600'>*</span></Label>
               <Select value={formData.rateChart} onValueChange={(value) => setFormData({...formData, rateChart: value})}>
-                <SelectTrigger className='bg-gray-200 w-full'>
+                <SelectTrigger className='bg-gray-100 w-full border-gray-200'>
                   <SelectValue placeholder="Select rate chart" />
                 </SelectTrigger>
                 <SelectContent className='bg-white'>
@@ -153,6 +157,7 @@ export const AddFarmer: React.FC = () => {
                     value={formData.panCard}
                     onChange={(e) => setFormData({...formData, panCard: e.target.value})}
                     required
+                    className='border-gray-200'
                   />
                   <Label htmlFor="aadhaarCard" className='mt-3 mb-1'>Aadhaar Card<span className='text-red-600'>*</span></Label>
                   <Input
@@ -161,6 +166,7 @@ export const AddFarmer: React.FC = () => {
                     value={formData.aadhaarCard}
                     onChange={(e) => setFormData({...formData, aadhaarCard: e.target.value})}
                     required
+                    className='border-gray-200'
                   />
               </div>
             </div>
@@ -171,7 +177,7 @@ export const AddFarmer: React.FC = () => {
               <div className="">
                   <Label htmlFor="bankName" className='mb-1'>Bank Name</Label>
                   <Select value={formData.bankName} onValueChange={(value) => setFormData({...formData, bankName: value})}>
-                    <SelectTrigger className='w-full bg-gray-200'>
+                    <SelectTrigger className='w-full bg-gray-100 border-gray-200'>
                       <SelectValue placeholder="Select bank" />
                     </SelectTrigger>
                     <SelectContent className='bg-white'>
@@ -187,6 +193,7 @@ export const AddFarmer: React.FC = () => {
                     placeholder="Enter account number"
                     value={formData.accountNumber}
                     onChange={(e) => setFormData({...formData, accountNumber: e.target.value})}
+                    className='border-gray-200'
                   />
                   <Label htmlFor="ifscCode" className='mt-3 mb-1'>IFSC Code</Label>
                   <Input
@@ -194,11 +201,12 @@ export const AddFarmer: React.FC = () => {
                     placeholder="ENTER IFSC CODE"
                     value={formData.ifscCode}
                     onChange={(e) => setFormData({...formData, ifscCode: e.target.value})}
+                    className='border-gray-200'
                   />
               </div>
             </div>
 
-            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
+            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white">
               Submit
             </Button>
           </form>

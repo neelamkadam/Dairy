@@ -1,13 +1,21 @@
-
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { CalendarIcon, X, ChevronRight, ChevronLeft } from "lucide-react";
 import { useState } from "react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -17,161 +25,261 @@ const FarmerCollection = () => {
   const [toDate, setToDate] = useState<Date>();
 
   const collectionReportData = [
-    { date: "2025-04-22", farmerId: "001", name: "John", liter: "20.5", kg: "19.5", fat: "3.5", snf: "6.5", clr: "29", milkType: "COW", userId: "RV0001", shift: "Morning", rate: "32", amount: "640 /-" }
+    {
+      date: "2025-04-22",
+      farmerId: "001",
+      name: "John",
+      liter: "20.5",
+      kg: "19.5",
+      fat: "3.5",
+      snf: "6.5",
+      clr: "29",
+      milkType: "COW",
+      userId: "RV0001",
+      shift: "Morning",
+      rate: "32",
+      amount: "640 /-",
+    },
   ];
 
   return (
-    <div className="p-6">
-
-      <Tabs defaultValue="collection" className="w-full">
-        <TabsContent value="collection" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Farmer Collection Report</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="VLC Name" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="green-valley">Green Valley</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Milk Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cow">Cow</SelectItem>
-                    <SelectItem value="buffalo">Buffalo</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Shift" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="morning">Morning</SelectItem>
-                    <SelectItem value="evening">Evening</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Button className="bg-blue-600 hover:bg-blue-700">Submit</Button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">From Date</label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !fromDate && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {fromDate ? format(fromDate, "dd-MM-yyyy") : "Select date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={fromDate}
-                        onSelect={setFromDate}
-                        initialFocus
-                        className="pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
+    <>
+      <div className="">
+        <div className="grid grid-cols-2 p-2 bg-white">
+          <h1 className="text-left  p-2">Farmer Collection Report</h1>
+          <span className="flex justify-end mt-2">
+            <X size={20} strokeWidth={1.5} />
+          </span>
+        </div>
+        <hr className="text-gray-300" />
+        <Tabs defaultValue="collection" className="w-full border-none">
+          <TabsContent value="collection" className="space-y-6">
+            <Card className="border-none w-[85%] m-auto mt-5 bg-white text-left">
+              <CardHeader className="text-black text-[20px] font-bold">
+                User Info
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                  <div>
+                    <label className="text-sm font-medium">VLC Name</label>
+                    <Select>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="All" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All</SelectItem>
+                        <SelectItem value="green-valley">
+                          Green Valley
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Milk Type</label>
+                    <Select>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Cow" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cow">Cow</SelectItem>
+                        <SelectItem value="buffalo">Buffalo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Shift</label>
+                    <Select>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Morning" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="morning">Morning</SelectItem>
+                        <SelectItem value="evening">Evening</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">To Date</label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !toDate && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {toDate ? format(toDate, "dd-MM-yyyy") : "Select date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={toDate}
-                        onSelect={setToDate}
-                        initialFocus
-                        className="pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">From Date</label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !fromDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {fromDate
+                            ? format(fromDate, "dd-MM-yyyy")
+                            : "Select date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={fromDate}
+                          onSelect={setFromDate}
+                          initialFocus
+                          className="pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">To Date</label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !toDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {toDate
+                            ? format(toDate, "dd-MM-yyyy")
+                            : "Select date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={toDate}
+                          onSelect={setToDate}
+                          initialFocus
+                          className="pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
+                <Button className="bg-blue-600 hover:bg-blue-700 w-full text-white">
+                  Submit
+                </Button>
+              </CardContent>
+            </Card>
+            <div className="overflow-x-auto mt-10 p-5">
+              <table className="table-auto border-collapse border border-gray-300 w-full">
+                <thead className="bg-gray-200">
+                  <tr>
+                    <th className="border border-gray-300 px-4 py-2">Date</th>
+                    <th className="border border-gray-300 px-4 py-2">
+                      Farmer Id
+                    </th>
+                    <th className="border border-gray-300 px-4 py-2">Name</th>
+                    <th className="border border-gray-300 px-4 py-2">Liter</th>
+                    <th className="border border-gray-300 px-4 py-2">Kg</th>
+                    <th className="border border-gray-300 px-4 py-2">Fat</th>
+                    <th className="border border-gray-300 px-4 py-2">Snf</th>
+                    <th className="border border-gray-300 px-4 py-2">Clr</th>
+                    <th className="border border-gray-300 px-4 py-2">
+                      Milk Type
+                    </th>
+                    <th className="border border-gray-300 px-4 py-2">
+                      User Id
+                    </th>
+                    <th className="border border-gray-300 px-4 py-2">Shift</th>
+                    <th className="border border-gray-300 px-4 py-2">Rate</th>
+                    <th className="border border-gray-300 px-4 py-2">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {collectionReportData.map((row, index) => (
+                    <tr key={index}>
+                      <td className="border border-gray-300 px-4 py-2">
+                        {row.date}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        {row.farmerId}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        {row.name}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        {row.liter}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        {row.kg}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        {row.fat}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        {row.snf}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        {row.clr}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        {row.milkType}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        {row.userId}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        {row.shift}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        {row.rate}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        {row.amount}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* Pagination */}
+            <div className="flex justify-center gap-2">
+              <ChevronLeft
+                size={20}
+                strokeWidth={1.5}
+                className="border border-gray-300"
+              />
+              <ChevronRight
+                size={20}
+                strokeWidth={1.5}
+                className="border border-gray-300"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3 mt-25 p-5">
+              <div className="flex gap-4 justify-start">
+                <div className="text-sm text-gray-600 mt-2">
+                  Record Count: 1 - 0 of 0
+                </div>
+                <span className="text-sm text-gray-600 mt-2">Result per page:</span>
+                <Select defaultValue="100">
+                  <SelectTrigger className="w-20 border-gray-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="100">100</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Farmer Id</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Liter</TableHead>
-                      <TableHead>Kg</TableHead>
-                      <TableHead>Fat</TableHead>
-                      <TableHead>Snf</TableHead>
-                      <TableHead>Clr</TableHead>
-                      <TableHead>Milk Type</TableHead>
-                      <TableHead>User Id</TableHead>
-                      <TableHead>Shift</TableHead>
-                      <TableHead>Rate</TableHead>
-                      <TableHead>Amount</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {collectionReportData.map((row, index) => (
-                      <TableRow key={index}>
-                        <TableCell>{row.date}</TableCell>
-                        <TableCell>{row.farmerId}</TableCell>
-                        <TableCell>{row.name}</TableCell>
-                        <TableCell>{row.liter}</TableCell>
-                        <TableCell>{row.kg}</TableCell>
-                        <TableCell>{row.fat}</TableCell>
-                        <TableCell>{row.snf}</TableCell>
-                        <TableCell>{row.clr}</TableCell>
-                        <TableCell>{row.milkType}</TableCell>
-                        <TableCell>{row.userId}</TableCell>
-                        <TableCell>{row.shift}</TableCell>
-                        <TableCell>{row.rate}</TableCell>
-                        <TableCell>{row.amount}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+              <div className="flex gap-3 justify-end">
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                  Excel Export
+                </Button>
+                <Button variant="outline" className="bg-red-500 text-white">
+                  PDF Export
+                </Button>
               </div>
-
-              <div className="flex gap-3 mt-6">
-                <Button className="bg-blue-600 hover:bg-blue-700">Excel Export</Button>
-                <Button variant="destructive">PDF Export</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </>
   );
 };
 
 export default FarmerCollection;
-
