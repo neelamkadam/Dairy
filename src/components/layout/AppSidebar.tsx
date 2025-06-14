@@ -150,7 +150,7 @@ const AppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
       isOpen ? "w-64" : "w-16"
     )}>
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex items-center justify-between p-4.5 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
             <span className="text-white text-lg">💧</span>

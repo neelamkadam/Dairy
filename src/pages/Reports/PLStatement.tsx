@@ -2,6 +2,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import PrintIcon from '@mui/icons-material/Print';
+import AutorenewIcon from '@mui/icons-material/Autorenew';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 
 const PLStatement = () => {
   const reportData = [
@@ -62,75 +65,72 @@ const PLStatement = () => {
   ];
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Profit/Loss Report</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Date Range Controls */}
-        <div className="flex flex-col sm:flex-row gap-4 items-end">
+   <>
+   <div className="w-full h-screen bg-white">
+   <h1 className="font-bold text-left text-lg p-4">Profit/Loss Report</h1>
+      {/* Date Range Controls */}
+        <div className="flex flex-col sm:flex-row gap-4 items-end p-4">
           <div className="flex gap-4 items-center">
-            <Input type="date" defaultValue="2024-01-01" />
+            <Input type="date" defaultValue="2024-01-01" className="border-gray-200" />
             <span>-</span>
-            <Input type="date" defaultValue="2024-01-10" />
+            <Input type="date" className="border-gray-200"  defaultValue="2024-01-10" />
           </div>
-          <Button className="bg-blue-600 hover:bg-blue-700">Show Report</Button>
+          <Button className="bg-blue-600 hover:bg-blue-700 text-white">Show Report</Button>
           <div className="ml-auto flex gap-2">
-            <Button variant="outline" className="text-red-600 border-red-600 hover:bg-red-50">
-              PDF
+            <Button variant="default" className=" bg-gray-200 hover:bg-red-50">
+              <PictureAsPdfIcon className="text-red-500"/>PDF
             </Button>
-            <Button variant="outline" className="text-green-600 border-green-600 hover:bg-green-50">
+            <Button variant="default" className="bg-gray-200 hover:bg-green-50">
               Excel
             </Button>
-            <Button variant="outline">Print</Button>
-            <Button variant="outline">Refresh</Button>
+            <Button variant="default" className="bg-gray-200"><PrintIcon className="text-gray-700"/>Print</Button>
+            <Button variant="default" className="bg-gray-200"><AutorenewIcon className="text-gray-700"/>Refresh</Button>
           </div>
         </div>
-
         {/* Data Table */}
-        <div className="border rounded-lg overflow-x-auto">
+        <div className="border border-gray-200 rounded-lg overflow-x-auto m-4">
           <div className="min-w-[1200px]">
             <Table>
               <TableHeader>
                 <TableRow className="bg-gray-50">
-                  <TableHead className="whitespace-nowrap">Bill period</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">no of vlc</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">vlc collection</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">vlc amount</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">vlc commission</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">total amount</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">dispatch in liter</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">amount</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">P/L</TableHead>
+                  <TableHead className="text-left whitespace-nowrap font-semibold">Bill period</TableHead>
+                  <TableHead className="text-right whitespace-nowrap font-semibold">no of vlc</TableHead>
+                  <TableHead className="text-right whitespace-nowrap font-semibold">vlc collection</TableHead>
+                  <TableHead className="text-right whitespace-nowrap font-semibold">vlc amount</TableHead>
+                  <TableHead className="text-right whitespace-nowrap font-semibold">vlc commission</TableHead>
+                  <TableHead className="text-right whitespace-nowrap font-semibold">total amount</TableHead>
+                  <TableHead className="text-right whitespace-nowrap font-semibold">dispatch in liter</TableHead>
+                  <TableHead className="text-right whitespace-nowrap font-semibold">amount</TableHead>
+                  <TableHead className="text-right whitespace-nowrap font-semibold">P/L</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {reportData.map((row, index) => (
                   <TableRow key={index} className="hover:bg-gray-50">
-                    <TableCell className="font-medium">{row.billPeriod}</TableCell>
-                    <TableCell className="text-center">{row.noOfVlc}</TableCell>
-                    <TableCell className="text-center">{row.vlcCollection}</TableCell>
-                    <TableCell className="text-center">{row.vlcAmount}</TableCell>
-                    <TableCell className="text-center">{row.vlcCommission}</TableCell>
-                    <TableCell className="text-center">{row.totalAmount}</TableCell>
-                    <TableCell className="text-center">{row.dispatchInLiter}</TableCell>
-                    <TableCell className="text-center">{row.amount}</TableCell>
-                    <TableCell className={`text-center font-semibold ${row.profitLossClass}`}>
+                    <TableCell className="font-medium text-left">{row.billPeriod}</TableCell>
+                    <TableCell className="text-right">{row.noOfVlc}</TableCell>
+                    <TableCell className="text-right">{row.vlcCollection}</TableCell>
+                    <TableCell className="text-right">{row.vlcAmount}</TableCell>
+                    <TableCell className="text-right">{row.vlcCommission}</TableCell>
+                    <TableCell className="text-right">{row.totalAmount}</TableCell>
+                    <TableCell className="text-right">{row.dispatchInLiter}</TableCell>
+                    <TableCell className="text-right">{row.amount}</TableCell>
+                    <TableCell className={`text-right font-semibold ${row.profitLossClass}`}>
                       {row.profitLoss}
                     </TableCell>
                   </TableRow>
                 ))}
                 {/* Total Row */}
                 <TableRow className="bg-gray-100 font-semibold">
-                  <TableCell>Total</TableCell>
-                  <TableCell className="text-center">{totals.noOfVlc}</TableCell>
-                  <TableCell className="text-center">{totals.vlcCollection}</TableCell>
-                  <TableCell className="text-center">{totals.vlcAmount}</TableCell>
-                  <TableCell className="text-center">{totals.vlcCommission}</TableCell>
-                  <TableCell className="text-center">{totals.totalAmount}</TableCell>
-                  <TableCell className="text-center">{totals.dispatchInLiter}</TableCell>
-                  <TableCell className="text-center">{totals.amount}</TableCell>
-                  <TableCell className="text-center text-green-600">{totals.profitLoss}</TableCell>
+                  <TableCell className="text-left">Total</TableCell>
+                  <TableCell className="text-right">{totals.noOfVlc}</TableCell>
+                  <TableCell className="text-right">{totals.vlcCollection}</TableCell>
+                  <TableCell className="text-right">{totals.vlcAmount}</TableCell>
+                  <TableCell className="text-right">{totals.vlcCommission}</TableCell>
+                  <TableCell className="text-right">{totals.totalAmount}</TableCell>
+                  <TableCell className="text-right">{totals.dispatchInLiter}</TableCell>
+                  <TableCell className="text-right">{totals.amount}</TableCell>
+                  <TableCell className="text-right text-green-600">{totals.profitLoss}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -138,11 +138,11 @@ const PLStatement = () => {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 m-4">
           {summaryCards.map((card, index) => (
-            <Card key={index} className="bg-gray-50">
+            <Card key={index} className="border border-gray-200 bg-gray-50" >
               <CardContent className="p-4">
-                <div className="text-center">
+                <div className="text-left">
                   <p className="text-sm text-gray-600 mb-1">{card.title}</p>
                   <p className={`text-xl font-bold ${card.color || 'text-gray-900'}`}>
                     {card.value}
@@ -152,8 +152,8 @@ const PLStatement = () => {
             </Card>
           ))}
         </div>
-      </CardContent>
-    </Card>
+    </div>
+   </>
   );
 };
 

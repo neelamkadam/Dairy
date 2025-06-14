@@ -154,7 +154,7 @@ const GeneralSettings = () => {
               Select VLC
             </label>
             <Select>
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full border border-gray-200">
                 <SelectValue placeholder="Select VLC" />
               </SelectTrigger>
               <SelectContent className="bg-white">

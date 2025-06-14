@@ -118,10 +118,10 @@ const FarmerList = () => {
           Show
         </Button>
       </div>
-      <div className="border border-gray-200 rounded-lg p-2">
+      <div className="border border-gray-200 rounded-lg">
         <Table className="">
-          <TableHeader className="">
-            <TableRow className="bg-gray-200">
+          <TableHeader className="bg-gray-200">
+            <TableRow className="">
               <TableHead>Farmer ID</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Contact Number</TableHead>
@@ -132,16 +132,16 @@ const FarmerList = () => {
           <TableBody>
             {farmers.map((farmer) => (
               <TableRow key={farmer.id} className="hover:bg-gray-50">
-                <TableCell className="font-medium">{farmer.id}</TableCell>
-                <TableCell>{farmer.name}</TableCell>
-                <TableCell>{farmer.contact}</TableCell>
-                <TableCell>{farmer.village}</TableCell>
-                <TableCell>{farmer.userId}</TableCell>
+                <TableCell className="font-medium border border-gray-300">{farmer.id}</TableCell>
+                <TableCell className="border border-gray-300">{farmer.name}</TableCell>
+                <TableCell className="border border-gray-300">{farmer.contact}</TableCell>
+                <TableCell className="border border-gray-300">{farmer.village}</TableCell>
+                <TableCell className="border border-gray-300">{farmer.userId}</TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4">
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600">
               Showing 1-10 of 50 items

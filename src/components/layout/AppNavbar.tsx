@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Bell, LogOut, Sun, Moon,User } from "lucide-react";
+import { Search, Bell, LogOut, Sun, Moon, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -14,6 +14,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import AppDropdown from "../ui/AppDropdown";
 import { useTranslation } from "react-i18next";
+import {CircleUser} from "lucide-react";
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 
 interface NavbarProps {
   theme: "light" | "dark";
@@ -22,7 +24,7 @@ interface NavbarProps {
 
 const AppNavbar = ({}: NavbarProps) => {
   const [searchQuery, setSearchQuery] = useState("");
-  const[selectedLang, setSelectedLang] =useState("English");
+  const [selectedLang, setSelectedLang] = useState("English");
   const [notifications] = useState([
     { id: 1, title: "New milk collection entry", time: "2 min ago" },
     { id: 2, title: "Payment reminder", time: "10 min ago" },
@@ -36,20 +38,20 @@ const AppNavbar = ({}: NavbarProps) => {
   };
 
   const languages = [
-    { key: 'en', value: 'English' },
-    { key: 'hi', value: 'Hindi' },
-    { key: 'mr', value: 'Marathi' },
+    { key: "en", value: "English" },
+    { key: "hi", value: "Hindi" },
+    { key: "mr", value: "Marathi" },
   ];
-   const handleItemSelect = (key:any,value:any) => {
+  const handleItemSelect = (key: any, value: any) => {
     console.log(`Selected item: ${key} ${value}`);
     setSelectedLang(value);
     i18n.changeLanguage(key);
   };
   return (
     <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-1">
         {/* Search */}
-        <div className="flex items-center gap-4 flex-1 max-w-md">
+        <div className="flex items-center gap-4 flex-1 max-w-full sm:max-w-md w-full">
           <div className="relative flex-1">
             <Search
               className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
@@ -60,37 +62,27 @@ const AppNavbar = ({}: NavbarProps) => {
               placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+              className="pl-10 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 w-full"
             />
           </div>
         </div>
 
         {/* Right side actions */}
-        <div className="flex items-center gap-4">
-          {/* Theme Toggle */}
-          {/* <Button
-            variant="ghost"
-            size="sm"
-            onClick={onThemeToggle}
-            className="p-2"
-          >
-            {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
-          </Button> */}
-
-          {/* Lacalization */}
+        <div className="flex items-center gap-1 flex-wrap justify-end w-full sm:w-auto">
+          {/* Localization */}
           <AppDropdown
-            triggerText={selectedLang} 
+            triggerText={selectedLang}
             menuItems={languages}
             onItemSelect={handleItemSelect}
-            className=""
           />
+
           {/* Notifications */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="relative p-2">
                 <Bell size={20} />
                 {notifications.length > 0 && (
-                  <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
+                  <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full flex items-center justify-center text-xs">
                     {notifications.length}
                   </Badge>
                 )}
@@ -118,50 +110,21 @@ const AppNavbar = ({}: NavbarProps) => {
             </DropdownMenuContent>
           </DropdownMenu>
 
+          <Button variant="ghost" className="flex items-center gap-1">
+            <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline">Logout</span>
+          </Button>
           {/* User Profile */}
           <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="flex items-center gap-2 hover:bg-gray-50">
-              <LogOut className="h-4 w-4" />
-              Logout
-              <User className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-48 bg-white">
-            <DropdownMenuItem>Profile</DropdownMenuItem>
-            <DropdownMenuItem>Settings</DropdownMenuItem>
-            <DropdownMenuItem>Sign out</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-          {/* <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src="/avatar.png" alt="User" />
-                  <AvatarFallback>AD</AvatarFallback>
-                </Avatar>
-              </Button>
+                <AccountCircleIcon color="action" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end" forceMount>
-              <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">Admin User</p>
-                  <p className="text-xs leading-none text-muted-foreground">
-                    admin@dairyflow.com
-                  </p>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>Profile Settings</DropdownMenuItem>
-              <DropdownMenuItem>Billing</DropdownMenuItem>
-              <DropdownMenuItem>Team</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout} className="text-red-600">
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Log out</span>
-              </DropdownMenuItem>
+            <DropdownMenuContent className="w-40 mr-5 border-gray-300 bg-white">
+              <DropdownMenuItem>Profile</DropdownMenuItem>
+              <DropdownMenuItem>Settings</DropdownMenuItem>
+              <DropdownMenuItem>Sign out</DropdownMenuItem>
             </DropdownMenuContent>
-          </DropdownMenu> */}
+          </DropdownMenu>
         </div>
       </div>
     </header>

@@ -29,7 +29,7 @@ const TotalCollectionReport = () => {
             <div>
               <Label className="mb-1">VLCC Name</Label>
               <Select defaultValue="select">
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full border-gray-200">
                   <SelectValue placeholder="Select VLCC" />
                 </SelectTrigger>
                 <SelectContent className="bg-white">
@@ -41,12 +41,12 @@ const TotalCollectionReport = () => {
             </div>
             <div>
               <Label className="mb-1">From Date</Label>
-              <Input type="date" placeholder="yyyy / mm / dd" />
+              <Input type="date" placeholder="yyyy / mm / dd" className="border-gray-200"/>
             </div>
             <div>
               <Label className="mb-1">Shift Type</Label>
               <Select defaultValue="select">
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full border-gray-200">
                   <SelectValue placeholder="Select shift" />
                 </SelectTrigger>
                 <SelectContent className="bg-white">
@@ -58,12 +58,12 @@ const TotalCollectionReport = () => {
             </div>
             <div>
               <Label className="mb-1">Till Date</Label>
-              <Input type="date" placeholder="yyyy / mm / dd" />
+              <Input type="date" placeholder="yyyy / mm / dd" className="border-gray-200" />
             </div>
             <div>
               <Label className="mb-1">Shift Type</Label>
               <Select defaultValue="select">
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full border-gray-200">
                   <SelectValue placeholder="Select shift" />
                 </SelectTrigger>
                 <SelectContent className="bg-white">
@@ -77,7 +77,7 @@ const TotalCollectionReport = () => {
 
           <div className="flex justify-between items-center p-3">
             <Select defaultValue="select">
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="w-48 border-gray-200">
                 <SelectValue placeholder="Select milk type" />
               </SelectTrigger>
               <SelectContent className="bg-white">
@@ -87,7 +87,7 @@ const TotalCollectionReport = () => {
               </SelectContent>
             </Select>
             <div className="flex gap-2">
-              <Button variant="outline" className="flex items-center gap-2">
+              <Button variant="outline" className="flex items-center gap-2 border-gray-300">
                 <Download className="h-4 w-4" />
                 Export
               </Button>

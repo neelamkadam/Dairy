@@ -63,10 +63,10 @@ const FarmerCollection = () => {
                   <div>
                     <label className="text-sm font-medium">VLC Name</label>
                     <Select>
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full border border-gray-200">
                         <SelectValue placeholder="All" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-white">
                         <SelectItem value="all">All</SelectItem>
                         <SelectItem value="green-valley">
                           Green Valley
@@ -77,10 +77,10 @@ const FarmerCollection = () => {
                   <div>
                     <label className="text-sm font-medium">Milk Type</label>
                     <Select>
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full border-gray-200">
                         <SelectValue placeholder="Cow" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-white">
                         <SelectItem value="cow">Cow</SelectItem>
                         <SelectItem value="buffalo">Buffalo</SelectItem>
                       </SelectContent>
@@ -89,10 +89,10 @@ const FarmerCollection = () => {
                   <div>
                     <label className="text-sm font-medium">Shift</label>
                     <Select>
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full border-gray-200">
                         <SelectValue placeholder="Morning" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-white">
                         <SelectItem value="morning">Morning</SelectItem>
                         <SelectItem value="evening">Evening</SelectItem>
                       </SelectContent>
@@ -108,7 +108,7 @@ const FarmerCollection = () => {
                         <Button
                           variant="outline"
                           className={cn(
-                            "w-full justify-start text-left font-normal",
+                            "w-full justify-start text-left font-normal border-gray-200",
                             !fromDate && "text-muted-foreground"
                           )}
                         >
@@ -124,7 +124,7 @@ const FarmerCollection = () => {
                           selected={fromDate}
                           onSelect={setFromDate}
                           initialFocus
-                          className="pointer-events-auto"
+                          className="pointer-events-auto bg-white"
                         />
                       </PopoverContent>
                     </Popover>
@@ -137,7 +137,7 @@ const FarmerCollection = () => {
                         <Button
                           variant="outline"
                           className={cn(
-                            "w-full justify-start text-left font-normal",
+                            "w-full justify-start text-left font-normal border-gray-200",
                             !toDate && "text-muted-foreground"
                           )}
                         >
@@ -153,7 +153,7 @@ const FarmerCollection = () => {
                           selected={toDate}
                           onSelect={setToDate}
                           initialFocus
-                          className="pointer-events-auto"
+                          className="pointer-events-auto bg-white"
                         />
                       </PopoverContent>
                     </Popover>
