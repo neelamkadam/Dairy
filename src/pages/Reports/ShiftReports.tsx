@@ -34,7 +34,7 @@ import {
 import { cn } from "@/lib/utils";
 import SwapVertIcon from "@mui/icons-material/SwapVert";
 
-const ShiftReports = () => {
+const ShiftReports:React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
@@ -86,15 +86,6 @@ const ShiftReports = () => {
       total: 60619.5,
     },
   ];
-
-  const summaryStats = {
-    totalQuantity: 5000,
-    averageFat: 20,
-    averageSNF: 25,
-    averageCLR: 100,
-    averageRate: 45.75,
-    totalAmount: 50000.0,
-  };
   const totals = {
     quantity: 5000,
     avgFat: 20,

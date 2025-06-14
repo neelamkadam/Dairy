@@ -21,8 +21,6 @@ import { Separator } from "@/components/ui/separator";
 import {
   ArrowLeft,
   User,
-  Clock,
-  Calendar as CalendarIcon,
   Save,
 } from "lucide-react";
 import { cn } from "@/lib/utils";

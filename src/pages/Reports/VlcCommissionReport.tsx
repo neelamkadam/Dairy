@@ -1,5 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -29,8 +28,8 @@ import { format } from "date-fns";
 
 const VlcCommissionReport = () => {
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const totalPages = Math.ceil(50 / itemsPerPage);
+  // const [itemsPerPage, setItemsPerPage] = useState(10);
+  const totalPages = Math.ceil(50 / 10);
 
   const vlccCommissionData = [
     {

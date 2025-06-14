@@ -49,8 +49,8 @@ const BMCCllection = () => {
   const [toDate, setToDate] = useState<Date>();
   const [fromDate, setFromDate] = useState<Date>();
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const totalPages = Math.ceil(50 / itemsPerPage);
+  // const [itemsPerPage, setItemsPerPage] = useState(10);
+  const totalPages = Math.ceil(50 / 10);
 
   const vlccData: VLCCData[] = [
     {
@@ -76,22 +76,6 @@ const BMCCllection = () => {
       totalMilkKg: 30,
       milkType: "Cow",
       status: "Active",
-    },
-  ];
-
-  const stats = [
-    { label: "Total Farmers", value: "42", icon: Users, color: "bg-blue-500" },
-    {
-      label: "Active Farmers",
-      value: "38",
-      icon: TrendingUp,
-      color: "bg-green-500",
-    },
-    {
-      label: "New This Month",
-      value: "5",
-      icon: Users,
-      color: "bg-orange-500",
     },
   ];
 

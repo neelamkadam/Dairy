@@ -33,7 +33,7 @@ const PaymentSummaryReport = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [vlcName, setVlcName] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(10);
+    // const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Sample farmer data matching the wireframe
   const farmersData = [
@@ -104,7 +104,7 @@ const PaymentSummaryReport = () => {
   const totalFinalAmount = 11338.0;
   const remainingBalance = 3000.0;
 
-  const totalPages = Math.ceil(50 / itemsPerPage); 
+  const totalPages = Math.ceil(50 / 10); 
   return (
     <div className="min-h-screen bg-white">
       <div className="max-w-7xl mx-auto">

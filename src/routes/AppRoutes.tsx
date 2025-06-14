@@ -1,6 +1,6 @@
 import AppLayout from "@/components/layout/AppLayout";
 import { ROUTES } from "@/constatnts/routesConstants";
-import Login from "@/pages/Auth/Login";
+import Login from "@/pages/Auth/LogIn";
 import ResetPassword from "@/pages/Auth/ResetPassword";
 import SignUp from "@/pages/Auth/SignUp";
 import FarmerDeduction from "@/pages/Billing/FarmerDeduction";

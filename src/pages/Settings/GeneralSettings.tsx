@@ -26,10 +26,8 @@ import {
   Layers,
   Printer,
 } from "lucide-react";
-import { useState } from "react";
 
 const GeneralSettings = () => {
- const [isActive, setIsActive] = useState(false);
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-white">

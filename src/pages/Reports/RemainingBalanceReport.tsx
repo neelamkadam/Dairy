@@ -22,7 +22,7 @@ import { Search } from "lucide-react";
 
 const RemainingBalanceReport = () => {
   const [searchTerm, setSearchTerm] = useState("");
-
+  console.log(setSearchTerm);
   const farmers = [
     { id: "F001", name: "John Smith", balance: 1500.0 },
     { id: "F002", name: "Emma Wilson", balance: 2300.5 },

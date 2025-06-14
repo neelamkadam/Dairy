@@ -1,4 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -56,8 +55,8 @@ const passBookData = [
 
 const FarmerPassbook = () => {
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const totalPages = Math.ceil(50 / itemsPerPage);
+  // const [itemsPerPage, setItemsPerPage] = useState(10);
+  const totalPages = Math.ceil(50 / 10);
   return (
     <div className="bg-white">
       <div className="mb-6 ">

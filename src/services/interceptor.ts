@@ -2,7 +2,7 @@ import axios, { AxiosInstance } from "axios";
 import { toast } from "react-toastify";
 import { getTokenFromLocalStorage } from "@/lib/common-utils";
 import { TOASTER_CONFIG } from "@/constatnts/commonConstants";
-import { ENV_VARIABLES } from "./Config";
+import { ENV_VARIABLES } from "./config";
 
 const AxiosClient: AxiosInstance = axios.create({
   baseURL: ENV_VARIABLES.API_BASE,

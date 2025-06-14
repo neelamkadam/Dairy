@@ -1,9 +1,7 @@
-import { useState, useEffect, Children } from "react";
+import { useState,} from "react";
 import AppNavbar from "./AppNavbar";
 import AppSidebar from "./AppSidebar";
 import { Outlet } from "react-router-dom";
-import Dashboard from "@/pages/Dashboard/Dashboard";
-import VLCCollectionEntry from "@/pages/CollectionEntry/VLCCollectionEntry";
 
 
 const AppLayout = () => {

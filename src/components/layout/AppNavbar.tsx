@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Bell, LogOut, Sun, Moon, User } from "lucide-react";
+import { Search, Bell, LogOut} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -14,7 +14,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import AppDropdown from "../ui/AppDropdown";
 import { useTranslation } from "react-i18next";
-import {CircleUser} from "lucide-react";
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 
 interface NavbarProps {
@@ -32,10 +31,10 @@ const AppNavbar = ({}: NavbarProps) => {
   ]);
 
   const { i18n } = useTranslation();
-  const handleLogout = () => {
-    console.log("Logging out...");
-    // Add logout logic here
-  };
+  // const handleLogout = () => {
+  //   console.log("Logging out...");
+  //   // Add logout logic here
+  // };
 
   const languages = [
     { key: "en", value: "English" },

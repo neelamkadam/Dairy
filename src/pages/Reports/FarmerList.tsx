@@ -94,8 +94,8 @@ const farmers = [
 const FarmerList = () => {
   const [selectedVlcc, setSelectedVlcc] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const totalPages = Math.ceil(50 / itemsPerPage);
+  // const [itemsPerPage, setItemsPerPage] = useState(10);
+  const totalPages = Math.ceil(50 / 10);
 
   return (
     <div className="p-6 text-left">
