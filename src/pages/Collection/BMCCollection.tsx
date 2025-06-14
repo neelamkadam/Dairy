@@ -137,11 +137,10 @@ const BMCCllection = () => {
           >
             <CardContent className="p-4">
               <div className="grid grid-cols-2 items-center text-left gap-2">
-                {/* Label */}
                 <p className="text-sm font-medium text-gray-800 opacity-90">
                   {stat.label}
                 </p>
-                {/* Icon */}
+                {/* Icon l */}
                 <stat.icon className="h-6 w-6 text-blue-600 opacity-80 justify-self-end" />
                 {/* Value */}
                 <p className="text-2xl font-bold  mt-4">
