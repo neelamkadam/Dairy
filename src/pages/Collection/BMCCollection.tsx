@@ -140,7 +140,7 @@ const BMCCllection = () => {
                 <p className="text-sm font-medium text-gray-800 opacity-90">
                   {stat.label}
                 </p>
-                {/* Icon l */}
+                {/* Icon */}
                 <stat.icon className="h-6 w-6 text-blue-600 opacity-80 justify-self-end" />
                 {/* Value */}
                 <p className="text-2xl font-bold  mt-4">
