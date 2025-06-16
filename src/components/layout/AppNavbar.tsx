@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { Search, Bell, LogOut} from "lucide-react";
+import { Bell} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
 import {
   DropdownMenu,
@@ -15,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import AppDropdown from "../ui/AppDropdown";
 import { useTranslation } from "react-i18next";
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import { useNavigate } from "react-router-dom";
+import { ROUTES } from "@/constatnts/routesConstants";
 
 interface NavbarProps {
   theme: "light" | "dark";
@@ -22,13 +23,13 @@ interface NavbarProps {
 }
 
 const AppNavbar = ({}: NavbarProps) => {
-  const [searchQuery, setSearchQuery] = useState("");
   const [selectedLang, setSelectedLang] = useState("English");
   const [notifications] = useState([
     { id: 1, title: "New milk collection entry", time: "2 min ago" },
     { id: 2, title: "Payment reminder", time: "10 min ago" },
     { id: 3, title: "Rate chart updated", time: "1 hour ago" },
   ]);
+  const navigate = useNavigate();
 
   const { i18n } = useTranslation();
   // const handleLogout = () => {
@@ -46,12 +47,16 @@ const AppNavbar = ({}: NavbarProps) => {
     setSelectedLang(value);
     i18n.changeLanguage(key);
   };
+
+  const handleSignOut =() =>{
+    navigate(ROUTES.AUTH.LOGIN);
+  }
   return (
     <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
       <div className="flex flex-wrap items-center justify-between gap-1">
         {/* Search */}
         <div className="flex items-center gap-4 flex-1 max-w-full sm:max-w-md w-full">
-          <div className="relative flex-1">
+          {/* <div className="relative flex-1">
             <Search
               className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
               size={18}
@@ -63,7 +68,7 @@ const AppNavbar = ({}: NavbarProps) => {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 w-full"
             />
-          </div>
+          </div> */}
         </div>
 
         {/* Right side actions */}
@@ -108,11 +113,6 @@ const AppNavbar = ({}: NavbarProps) => {
               )}
             </DropdownMenuContent>
           </DropdownMenu>
-
-          <Button variant="ghost" className="flex items-center gap-1">
-            <LogOut className="h-4 w-4" />
-            <span className="hidden sm:inline">Logout</span>
-          </Button>
           {/* User Profile */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -121,7 +121,7 @@ const AppNavbar = ({}: NavbarProps) => {
             <DropdownMenuContent className="w-40 mr-5 border-gray-300 bg-white">
               <DropdownMenuItem>Profile</DropdownMenuItem>
               <DropdownMenuItem>Settings</DropdownMenuItem>
-              <DropdownMenuItem>Sign out</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleSignOut}>Sign out</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

@@ -21,6 +21,7 @@ interface InputFieldProps<T extends FieldValues> {
   maxLength?: number; // Added maxLength prop
   form: UseFormReturn<T>;
   className?:string;
+  isError?:boolean
 }
 
 const AppInputField = <T extends FieldValues>({
@@ -35,6 +36,7 @@ const AppInputField = <T extends FieldValues>({
   onChange,
   onBlure,
   maxLength, // Destructure maxLength
+  isError = false
 }: InputFieldProps<T>) => {
   // Determine validation options, directly using validation object
   const validationOptions = validation
@@ -99,11 +101,11 @@ const AppInputField = <T extends FieldValues>({
             : ""
         )}
       />
-      {/* {isError && (
+      {isError && (
         <p className="mt-2 text-sm text-red-600 text-start">
           {form.formState.errors[name]?.message?.toString()}
         </p>
-      )} */}
+      )}
     </div>
   );
 };

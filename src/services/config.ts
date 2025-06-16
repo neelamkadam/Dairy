@@ -8,7 +8,7 @@ type ConfigType = {
 };
 
 // const BASE_URL = typeof window !== "undefined" ? window?.location?.origin : "";
-const LOCAL_ENV = "https://api-stg.medistry.ai/";
+const LOCAL_ENV = "http://13.201.192.66";
 // const LOCAL_ENV = "http://13.51.72.110:3004/";
 
 const CONFIG: ConfigType = {

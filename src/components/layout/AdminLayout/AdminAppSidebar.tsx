@@ -18,69 +18,25 @@ const menuItems: MenuItem[] = [
   {
     title: "Dashboard",
     icon: "📊",
-    href: ROUTES.DASHBOARD,
+    href: ROUTES.ADMIN_DASHBOARD,
   },
-  {
-    title: "Collection Entry",
-    icon: "💧",
-    children: [
-      { title: "VLC Collection Entry", icon: "", href:ROUTES.COLLECTIONENTRY.VLC_COLLECTION_ENTRY },
-      { title: "Farmer Collection Entry", icon: "", href: ROUTES.COLLECTIONENTRY.FARMER_COLLECTION_ENTRY },
-      { title: "Dispatch Entry", icon: "", href:ROUTES.COLLECTIONENTRY.DISPATCH_ENTRY }
-    ]
-  },
-  {
-    title: "Collection",
-    icon: "🗂️",
-    children: [
-      { title: "VLC Collection", icon: "", href: ROUTES.COLLECTION.VLC_COLLECTION },
-      { title: "BMC Collection", icon: "", href: ROUTES.COLLECTION.BMC_COLLECTION },
-      { title: "Chilling Center", icon: "", href: ROUTES.COLLECTION.CHILLING_CENTER },
-      { title: "Farmer Management", icon: "", href: ROUTES.COLLECTION.FARMER_MANAGEMENT }
-    ]
-  },
+
   {
     title: "Master",
     icon: "⚙️",
     children: [
-      { title: "Add Farmer", icon: "", href:ROUTES.MASTER.ADD_FARMER },
-      { title: "Add Rate Chart", icon: "", href: ROUTES.MASTER.ADD_RATECHART }
+      { title: "Mobile Application", icon: "", href:ROUTES.ADMIN_MASTER.MOBILE_APPLICATION},
+      { title: "Web Application", icon: "", href:ROUTES.ADMIN_MASTER.WEB_APPLICATION},
+      { title: "Farmer Application", icon: "", href: ROUTES.ADMIN_MASTER.FARMER_APPLICATION}
     ]
   },
+
   {
-    title: "Billing",
-    icon: "💳",
-    children: [
-      { title: "Payment & Receipt", icon: "", href:ROUTES.BILLING.PAYMENTANDRECEIPT },
-      { title: "Farmer Deduction", icon: "", href:ROUTES.BILLING.FARMER_DEDUCTION },
-      { title: "Generate Bill", icon: "", href:ROUTES.BILLING.GENERATE_BILL},
-      { title: "VLC Commission Entry", icon: "", href: ROUTES.BILLING.VLC_COMMISSION_ENTRY},
-      { title: "VLC TS Entry", icon: "", href: ROUTES.BILLING.VLC_TS_ENTRY }
-    ]
-  },
-  {
-    title: "Reports",
-    icon: "📈",
-    children: [
-      { title: "Shift Report", icon: "", href: ROUTES.REPORTS.SHIFT_REPORTS},
-      { title: "Farmer Collection", icon: "", href: ROUTES.REPORTS.FARMER_COLLECTION},
-      { title: "Total Collection Report", icon: "", href: ROUTES.REPORTS.TOTAL_COLLECTION_REPORT},
-      { title: "Payment Summary Report", icon: "", href: ROUTES.REPORTS.PAYMENT_SUMMARY},
-      { title: "Rate Chart Report", icon: "", href:ROUTES.REPORTS.RATECHART_REPORT},
-      { title: "Farmer Bill Invoice Report", icon: "", href: ROUTES.REPORTS.FARMER_BILL_INVOICE_REPORT },
-      { title: "Farmer List", icon: "", href: ROUTES.REPORTS.FARMER_LIST},
-      { title: "VLC Difference Report", icon: "", href:ROUTES.REPORTS.VLC_DIFFERENCE_REPORT },
-      { title: "Remaining Balance Report", icon: "", href: ROUTES.REPORTS.REMAINING_BALANCE },
-      { title: "Farmer Passbook", icon: "", href: ROUTES.REPORTS.FARMER_PASSBOOK},
-      { title: "VLC Commission Report", icon: "", href: ROUTES.REPORTS.VLC_COMMISSION_REPORT },
-      { title: "P/L Statement", icon: "", href: ROUTES.REPORTS.PL_STATEMENT }
-    ]
-  },
-  {
-    title: "Settings",
+    title: "Activation",
     icon: "⚙️",
     children: [
-      { title: "General Settings", icon: "", href: ROUTES.SETTINGS.GENERAL_SETTINGS },
+      { title: "Activation", icon: "", href:ROUTES.ACTIVATION.ACTIVATION},
+      { title: "Web Application Activation", icon: "", href: ROUTES.ACTIVATION.WEB_APPLICATION_ACTIVATION}
     ]
   }
 ];
@@ -90,7 +46,7 @@ interface SidebarProps {
   onToggle: () => void;
 }
 
-const AppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
+const AdminAppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const navigate = useNavigate();
    const location = useLocation();
@@ -156,7 +112,7 @@ const AppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
           </div>
           {isOpen && (
             <span className="font-bold text-xl text-gray-900 dark:text-white">
-              DairyFlow
+              AdminPanel
             </span>
           )}
         </div>
@@ -164,7 +120,7 @@ const AppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
           variant="ghost"
           size="sm"
           onClick={onToggle}
-          className="p-1 z-10"
+          className="p-5 z-10"
         >
           {isOpen ? <X size={20} /> : <Menu size={20} />}
         </Button>
@@ -180,4 +136,4 @@ const AppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
   );
 };
 
-export default AppSidebar;
+export default AdminAppSidebar;

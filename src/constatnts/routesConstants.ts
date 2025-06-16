@@ -5,6 +5,7 @@ export const ROUTES = {
     OTP_VERIFICATION: `/otp-verification`,
     RESET_PWD: `/reset-password`,
     SET_NEW_PWD: `/set-password`,
+    ADMIN_LAYOUT:`/admin`,
   },
   LANDING_PAGE: "/start",
   DASHBOARD: `/`,
@@ -47,4 +48,14 @@ export const ROUTES = {
   SETTINGS:{
     GENERAL_SETTINGS:`/general-settings`,
   },
+  ADMIN_DASHBOARD:`/admin/admin-dashboard`,
+  ADMIN_MASTER:{
+    MOBILE_APPLICATION:`/admin/mobile-application`,
+    WEB_APPLICATION:`/admin/web-application`,
+    FARMER_APPLICATION:`/admin/farmer-application`,
+  },
+  ACTIVATION:{
+    ACTIVATION:`/admin/activation`,
+    WEB_APPLICATION_ACTIVATION:`/admin/web-application-activation`,
+  }
 };
