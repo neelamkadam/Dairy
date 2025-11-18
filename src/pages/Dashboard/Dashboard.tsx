@@ -1,14 +1,41 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Users, Droplets, TrendingUp, Activity, Calendar, Clock, Sun, Moon, IndianRupee } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import KPICard from "@/components/KPICard";
 import MilkCollectionChart from "@/components/MilkCollectionChart";
 import FarmersChart from "@/components/FarmersCharts";
+import { useAppSelector, useAppDispatch } from "@/redux/store";
+import { fetchCollectionsSummary } from "@/redux/dashboardSlice";
 
 const Dashboard = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedShift, setSelectedShift] = useState('morning');
+  const dispatch = useAppDispatch();
+  const { branches } = useAppSelector(state => state.branch);
+  const { collections, loading } = useAppSelector(state => state.dashboard);
+  
+  const handleDateClick = () => {
+    const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+    if (dateInput) {
+      dateInput.showPicker();
+    }
+  };
+
+  const fetchDashboardData = () => {
+    if (branches.length > 0) {
+      const shiftValue = selectedShift === 'morning' ? 'Morning' : 'Evening';
+      dispatch(fetchCollectionsSummary({
+        branches,
+        date: selectedDate,
+        shift: shiftValue
+      }));
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [selectedDate, selectedShift, branches]);
 
   const getCurrentTime = () => {
     return new Date().toLocaleTimeString('en-US', { 
@@ -17,38 +44,57 @@ const Dashboard = () => {
       hour12: true 
     });
   };
+
+  // Calculate KPI data from collections
+  const calculateKPIs = () => {
+    if (!collections.length) return {
+      totalQuantity: 0,
+      avgFat: 0,
+      avgSnf: 0,
+      totalAmount: 0
+    };
+
+    const totalQuantity = collections.reduce((sum, item) => sum + item.quantity, 0);
+    const totalAmount = collections.reduce((sum, item) => sum + item.amount, 0);
+    const avgFat = totalQuantity > 0 ? collections.reduce((sum, item) => sum + (item.fat * item.quantity), 0) / totalQuantity : 0;
+    const avgSnf = totalQuantity > 0 ? collections.reduce((sum, item) => sum + (item.snf * item.quantity), 0) / totalQuantity : 0;
+
+    return { totalQuantity, avgFat, avgSnf, totalAmount };
+  };
+
+  const kpis = calculateKPIs();
   const kpiData = [
     {
       title: "VLCC Center",
-      value: "0",
+      value: branches.length.toString(),
       change: "0%",
       icon: Users,
       gradient: "bg-gradient-to-br from-cyan-400 to-cyan-600"
     },
     {
       title: "Total Milk Collection",
-      value: "0L",
+      value: `${kpis.totalQuantity.toFixed(1)}L`,
       change: "0%",
       icon: Droplets,
       gradient: "bg-gradient-to-br from-blue-400 to-blue-600"
     },
     {
       title: "Average Fat %",
-      value: "0",
+      value: kpis.avgFat.toFixed(2),
       change: "0%",
       icon: TrendingUp,
       gradient: "bg-gradient-to-br from-teal-400 to-teal-600"
     },
     {
       title: "Average SNF %",
-      value: "0",
+      value: kpis.avgSnf.toFixed(2),
       change: "0%",
       icon: Activity,
       gradient: "bg-gradient-to-br from-cyan-500 to-cyan-700"
     },
     {
       title: "Total Payments",
-      value: "₹0",
+      value: `₹${kpis.totalAmount.toFixed(2)}`,
       change: "0%",
       icon: IndianRupee,
       gradient: "bg-gradient-to-br from-blue-500 to-blue-700"
@@ -70,15 +116,16 @@ const Dashboard = () => {
             <Card className="shadow-sm w-full lg:w-auto">
               <CardContent className="p-3 lg:p-2">
                 <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 w-full">
-                  <div className="flex items-center gap-2 min-w-0 flex-shrink">
+                  <div className="flex items-center gap-2 min-w-0 flex-shrink relative cursor-pointer" onClick={handleDateClick}>
                     <Calendar className="w-4 h-4 text-gray-500 flex-shrink-0" />
                     <input
                       type="date"
                       value={selectedDate}
                       onChange={(e) => setSelectedDate(e.target.value)}
                       max={new Date().toISOString().split('T')[0]}
-                      className="text-xs sm:text-sm font-medium border-none outline-none bg-transparent min-w-0 flex-shrink"
+                      className="text-xs sm:text-sm font-medium border-none outline-none bg-transparent min-w-0 flex-shrink cursor-pointer pointer-events-none"
                     />
+                    <div className="absolute inset-0 cursor-pointer" onClick={handleDateClick}></div>
                   </div>
                   
                   <div className="hidden sm:block h-4 w-px bg-gray-300 flex-shrink-0"></div>
@@ -136,7 +183,7 @@ const Dashboard = () => {
           {/* Pie Chart */}
           <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle className="text-base md:text-lg font-semibold">Collection Distribution</CardTitle>
+              <CardTitle className="text-base md:text-lg font-semibold">Farmers</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-64 md:h-80 flex items-center justify-center text-gray-500 text-sm md:text-base">

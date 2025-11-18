@@ -24,8 +24,8 @@ import {
   Search,
   Users,
   TrendingUp,
-  DollarSign,
   EllipsisVertical,
+  IndianRupee,
 } from "lucide-react";
 import {
   Table,
@@ -112,7 +112,7 @@ const ChillingCenter = () => {
       label: "Total Payments",
       value: "$12,450",
       change: "+15%",
-      icon: DollarSign,
+      icon: IndianRupee,
       color: "bg-orange-400",
     },
   ];

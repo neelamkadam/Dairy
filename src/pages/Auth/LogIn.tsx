@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ENV_VARIABLES } from "@/services/config";
 import { useAppDispatch } from "@/redux/store";
 import { setAuthentication, setTempUserData } from "@/redux/AuthSlice";
+import { fetchUserBranches } from "@/redux/branchSlice";
 
 
 const Login: React.FC = () => {
@@ -77,6 +78,10 @@ const Login: React.FC = () => {
                 email: result.email
               }
             }));
+            
+            // Fetch user branches after successful login
+            dispatch(fetchUserBranches(result.email));
+            
             navigate(ROUTES.DASHBOARD);
           }
         } else {

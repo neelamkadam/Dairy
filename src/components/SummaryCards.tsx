@@ -4,22 +4,22 @@ const SummaryCards = ({ className }: any) => {
   const summaryData = [
     {
       title: "Total Bill Amount",
-      amount: "$14400.00",
+      amount: "₹14400.00",
       color: "text-blue-600",
     },
     {
       title: "Total Deductions",
-      amount: "$3062.00",
+      amount: "₹3062.00",
       color: "text-blue-600",
     },
     {
       title: "Total Final Amount",
-      amount: "$11338.00",
+      amount: "₹11338.00",
       color: "text-blue-600",
     },
     {
       title: "Remaining Balance",
-      amount: "$3000.00",
+      amount: "₹3000.00",
       color: "text-blue-600",
     },
   ];

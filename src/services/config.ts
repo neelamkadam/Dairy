@@ -16,7 +16,7 @@ const CONFIG: ConfigType = {
     API_BASE: API_BASE_URL,
   },
   development: {
-    API_BASE: "/api",
+    API_BASE: "https://api.neodairysales.com",
   },
   production: {
     API_BASE: API_BASE_URL,

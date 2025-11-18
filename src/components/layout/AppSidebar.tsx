@@ -99,7 +99,7 @@ const AppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
     setExpandedItems(prev =>
       prev.includes(title)
         ? prev.filter(item => item !== title)
-        : [...prev, title]
+        : [title]
     );
   };
 
@@ -145,7 +145,7 @@ const AppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
 
   return (
     <div className={cn(
-      "bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 flex flex-col h-screen",
+      "bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 flex flex-col h-screen fixed left-0 top-0 z-40 lg:relative lg:z-auto",
       isOpen ? "w-64" : "w-16"
     )}>
       {/* Header */}

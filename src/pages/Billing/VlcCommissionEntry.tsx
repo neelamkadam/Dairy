@@ -106,7 +106,7 @@ const VlcCCommissionEntry: React.FC = () => {
               <Label htmlFor="commissionAmount">Commission Amount</Label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                  $
+                  ₹
                 </span>
                 <Input
                   id="commissionAmount"

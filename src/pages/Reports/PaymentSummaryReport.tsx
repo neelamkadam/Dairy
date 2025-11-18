@@ -213,7 +213,7 @@ const PaymentSummaryReport = () => {
                 Total Bill Amount
               </h3>
               <p className="text-2xl font-bold text-blue-900">
-                ${totalBillAmount.toFixed(2)}
+                ₹{totalBillAmount.toFixed(2)}
               </p>
             </div>
             <div className="bg-card p-4 rounded-lg shadow-sm w-60 h-25 text-left">
@@ -221,7 +221,7 @@ const PaymentSummaryReport = () => {
                 Total Deductions
               </h3>
               <p className="text-2xl font-bold text-blue-900">
-                ${totalDeductions.toFixed(2)}
+                ₹{totalDeductions.toFixed(2)}
               </p>
             </div>
             <div className="bg-card p-4 rounded-lg shadow-sm w-60 h-25 text-left">
@@ -229,7 +229,7 @@ const PaymentSummaryReport = () => {
                 Total Final Amount
               </h3>
               <p className="text-2xl font-bold text-blue-900">
-                ${totalFinalAmount.toFixed(2)}
+                ₹{totalFinalAmount.toFixed(2)}
               </p>
             </div>
             <div className="bg-card p-4 rounded-lg shadow-sm w-60 h-25 text-left">
@@ -237,7 +237,7 @@ const PaymentSummaryReport = () => {
                 Remaining Balance
               </h3>
               <p className="text-2xl font-bold text-blue-900">
-                ${remainingBalance.toFixed(2)}
+                ₹{remainingBalance.toFixed(2)}
               </p>
             </div>
           </div>

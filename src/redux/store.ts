@@ -1,5 +1,7 @@
 import { combineReducers, configureStore } from "@reduxjs/toolkit";
 import authDataReducer from "./AuthSlice";
+import branchReducer from "./branchSlice";
+import dashboardReducer from "./dashboardSlice";
 import { persistReducer, persistStore } from "redux-persist";
 import storage from "redux-persist/lib/storage"; // Import storage from redux-persist
 import { TypedUseSelectorHook, useSelector, useDispatch } from "react-redux";
@@ -7,6 +9,8 @@ import { themeSlice } from "./themeSlice";
 
 const rootReducer = combineReducers({
   authData: authDataReducer,
+  branch: branchReducer,
+  dashboard: dashboardReducer,
   theme: themeSlice,
 });
 

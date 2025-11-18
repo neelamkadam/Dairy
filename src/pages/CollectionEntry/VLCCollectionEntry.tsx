@@ -19,7 +19,10 @@ import { Calendar as CalendarIcon, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import LastEntryDetails from "@/components/LastEntryDetails";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { usePostApi } from "@/services/use-api";
+import { toast } from "react-toastify";
+import { useAppSelector } from "@/redux/store";
 
 
 interface FormData {
@@ -34,10 +37,24 @@ interface FormData {
 }
 
 const VLCCollectionEntry = () => {
+  const { postData, isLoading } = usePostApi({
+    path: "/web/collection/vlc-entry"
+  });
+  const { postData: fetchEntries } = usePostApi({
+    path: "/web/collection/vlc-entries"
+  });
+  const { branches } = useAppSelector((state) => state.branch);
+  const [lastEntries, setLastEntries] = useState([]);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
+  const getDefaultShift = () => {
+    const hour = new Date().getHours();
+    return hour >= 17 ? "evening" : "morning";
+  };
 
   const [formData, setFormData] = useState<FormData>({
     date: new Date(),
-    shift: "",
+    shift: getDefaultShift(),
     userId: "",
     vlcName: "",
     weight: "",
@@ -53,39 +70,88 @@ const VLCCollectionEntry = () => {
     }));
   };
 
-  const handleSubmit = () => {
-    // Basic validation
-    // if (!formData.date || !formData.shift || !formData.userId || !formData.vlcName) {
-    //   toast({
-    //     title: "Validation Error",
-    //     description: "Please fill in all required fields",
-    //     variant: "destructive",
-    //   });
-    //   return;
-    // }
+  const handleVLCIdChange = (username: string) => {
+    const selectedBranch = branches?.find(branch => branch.username === username);
+    setFormData(prev => ({
+      ...prev,
+      userId: username,
+      vlcName: selectedBranch?.name || ""
+    }));
+  };
 
-    // console.log("Form submitted:", formData);
-    // toast({
-    //   title: "Entry Submitted",
-    //   description: "VLC collection entry has been recorded successfully",
-    // });
+  const fetchLastEntries = async () => {
+    if (!branches?.length || !formData.date || !formData.shift) return;
+    
+    try {
+      const vlcIds = branches.map(branch => branch.username);
+      const payload = {
+        vlc_ids: vlcIds,
+        date: format(formData.date, 'yyyy-MM-dd'),
+        shift: formData.shift.charAt(0).toUpperCase() + formData.shift.slice(1)
+      };
+      const response = await fetchEntries(payload);
+      
+      if (response?.data?.success) {
+        setLastEntries(response.data.data || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch last entries:', error);
+    }
+  };
 
-    // Reset form
-    setFormData({
-      date: new Date(),
-      shift: "",
-      userId: "",
-      vlcName: "",
-      weight: "",
-      fat: "",
-      snf: "",
-      clr: "",
-    });
+  useEffect(() => {
+    fetchLastEntries();
+  }, [branches, formData.date, formData.shift]);
+
+  const getFilteredEntries = () => {
+    return lastEntries;
+  };
+
+  const handleSubmit = async () => {
+    // Validation
+    if (!formData.date || !formData.shift || !formData.userId || !formData.vlcName || 
+        !formData.weight || !formData.fat || !formData.snf || !formData.clr) {
+      toast.error("All fields are required");
+      return;
+    }
+
+    try {
+      const payload = {
+        date: format(formData.date, 'yyyy-MM-dd HH:mm:ss'),
+        shift: formData.shift.charAt(0).toUpperCase() + formData.shift.slice(1),
+        vlc_id: formData.userId,
+        vlc_name: formData.vlcName,
+        weight: parseFloat(formData.weight),
+        fat: parseFloat(formData.fat),
+        snf: parseFloat(formData.snf),
+        clr: parseFloat(formData.clr)
+      };
+
+      const response = await postData(payload);
+      
+      if (response?.data?.success) {
+        toast.success("VLC entry created successfully");
+        // Reset form
+        setFormData({
+          date: new Date(),
+          shift: "",
+          userId: "",
+          vlcName: "",
+          weight: "",
+          fat: "",
+          snf: "",
+          clr: "",
+        });
+      }
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to create VLC entry");
+    }
   };
 
   return (
-    <div className="space-y-6 w-[70%] m-auto mt-10">
-      <Card className=" shadow-lg border-0 bg-white">
+    <div className="flex gap-6 w-[95%] m-auto mt-10">
+      <div className="w-[65%]">
+        <Card className="shadow-lg border-0 bg-white">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <CardTitle className="text-xl font-semibold text-gray-800">
@@ -101,7 +167,7 @@ const VLCCollectionEntry = () => {
               <Label htmlFor="date" className="text-sm font-medium text-gray-700">
                 Date
               </Label>
-              <Popover>
+              <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -118,13 +184,17 @@ const VLCCollectionEntry = () => {
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-white" align="start">
+                <PopoverContent className="w-auto p-0 bg-white z-50" align="start" sideOffset={5}>
                   <Calendar
                     mode="single"
                     selected={formData.date}
-                    onSelect={(date) => handleInputChange("date", date)}
+                    onSelect={(date) => {
+                      if (date) {
+                        handleInputChange("date", date);
+                        setIsCalendarOpen(false);
+                      }
+                    }}
                     initialFocus
-                    className="p-3 pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
@@ -140,26 +210,38 @@ const VLCCollectionEntry = () => {
                 </SelectTrigger>
                 <SelectContent className="bg-white" >
                   <SelectItem value="morning">Morning</SelectItem>
-                  <SelectItem value="afternoon">Afternoon</SelectItem>
                   <SelectItem value="evening">Evening</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
+          <hr className="border-gray-300" />
+
           {/* User ID and VLC Name Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="userId" className="text-sm font-medium text-gray-700">
-                User ID
+                VLC ID
               </Label>
-              <Input
-                id="userId"
-                placeholder="Enter User ID"
-                value={formData.userId}
-                onChange={(e) => handleInputChange("userId", e.target.value)}
-                className="bg-gray-50 border-gray-200 focus:bg-white"
-              />
+              <Select value={formData.userId} onValueChange={handleVLCIdChange}>
+                <SelectTrigger className="bg-gray-50 border-gray-200 hover:bg-gray-100 w-full">
+                  <SelectValue placeholder="Select VLC ID" />
+                </SelectTrigger>
+                <SelectContent className="bg-white">
+                  {branches?.length > 0 ? branches.map((branch) => 
+                    branch?.username ? (
+                      <SelectItem key={branch.username} value={branch.username}>
+                        {branch.username}
+                      </SelectItem>
+                    ) : null
+                  ) : (
+                    <SelectItem value="" disabled>
+                      No VLC branches available
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
@@ -168,10 +250,10 @@ const VLCCollectionEntry = () => {
               </Label>
               <Input
                 id="vlcName"
-                placeholder="Enter VLC Name"
+                placeholder="VLC Name"
                 value={formData.vlcName}
-                onChange={(e) => handleInputChange("vlcName", e.target.value)}
-                className="bg-gray-50 border-gray-200 focus:bg-white"
+                readOnly
+                className="bg-gray-100 border-gray-200 text-gray-700"
               />
             </div>
           </div>
@@ -246,15 +328,19 @@ const VLCCollectionEntry = () => {
           <div className="flex justify-center pt-4">
             <Button
               onClick={handleSubmit}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 text-sm font-medium transition-colors"
+              disabled={isLoading}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 text-sm font-medium transition-colors disabled:opacity-50"
             >
-              Submit Entry
+              {isLoading ? "Submitting..." : "Submit Entry"}
             </Button>
           </div>
         </CardContent>
       </Card>
-
-      <LastEntryDetails />
+      </div>
+      
+      <div className="w-[35%]">
+        <LastEntryDetails entries={getFilteredEntries()} />
+      </div>
     </div>
   );
 };
