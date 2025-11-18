@@ -20,102 +20,8 @@ import {
   Legend,
 } from "recharts";
 
-const data = [
-  { month: "Jan", Mobile: 2000, Farmer: 1400, Web: 3200 },
-  { month: "Feb", Mobile: 2200, Farmer: 1500, Web: 3400 },
-  { month: "Mar", Mobile: 2400, Farmer: 1600, Web: 3600 },
-  { month: "Apr", Mobile: 2500, Farmer: 1550, Web: 3700 },
-  { month: "May", Mobile: 2600, Farmer: 1600, Web: 3800 },
-  { month: "Jun", Mobile: 2700, Farmer: 1700, Web: 3900 },
-  { month: "Jul", Mobile: 2800, Farmer: 1800, Web: 4000 },
-  { month: "Aug", Mobile: 2900, Farmer: 1500, Web: 4100 },
-];
-const statisticsData = [
-  {
-    month: "Jan",
-    mobileApps: "1,200",
-    farmerApps: "800",
-    webApps: "1,500",
-    total: "3,500",
-  },
-  {
-    month: "Feb",
-    mobileApps: "1,400",
-    farmerApps: "900",
-    webApps: "1,600",
-    total: "3,900",
-  },
-  {
-    month: "Mar",
-    mobileApps: "1,600",
-    farmerApps: "1,000",
-    webApps: "1,800",
-    total: "4,400",
-  },
-  {
-    month: "Apr",
-    mobileApps: "1,800",
-    farmerApps: "1,100",
-    webApps: "2,000",
-    total: "4,900",
-  },
-  {
-    month: "May",
-    mobileApps: "2,000",
-    farmerApps: "1,200",
-    webApps: "2,200",
-    total: "5,400",
-  },
-  {
-    month: "Jun",
-    mobileApps: "2,200",
-    farmerApps: "1,300",
-    webApps: "2,400",
-    total: "5,900",
-  },
-  {
-    month: "Jul",
-    mobileApps: "2,400",
-    farmerApps: "1,400",
-    webApps: "2,600",
-    total: "6,400",
-  },
-  {
-    month: "Aug",
-    mobileApps: "2,600",
-    farmerApps: "1,500",
-    webApps: "2,800",
-    total: "6,900",
-  },
-  {
-    month: "Sep",
-    mobileApps: "2,800",
-    farmerApps: "1,600",
-    webApps: "3,000",
-    total: "7,400",
-  },
-  {
-    month: "Oct",
-    mobileApps: "3,000",
-    farmerApps: "1,700",
-    webApps: "3,200",
-    total: "7,900",
-  },
-  {
-    month: "Nov",
-    mobileApps: "3,200",
-    farmerApps: "1,800",
-    webApps: "3,400",
-    total: "8,400",
-  },
-  {
-    month: "Dec",
-    mobileApps: "3,400",
-    farmerApps: "1,900",
-    webApps: "3,600",
-    total: "8,900",
-  },
-];
+const data: any[] = [];
+const statisticsData: any[] = [];
 const AdminDashboard = () => {
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -124,24 +30,24 @@ const AdminDashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <MetricCard
             title="Mobile Applications"
-            value="3,400"
-            change="+12.5%"
+            value="0"
+            change="0%"
             changeType="positive"
             icon={Smartphone}
             iconColor="bg-blue-500"
           />
           <MetricCard
             title="Farmer Applications"
-            value="1,900"
-            change="+8.3%"
+            value="0"
+            change="0%"
             changeType="positive"
             icon={Sprout}
             iconColor="bg-green-500"
           />
           <MetricCard
             title="Web Applications"
-            value="3,600"
-            change="+15.2%"
+            value="0"
+            change="0%"
             changeType="positive"
             icon={Globe}
             iconColor="bg-purple-500"

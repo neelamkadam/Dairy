@@ -16,6 +16,8 @@ import { useTranslation } from "react-i18next";
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constatnts/routesConstants";
+import { useAppDispatch } from "@/redux/store";
+import { logout } from "@/redux/AuthSlice";
 
 interface NavbarProps {
   theme: "light" | "dark";
@@ -30,6 +32,7 @@ const AppNavbar = ({}: NavbarProps) => {
     { id: 3, title: "Rate chart updated", time: "1 hour ago" },
   ]);
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
 
   const { i18n } = useTranslation();
   // const handleLogout = () => {
@@ -48,7 +51,8 @@ const AppNavbar = ({}: NavbarProps) => {
     i18n.changeLanguage(key);
   };
 
-  const handleSignOut =() =>{
+  const handleSignOut = () => {
+    dispatch(logout());
     navigate(ROUTES.AUTH.LOGIN);
   }
   return (

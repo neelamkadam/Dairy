@@ -9,11 +9,15 @@ import AppButton from "@/components/AppButton";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { ROUTES } from "@/constatnts/routesConstants";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ENV_VARIABLES } from "@/services/config";
+import { useAppDispatch } from "@/redux/store";
+import { setAuthentication, setTempUserData } from "@/redux/AuthSlice";
 
 
 const Login: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
 
   const form: UseFormReturn<LoginFormType> = useForm<LoginFormType>({
     resolver: yupResolver(InputSchema),
@@ -28,23 +32,59 @@ const Login: React.FC = () => {
 
   const { handleSubmit, formState: { errors } } = form;
 
-  const onSubmit: SubmitHandler<LoginFormType> = () => {
-    // const payload = {
-    //   userId: data.userId,
-    //   password:data.password,
-    // }
+  const onSubmit: SubmitHandler<LoginFormType> = async (data) => {
     try {
-      // const data1 = await login(payload);
-      // console.log("data1",data1);
-      if(true){
-        navigate(ROUTES.DASHBOARD); // user
-      }else{
+      // Check for hardcoded admin credentials
+      if (data.userId === "admin@gmail.com" && data.password === "admin") {
+        dispatch(setAuthentication({
+          isAuthenticated: true,
+          userRole: "admin",
+          userData: { email: data.userId, name: "Admin" }
+        }));
         navigate(ROUTES.ADMIN_DASHBOARD);
+      } else {
+        // User login API call
+        const res = await fetch(`${ENV_VARIABLES.API_BASE}/web-users/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: data.userId,
+            password: data.password
+          })
+        });
+
+        const result = await res.json();
+
+        if (result.success) {
+          if (result.requirePasswordChange === true) {
+            // First time login - show set password screen
+            dispatch(setTempUserData({
+              userId: result.userId,
+              name: result.name,
+              email: result.email
+            }));
+            navigate(ROUTES.AUTH.SET_NEW_PASSWORD);
+          } else {
+            // Regular login - go to dashboard
+            dispatch(setAuthentication({
+              isAuthenticated: true,
+              userRole: "user",
+              userData: {
+                id: result.userId.toString(),
+                name: result.name,
+                email: result.email
+              }
+            }));
+            navigate(ROUTES.DASHBOARD);
+          }
+        } else {
+          console.log("Login failed:", result.message);
+        }
       }
-      
-      
     } catch (error) {
-      console.log("Login failed",error);
+      console.log("Login failed", error);
     }
   };
 
@@ -65,7 +105,7 @@ const Login: React.FC = () => {
                 {t("welcome_back")}
               </span>
               <h1 className="text-4xl xl:text-5xl 2xl:text-6xl text-blue-700 font-bold mb-4">
-                DairyTrade
+                NeoDairy Sales And Services
               </h1>
               <span className="text-white text-lg xl:text-xl">
                 {t("business_solution")}
@@ -91,7 +131,7 @@ const Login: React.FC = () => {
           <div className="w-full max-w-md space-y-6">
             {/* Mobile hero text */}
             <div className="lg:hidden text-center mb-8">
-              <h2 className="text-2xl font-bold text-blue-700 mb-2">DairyTrade</h2>
+              <h2 className="text-2xl font-bold text-blue-700 mb-2">NeoDairy</h2>
               <p className="text-gray-600">{t("business_solution")}</p>
             </div>
 

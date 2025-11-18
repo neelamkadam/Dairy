@@ -1,57 +1,124 @@
-import { Users, Droplets, TrendingUp, Activity, DollarSign } from "lucide-react";
+import { useState } from "react";
+import { Users, Droplets, TrendingUp, Activity, Calendar, Clock, Sun, Moon, IndianRupee } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import KPICard from "@/components/KPICard";
 import MilkCollectionChart from "@/components/MilkCollectionChart";
 import FarmersChart from "@/components/FarmersCharts";
 
 const Dashboard = () => {
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedShift, setSelectedShift] = useState('morning');
+
+  const getCurrentTime = () => {
+    return new Date().toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: true 
+    });
+  };
   const kpiData = [
     {
       title: "VLCC Center",
-      value: "10",
-      change: "+12%",
+      value: "0",
+      change: "0%",
       icon: Users,
       gradient: "bg-gradient-to-br from-cyan-400 to-cyan-600"
     },
     {
       title: "Total Milk Collection",
-      value: "2,450L",
-      change: "+5%",
+      value: "0L",
+      change: "0%",
       icon: Droplets,
       gradient: "bg-gradient-to-br from-blue-400 to-blue-600"
     },
     {
       title: "Average Fat %",
-      value: "3.5",
-      change: "+8%",
+      value: "0",
+      change: "0%",
       icon: TrendingUp,
       gradient: "bg-gradient-to-br from-teal-400 to-teal-600"
     },
     {
       title: "Average SNF %",
-      value: "8.5",
-      change: "+8%",
+      value: "0",
+      change: "0%",
       icon: Activity,
       gradient: "bg-gradient-to-br from-cyan-500 to-cyan-700"
     },
     {
       title: "Total Payments",
-      value: "$12,450",
-      change: "+15%",
-      icon: DollarSign,
+      value: "₹0",
+      change: "0%",
+      icon: IndianRupee,
       gradient: "bg-gradient-to-br from-blue-500 to-blue-700"
     }
   ];
 
   return (
     <div className="min-h-screen bg-gray-50">     
-      <main className="p-6 space-y-6 text-left">
-          {/* Dashboard Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard Overview</h1>
-          <p className="text-gray-600 mt-1">Monday, April 21, 2025</p>
+      <main className="p-4 md:p-6 space-y-4 md:space-y-6 text-left">
+        {/* Dashboard Header */}
+        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4 mb-6 md:mb-8">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Dashboard Overview</h1>
+            <p className="text-gray-600 mt-1 text-sm md:text-base">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          </div>
+          
+          {/* Date, Time & Shift Selector */}
+          <div className="flex items-center justify-center lg:justify-end">
+            <Card className="shadow-sm w-full lg:w-auto">
+              <CardContent className="p-3 lg:p-2">
+                <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 w-full">
+                  <div className="flex items-center gap-2 min-w-0 flex-shrink">
+                    <Calendar className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                    <input
+                      type="date"
+                      value={selectedDate}
+                      onChange={(e) => setSelectedDate(e.target.value)}
+                      max={new Date().toISOString().split('T')[0]}
+                      className="text-xs sm:text-sm font-medium border-none outline-none bg-transparent min-w-0 flex-shrink"
+                    />
+                  </div>
+                  
+                  <div className="hidden sm:block h-4 w-px bg-gray-300 flex-shrink-0"></div>
+                  
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Clock className="w-4 h-4 text-gray-500" />
+                    <span className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">{getCurrentTime()}</span>
+                  </div>
+                  
+                  <div className="hidden sm:block h-4 w-px bg-gray-300 flex-shrink-0"></div>
+                  
+                  <div className="min-w-0 flex-shrink">
+                    <Select value={selectedShift} onValueChange={setSelectedShift}>
+                      <SelectTrigger className="w-full sm:w-32 h-8 border-none shadow-none bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white border border-gray-200 shadow-lg">
+                        <SelectItem value="morning" className="hover:bg-gray-50">
+                          <div className="flex items-center gap-2">
+                            <Sun className="w-4 h-4 text-orange-500" />
+                            Morning
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="evening" className="hover:bg-gray-50">
+                          <div className="flex items-center gap-2">
+                            <Moon className="w-4 h-4 text-blue-500" />
+                            Evening
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
+        
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
           {kpiData.map((kpi, index) => (
             <KPICard
               key={index}
@@ -65,9 +132,30 @@ const Dashboard = () => {
         </div>
 
         {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <MilkCollectionChart />
-          <FarmersChart />
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6">
+          {/* Pie Chart */}
+          <Card className="shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-base md:text-lg font-semibold">Collection Distribution</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64 md:h-80 flex items-center justify-center text-gray-500 text-sm md:text-base">
+                Pie Chart Component (API Pending)
+              </div>
+            </CardContent>
+          </Card>
+          
+          {/* Weekly Milk Collection Trends */}
+          <Card className="shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-base md:text-lg font-semibold">Weekly Milk Collection Trends</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64 md:h-80 flex items-center justify-center text-gray-500 text-sm md:text-base">
+                Weekly Trends Chart (API Pending)
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </main>
     </div>

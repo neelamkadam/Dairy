@@ -1,14 +1,18 @@
 import AdminAppLayout from "@/components/layout/AdminLayout/AdminAppLayout";
 import AppLayout from "@/components/layout/AppLayout";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import { ROUTES } from "@/constatnts/routesConstants";
 import { Activation } from "@/pages/Activation/Activation";
 import { WebApplicationActivation } from "@/pages/Activation/WebApplicationActivation";
 import { FarmerApplication } from "@/pages/AdminMaster/FarmerApplication";
 import { MobileApplication } from "@/pages/AdminMaster/MobileApplication";
 import { WebApplication } from "@/pages/AdminMaster/WebApplication";
+import CreateUser from "@/pages/AdminMaster/CreateUser";
+import AddBranch from "@/pages/AdminMaster/AddBranch";
 import Login from "@/pages/Auth/LogIn";
 import ResetPassword from "@/pages/Auth/ResetPassword";
 import SignUp from "@/pages/Auth/SignUp";
+import SetNewPassword from "@/pages/Auth/SetNewPassword";
 import FarmerDeduction from "@/pages/Billing/FarmerDeduction";
 import GenerateBill from "@/pages/Billing/GenerateBill";
 import PaymentAndReceipt from "@/pages/Billing/PaymentAndReceipt";
@@ -42,6 +46,10 @@ import { createBrowserRouter } from "react-router-dom";
 
 export const AppRoutes = createBrowserRouter([
   {
+    path: "/",
+    element: <Login />,
+  },
+  {
     path: ROUTES.AUTH.LOGIN,
     element: <Login />,
   },
@@ -54,150 +62,169 @@ export const AppRoutes = createBrowserRouter([
     element: <ResetPassword />,
   },
   {
-    path: "/",
-    element: <AppLayout />,
+    path: ROUTES.AUTH.SET_NEW_PASSWORD,
+    element: <SetNewPassword />,
+  },
+  {
+    path: "/dashboard",
+    element: (
+      <ProtectedRoute requiredRole="user">
+        <AppLayout />
+      </ProtectedRoute>
+    ),
     children: [
       {
-        path: ROUTES.DASHBOARD,
+        index: true,
         element: <Dashboard />,
       },
       {
-        path: ROUTES.COLLECTIONENTRY.VLC_COLLECTION_ENTRY,
+        path: "collectionentry/vlc-collection-entry",
         element: <VLCCollectionEntry />,
       },
       {
-        path: ROUTES.COLLECTIONENTRY.FARMER_COLLECTION_ENTRY,
+        path: "collectionentry/farmer-collection-entry",
         element: <FarmerCollectionEntry />,
       },
       {
-        path: ROUTES.COLLECTIONENTRY.DISPATCH_ENTRY,
+        path: "collectionentry/dispatch-entry",
         element: <DispatchEntry />,
       },
       {
-        path: ROUTES.COLLECTION.VLC_COLLECTION,
+        path: "vlc-collection",
         element: <VLCCllection />,
       },
       {
-        path: ROUTES.COLLECTION.BMC_COLLECTION,
+        path: "bmc-collection",
         element: <BMCCollection />,
       },
       {
-        path: ROUTES.COLLECTION.CHILLING_CENTER,
+        path: "chilling-center",
         element: <ChillingCenter />,
       },
       {
-        path: ROUTES.COLLECTION.FARMER_MANAGEMENT,
+        path: "farmer-management",
         element: <FarmerManagement />,
       },
       {
-        path: ROUTES.MASTER.ADD_FARMER,
+        path: "add-farmer",
         element: <AddFarmer />,
       },
       {
-        path: ROUTES.MASTER.ADD_RATECHART,
+        path: "add-rate-chart",
         element: <AddRateChart />,
       },
       {
-        path: ROUTES.BILLING.FARMER_DEDUCTION,
+        path: "farmer-deduction",
         element: <FarmerDeduction />,
       },
       {
-        path: ROUTES.BILLING.GENERATE_BILL,
+        path: "generate-bill",
         element: <GenerateBill />,
       },
       {
-        path: ROUTES.BILLING.PAYMENTANDRECEIPT,
+        path: "payment-and-receipt",
         element: <PaymentAndReceipt />,
       },
       {
-        path: ROUTES.BILLING.VLC_COMMISSION_ENTRY,
+        path: "vlc-commission-entry",
         element: <VlcCommissionEntry />,
       },
       {
-        path: ROUTES.BILLING.VLC_TS_ENTRY,
+        path: "vlc-ts-entry",
         element: <VlcTsEntry />,
       },
       {
-        path: ROUTES.REPORTS.FARMER_BILL_INVOICE_REPORT,
+        path: "farmer-bill-invoice-report",
         element: <FarmerBillInvoiceReport />,
       },
       {
-        path: ROUTES.REPORTS.FARMER_COLLECTION,
+        path: "farmer-collection",
         element: <FarmerCollection />,
       },
       {
-        path: ROUTES.REPORTS.FARMER_LIST,
+        path: "farmer-list",
         element: <FarmerList />,
       },
       {
-        path: ROUTES.REPORTS.FARMER_PASSBOOK,
+        path: "farmer-passbook",
         element: <FarmerPassbook />,
       },
       {
-        path: ROUTES.REPORTS.PAYMENT_SUMMARY,
+        path: "payment-summary",
         element: <PaymentSummaryReport />,
       },
       {
-        path: ROUTES.REPORTS.PL_STATEMENT,
+        path: "pl-statement",
         element: <PLStatement />,
       },
       {
-        path: ROUTES.REPORTS.RATECHART_REPORT,
+        path: "ratechart-report",
         element: <RateChartReport />,
       },
       {
-        path: ROUTES.REPORTS.REMAINING_BALANCE,
+        path: "remaining-balance",
         element: <RemainingBalanceReport />,
       },
       {
-        path: ROUTES.REPORTS.SHIFT_REPORTS,
+        path: "shift-reports",
         element: <ShiftReports />,
       },
       {
-        path: ROUTES.REPORTS.TOTAL_COLLECTION_REPORT,
+        path: "total-collection-report",
         element: <TotalCollectionReport />,
       },
       {
-        path: ROUTES.REPORTS.VLC_COMMISSION_REPORT,
+        path: "vlc-commission-report",
         element: <VlcCommissionReport />,
       },
       {
-        path: ROUTES.REPORTS.VLC_DIFFERENCE_REPORT,
+        path: "vlc-diffrerence-report",
         element: <VlcDifferenceReport />,
       },
       {
-        path: ROUTES.SETTINGS.GENERAL_SETTINGS,
+        path: "general-settings",
         element: <GeneralSettings />,
       },
     ],
   },
   {
     path: ROUTES.AUTH.ADMIN_LAYOUT,
-    element: <AdminAppLayout />,
+    element: (
+      <ProtectedRoute requiredRole="admin">
+        <AdminAppLayout />
+      </ProtectedRoute>
+    ),
     children: [
       {
-        path: ROUTES.ADMIN_DASHBOARD,
+        path: "admin-dashboard",
         element: <AdminDashboard />,
       },
       {
-        path: ROUTES.ADMIN_MASTER.MOBILE_APPLICATION,
+        path: "create-user",
+        element: <CreateUser />,
+      },
+      {
+        path: "mobile-application",
         element: <MobileApplication />,
       },
-
       {
-        path: ROUTES.ADMIN_MASTER.WEB_APPLICATION,
+        path: "web-application",
         element: <WebApplication />,
       },
       {
-        path: ROUTES.ADMIN_MASTER.FARMER_APPLICATION,
+        path: "farmer-application",
         element: <FarmerApplication />,
       },
       {
-        path: ROUTES.ACTIVATION.ACTIVATION,
+        path: "add-branch",
+        element: <AddBranch />,
+      },
+      {
+        path: "activation",
         element: <Activation />,
       },
       {
-        path: ROUTES.ACTIVATION.WEB_APPLICATION_ACTIVATION,
+        path: "web-application-activation",
         element: <WebApplicationActivation />,
       },
     ],

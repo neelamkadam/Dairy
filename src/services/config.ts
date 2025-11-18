@@ -8,18 +8,18 @@ type ConfigType = {
 };
 
 // const BASE_URL = typeof window !== "undefined" ? window?.location?.origin : "";
-const LOCAL_ENV = "http://13.201.192.66";
+const API_BASE_URL = "https://api.neodairysales.com/";
 // const LOCAL_ENV = "http://13.51.72.110:3004/";
 
 const CONFIG: ConfigType = {
   test: {
-    API_BASE: LOCAL_ENV,
+    API_BASE: API_BASE_URL,
   },
   development: {
-    API_BASE: LOCAL_ENV,
+    API_BASE: "/api",
   },
   production: {
-    API_BASE: LOCAL_ENV,
+    API_BASE: API_BASE_URL,
   },
 };
 export const ENV_VARIABLES = CONFIG[CURRENT_ENVIRONMENT];

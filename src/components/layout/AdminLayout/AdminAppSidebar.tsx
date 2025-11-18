@@ -20,6 +20,14 @@ const menuItems: MenuItem[] = [
     icon: "📊",
     href: ROUTES.ADMIN_DASHBOARD,
   },
+  {
+    title: "Branch",
+    icon: "🏢",
+    children: [
+      { title: "Create User", icon: "👤", href: ROUTES.ADMIN_CREATE_USER},
+      { title: "Add Branch", icon: "🏢", href: ROUTES.ADMIN_MASTER.ADD_BRANCH}
+    ]
+  },
 
   {
     title: "Master",

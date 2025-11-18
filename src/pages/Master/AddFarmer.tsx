@@ -10,7 +10,8 @@ import {ChevronLeft} from 'lucide-react';
 
 export const AddFarmer: React.FC = () => {
   const [formData, setFormData] = useState({
-    farmerId: 'F-2024-001',
+    VLC: 'RV0001',
+    farmerId: '001',
     fullName: '',
     phoneNumber: '',
     email: '',
@@ -44,6 +45,14 @@ export const AddFarmer: React.FC = () => {
             <div>
               <h3 className="text-lg font-semibold mb-4">Basic Information</h3>
               <div className="">
+              <Label htmlFor="VLC" className='mb-1'>VLC</Label>
+                  <Input
+                    id="VLC"
+                    value={formData.VLC} 
+                    onChange={(e) => setFormData({...formData, VLC: e.target.value})}
+                    disabled
+                    className='border-gray-200 bg-gray-100'
+                  />
                   <Label htmlFor="farmerId" className='mb-1'>Farmer ID</Label>
                   <Input
                     id="farmerId"

@@ -1,14 +1,6 @@
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts";
 
-const data = [
-  { day: "Mon", collection: 380 },
-  { day: "Tue", collection: 300 },
-  { day: "Wed", collection: 580 },
-  { day: "Thu", collection: 450 },
-  { day: "Fri", collection: 380 },
-  { day: "Sat", collection: 320 },
-  { day: "Sun", collection: 520 },
-];
+const data: any[] = [];
 
 const MilkCollectionChart = () => {
   return (
