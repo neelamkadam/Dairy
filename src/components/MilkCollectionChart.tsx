@@ -1,16 +1,28 @@
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
+import { CollectionData } from "@/redux/dashboardSlice";
 
-const data: any[] = [];
+interface MilkCollectionChartProps {
+  collections: CollectionData[];
+  branches: Array<{ branch_id: number; name: string }>;
+}
 
-const MilkCollectionChart = () => {
+const MilkCollectionChart = ({ collections, branches }: MilkCollectionChartProps) => {
+  const data = collections.map(item => {
+    const branch = branches.find(b => b.branch_id === item.dairy_id);
+    return {
+      name: branch?.name || `Dairy ${item.dairy_id}`,
+      quantity: item.quantity
+    };
+  });
+
   return (
-    <div className="bg-white rounded-xl p-6 shadow-lg">
-      <h3 className="text-lg font-semibold text-gray-900 mb-6">Milk Collection Trend</h3>
-      <div className="h-64">
+    <div className="h-full flex items-center justify-center">
+      {data.length > 0 ? (
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
             <XAxis 
-              dataKey="day" 
+              dataKey="name" 
               axisLine={false}
               tickLine={false}
               tick={{ fontSize: 12, fill: '#6B7280' }}
@@ -19,9 +31,11 @@ const MilkCollectionChart = () => {
               axisLine={false}
               tickLine={false}
               tick={{ fontSize: 12, fill: '#6B7280' }}
+              label={{ value: 'Quantity (L)', angle: -90, position: 'insideLeft', style: { fontSize: 12, fill: '#6B7280' } }}
             />
+            <Tooltip formatter={(value) => `${value}L`} />
             <Bar 
-              dataKey="collection" 
+              dataKey="quantity" 
               fill="url(#blueGradient)"
               radius={[4, 4, 0, 0]}
             />
@@ -33,7 +47,9 @@ const MilkCollectionChart = () => {
             </defs>
           </BarChart>
         </ResponsiveContainer>
-      </div>
+      ) : (
+        <p className="text-gray-500">No data available</p>
+      )}
     </div>
   );
 };

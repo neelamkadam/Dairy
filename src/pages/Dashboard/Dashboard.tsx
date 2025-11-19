@@ -14,22 +14,16 @@ const Dashboard = () => {
   const dispatch = useAppDispatch();
   const { branches } = useAppSelector(state => state.branch);
   const { collections, loading } = useAppSelector(state => state.dashboard);
-  
-  const handleDateClick = () => {
-    const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
-    if (dateInput) {
-      dateInput.showPicker();
-    }
-  };
 
   const fetchDashboardData = () => {
     if (branches.length > 0) {
       const shiftValue = selectedShift === 'morning' ? 'Morning' : 'Evening';
-      dispatch(fetchCollectionsSummary({
-        branches,
+      const payload = {
+        branches: branches.map(branch => branch.branch_id),
         date: selectedDate,
         shift: shiftValue
-      }));
+      };
+      dispatch(fetchCollectionsSummary(payload));
     }
   };
 
@@ -67,35 +61,35 @@ const Dashboard = () => {
     {
       title: "VLCC Center",
       value: branches.length.toString(),
-      change: "0%",
+      change: "",
       icon: Users,
       gradient: "bg-gradient-to-br from-cyan-400 to-cyan-600"
     },
     {
       title: "Total Milk Collection",
       value: `${kpis.totalQuantity.toFixed(1)}L`,
-      change: "0%",
+      change: "",
       icon: Droplets,
       gradient: "bg-gradient-to-br from-blue-400 to-blue-600"
     },
     {
       title: "Average Fat %",
       value: kpis.avgFat.toFixed(2),
-      change: "0%",
+      change: "",
       icon: TrendingUp,
       gradient: "bg-gradient-to-br from-teal-400 to-teal-600"
     },
     {
       title: "Average SNF %",
       value: kpis.avgSnf.toFixed(2),
-      change: "0%",
+      change: "",
       icon: Activity,
       gradient: "bg-gradient-to-br from-cyan-500 to-cyan-700"
     },
     {
       title: "Total Payments",
       value: `₹${kpis.totalAmount.toFixed(2)}`,
-      change: "0%",
+      change: "",
       icon: IndianRupee,
       gradient: "bg-gradient-to-br from-blue-500 to-blue-700"
     }
@@ -116,16 +110,15 @@ const Dashboard = () => {
             <Card className="shadow-sm w-full lg:w-auto">
               <CardContent className="p-3 lg:p-2">
                 <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 w-full">
-                  <div className="flex items-center gap-2 min-w-0 flex-shrink relative cursor-pointer" onClick={handleDateClick}>
+                  <div className="flex items-center gap-2 min-w-0 flex-shrink">
                     <Calendar className="w-4 h-4 text-gray-500 flex-shrink-0" />
                     <input
                       type="date"
                       value={selectedDate}
                       onChange={(e) => setSelectedDate(e.target.value)}
                       max={new Date().toISOString().split('T')[0]}
-                      className="text-xs sm:text-sm font-medium border-none outline-none bg-transparent min-w-0 flex-shrink cursor-pointer pointer-events-none"
+                      className="text-xs sm:text-sm font-medium border-none outline-none bg-transparent min-w-0 flex-shrink cursor-pointer"
                     />
-                    <div className="absolute inset-0 cursor-pointer" onClick={handleDateClick}></div>
                   </div>
                   
                   <div className="hidden sm:block h-4 w-px bg-gray-300 flex-shrink-0"></div>

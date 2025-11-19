@@ -63,7 +63,6 @@ export const dashboardSlice = createSlice({
         state.loading = false;
         state.collections = action.payload;
         state.error = null;
-        console.log('Collections stored in Redux:', action.payload);
       })
       .addCase(fetchCollectionsSummary.rejected, (state, action) => {
         state.loading = false;

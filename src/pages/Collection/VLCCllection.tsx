@@ -1,8 +1,13 @@
 import { useState } from "react";
+import { useAppSelector } from "@/redux/store";
+import { usePostApi } from "@/services/use-api";
+import { toast } from "react-toastify";
+import { format as formatDate } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -46,38 +51,55 @@ interface VLCCData {
 }
 
 const VLCCllection = () => {
+  const { branches } = useAppSelector((state) => state.branch);
+  const { postData, isLoading } = usePostApi({
+    path: "/web/dashboard/farmer-collections"
+  });
+
   const [toDate, setToDate] = useState<Date>();
   const [fromDate, setFromDate] = useState<Date>();
+  const [selectedBranch, setSelectedBranch] = useState("all");
+  const [selectedType, setSelectedType] = useState("all");
+  const [selectedShift, setSelectedShift] = useState("all");
+  const [farmerData, setFarmerData] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  // const [itemsPerPage, setItemsPerPage] = useState(10);
-  const totalPages = Math.ceil(50 / 10);
+  const itemsPerPage = 10;
+  
+  const totalPages = Math.ceil(farmerData.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedData = farmerData.slice(startIndex, endIndex);
 
-  const vlccData: VLCCData[] = [
-    {
-      id: "F001",
-      name: "John Smith",
-      totalMilkLtr: 51,
-      totalMilkKg: 50,
-      milkType: "Cow",
-      status: "Active",
-    },
-    {
-      id: "F002",
-      name: "Mary Johnson",
-      totalMilkLtr: 21,
-      totalMilkKg: 20,
-      milkType: "Cow",
-      status: "Inactive",
-    },
-    {
-      id: "F003",
-      name: "Robert Wilson",
-      totalMilkLtr: 30,
-      totalMilkKg: 30,
-      milkType: "Cow",
-      status: "Active",
-    },
-  ];
+  const handleApplyFilters = async () => {
+    if (!fromDate || !toDate) {
+      toast.error("Please select both from and to dates");
+      return;
+    }
+
+    try {
+      const branchIds = selectedBranch === "all" 
+        ? branches.map(b => b.branch_id) 
+        : [parseInt(selectedBranch)];
+
+      const payload = {
+        branches: branchIds,
+        type: selectedType === "all" ? "All" : selectedType.charAt(0).toUpperCase() + selectedType.slice(1),
+        shift: selectedShift === "all" ? "All" : selectedShift.charAt(0).toUpperCase() + selectedShift.slice(1),
+        from_date: formatDate(fromDate, "yyyy-MM-dd"),
+        to_date: formatDate(toDate, "yyyy-MM-dd")
+      };
+
+      const response = await postData(payload);
+      console.log('API Response:', response);
+      
+      if (response?.data?.success) {
+        setFarmerData(response.data.data || []);
+        setCurrentPage(1);
+      }
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to fetch data");
+    }
+  };
 
   const centerStats = [
     {
@@ -85,72 +107,70 @@ const VLCCllection = () => {
       value: "10",
       change: "+12%",
       icon: Users,
-      color: "bg-orange-400",
+      color: "bg-gradient-to-br from-blue-500 to-blue-600",
     },
     {
       label: "Total Milk Collection",
       value: "2,450L",
       change: "+5%",
       icon: TrendingUp,
-      color: "bg-orange-400",
+      color: "bg-gradient-to-br from-green-500 to-green-600",
     },
     {
       label: "Average Fat %",
       value: "3.5",
       change: "+8%",
       icon: TrendingUp,
-      color: "bg-orange-400",
+      color: "bg-gradient-to-br from-purple-500 to-purple-600",
     },
     {
       label: "Average SNF %",
       value: "8.5",
       change: "+8%",
       icon: TrendingUp,
-      color: "bg-orange-400",
+      color: "bg-gradient-to-br from-orange-500 to-orange-600",
     },
     {
       label: "Total Payments",
       value: "$12,450",
       change: "+15%",
       icon: IndianRupee,
-      color: "bg-orange-400",
+      color: "bg-gradient-to-br from-teal-500 to-teal-600",
     },
   ];
+
   return (
-    <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-      <div className="text-lg p-3 font-semibold text-gray-800 text-center bg-white">
-        Center Selection
-      </div>
-      <div className="text-lg font-semibold text-left text-gray-700 m-5">
-        VLCC Center
+    <div className="space-y-4 bg-gray-50 min-h-screen p-4">
+      <div className="text-xl font-bold text-gray-800">
+        VLC Collection Dashboard
       </div>
 
       {/* Center Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 m-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {centerStats.map((stat, index) => (
           <Card
             key={index}
             className={cn(
-              "hover:shadow-lg transition-all duration-300 border-0",
+              "hover:shadow-xl transition-all duration-300 border-0",
               stat.color
             )}
           >
             <CardContent className="p-4">
-              <div className="grid grid-cols-2 items-center text-left gap-2">
-                {/* Label */}
-                <p className="text-sm font-medium text-gray-800 opacity-90">
-                  {stat.label}
-                </p>
-                {/* Icon */}
-                <stat.icon className="h-6 w-6 text-blue-600 opacity-80 justify-self-end" />
-                {/* Value */}
-                <p className="text-2xl font-bold  mt-4">
-                  {stat.value}
-                </p>
-                {/* Change */}
-                <p className="text-sm text-green-700 opacity-75 mt-2">
-                  {stat.change}
-                </p>
+              <div className="flex flex-col space-y-2">
+                <div className="flex items-center justify-between">
+                  <stat.icon className="h-6 w-6 text-white" />
+                  <span className="text-sm font-medium text-white bg-white/20 px-2 py-1 rounded">
+                    {stat.change}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-white/90">
+                    {stat.label}
+                  </p>
+                  <p className="text-2xl font-bold text-white mt-1">
+                    {stat.value}
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -158,48 +178,53 @@ const VLCCllection = () => {
       </div>
 
       {/* Filters */}
-      <Card className="border-0 shadow-lg bg-white/90 backdrop-blur-sm text-left w-[85%] m-auto">
-        <CardHeader>
-          <CardTitle className="text-lg">User Info</CardTitle>
+      <Card className="border-0 shadow-lg bg-white">
+        <CardHeader className="border-b">
+          <CardTitle className="text-xl font-semibold text-gray-800">Filter Options</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:w-[85%]">
-            <div className="space-y-2 ">
-              <label className="text-sm font-medium text-gray-700">
-                VLC Name
-              </label>
-              <Select defaultValue="all">
-                <SelectTrigger className="w-full border-gray-200">
+        <CardContent className="space-y-4 p-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700">
+                VLC ID
+              </Label>
+              <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                <SelectTrigger className="w-full bg-gray-50 border-gray-200">
                   <SelectValue placeholder="All" />
                 </SelectTrigger>
                 <SelectContent className="bg-white">
                   <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="vlcc1">VLCC 1</SelectItem>
-                  <SelectItem value="vlcc2">VLCC 2</SelectItem>
+                  {branches?.map((branch) => (
+                    <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
+                      {branch.username} - {branch.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">
+              <Label className="text-sm font-medium text-gray-700">
                 Milk Type
-              </label>
-              <Select defaultValue="cow">
-                <SelectTrigger className="w-full border-gray-200">
+              </Label>
+              <Select value={selectedType} onValueChange={setSelectedType}>
+                <SelectTrigger className="w-full bg-gray-50 border-gray-200">
                   <SelectValue placeholder="Cow" />
                 </SelectTrigger>
                 <SelectContent className="bg-white">
+                  <SelectItem value="all">All</SelectItem>
                   <SelectItem value="cow">Cow</SelectItem>
                   <SelectItem value="buffalo">Buffalo</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Shift</label>
-              <Select defaultValue="morning">
-                <SelectTrigger className="w-full border-gray-200">
+              <Label className="text-sm font-medium text-gray-700">Shift</Label>
+              <Select value={selectedShift} onValueChange={setSelectedShift}>
+                <SelectTrigger className="w-full bg-gray-50 border-gray-200">
                   <SelectValue placeholder="Morning" />
                 </SelectTrigger>
                 <SelectContent className="bg-white">
+                  <SelectItem value="all">All</SelectItem>
                   <SelectItem value="morning">Morning</SelectItem>
                   <SelectItem value="evening">Evening</SelectItem>
                 </SelectContent>
@@ -208,20 +233,20 @@ const VLCCllection = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">
+              <Label className="text-sm font-medium text-gray-700">
                 From Date
-              </label>
+              </Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-between text-left font-normal border-gray-200"
+                    className="w-full justify-start text-left font-normal bg-gray-50 border-gray-200"
                   >
-                    {fromDate ? format(fromDate, "dd-MM-yyyy") : "21-04-2025"}
-                    <CalendarIcon className="h-4 w-4 text-gray-500" />
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {fromDate ? format(fromDate, "dd-MM-yyyy") : "Select date"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-white" align="start">
+                <PopoverContent className="w-auto p-0 bg-white z-50" align="start">
                   <Calendar
                     mode="single"
                     selected={fromDate}
@@ -231,176 +256,170 @@ const VLCCllection = () => {
               </Popover>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">
+              <Label className="text-sm font-medium text-gray-700">
                 To Date
-              </label>
+              </Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-between text-left font-normal border-gray-200"
+                    className="w-full justify-start text-left font-normal bg-gray-50 border-gray-200"
                   >
-                    {toDate ? format(toDate, "dd-MM-yyyy") : "21-04-2025"}
-                    <CalendarIcon className="h-4 w-4 text-gray-500" />
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {toDate ? format(toDate, "dd-MM-yyyy") : "Select date"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-white" align="start">
+                <PopoverContent className="w-auto p-0 bg-white z-50" align="start">
                   <Calendar
                     mode="single"
                     selected={toDate}
                     onSelect={setToDate}
-                    initialFocus
-                    className="pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
             </div>
           </div>
-          <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-            Submit
+          <Button 
+            onClick={handleApplyFilters}
+            disabled={isLoading}
+            className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 disabled:opacity-50"
+          >
+            {isLoading ? "Loading..." : "Apply Filters"}
           </Button>
         </CardContent>
       </Card>
 
       {/* VLCC List */}
-      <div className="border-0 shadow-lg bg-white/90 backdrop-blur-sm w-[85%] m-auto mt-2 mb-5">
-        <div className="flex flex-wrap justify-between items-center gap-4 p-4">
-          {/* Heading */}
-          <h1 className="text-lg sm:text-xl">VLCC List</h1>
-
-          {/* Search and Button */}
-          <div className="flex flex-wrap gap-2 items-center">
-            {/* Search Input */}
-            <div className="relative w-full sm:w-auto">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search farmers..."
-                className="pl-10 w-full sm:w-64 border-gray-200"
-              />
-            </div>
-
-            {/* Export Button */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-gray-200 flex items-center gap-2 w-full sm:w-auto"
-            >
-              <FileSpreadsheet className="h-4 w-4" />
-              <span>Export Excel</span>
-            </Button>
-          </div>
-        </div>
-
-        {/* Data Table */}
-        <div className="overflow-x-auto">
-          <Table className="min-w-full">
-            <TableHeader>
-              <TableRow className="bg-gray-100 border border-gray-200">
-                <TableHead className="text-gray-600 border border-gray-50 px-4">
-                  VLCC ID
-                </TableHead>
-                <TableHead className="text-gray-600 px-4">VLCC Name</TableHead>
-                <TableHead className="text-gray-600 px-4">
-                  Total Milk (Ltr)
-                </TableHead>
-                <TableHead className="text-gray-600 px-4">
-                  Total Milk (Kg)
-                </TableHead>
-                <TableHead className="text-gray-600 px-4">Milk Type</TableHead>
-                <TableHead className="text-gray-600 px-4">Status</TableHead>
-                <TableHead className="text-gray-600 px-4">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {vlccData.map((vlcc, index) => (
-                <TableRow
-                  key={index}
-                  className="hover:bg-gray-100 transition-colors text-left"
-                >
-                  <TableCell className="font-medium border border-gray-50 px-4">
-                    {vlcc.id}
-                  </TableCell>
-                  <TableCell className="border border-gray-50 px-4">
-                    {vlcc.name}
-                  </TableCell>
-                  <TableCell className="px-4 text-muted-foreground border border-gray-50">
-                    {vlcc.totalMilkLtr} Ltr
-                  </TableCell>
-                  <TableCell className="border border-gray-50 px-4">
-                    {vlcc.totalMilkKg} Kg
-                  </TableCell>
-                  <TableCell className="border border-gray-50 px-4">
-                    {vlcc.milkType}
-                  </TableCell>
-                  <TableCell className="border border-gray-50 px-4">
-                    <Badge
-                      variant={
-                        vlcc.status === "Active" ? "default" : "secondary"
-                      }
-                      className={
-                        vlcc.status === "Active"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-gray-100 text-gray-800"
-                      }
-                    >
-                      {vlcc.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="border border-gray-50 px-4">
-                    <EllipsisVertical
-                      className="text-gray-500 cursor-pointer"
-                      size={15}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-
-        {/* Footer with Pagination */}
-        <div className="flex flex-wrap items-center justify-between bg-card p-4">
-          <div className="text-sm text-muted-foreground">
-            Showing 1 to 3 of 42 entries
-          </div>
-          <div className="flex items-center gap-4 mt-2 md:mt-0">
-            <div className="flex items-center gap-2">
+      <Card className="border-0 shadow-lg bg-white">
+        <CardHeader className="border-b">
+          <div className="flex flex-wrap justify-between items-center gap-4">
+            <CardTitle className="text-xl font-semibold text-gray-800">VLC List</CardTitle>
+            <div className="flex flex-wrap gap-3 items-center">
+              <div className="relative w-full sm:w-auto">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search..."
+                  className="pl-10 w-full sm:w-64 bg-gray-50 border-gray-200"
+                />
+              </div>
               <Button
-                variant="default"
+                variant="outline"
+                className="border-gray-200 flex items-center gap-2"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                Export
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-gray-50">
+                  <TableHead className="text-gray-700 font-semibold px-4 py-3">
+                    VLCC ID
+                  </TableHead>
+                  <TableHead className="text-gray-700 font-semibold px-4 py-3">Farmer Name</TableHead>
+                  <TableHead className="text-gray-700 font-semibold px-4 py-3">
+                    Total Milk (Ltr)
+                  </TableHead>
+                  <TableHead className="text-gray-700 font-semibold px-4 py-3">
+                    Total Milk (Kg)
+                  </TableHead>
+                  <TableHead className="text-gray-700 font-semibold px-4 py-3">Milk Type</TableHead>
+                  <TableHead className="text-gray-700 font-semibold px-4 py-3">Status</TableHead>
+                  <TableHead className="text-gray-700 font-semibold px-4 py-3">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedData.map((farmer, index) => (
+                  <TableRow
+                    key={index}
+                    className="hover:bg-gray-50 transition-colors"
+                  >
+                    <TableCell className="font-medium px-4 py-3">
+                      {branches.find(b => b.branch_id === farmer.dairy_id)?.username || farmer.dairy_id}
+                    </TableCell>
+                    <TableCell className="px-4 py-3">
+                      {farmer.farmer_id} - {farmer.fullName}
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-gray-600">
+                      {farmer.quantity} Ltr
+                    </TableCell>
+                    <TableCell className="px-4 py-3">
+                      {(farmer.quantity * 0.98).toFixed(2)} Kg
+                    </TableCell>
+                    <TableCell className="px-4 py-3">
+                      {farmer.type}
+                    </TableCell>
+                    <TableCell className="px-4 py-3">
+                      <Badge
+                        className={
+                          farmer.is_active === 1
+                            ? "bg-green-100 text-green-800 hover:bg-green-100"
+                            : "bg-gray-100 text-gray-800 hover:bg-gray-100"
+                        }
+                      >
+                        {farmer.is_active === 1 ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="px-4 py-3">
+                      <EllipsisVertical
+                        className="text-gray-500 cursor-pointer hover:text-gray-700"
+                        size={18}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+
+        {farmerData.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between border-t bg-gray-50 px-4 py-3">
+            <div className="text-sm text-gray-600">
+              Showing {startIndex + 1} to {Math.min(endIndex, farmerData.length)} of {farmerData.length} entries
+            </div>
+            <div className="flex items-center gap-2 mt-2 md:mt-0">
+              <Button
+                variant="outline"
                 size="sm"
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                onClick={() => setCurrentPage(currentPage - 1)}
                 disabled={currentPage === 1}
+                className="border-gray-200"
               >
                 Previous
               </Button>
-              {[1, 2, 3].map((page) => (
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                 <Button
                   key={page}
-                  variant={currentPage === page ? "outline" : "default"}
+                  variant={currentPage === page ? "default" : "outline"}
                   size="sm"
                   onClick={() => setCurrentPage(page)}
                   className={cn(
+                    "border-gray-200",
                     currentPage === page &&
-                      "bg-blue-600 hover:bg-blue-700 border-none text-white"
+                      "bg-blue-600 hover:bg-blue-700 text-white"
                   )}
                 >
                   {page}
                 </Button>
               ))}
               <Button
-                variant="default"
+                variant="outline"
                 size="sm"
-                onClick={() =>
-                  setCurrentPage(Math.min(totalPages, currentPage + 1))
-                }
+                onClick={() => setCurrentPage(currentPage + 1)}
                 disabled={currentPage === totalPages}
+                className="border-gray-200"
               >
                 Next
               </Button>
             </div>
           </div>
-        </div>
-      </div>
+        )}
+      </Card>
     </div>
   );
 };

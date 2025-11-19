@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,82 +22,451 @@ import {
   ArrowLeft,
   User,
   Save,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-// import { useToast } from "@/hooks/use-toast";
+import { useAppSelector } from "@/redux/store";
+import { collectionApi, CollectionPayload } from "@/services/collectionApi";
+import { rateChartApi } from "@/services/rateChartApi";
+import { userApi, Farmer } from "@/services/userApi";
+import { normalizeFarmerId, formatFarmerIdForDisplay } from "@/utils/farmerIdUtils";
+import { calculateCLRFromFatAndSNF, calculateSNFFromFatAndCLR } from "@/utils/milkCalculations";
+import { toast } from "react-toastify";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
-interface FormData {
-  vlcName: string;
-  date: Date | undefined;
-  farmerId: number;
-  farmerName: string;
-  milkType: string;
-  quantity: number;
-  fatPercentage: number;
-  clr: string;
-  snf: string;
-  ratePerLtr: number;
+interface Collection {
+  id: number;
+  type?: 'Cow' | 'Buffalo';
+  milkType?: 'Cow' | 'Buffalo';
+  quantity?: number;
+  qty?: number;
+  fat: number;
+  snf: number;
+  clr: number;
+  rate: number;
+  amount: number;
+  shift: 'Morning' | 'Evening';
+  farmer_id?: string;
+  farmerId?: string;
+  uname?: string;
+  fname?: string;
+  farmer?: string;
+  farmer_name?: string;
+  date?: string;
 }
 
 const FarmerCollectionEntry = () => {
-  // const { toast } = useToast();
-  const [formData, setFormData] = useState({
-    vlcName: "",
-    date: new Date(),
-    farmerId: "0001",
-    farmerName: "FAMR123",
-    milkType: "COW",
-    quantity: "0.0",
-    fatPercentage: "0.0",
-    clr: "0.0",
-    snf: "0.0",
-    ratePerLtr: "",
-  });
+  const branches = useAppSelector((state) => state.branch.branches);
+  const [selectedBranch, setSelectedBranch] = useState<number | null>(null);
+  const [date, setDate] = useState<Date>(new Date());
+  const [shift, setShift] = useState<'Morning' | 'Evening'>('Morning');
+  const [farmerIdInput, setFarmerIdInput] = useState("");
+  const [farmerId, setFarmerId] = useState("");
+  const [farmerName, setFarmerName] = useState("");
+  const [farmerData, setFarmerData] = useState<Farmer | null>(null);
+  const [availableMilkTypes, setAvailableMilkTypes] = useState<('Cow' | 'Buffalo')[]>(['Cow', 'Buffalo']);
+  const [milkType, setMilkType] = useState<'Cow' | 'Buffalo'>('Cow');
+  const [quantity, setQuantity] = useState("");
+  const [fat, setFat] = useState("");
+  const [snf, setSnf] = useState("");
+  const [clr, setClr] = useState("");
+  const [rate, setRate] = useState("");
+  const [amount, setAmount] = useState(0);
+  const [existingCollections, setExistingCollections] = useState<Collection[]>([]);
+  const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [isMultipleMode, setIsMultipleMode] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [recentCollections, setRecentCollections] = useState<Collection[]>([]);
+  const quantityRef = useRef<HTMLInputElement>(null);
 
-  const handleInputChange = (
-    field: keyof FormData,
-    value: string | Date | undefined
-  ) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+  useEffect(() => {
+    if (quantity && rate) {
+      setAmount(parseFloat(quantity) * parseFloat(rate));
+    }
+  }, [quantity, rate]);
+
+  useEffect(() => {
+    if (fat && snf && !clr) {
+      const calculatedCLR = calculateCLRFromFatAndSNF(fat, snf);
+      if (calculatedCLR) setClr(calculatedCLR);
+    }
+  }, [fat, snf]);
+
+  useEffect(() => {
+    if (fat && clr && !snf) {
+      const calculatedSNF = calculateSNFFromFatAndCLR(fat, clr);
+      if (calculatedSNF) setSnf(calculatedSNF);
+    }
+  }, [fat, clr]);
+
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (selectedBranch && fat && snf && farmerData?.rateChart) {
+        console.log('🟡 Fetching rate with:', {
+          fat: parseFloat(fat),
+          snf: parseFloat(snf),
+          orgId: selectedBranch,
+          rateChart: farmerData.rateChart,
+          milkType,
+          date: format(date, 'yyyy-MM-dd')
+        });
+        try {
+          const dateStr = format(date, 'yyyy-MM-dd');
+          const response = await rateChartApi.getRate(
+            parseFloat(fat),
+            parseFloat(snf),
+            selectedBranch,
+            farmerData.rateChart,
+            milkType,
+            dateStr
+          );
+          console.log('✅ Rate fetched successfully:', response);
+          if (response?.price) {
+            setRate(response.price.toString());
+          } else {
+            console.warn('⚠️ No price in response, setting to 0.00');
+            setRate('0.00');
+          }
+        } catch (error) {
+          console.error('❌ Error fetching rate:', error);
+          setRate('0.00');
+        }
+      } else {
+        console.log('⏭️ Skipping rate fetch - missing:');
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [selectedBranch, milkType, fat, snf, farmerData, date]);
+
+  const handleFarmerSearch = async () => {
+    if (!selectedBranch || !farmerIdInput.trim()) {
+      toast.error('Please select VLC and enter Farmer ID');
+      return;
+    }
+
+    const normalized = normalizeFarmerId(farmerIdInput);
+    const displayId = formatFarmerIdForDisplay(farmerIdInput);
+    
+
+    try {
+      const farmer = await userApi.getById(normalized, selectedBranch);
+      
+      if (!farmer) {
+        toast.error('Farmer not found');
+        setFarmerData(null);
+        setFarmerName('');
+        setFarmerId('');
+        setAvailableMilkTypes(['Cow', 'Buffalo']);
+        return;
+      }
+
+
+      setFarmerData(farmer);
+      setFarmerId(displayId);
+      setFarmerName(farmer.fullName || farmer.name || 'Unknown Farmer');
+
+      // Set available milk types
+      const types = farmer.milkType === 'Both' 
+        ? ['Cow', 'Buffalo'] as ('Cow' | 'Buffalo')[]
+        : [farmer.milkType] as ('Cow' | 'Buffalo')[];
+      setAvailableMilkTypes(types);
+      setMilkType(types[0]);
+
+      // Fetch existing collections
+      const dateStr = format(date, 'yyyy-MM-dd');
+      const response = await collectionApi.getTodaysCollectionByFarmer(
+        selectedBranch,
+        normalized,
+        dateStr
+      );
+
+      const collections = response?.data || response?.collections || [];
+      const shiftCollections = collections.filter(
+        (c: Collection) => c.shift === shift
+      );
+
+      if (shiftCollections.length > 0) {
+        setExistingCollections(shiftCollections);
+
+        // If farmer has Both milk types
+        if (farmer.milkType === 'Both') {
+          const existingTypes = shiftCollections.map(c => c.type || c.milkType);
+          
+          // Check if Cow exists
+          const hasCow = existingTypes.includes('Cow');
+          // Check if Buffalo exists
+          const hasBuffalo = existingTypes.includes('Buffalo');
+          
+          if (hasCow && !hasBuffalo) {
+            // Cow exists, Buffalo doesn't - proceed with Buffalo
+            setMilkType('Buffalo');
+            quantityRef.current?.focus();
+            return;
+          } else if (hasBuffalo && !hasCow) {
+            // Buffalo exists, Cow doesn't - proceed with Cow
+            setMilkType('Cow');
+            quantityRef.current?.focus();
+            return;
+          } else {
+            // Both exist - show modal for the first type
+            setMilkType(types[0]);
+            setShowModal(true);
+            return;
+          }
+        } else {
+          // Single milk type farmer - show modal
+          setShowModal(true);
+          return;
+        }
+      }
+
+      quantityRef.current?.focus();
+    } catch (error) {
+      console.error('Error searching farmer:', error);
+      toast.error('Error searching farmer');
+    }
   };
-  // const [totalAmount, setTotalAmount] = useState("₹225.00");
 
-  const recentCollections = [
-    { name: "Bobby Brown", time: "10:30 AM", amount: "₹235.00" },
-    { name: "Mary Johnson", time: "10:44 AM", amount: "₹175.00" },
-    { name: "Brad Brown", time: "11:15 AM", amount: "₹190.00" },
-  ];
+  const handleSubmit = async () => {
+    if (!selectedBranch || !farmerId || !quantity || !fat || !snf || !clr || !rate) {
+      toast.error('Please fill all required fields');
+      return;
+    }
+    setLoading(true);
+    try {
+      const time = new Date().toLocaleTimeString('en-IN', { hour12: false });
+      const dateStr = format(date, 'yyyy-MM-dd');
+      
+      let payload: CollectionPayload;
+      
+      if (isMultipleMode && existingCollections.length > 0) {
+        // Multiple collection: merge with existing using weighted average
+        const existing = existingCollections.find(c => (c.type || c.milkType) === milkType);
+        if (existing) {
+          const existingQty = parseFloat(existing.quantity?.toString() || existing.qty?.toString() || '0');
+          const newQty = parseFloat(quantity);
+          const totalQty = existingQty + newQty;
+          
+          const existingFat = parseFloat(existing.fat.toString());
+          const newFat = parseFloat(fat);
+          const weightedFat = ((existingFat * existingQty) + (newFat * newQty)) / totalQty;
+          
+          const existingSnf = parseFloat(existing.snf.toString());
+          const newSnf = parseFloat(snf);
+          const weightedSnf = ((existingSnf * existingQty) + (newSnf * newQty)) / totalQty;
+          
+          const existingAmt = parseFloat(existing.amount?.toString() || '0');
+          const totalAmount = existingAmt + amount;
+          
+          // Recalculate CLR from weighted averages
+          const weightedClr = calculateCLRFromFatAndSNF(weightedFat.toString(), weightedSnf.toString());
+          
+          payload = {
+            farmer_id: farmerId,
+            dairy_id: selectedBranch,
+            type: milkType,
+            quantity: totalQty,
+            fat: parseFloat(weightedFat.toFixed(2)),
+            snf: parseFloat(weightedSnf.toFixed(2)),
+            clr: parseFloat(weightedClr),
+            rate: parseFloat(rate),
+            amount: totalAmount,
+            shift: shift,
+            date: `${dateStr} ${time}`,
+          };
+          
+          await collectionApi.update(existing.id, payload);
+          toast.success('Collections merged successfully');
+          setIsMultipleMode(false);
+        }
+      } else {
+        payload = {
+          farmer_id: farmerId,
+          dairy_id: selectedBranch,
+          type: milkType,
+          quantity: parseFloat(quantity),
+          fat: parseFloat(fat),
+          snf: parseFloat(snf),
+          clr: parseFloat(clr),
+          rate: parseFloat(rate),
+          amount: amount,
+          shift: shift,
+          date: `${dateStr} ${time}`,
+        };
+        
+        if (editingId) {
+          await collectionApi.update(editingId, payload);
+          toast.success('Collection updated successfully');
+        } else {
+          await collectionApi.create(payload);
+          toast.success('Collection created successfully');
+        }
+      }
+      
+      resetForm();
+      if (selectedBranch) {
+        await fetchRecentCollections(selectedBranch, dateStr, shift);
+      }
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to save collection');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const handleSubmit = () => {
-    // toast({
-    //   title: "Collection Submitted Successfully",
-    //   description: "Farmer collection entry has been recorded.",
-    // });
+  const resetForm = () => {
+    setFarmerIdInput('');
+    setFarmerId('');
+    setFarmerName('');
+    setFarmerData(null);
+    setQuantity('');
+    setFat('');
+    setSnf('');
+    setClr('');
+    setRate('');
+    setAmount(0);
+    setEditingId(null);
+    setExistingCollections([]);
+    setAvailableMilkTypes(['Cow', 'Buffalo']);
+    setIsMultipleMode(false);
+  };
+
+  const fetchRecentCollections = async (dairyId: number, dateStr: string, shiftVal: string) => {
+    try {
+      console.log('📋 Fetching recent collections:', { dairyId, dateStr, shiftVal });
+      const response = await collectionApi.getCollections({
+        dairy_id: dairyId,
+        date: dateStr,
+        shift: shiftVal
+      });
+      
+      console.log('📦 Raw response:', response);
+      
+      let collections = [];
+      const data = response?.data || response;
+      
+      if (Array.isArray(data)) {
+        if (data[0]?.date && data[0]?.collections) {
+          console.log('✅ Response is grouped by date');
+          const dateMatch = data.find((g: any) => g.date === format(new Date(dateStr), 'dd-MM-yyyy'));
+          collections = dateMatch?.collections || [];
+          console.log('Found collections for date:', collections.length);
+        } else {
+          console.log('✅ Response is flat array, length:', data.length);
+          collections = data;
+        }
+      } else if (data?.collections) {
+        console.log('✅ Response has collections property, length:', data.collections.length);
+        collections = data.collections;
+      }
+      
+      console.log('🎯 Setting recent collections:', collections.length);
+      setRecentCollections(collections.slice(0, 10));
+    } catch (error) {
+      console.error('❌ Error fetching recent collections:', error);
+      setRecentCollections([]);
+    }
+  };
+
+  const handleBranchChange = async (branchId: string) => {
+    const id = parseInt(branchId);
+    setSelectedBranch(id);
+    resetForm();
+    await fetchRecentCollections(id, format(date, 'yyyy-MM-dd'), shift);
+  };
+
+  const handleDateChange = async (newDate: Date | undefined) => {
+    if (newDate) {
+      setDate(newDate);
+      resetForm();
+      if (selectedBranch) {
+        await fetchRecentCollections(selectedBranch, format(newDate, 'yyyy-MM-dd'), shift);
+      }
+    }
+  };
+
+  const handleShiftChange = async (newShift: 'Morning' | 'Evening') => {
+    setShift(newShift);
+    resetForm();
+    if (selectedBranch) {
+      await fetchRecentCollections(selectedBranch, format(date, 'yyyy-MM-dd'), newShift);
+    }
   };
 
   const handleMultipleCollection = () => {
-    // toast({
-    //   title: "Multiple Collection Mode",
-    //   description: "Switched to multiple collection entry mode.",
-    // });
+    setShowModal(false);
+    setIsMultipleMode(true);
+    // Keep farmer data, just clear collection fields to add new
+    setQuantity('');
+    setFat('');
+    setSnf('');
+    setClr('');
+    setRate('');
+    setAmount(0);
+    setEditingId(null);
+    quantityRef.current?.focus();
+    toast.info('Enter new collection details to merge with existing');
   };
 
   const handleModify = () => {
-    // toast({
-    //   title: "Modify Mode",
-    //   description: "Entry is now in edit mode.",
-    // });
+    console.log('🔧 Modify clicked, looking for:', milkType);
+    console.log('Existing collections:', existingCollections);
+    const existing = existingCollections.find(c => {
+      const cType = c.type || c.milkType;
+      console.log('Checking collection type:', cType, 'vs', milkType);
+      return cType === milkType;
+    });
+    console.log('Found existing:', existing);
+    if (existing) {
+      const qtyVal = existing.quantity || existing.qty || 0;
+      const amtVal = typeof existing.amount === 'number' ? existing.amount : parseFloat(existing.amount?.toString() || '0');
+      setEditingId(existing.id);
+      setQuantity(qtyVal.toString());
+      setFat(parseFloat(existing.fat.toString()).toFixed(1));
+      setSnf(parseFloat(existing.snf.toString()).toFixed(1));
+      setClr(parseFloat(existing.clr.toString()).toFixed(1));
+      setRate(existing.rate.toString());
+      setAmount(amtVal);
+      console.log('✅ Form populated with existing values');
+    }
+    setShowModal(false);
   };
 
-  const handleDelete = () => {
-    // toast({
-    //   title: "Entry Deleted",
-    //   description: "Collection entry has been removed.",
-    //   variant: "destructive",
-    // });
+  const handleDelete = async () => {
+    const existing = existingCollections.find(c => c.type === milkType);
+    if (existing) {
+      try {
+        await collectionApi.delete(existing.id);
+        toast.success('Collection deleted successfully');
+        setShowModal(false);
+        resetForm();
+        if (selectedBranch) {
+          await fetchRecentCollections(selectedBranch, format(date, 'yyyy-MM-dd'), shift);
+        }
+      } catch (error) {
+        toast.error('Failed to delete collection');
+      }
+    }
+  };
+
+  const handleMilkTypeChange = (type: 'Cow' | 'Buffalo') => {
+    // Check if collection exists for this type
+    const hasCollection = existingCollections.some(c => (c.type || c.milkType) === type);
+    
+    if (hasCollection) {
+      // Show modal for existing collection
+      setMilkType(type);
+      setShowModal(true);
+    } else {
+      // Just change the milk type
+      setMilkType(type);
+    }
   };
 
   return (
@@ -123,36 +492,32 @@ const FarmerCollectionEntry = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6  text-left">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 text-left">
           {/* Main Form */}
           <div className="lg:col-span-3">
-            <div className="space-y-6 bg-white p-5 rounded-2xl">
+            <div className="space-y-4 bg-white p-5 rounded-2xl">
               {/* Top Form Fields */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 ">
                 <div>
-                  <Label
-                    htmlFor="vlcName"
-                    className="text-sm font-medium text-gray-700 block"
-                  >
+                  <Label className="text-sm font-medium text-gray-700 block">
                     VLC Name
                   </Label>
-                  <Select defaultValue="All">
+                  <Select onValueChange={handleBranchChange}>
                     <SelectTrigger className="w-full border-gray-200">
-                      <SelectValue />
+                      <SelectValue placeholder="Select VLC" />
                     </SelectTrigger>
                     <SelectContent className="bg-white">
-                      <SelectItem value="All">All</SelectItem>
-                      <SelectItem value="VLC1">VLC 1</SelectItem>
-                      <SelectItem value="VLC2">VLC 2</SelectItem>
+                      {branches.map((branch) => (
+                        <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
+                          {branch.username} - {branch.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div>
-                  <Label
-                    htmlFor="date"
-                    className="text-sm font-medium text-gray-700"
-                  >
+                  <Label className="text-sm font-medium text-gray-700">
                     Date
                   </Label>
                   <Popover>
@@ -160,288 +525,328 @@ const FarmerCollectionEntry = () => {
                       <Button
                         variant="outline"
                         className={cn(
-                          "w-full justify-start text-left font-normal border-gray-200 hover:bg-gray-100",
-                          !formData.date && "text-muted-foreground"
+                          "w-full justify-start text-left font-normal border-gray-200 hover:bg-gray-100"
                         )}
                       >
-                        {formData.date ? (
-                          format(formData.date, "dd-MM-yyyy")
-                        ) : (
-                          <span>Pick a date</span>
-                        )}
+                        {format(date, "dd-MM-yyyy")}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent
-                      className="w-auto p-0 bg-white"
-                      align="start"
-                    >
+                    <PopoverContent className="w-auto p-0 bg-white" align="start">
                       <Calendar
                         mode="single"
-                        selected={formData.date}
-                        onSelect={(date) => handleInputChange("date", date)}
+                        selected={date}
+                        onSelect={handleDateChange}
                         initialFocus
-                        className=" pointer-events-auto"
+                        className="pointer-events-auto"
                       />
                     </PopoverContent>
                   </Popover>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700">
+                  <Label className="text-sm font-medium text-gray-700">
                     Shift
-                  </label>
-                  <Select>
+                  </Label>
+                  <Select value={shift} onValueChange={handleShiftChange}>
                     <SelectTrigger className="w-full bg-white border-gray-200">
-                      <SelectValue placeholder="Morning" />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-white">
-                      <SelectItem value="morning">Morning</SelectItem>
-                      <SelectItem value="evening">Evening</SelectItem>
+                      <SelectItem value="Morning">Morning</SelectItem>
+                      <SelectItem value="Evening">Evening</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
-              {/* Farmer Details */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-15 mb-2 md:w-[75%] lg:w-[75%] m-auto">
-                <div>
-                  <Label
-                    htmlFor="farmerId"
-                    className="text-sm font-medium text-gray-700 mb-2 block "
-                  >
+              {/* Farmer Search */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-2">
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
                     Farmer ID
                   </Label>
-                  <Input
-                    id="farmerId"
-                    value={formData.farmerId}
-                    // onChange={(e) =>
-                    //   setFormData({ ...formData, farmerId: e.target.value })
-                    // }
-                    onChange={(e) =>
-                      handleInputChange("farmerId", e.target.value)
-                    }
-                    className="text-left border-gray-200"
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      value={farmerIdInput}
+                      onChange={(e) => setFarmerIdInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleFarmerSearch()}
+                      placeholder="Enter Farmer ID"
+                      className="border-gray-200"
+                    />
+                    <Button onClick={handleFarmerSearch} className="bg-blue-500 hover:bg-blue-600">
+                      <Search className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
                 <div>
-                  <Label
-                    htmlFor="farmerName"
-                    className="text-sm font-medium text-gray-700 mb-2 block"
-                  >
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
                     Farmer Name
                   </Label>
                   <Input
-                    value={formData.farmerName}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        farmerName: e.target.value,
-                      })
-                    }
-                    className="border-gray-200"
+                    value={farmerName}
+                    readOnly
+                    className="border-gray-200 bg-gray-50"
                   />
                 </div>
               </div>
+            </div>
+            <Separator className="my-4" />
 
-              {/* Action Buttons */}
-              <div className="mb-6">
-                <p className="text-sm mb-2 ml-4">
-                  If Collection has been done, do you want to?
+            {/* Collection Details */}
+            <div className="space-y-4 bg-white p-5 rounded-2xl">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Collection Details
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                    Milk Type
+                  </Label>
+                  <div className="flex gap-2">
+                    {availableMilkTypes.map(type => (
+                      <Button
+                        key={type}
+                        type="button"
+                        onClick={() => handleMilkTypeChange(type)}
+                        className={cn(
+                          "flex-1 h-10",
+                          milkType === type
+                            ? "bg-blue-500 hover:bg-blue-600 text-white"
+                            : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                        )}
+                      >
+                        {type}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                    Quantity
+                  </Label>
+                  <Input
+                    ref={quantityRef}
+                    type="number"
+                    step="0.1"
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                    className="border-gray-200"
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                    Fat %
+                  </Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={fat}
+                    onChange={(e) => setFat(e.target.value)}
+                    className="border-gray-200"
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                    SNF %
+                  </Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={snf}
+                    onChange={(e) => {
+                      setSnf(e.target.value);
+                      if (e.target.value) setClr('');
+                    }}
+                    className="border-gray-200"
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                    CLR
+                  </Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={clr}
+                    onChange={(e) => {
+                      setClr(e.target.value);
+                      if (e.target.value) setSnf('');
+                    }}
+                    className="border-gray-200"
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                    Rate per ltr
+                  </Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={rate}
+                    onChange={(e) => setRate(e.target.value)}
+                    placeholder="0.00"
+                    className="border-gray-200"
+                    readOnly
+                  />
+                </div>
+              </div>
+            </div>
+
+            <Separator className="my-4" />
+
+            {/* Total Amount */}
+            <div className="flex justify-between items-center p-4 rounded-2xl bg-white">
+              <span className="text-lg font-semibold text-gray-900">
+                Total Amount
+              </span>
+              <span className="text-2xl font-bold text-green-600">₹{amount.toFixed(2)}</span>
+            </div>
+
+            {/* Submit Button */}
+            <Button
+              onClick={handleSubmit}
+              disabled={loading}
+              className="w-full md:w-[40%] bg-green-500 hover:bg-green-600 text-white py-3 text-lg font-medium"
+            >
+              <Save className="mr-2" />
+              {loading ? 'Saving...' : editingId ? 'Update' : 'Submit'}
+            </Button>
+          </div>
+
+          {/* Recent Collections Sidebar */}
+          <div className="lg:col-span-1">
+            <Card className="shadow-sm border-0 shadow-gray-200/50 p-5 bg-white">
+              <CardHeader className="p-0 pb-4">
+                <CardTitle className="text-lg font-semibold text-gray-900">
+                  Recent Collections
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {recentCollections.length > 0 ? (
+                  <div className="space-y-0">
+                    {recentCollections.map((collection, index) => {
+                      const milkTypeVal = collection.type || collection.milkType || 'N/A';
+                      const qtyVal = parseFloat(collection.quantity?.toString() || collection.qty?.toString() || '0');
+                      const farmerName = collection.fname || collection.farmer || collection.farmer_name || 'Unknown';
+                      const farmerIdVal = collection.uname || collection.farmer_id || collection.farmerId || '';
+                      const amountVal = parseFloat(collection.amount?.toString() || '0');
+                      
+                      const handleCollectionClick = async () => {
+                        if (!selectedBranch || !farmerIdVal) return;
+                        const normalized = normalizeFarmerId(farmerIdVal);
+                        const dateStr = format(date, 'yyyy-MM-dd');
+                        
+                        try {
+                          const response = await collectionApi.getTodaysCollectionByFarmer(
+                            selectedBranch,
+                            normalized,
+                            dateStr
+                          );
+                          
+                          if (response?.collections?.length > 0) {
+                            setExistingCollections(response.collections);
+                            setFarmerIdInput(farmerIdVal);
+                            setFarmerId(formatFarmerIdForDisplay(farmerIdVal));
+                            setFarmerName(farmerName);
+                            setShowModal(true);
+                          }
+                        } catch (error) {
+                          console.error('Error fetching farmer collections:', error);
+                        }
+                      };
+                      
+                      return (
+                        <div key={collection.id || index}>
+                          <div 
+                            className="flex justify-between items-center p-3 hover:bg-gray-50 transition-colors cursor-pointer"
+                            onClick={handleCollectionClick}
+                          >
+                            <div>
+                              <p className="font-medium text-gray-900 text-sm">
+                                {farmerIdVal} - {farmerName}
+                              </p>
+                              <div className="flex items-center text-xs text-gray-500 mt-1">
+                                {milkTypeVal} | {qtyVal.toFixed(1)}L | FAT: {collection.fat}% | SNF: {collection.snf}%
+                              </div>
+                            </div>
+                            <span className="font-semibold text-sm text-green-600">
+                              ₹{amountVal.toFixed(2)}
+                            </span>
+                          </div>
+                          {index < recentCollections.length - 1 && <hr className="border-gray-100" />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500 text-center py-4">
+                    {selectedBranch ? 'No recent collections' : 'Select VLC to view collections'}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+
+      {/* Modal for existing collection */}
+      {showModal && (
+        <Dialog open={showModal} onOpenChange={setShowModal}>
+          <DialogContent className="bg-white sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold text-gray-900">Collection Already Exists</DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4 py-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm font-medium text-blue-900 mb-2">
+                  Farmer: <span className="font-bold">{farmerName}</span>
                 </p>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 md:grid-cols-4 md:w-[50%] lg:w-[40%] ml-10">
-                  <Button
-                    onClick={handleMultipleCollection}
-                    className="bg-green-500 hover:bg-green-600 text-white text-sm w-full h-auto py-2"
+                <p className="text-sm text-blue-800">
+                  A collection for <span className="font-semibold">{milkType}</span> milk in <span className="font-semibold">{shift}</span> shift already exists.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-700">What would you like to do?</p>
+                
+                <div className="grid grid-cols-1 gap-3">
+                  <Button 
+                    onClick={handleMultipleCollection} 
+                    className="bg-green-500 hover:bg-green-600 text-white h-auto py-3 flex flex-col items-start"
                   >
-                    Multiple
-                    <br />
-                    Collection
+                    <span className="font-semibold">Add Multiple Collection</span>
+                    <span className="text-xs opacity-90">Add new collection to the existing one</span>
                   </Button>
-                  <Button
-                    onClick={handleModify}
-                    className="bg-blue-500 hover:bg-blue-600 text-white w-full h-auto text-sm py-2"
+                  
+                  <Button 
+                    onClick={handleModify} 
+                    className="bg-blue-500 hover:bg-blue-600 text-white h-auto py-3 flex flex-col items-start"
                   >
-                    Modify
+                    <span className="font-semibold">Modify Existing</span>
+                    <span className="text-xs opacity-90">Update the previous collection details</span>
                   </Button>
-                  <Button
-                    onClick={handleDelete}
-                    className="bg-red-500 hover:bg-red-600 text-white w-full h-auto text-sm py-2"
+                  
+                  <Button 
+                    onClick={handleDelete} 
+                    className="bg-red-500 hover:bg-red-600 text-white h-auto py-3 flex flex-col items-start"
                   >
-                    Delete
+                    <span className="font-semibold">Delete Collection</span>
+                    <span className="text-xs opacity-90">Remove the existing collection</span>
                   </Button>
-                  <Button
-                    className="w-full h-auto text-sm bg-gray-400 text-white py-2"
+                  
+                  <Button 
+                    onClick={() => setShowModal(false)} 
+                    variant="outline"
+                    className="h-auto py-3"
                   >
                     Cancel
                   </Button>
                 </div>
               </div>
             </div>
-            <Separator className="my-3" />
-
-            {/* Collection Details */}
-            <div className="space-y-6 bg-white p-5 rounded-2xl">
-              <h3 className="text-lg font-semibold text-gray-900">
-                Collection Details
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <Label
-                    htmlFor="milkType"
-                    className="text-sm font-medium text-gray-700 mb-2 block"
-                  >
-                    Milk Type
-                  </Label>
-                  <Input
-                    value={formData.milkType}
-                    onChange={(e) =>
-                      setFormData({ ...formData, milkType: e.target.value })
-                    }
-                    className="border-gray-200"
-                  />
-                </div>
-                <br />
-                <div>
-                  <Label
-                    htmlFor="quantity"
-                    className="text-sm font-medium text-gray-700 mb-2 block"
-                  >
-                    Quantity
-                  </Label>
-                  <Input
-                    value={formData.quantity}
-                    onChange={(e) =>
-                      setFormData({ ...formData, quantity: e.target.value })
-                    }
-                    className="border-gray-200"
-                  />
-                </div>
-                <div>
-                  <Label
-                    htmlFor="fatPercentage"
-                    className="text-sm font-medium text-gray-700 mb-2 block"
-                  >
-                    Fat %
-                  </Label>
-                  <Input
-                    value={formData.fatPercentage}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        fatPercentage: e.target.value,
-                      })
-                    }
-                    className="border-gray-200"
-                  />
-                </div>
-                <div>
-                  <Label
-                    htmlFor="clr"
-                    className="text-sm font-medium text-gray-700 mb-2 block"
-                  >
-                    CLR
-                  </Label>
-                  <Input
-                    value={formData.clr}
-                    onChange={(e) =>
-                      setFormData({ ...formData, clr: e.target.value })
-                    }
-                    className="border-gray-200"
-                  />
-                </div>
-                <div>
-                  <Label
-                    htmlFor="snf"
-                    className="text-sm font-medium text-gray-700 mb-2 block"
-                  >
-                    SNF %
-                  </Label>
-                  <Input
-                    value={formData.snf}
-                    onChange={(e) =>
-                      setFormData({ ...formData, snf: e.target.value })
-                    }
-                    className="border-gray-200"
-                  />
-                </div>
-                <div>
-                  <Label
-                    htmlFor="ratePerLtr"
-                    className="text-sm font-medium text-gray-700 mb-2 block"
-                  >
-                    Rate per ltr
-                  </Label>
-                  <Input
-                    value={formData.ratePerLtr}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        ratePerLtr: e.target.value,
-                      })
-                    }
-                    placeholder="Enter rate"
-                    className="border-gray-200"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <Separator className="my-3" />
-
-            {/* Total Amount */}
-            <div className="flex w-[85%] justify-between items-center mb-6 p-3 rounded-2xl bg-white">
-              <span className="text-lg font-semibold text-gray-900">
-                Total Amount
-              </span>
-              <span className="text-2xl font-bold text-green-600">₹225.00</span>
-            </div>
-
-            {/* Submit Button */}
-            <Button
-              onClick={handleSubmit}
-              className="w-[35%] bg-green-500 hover:bg-green-600 text-gray-800 py-3 text-lg font-medium"
-            >
-              <Save />
-              Submit
-            </Button>
-          </div>
-
-          {/* Recent Collections Sidebar */}
-          <div className="lg:col-span-1">
-            <Card className="shadow-sm border-0 shadow-gray-200/50 p-5 bg-white h-screen">
-              <CardHeader className="">
-                <CardTitle className="text-lg font-semibold text-gray-900">
-                  Recent Collections
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="space-y-0">
-                  {recentCollections.map((collection, index) => (
-                    <>
-                      <div
-                        key={index}
-                        className="flex justify-between items-center p-4 hover:bg-gray-50 transition-colors"
-                      >
-                        <div>
-                          <p className="font-medium text-gray-900 text-sm">
-                            {collection.name}
-                          </p>
-                          <div className="flex items-center text-xs text-gray-500 mt-1">
-                            {collection.time}
-                          </div>
-                        </div>
-                        <span className="font-semibold text-sm">
-                          {collection.amount}
-                        </span>
-                      </div>
-                      <hr className="text-gray-100" />
-                    </>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };
