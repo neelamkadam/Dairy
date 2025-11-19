@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import { ENV_VARIABLES } from "@/services/config";
+import { api } from "@/services/config";
 
 export interface CollectionData {
   dairy_id: number;
@@ -25,15 +25,7 @@ export const fetchCollectionsSummary = createAsyncThunk(
   'dashboard/fetchCollectionsSummary',
   async (payload: { branches: number[]; date: string; shift: string }, { rejectWithValue }) => {
     try {
-      const response = await fetch(`${ENV_VARIABLES.API_BASE}/web/dashboard/collections`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await response.json();
+      const { data } = await api.post("/web/dashboard/collections", payload);
       console.log('Collections API Response:', data);
 
       if (!data.success) {

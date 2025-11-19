@@ -9,7 +9,7 @@ import AppButton from "@/components/AppButton";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { ROUTES } from "@/constatnts/routesConstants";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ENV_VARIABLES } from "@/services/config";
+import { api } from "@/services/config";
 import { useAppDispatch } from "@/redux/store";
 import { setAuthentication, setTempUserData } from "@/redux/AuthSlice";
 import { fetchUserBranches } from "@/redux/branchSlice";
@@ -45,18 +45,10 @@ const Login: React.FC = () => {
         navigate(ROUTES.ADMIN_DASHBOARD);
       } else {
         // User login API call
-        const res = await fetch(`${ENV_VARIABLES.API_BASE}/web-users/login`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            email: data.userId,
-            password: data.password
-          })
+        const { data: result } = await api.post("/web-users/login", {
+          email: data.userId,
+          password: data.password
         });
-
-        const result = await res.json();
 
         if (result.success) {
           if (result.requirePasswordChange === true) {

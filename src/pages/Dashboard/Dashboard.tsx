@@ -176,23 +176,23 @@ const Dashboard = () => {
           {/* Pie Chart */}
           <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle className="text-base md:text-lg font-semibold">Farmers</CardTitle>
+              <CardTitle className="text-base md:text-lg font-semibold">Milk Collection by Branch</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-64 md:h-80 flex items-center justify-center text-gray-500 text-sm md:text-base">
-                Pie Chart Component (API Pending)
+              <div className="h-64 md:h-80">
+                <FarmersChart collections={collections} branches={branches} />
               </div>
             </CardContent>
           </Card>
           
-          {/* Weekly Milk Collection Trends */}
+          {/* Bar Chart */}
           <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle className="text-base md:text-lg font-semibold">Weekly Milk Collection Trends</CardTitle>
+              <CardTitle className="text-base md:text-lg font-semibold">Branch-wise Collection</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-64 md:h-80 flex items-center justify-center text-gray-500 text-sm md:text-base">
-                Weekly Trends Chart (API Pending)
+              <div className="h-64 md:h-80">
+                <MilkCollectionChart collections={collections} branches={branches} />
               </div>
             </CardContent>
           </Card>

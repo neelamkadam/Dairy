@@ -32,7 +32,18 @@ const DispatchEntry = () => {
   });
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    const updatedData = { ...formData, [field]: value };
+    
+    // Auto-calculate total amount when weight, rate, or commission changes
+    if (field === 'weight' || field === 'ratePerLiter' || field === 'commissionPerLiter') {
+      const weight = parseFloat(field === 'weight' ? value : updatedData.weight) || 0;
+      const rate = parseFloat(field === 'ratePerLiter' ? value : updatedData.ratePerLiter) || 0;
+      const commission = parseFloat(field === 'commissionPerLiter' ? value : updatedData.commissionPerLiter) || 0;
+      
+      updatedData.totalAmount = ((weight * rate) + (weight * commission)).toFixed(2);
+    }
+    
+    setFormData(updatedData);
   };
 
 
@@ -218,8 +229,8 @@ const DispatchEntry = () => {
                 step="0.01"
                 placeholder="0.00"
                 value={formData.totalAmount}
-                onChange={(e) => handleInputChange("totalAmount", e.target.value)}
-                className="pl-8 bg-gray-50 border-gray-200 focus:bg-white"
+                readOnly
+                className="pl-8 bg-gray-100 border-gray-200 cursor-not-allowed"
               />
             </div>
           </div>

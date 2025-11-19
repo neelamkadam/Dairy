@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { CalendarIcon, Bell, CircleUserRound,ChevronRight, ChevronLeft } from "lucide-react";
+import { CalendarIcon, Bell, CircleUserRound,ChevronRight, ChevronLeft, Search, Trash2 } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -19,75 +19,193 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-
-const paymentData = [
-  {
-    date: "2024-01-20",
-    farmerId: "F001",
-    name: "Vishal Mali",
-    advance: 500,
-    cattleFeed: 2500,
-    other: 0,
-    userId: "RV001",
-  },
-];
+import { paymentApi } from "@/services/paymentApi";
+import { normalizeFarmerId, formatFarmerIdForDisplay } from "@/utils/farmerIdUtils";
+import { toast } from "react-toastify";
+import { useAppSelector } from "@/redux/store";
+import { userApi } from "@/services/userApi";
 
 const PaymentAndReceipt: React.FC = () => {
+  const { branches } = useAppSelector((state) => state.branch);
   const [formData, setFormData] = useState({
-    vlcName: "all",
-    fromDate: undefined as Date | undefined,
-    farmerCode: "01",
-    farmerName: "Vishal Mali",
-    advanceTaken: "",
-    other: "",
-    cattleFeed: "",
+    vlcName: "",
+    fromDate: new Date(),
+    farmerCode: "",
+    farmerName: "",
+    paymentType: "",
+    amountTaken: "",
     receivedAmount: "",
   });
+  const [farmerIdInput, setFarmerIdInput] = useState("");
+  const [paymentData, setPaymentData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState(100);
+
+  useEffect(() => {
+    if (formData.vlcName && formData.fromDate) {
+      fetchPayments();
+    }
+  }, [formData.vlcName, formData.fromDate]);
+
+  const fetchPayments = async () => {
+    if (!formData.vlcName) {
+      console.log('⏭️ Skipping fetch - no VLC selected');
+      return;
+    }
+    console.log('📋 Fetching payments:', {
+      dairyid: formData.vlcName,
+      datefrom: format(formData.fromDate, "yyyy-MM-dd"),
+    });
+    try {
+      const { data } = await paymentApi.getPayments({
+        dairyid: formData.vlcName,
+        datefrom: format(formData.fromDate, "yyyy-MM-dd"),
+      });
+      const selectedDate = format(formData.fromDate, "yyyy-MM-dd");
+      const filtered = (data.data || []).filter(payment => 
+        format(new Date(payment.date), "yyyy-MM-dd") === selectedDate
+      );
+      setPaymentData(filtered);
+    } catch (error) {
+      console.error("❌ Failed to fetch payments", error);
+    }
+  };
+
+  const handleDeletePayment = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this payment?')) return;
+    
+    try {
+      await paymentApi.delete(id);
+      toast.success('Payment deleted successfully');
+      fetchPayments();
+    } catch (error) {
+      toast.error('Failed to delete payment');
+    }
+  };
+
+  const handleFarmerSearch = async () => {
+    if (!formData.vlcName || !farmerIdInput.trim()) {
+      toast.error('Please select VLC and enter Farmer ID');
+      return;
+    }
+
+    const normalized = normalizeFarmerId(farmerIdInput);
+    const displayId = formatFarmerIdForDisplay(farmerIdInput);
+
+    try {
+      const farmer = await userApi.getById(normalized, parseInt(formData.vlcName));
+      
+      if (!farmer) {
+        toast.error('Farmer not found');
+        setFormData({ ...formData, farmerCode: "", farmerName: "" });
+        return;
+      }
+
+      setFormData({
+        ...formData,
+        farmerCode: displayId,
+        farmerName: farmer.fullName || farmer.name || 'Unknown Farmer',
+      });
+      toast.success('Farmer found');
+    } catch (error) {
+      console.error('Error searching farmer:', error);
+      toast.error('Farmer not found');
+      setFormData({ ...formData, farmerCode: "", farmerName: "" });
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!formData.farmerCode || !formData.farmerName) {
+      toast.error("Please enter Farmer ID and Name");
+      return;
+    }
+
+    if (!formData.paymentType) {
+      toast.error("Please select Payment Type");
+      return;
+    }
+
+    const hasAmountTaken = formData.amountTaken;
+    const hasReceived = formData.receivedAmount;
+
+    if (!hasAmountTaken && !hasReceived) {
+      toast.error("Please enter either Amount Taken OR Received");
+      return;
+    }
+
+    if (hasAmountTaken && hasReceived) {
+      toast.error("Please enter either Amount Taken OR Received, not both");
+      return;
+    }
+
+    setLoading(true);
+    const payload = {
+      date: format(formData.fromDate, "yyyy-MM-dd"),
+      dairy_id: formData.vlcName,
+      farmer_id: normalizeFarmerId(formData.farmerCode),
+      farmer_name: formData.farmerName,
+      payment_type: formData.paymentType as "Advance" | "Cattle Feed" | "Other1" | "Other2",
+      amount_taken: parseFloat(formData.amountTaken || "0"),
+      received: parseFloat(formData.receivedAmount || "0"),
+    };
+    console.log('💰 Creating payment:', payload);
+    try {
+      await paymentApi.create(payload);
+      console.log('✅ Payment created successfully');
+      toast.success("Payment recorded successfully");
+      setFarmerIdInput("");
+      setFormData({
+        ...formData,
+        farmerCode: "",
+        farmerName: "",
+        paymentType: "",
+        amountTaken: "",
+        receivedAmount: "",
+      });
+      fetchPayments();
+    } catch (error) {
+      console.error('❌ Failed to create payment:', error);
+      toast.error("Failed to save payment record. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="space-y-6 text-left">
-      <div className="grid grid-cols-2 bg-white p-4 text-gray-600">
-        <span className="">Dashboard / <strong> Reduction</strong></span>
-        <div className="flex justify-end gap-4">
-          <span>
-            <Bell size={20} strokeWidth={1.5} />
-          </span>
-          <span>
-            <CircleUserRound size={20} strokeWidth={1.5} />
-          </span>
-        </div>
-      </div>
-      <h1 className="text-2xl font-bold text-left ml-5 mb-2">
-        Payment And Receipt
-      </h1>
-      <Card className="border-none">
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto p-6">
+      <Card className="shadow-sm border-none">
         <CardContent>
           <div className="space-y-6">
             {/* User Info Section */}
-            <div className="p-4 rounded-lg text-left bg-white border-gray-300">
-              <h3 className="font-semibold mb-4">User Info</h3>
-              <div className="w-[55%] grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="mb-2">
-                  <Label className="text-sm text-gray-600 mb-1">VLC Name</Label>
+            <div className="p-6 rounded-lg bg-gray-50">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">VLC Name</Label>
                   <Select
                     value={formData.vlcName}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, vlcName: value })
-                    }
+                    onValueChange={(value) => {
+                      setFormData({ vlcName: value, fromDate: new Date(), farmerCode: "", farmerName: "", paymentType: "", amountTaken: "", receivedAmount: "" });
+                      setFarmerIdInput("");
+                      setCurrentPage(1);
+                    }}
                   >
-                    <SelectTrigger className="w-[65%]">
-                      <SelectValue />
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select VLC" />
                     </SelectTrigger>
                     <SelectContent className="bg-white ">
-                      <SelectItem value="all">All</SelectItem>
-                      <SelectItem value="vlc1">VLC Alpha</SelectItem>
-                      <SelectItem value="vlc2">VLC Beta</SelectItem>
+                      {branches.map((branch) => (
+                        <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
+                          {branch.username} - {branch.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div className="mb-2">
-                  <Label className="text-sm text-gray-600 mb-1">
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
                     From Date
                   </Label>
                   <Popover>
@@ -110,7 +228,7 @@ const PaymentAndReceipt: React.FC = () => {
                         mode="single"
                         selected={formData.fromDate}
                         onSelect={(date) =>
-                          setFormData({ ...formData, fromDate: date })
+                          setFormData({ ...formData, fromDate: date || new Date() })
                         }
                         initialFocus
                         className="p-3 pointer-events-auto bg-white"
@@ -118,104 +236,85 @@ const PaymentAndReceipt: React.FC = () => {
                     </PopoverContent>
                   </Popover>
                 </div>
-              </div>
-              <div className="w-[55%] grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="mb-2">
-                  <Label className="text-sm text-gray-600 mb-1">
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
                     Farmer Code
                   </Label>
-                  <Input
-                    value={formData.farmerCode}
-                    onChange={(e) =>
-                      setFormData({ ...formData, farmerCode: e.target.value })
-                    }
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      value={farmerIdInput}
+                      onChange={(e) => setFarmerIdInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleFarmerSearch()}
+                      placeholder="Enter Farmer ID"
+                    />
+                    <Button onClick={handleFarmerSearch} className="bg-blue-500 hover:bg-blue-600">
+                      <Search className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="mb-2">
-                  <Label className="text-sm text-gray-600 mb-1">
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
                     Farmer Name
                   </Label>
                   <Input
                     value={formData.farmerName}
-                    onChange={(e) =>
-                      setFormData({ ...formData, farmerName: e.target.value })
-                    }
+                    readOnly
+                    className="bg-gray-50"
                   />
                 </div>
               </div>
             </div>
           </div>
-          <div className="space-y-6 p-4 mt-5 bg-white">
-            {/* Payment Form */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <div className="mb-2">
-                <Label htmlFor="advanceTaken" className="mb-1">
-                  Advance Taken
+          <div className="space-y-6 p-6 bg-white">
+            <h3 className="text-lg font-semibold text-gray-900">Payment Details</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+              <div>
+                <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Payment Type
+                </Label>
+                <Select
+                  value={formData.paymentType}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, paymentType: value })
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select Type" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="Advance">Advance</SelectItem>
+                    <SelectItem value="Cattle Feed">Cattle Feed</SelectItem>
+                    <SelectItem value="Other1">Other 1</SelectItem>
+                    <SelectItem value="Other2">Other 2</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="amountTaken" className="text-sm font-medium text-gray-700 mb-2 block">
+                  Amount Taken
                 </Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
                     ₹
                   </span>
                   <Input
-                    id="advanceTaken"
+                    id="amountTaken"
                     type="number"
                     placeholder="0.00"
                     className="pl-8"
-                    value={formData.advanceTaken}
+                    value={formData.amountTaken}
                     onChange={(e) =>
-                      setFormData({ ...formData, advanceTaken: e.target.value })
+                      setFormData({ ...formData, amountTaken: e.target.value })
                     }
                   />
                 </div>
               </div>
 
-              <div className="mb-2">
-                <Label htmlFor="other" className="mb-1">
-                  OTHER
-                </Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                    ₹
-                  </span>
-                  <Input
-                    id="other"
-                    type="number"
-                    placeholder="0.00"
-                    className="pl-8"
-                    value={formData.other}
-                    onChange={(e) =>
-                      setFormData({ ...formData, other: e.target.value })
-                    }
-                  />
-                </div>
-              </div>
-
-              <div className="mb-2">
-                <Label htmlFor="cattleFeed" className="mb-1">
-                  Cattle Feed
-                </Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                    ₹
-                  </span>
-                  <Input
-                    id="cattleFeed"
-                    type="number"
-                    placeholder="0.00"
-                    className="pl-8"
-                    value={formData.cattleFeed}
-                    onChange={(e) =>
-                      setFormData({ ...formData, cattleFeed: e.target.value })
-                    }
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-1 gap-4 ">
-              <div className="mb-2 w-[33%] m-auto">
-                <Label htmlFor="receivedAmount" className="mb-1">
-                  Recieved Amount
+              <div>
+                <Label htmlFor="receivedAmount" className="text-sm font-medium text-gray-700 mb-2 block">
+                  Received Amount
                 </Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
@@ -238,18 +337,25 @@ const PaymentAndReceipt: React.FC = () => {
               </div>
             </div>
 
-            <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-              Submit
-            </Button>
+            <div className="flex justify-center pt-4">
+              <Button 
+                onClick={handleSubmit}
+                disabled={loading}
+                className="w-full max-w-md bg-blue-600 hover:bg-blue-700 text-white h-11"
+              >
+                {loading ? "Submitting..." : "Submit Payment"}
+              </Button>
+            </div>
 
             {/* Records Table */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
+            <div className="space-y-4 mt-8 pt-6">
+              <h3 className="text-lg font-semibold text-gray-900">Payment Records</h3>
+              <div className="flex items-center justify-between flex-wrap gap-4">
                 <div className="text-sm text-gray-600">
-                  Record Count: 1 - 0 of 0
+                  Showing {paymentData.length} records
                 </div>
-                <div className="flex gap-2">
-                  <Select defaultValue="100">
+                <div className="flex gap-2 items-center flex-wrap">
+                  <Select value={perPage.toString()} onValueChange={(v) => { setPerPage(parseInt(v)); setCurrentPage(1); }}>
                     <SelectTrigger className="w-20">
                       <SelectValue />
                     </SelectTrigger>
@@ -259,8 +365,8 @@ const PaymentAndReceipt: React.FC = () => {
                       <SelectItem value="25">25</SelectItem>
                     </SelectContent>
                   </Select>
-                  <span className="text-sm text-gray-600">
-                    Result per page:
+                  <span className="text-sm text-gray-600 whitespace-nowrap">
+                    Results per page
                   </span>
                   <Button className="bg-blue-600 hover:bg-blue-700">
                     Excel Export
@@ -271,10 +377,10 @@ const PaymentAndReceipt: React.FC = () => {
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="border-collapse ">
-                  <thead className="w-[75%]">
-                    <tr className="border-b border-gray-200 bg-gray-50">
+              <div className="overflow-x-auto rounded-lg">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-gray-100">
                       <th className="text-left py-3 px-4 font-medium text-gray-700">
                         DATE
                       </th>
@@ -291,34 +397,49 @@ const PaymentAndReceipt: React.FC = () => {
                         Cattle Feed
                       </th>
                       <th className="text-right py-3 px-4 font-medium text-gray-700">
-                        OTHER
+                        Other 1
                       </th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">
-                        User ID
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">
+                        Other 2
+                      </th>
+                      <th className="text-center py-3 px-4 font-medium text-gray-700">
+                        Action
                       </th>
                     </tr>
                   </thead>
                   <tbody className="w-full">
-                    {paymentData.map((payment, index) => (
+                    {paymentData.slice((currentPage - 1) * perPage, currentPage * perPage).map((payment) => (
                       <tr
-                        key={index}
-                        className="border-b border-gray-100 hover:bg-gray-50"
+                        key={payment.id}
+                        className="hover:bg-gray-50"
                       >
-                        <td className="py-3 px-4">{payment.date}</td>
+                        <td className="py-3 px-4">{format(new Date(payment.date), "dd-MM-yyyy")}</td>
                         <td className="py-3 px-4 font-medium">
-                          {payment.farmerId}
+                          {payment.farmer_id}
                         </td>
-                        <td className="py-3 px-4">{payment.name}</td>
+                        <td className="py-3 px-4">{payment.farmer_name}</td>
                         <td className="py-3 px-4 text-right">
-                          {payment.advance}
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          {payment.cattleFeed}
+                          {payment.payment_type === 'advance' ? (payment.amount_taken !== '0.00' ? payment.amount_taken : payment.received) : '-'}
                         </td>
                         <td className="py-3 px-4 text-right">
-                          {payment.other}
+                          {payment.payment_type === 'Cattle Feed' ? (payment.amount_taken !== '0.00' ? payment.amount_taken : payment.received) : '-'}
                         </td>
-                        <td className="py-3 px-4">{payment.userId}</td>
+                        <td className="py-3 px-4 text-right">
+                          {payment.payment_type === 'Other1' ? (payment.amount_taken !== '0.00' ? payment.amount_taken : payment.received) : '-'}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          {payment.payment_type === 'Other2' ? (payment.amount_taken !== '0.00' ? payment.amount_taken : payment.received) : '-'}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeletePayment(payment.id)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -326,14 +447,32 @@ const PaymentAndReceipt: React.FC = () => {
               </div>
 
               {/* Pagination */}
-              <div className="flex justify-end gap-2">
-                <ChevronLeft size={20} strokeWidth={1.5} />
-                <ChevronRight size={20} strokeWidth={1.5} />
+              <div className="flex justify-end gap-2 items-center">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 w-8 p-0" 
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft size={16} strokeWidth={1.5} />
+                </Button>
+                <span className="text-sm text-gray-600">Page {currentPage} of {Math.ceil(paymentData.length / perPage) || 1}</span>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 w-8 p-0"
+                  onClick={() => setCurrentPage(p => Math.min(Math.ceil(paymentData.length / perPage), p + 1))}
+                  disabled={currentPage >= Math.ceil(paymentData.length / perPage)}
+                >
+                  <ChevronRight size={16} strokeWidth={1.5} />
+                </Button>
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 };

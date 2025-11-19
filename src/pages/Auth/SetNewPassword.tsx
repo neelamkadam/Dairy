@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Lock, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constatnts/routesConstants";
-import { ENV_VARIABLES } from "@/services/config";
+import { api } from "@/services/config";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
 import { setAuthentication, clearTempUserData } from "@/redux/AuthSlice";
 
@@ -51,18 +51,10 @@ const SetNewPassword = () => {
         return;
       }
 
-      const res = await fetch(`${ENV_VARIABLES.API_BASE}/web-users/set-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: tempUserData.userId,
-          newPassword: formData.newPassword
-        })
+      const { data } = await api.post("/web-users/set-password", {
+        userId: tempUserData.userId,
+        newPassword: formData.newPassword
       });
-
-      const data = await res.json();
 
       if (data.success) {
         // Set user session and clear temp data

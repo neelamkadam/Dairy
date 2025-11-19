@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -8,7 +8,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Upload } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -17,13 +17,73 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useAppDispatch, useAppSelector } from "@/redux/store";
+import { fetchUserBranches } from "@/redux/branchSlice";
+import { toast } from "react-toastify";
+import { api } from "@/services/config";
 
 const AddRateChart: React.FC = () => {
+  const dispatch = useAppDispatch();
+  const { branches } = useAppSelector((state) => state.branch);
+  const userEmail = useAppSelector((state) => state.authData.userData?.email);
+
   const [formData, setFormData] = useState({
     vlcc: "",
     rateChart: "",
     effectiveDate: undefined as Date | undefined,
   });
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (userEmail) {
+      dispatch(fetchUserBranches(userEmail));
+    }
+  }, [dispatch, userEmail]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
+        toast.error("Please upload an Excel file (.xlsx or .xls)");
+        return;
+      }
+      setCsvFile(file);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!formData.vlcc || !formData.rateChart || !formData.effectiveDate || !csvFile) {
+      toast.error("Please fill all fields and upload a file");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const formDataToSend = new FormData();
+      formDataToSend.append("csv", csvFile);
+      formDataToSend.append("organisation_id", formData.vlcc);
+      formDataToSend.append("type", formData.rateChart);
+      formDataToSend.append("effective_date", format(formData.effectiveDate, "yyyy-MM-dd"));
+
+      const { data } = await api.post("/conf/createrate", formDataToSend, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      toast.success("Rate chart uploaded successfully!");
+      setFormData({
+        vlcc: "",
+        rateChart: "",
+        effectiveDate: undefined,
+      });
+      setCsvFile(null);
+    } catch (error) {
+      toast.error("Network error occurred");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <>
@@ -84,9 +144,11 @@ const AddRateChart: React.FC = () => {
                 <SelectValue placeholder="Select VLCC" />
               </SelectTrigger>
               <SelectContent className="bg-white ">
-                <SelectItem value="vlcc1">VLCC Alpha</SelectItem>
-                <SelectItem value="vlcc2">VLCC Beta</SelectItem>
-                <SelectItem value="vlcc3">VLCC Gamma</SelectItem>
+                {branches.map((branch) => (
+                  <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
+                    {branch.username}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -105,8 +167,8 @@ const AddRateChart: React.FC = () => {
                 <SelectValue placeholder="Choose a rate chart..." />
               </SelectTrigger>
               <SelectContent className="bg-white">
-                <SelectItem value="cow">Cow Rate Chart</SelectItem>
-                <SelectItem value="buffalo">Buffalo Rate Chart</SelectItem>
+                <SelectItem value="cow">Cow</SelectItem>
+                <SelectItem value="buffalo">Buffalo</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -153,11 +215,23 @@ const AddRateChart: React.FC = () => {
           <CardContent>
             <div className="space-y-6">
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
-                <div className="text-6xl text-gray-400 mb-4">⬇️</div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Drop Excel file here or click to browse
-                </h3>
-                <p className="text-gray-500">Supported formats: .xlsx, .xls</p>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  id="excel-upload"
+                />
+                <label htmlFor="excel-upload" className="cursor-pointer">
+                  <div className="text-6xl text-gray-400 mb-4">⬇️</div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Drop Excel file here or click to browse
+                  </h3>
+                  <p className="text-gray-500">Supported formats: .xlsx, .xls</p>
+                  {csvFile && (
+                    <p className="text-sm text-green-600 mt-2">Selected: {csvFile.name}</p>
+                  )}
+                </label>
               </div>
 
               <Button className="bg-red-600 hover:bg-red-700 text-white float-right">
@@ -166,8 +240,22 @@ const AddRateChart: React.FC = () => {
               <div className="text-sm mt-20 m-auto rounded border w-30 h-9 p-1 bg-white  text-gray-600 ">
                 Preview
               </div>
-              <Button className=" mt-40 w-35 h-9 text-white bg-blue-600 hover:bg-blue-700 float-right">
-                Update Rate Chart
+              <Button 
+                onClick={handleSubmit}
+                disabled={loading}
+                className=" mt-40 w-35 h-9 text-white bg-blue-600 hover:bg-blue-700 float-right"
+              >
+                {loading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Uploading...
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Upload className="w-4 h-4" />
+                    Update Rate Chart
+                  </div>
+                )}
               </Button>
             </div>
           </CardContent>

@@ -1,10 +1,14 @@
-
+import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import {  FileSpreadsheet, FileText, ChevronLeft, ChevronRight, Users, TrendingUp } from "lucide-react";
+import { FileSpreadsheet, FileText, ChevronLeft, ChevronRight, Users, TrendingUp } from "lucide-react";
+import { usePostApi } from "@/services/use-api";
+import { format as formatDate } from "date-fns";
+import { toast } from "react-toastify";
 
 
 interface FarmerData {
@@ -25,29 +29,43 @@ interface FarmerData {
 }
 
 const FarmerManagement = () => {
-     const farmerData: FarmerData[] = [
-    {
-      id: "1",
-      date: "2025-04-22",
-      farmerId: "001",
-      name: "Joshn",
-      liter: 20.5,
-      kg: 19.5,
-      fat: 3.5,
-      snf: 6.5,
-      clr: 29,
-      milkType: "COW",
-      userId: "RV0001",
-      shift: "Morning",
-      rate: 32,
-      amount: 640
-    }
-  ];
+  const location = useLocation();
+  const { dairyId, fromDate, toDate, selectedType, selectedShift } = location.state || {};
+  const { postData, isLoading } = usePostApi({ path: "/web/dashboard/farmer-collections" });
+  const [farmerData, setFarmerData] = useState<any[]>([]);
 
-     const stats = [
-    { label: "Total Farmers", value: "42", icon: Users, color: "bg-blue-500" },
-    { label: "Active Farmers", value: "38", icon: TrendingUp, color: "bg-green-500" },
-    { label: "New This Month", value: "5", icon: Users, color: "bg-orange-500" }
+  useEffect(() => {
+    if (dairyId && fromDate && toDate) {
+      fetchData();
+    }
+  }, [dairyId]);
+
+  const fetchData = async () => {
+    try {
+      const payload = {
+        branches: [dairyId],
+        type: selectedType === "all" ? "All" : selectedType.charAt(0).toUpperCase() + selectedType.slice(1),
+        shift: selectedShift === "all" ? "All" : selectedShift.charAt(0).toUpperCase() + selectedShift.slice(1),
+        from_date: formatDate(fromDate, "yyyy-MM-dd"),
+        to_date: formatDate(toDate, "yyyy-MM-dd")
+      };
+      const response = await postData(payload);
+      if (response?.data?.success) {
+        setFarmerData(response.data.data || []);
+      }
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to fetch data");
+    }
+  };
+
+  const uniqueFarmers = new Set(farmerData.map(f => f.farmer_id)).size;
+  const activeFarmers = new Set(farmerData.filter(f => f.is_active === 1).map(f => f.farmer_id)).size;
+  const totalMilk = farmerData.reduce((sum, f) => sum + (parseFloat(f.quantity) || 0), 0);
+
+  const stats = [
+    { label: "Total Farmers", value: uniqueFarmers.toString(), icon: Users, color: "bg-blue-500" },
+    { label: "Active Farmers", value: activeFarmers.toString(), icon: TrendingUp, color: "bg-green-500" },
+    { label: "Total Milk", value: `${totalMilk.toFixed(1)}L`, icon: Users, color: "bg-orange-500" }
   ];
   return (
     <>
@@ -78,7 +96,7 @@ const FarmerManagement = () => {
               <CardHeader className="border-b bg-gray-50/50">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-4">
-                    <span className="text-sm text-gray-600">Record Count: 1 - 0 of 0</span>
+                    <span className="text-sm text-gray-600">Record Count: {farmerData.length} records</span>
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-gray-600">Result per page:</span>
                       <Select defaultValue="100">
@@ -119,32 +137,30 @@ const FarmerManagement = () => {
                         <th className="text-left p-4 font-medium text-gray-700">Snf</th>
                         <th className="text-left p-4 font-medium text-gray-700">Clr</th>
                         <th className="text-left p-4 font-medium text-gray-700">Milk Type</th>
-                        <th className="text-left p-4 font-medium text-gray-700">User Id</th>
                         <th className="text-left p-4 font-medium text-gray-700">Shift</th>
                         <th className="text-left p-4 font-medium text-gray-700">Rate</th>
                         <th className="text-left p-4 font-medium text-gray-700">Amount</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {farmerData.map((farmer) => (
-                        <tr key={farmer.id} className="border-b hover:bg-gray-50 transition-colors">
-                          <td className="p-4 text-gray-700">{farmer.date}</td>
-                          <td className="p-4 text-gray-700">{farmer.farmerId}</td>
-                          <td className="p-4 text-gray-700">{farmer.name}</td>
-                          <td className="p-4 text-gray-700">{farmer.liter}</td>
-                          <td className="p-4 text-gray-700">{farmer.kg}</td>
-                          <td className="p-4 text-gray-700">{farmer.fat}</td>
-                          <td className="p-4 text-gray-700">{farmer.snf}</td>
-                          <td className="p-4 text-gray-700">{farmer.clr}</td>
+                      {farmerData.map((farmer, idx) => (
+                        <tr key={idx} className="border-b hover:bg-gray-50 transition-colors">
+                          <td className="p-4 text-gray-700">{formatDate(new Date(farmer.created_at), "dd-MM-yyyy")}</td>
+                          <td className="p-4 text-gray-700">{farmer.farmer_id}</td>
+                          <td className="p-4 text-gray-700">{farmer.fullName}</td>
+                          <td className="p-4 text-gray-700">{farmer.quantity.toFixed(1)}</td>
+                          <td className="p-4 text-gray-700">{(farmer.quantity * 1.03).toFixed(2)}</td>
+                          <td className="p-4 text-gray-700">{farmer.fat.toFixed(1)}</td>
+                          <td className="p-4 text-gray-700">{farmer.snf.toFixed(1)}</td>
+                          <td className="p-4 text-gray-700">{farmer.clr.toFixed(1)}</td>
                           <td className="p-4">
                             <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                              {farmer.milkType}
+                              {farmer.type}
                             </Badge>
                           </td>
-                          <td className="p-4 text-gray-700">{farmer.userId}</td>
                           <td className="p-4 text-gray-700">{farmer.shift}</td>
-                          <td className="p-4 text-gray-700">{farmer.rate}</td>
-                          <td className="p-4 text-gray-700">{farmer.amount} /-</td>
+                          <td className="p-4 text-gray-700">{farmer.rate.toFixed(2)}</td>
+                          <td className="p-4 text-gray-700">{farmer.amount.toFixed(2)} /-</td>
                         </tr>
                       ))}
                     </tbody>

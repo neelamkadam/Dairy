@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Phone, Building2, CheckCircle, XCircle } from "lucide-react";
-import { ENV_VARIABLES } from "@/services/config";
+import { api } from "@/services/config";
 import { toast } from "react-toastify";
 
 interface BranchResponse {
@@ -33,15 +33,9 @@ const AddBranch = () => {
     setSelectedBranches([]);
 
     try {
-      const res = await fetch(`${ENV_VARIABLES.API_BASE}/web/branches/by-mobile`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ mobile_number: mobileNumber })
+      const { data } = await api.post<BranchResponse>("/web/branches/by-mobile", {
+        mobile_number: mobileNumber
       });
-
-      const data: BranchResponse = await res.json();
       console.log('AddBranch API Response:', data);
       setResponse(data);
 
@@ -87,18 +81,10 @@ const AddBranch = () => {
 
     setLoading(true);
     try {
-      const res = await fetch(`${ENV_VARIABLES.API_BASE}/web-users/update-branches`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          mobile_number: mobileNumber,
-          dairy_ids: selectedBranches 
-        })
+      const { data } = await api.post("/web-users/update-branches", {
+        mobile_number: mobileNumber,
+        dairy_ids: selectedBranches
       });
-
-      const data = await res.json();
       
       if (data.success) {
         toast.success("Branches updated successfully!");

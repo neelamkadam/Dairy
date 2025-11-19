@@ -1,3 +1,5 @@
+import axios from "axios";
+
 export const CURRENT_ENVIRONMENT: string = "development";
 type VariableType = {
   API_BASE: string;
@@ -7,9 +9,7 @@ type ConfigType = {
   [key: string]: VariableType;
 };
 
-// const BASE_URL = typeof window !== "undefined" ? window?.location?.origin : "";
 const API_BASE_URL = "https://api.neodairysales.com/";
-// const LOCAL_ENV = "http://13.51.72.110:3004/";
 
 const CONFIG: ConfigType = {
   test: {
@@ -23,3 +23,10 @@ const CONFIG: ConfigType = {
   },
 };
 export const ENV_VARIABLES = CONFIG[CURRENT_ENVIRONMENT];
+
+export const api = axios.create({
+  baseURL: ENV_VARIABLES.API_BASE,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});

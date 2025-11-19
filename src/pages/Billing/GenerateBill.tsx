@@ -1,14 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar, ChevronLeft } from "lucide-react";
+import { billApi } from "@/services/billApi";
+import { paymentApi } from "@/services/paymentApi";
+import { normalizeFarmerId } from "@/utils/farmerIdUtils";
+import { adjustDeductionsForNegativeBalance } from "@/utils/priorityUtils";
+import { toast } from "react-toastify";
+import { useAppSelector } from "@/redux/store";
 
 const GenerateBill = () => {
+  const { branches } = useAppSelector((state) => state.branch);
   const [billCycle, setBillCycle] = useState("1 May 2024 - 31 May 2024");
-
-  const farmersData = [
+  const [loading, setLoading] = useState(false);
+  const [farmersData, setFarmersData] = useState<any[]>([
     {
       id: "F001",
       name: "John Smith",
@@ -45,7 +52,7 @@ const GenerateBill = () => {
       cattleFeed: "$120",
       netPayable: "$235",
     },
-  ];
+  ]);
 
   const totals = {
     totalAmount: "$4100",
@@ -53,11 +60,48 @@ const GenerateBill = () => {
     totalNetPayable: "$2460",
   };
 
-  const handleGenerateBill = () => {
-    // toast({
-    //   title: "Bill Generated Successfully",
-    //   description: "The bill has been generated for the selected period.",
-    // });
+  const handleGenerateBill = async () => {
+    setLoading(true);
+    try {
+      const [startDate, endDate] = billCycle.split(" - ");
+      const billRequests = await Promise.all(
+        farmersData.map(async (farmer) => {
+          const deductions = {
+            advance: parseFloat(farmer.advance.replace("$", "")),
+            cattlefeed: parseFloat(farmer.cattleFeed.replace("$", "")),
+            other1: 0,
+            other2: 0,
+          };
+
+          const totalBill = parseFloat(farmer.amount.replace("$", ""));
+          const adjusted = await adjustDeductionsForNegativeBalance(deductions, totalBill);
+
+          return {
+            farmer_id: normalizeFarmerId(farmer.id),
+            dairy_id: branches[0]?.branch_id || 0,
+            period_start: startDate,
+            period_end: endDate,
+            milk_total: parseFloat(farmer.liter.replace("L", "")),
+            total_advance: adjusted.advance,
+            total_feed: adjusted.cattlefeed,
+            total_other: adjusted.other1 + adjusted.other2,
+            total_received: 0,
+            net_payable: parseFloat(farmer.netPayable.replace("$", "")),
+            remaining_advance: 0,
+            remaining_cattle_feed: 0,
+            remaining_other1: 0,
+            remaining_other2: 0,
+          };
+        })
+      );
+
+      await billApi.generateBulkBills(billRequests);
+      toast.success("Bills generated successfully");
+    } catch (error) {
+      toast.error("Failed to generate bills");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -195,9 +239,10 @@ const GenerateBill = () => {
             <div className="w-full text-center">
               <Button
                 onClick={handleGenerateBill}
+                disabled={loading}
                 className="bg-blue-600 hover:bg-blue-700 text-white w-[17%]"
               >
-                Generate Bill
+                {loading ? "Generating..." : "Generate Bill"}
               </Button>
             </div>
           </CardContent>

@@ -3,6 +3,7 @@ import { useAppSelector } from "@/redux/store";
 import { usePostApi } from "@/services/use-api";
 import { toast } from "react-toastify";
 import { format as formatDate } from "date-fns";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +52,7 @@ interface VLCCData {
 }
 
 const VLCCllection = () => {
+  const navigate = useNavigate();
   const { branches } = useAppSelector((state) => state.branch);
   const { postData, isLoading } = usePostApi({
     path: "/web/dashboard/farmer-collections"
@@ -65,10 +67,28 @@ const VLCCllection = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   
-  const totalPages = Math.ceil(farmerData.length / itemsPerPage);
+  const vlcData = farmerData.reduce((acc: any[], item) => {
+    const existing = acc.find(v => v.dairy_id === item.dairy_id);
+    if (existing) {
+      existing.totalMilkLtr += parseFloat(item.quantity) || 0;
+      if (!existing.milkTypes.includes(item.type)) {
+        existing.milkTypes.push(item.type);
+      }
+    } else {
+      acc.push({
+        dairy_id: item.dairy_id,
+        totalMilkLtr: parseFloat(item.quantity) || 0,
+        milkTypes: [item.type],
+        is_active: item.is_active
+      });
+    }
+    return acc;
+  }, []);
+  
+  const totalPages = Math.ceil(vlcData.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedData = farmerData.slice(startIndex, endIndex);
+  const paginatedData = vlcData.slice(startIndex, endIndex);
 
   const getDateRangeForPeriod = (date: Date) => {
     const day = date.getDate();
@@ -326,7 +346,7 @@ const VLCCllection = () => {
             disabled={isLoading}
             className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 disabled:opacity-50"
           >
-            {isLoading ? "Loading..." : "Apply Filters"}
+            {isLoading ? "Loading..." : "Apply"}
           </Button>
         </CardContent>
       </Card>
@@ -362,7 +382,7 @@ const VLCCllection = () => {
                   <TableHead className="text-gray-700 font-semibold px-4 py-3">
                     VLCC ID
                   </TableHead>
-                  <TableHead className="text-gray-700 font-semibold px-4 py-3">Farmer Name</TableHead>
+                  <TableHead className="text-gray-700 font-semibold px-4 py-3">VLC Name</TableHead>
                   <TableHead className="text-gray-700 font-semibold px-4 py-3">
                     Total Milk (Ltr)
                   </TableHead>
@@ -375,45 +395,49 @@ const VLCCllection = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedData.map((farmer, index) => (
-                  <TableRow
-                    key={index}
-                    className="hover:bg-gray-50 transition-colors"
-                  >
-                    <TableCell className="font-medium px-4 py-3">
-                      {branches.find(b => b.branch_id === farmer.dairy_id)?.username || farmer.dairy_id}
-                    </TableCell>
-                    <TableCell className="px-4 py-3">
-                      {farmer.farmer_id} - {farmer.fullName}
-                    </TableCell>
-                    <TableCell className="px-4 py-3 text-gray-600">
-                      {farmer.quantity} Ltr
-                    </TableCell>
-                    <TableCell className="px-4 py-3">
-                      {(farmer.quantity * 0.98).toFixed(2)} Kg
-                    </TableCell>
-                    <TableCell className="px-4 py-3">
-                      {farmer.type}
-                    </TableCell>
-                    <TableCell className="px-4 py-3">
-                      <Badge
-                        className={
-                          farmer.is_active === 1
-                            ? "bg-green-100 text-green-800 hover:bg-green-100"
-                            : "bg-gray-100 text-gray-800 hover:bg-gray-100"
-                        }
-                      >
-                        {farmer.is_active === 1 ? "Active" : "Inactive"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="px-4 py-3">
-                      <EllipsisVertical
-                        className="text-gray-500 cursor-pointer hover:text-gray-700"
-                        size={18}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {paginatedData.map((vlc, index) => {
+                  const branch = branches.find(b => b.branch_id === vlc.dairy_id);
+                  return (
+                    <TableRow
+                      key={index}
+                      className="hover:bg-blue-100 transition-colors cursor-pointer"
+                      onClick={() => navigate('/dashboard/farmer-management', { state: { dairyId: vlc.dairy_id, fromDate, toDate, selectedType, selectedShift } })}
+                    >
+                      <TableCell className="font-medium px-4 py-3">
+                        {branch?.username || vlc.dairy_id}
+                      </TableCell>
+                      <TableCell className="px-4 py-3">
+                        {branch?.name || 'N/A'}
+                      </TableCell>
+                      <TableCell className="px-4 py-3 text-gray-600">
+                        {vlc.totalMilkLtr.toFixed(2)} Ltr
+                      </TableCell>
+                      <TableCell className="px-4 py-3">
+                        {(vlc.totalMilkLtr * 1.03).toFixed(2)} Kg
+                      </TableCell>
+                      <TableCell className="px-4 py-3">
+                        {vlc.milkTypes.join(', ')}
+                      </TableCell>
+                      <TableCell className="px-4 py-3">
+                        <Badge
+                          className={
+                            vlc.is_active === 1
+                              ? "bg-green-100 text-green-800 hover:bg-green-100"
+                              : "bg-gray-100 text-gray-800 hover:bg-gray-100"
+                          }
+                        >
+                          {vlc.is_active === 1 ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="px-4 py-3">
+                        <EllipsisVertical
+                          className="text-gray-500 cursor-pointer hover:text-gray-700"
+                          size={18}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
@@ -422,7 +446,7 @@ const VLCCllection = () => {
         {farmerData.length > 0 && (
           <div className="flex flex-wrap items-center justify-between border-t bg-gray-50 px-4 py-3">
             <div className="text-sm text-gray-600">
-              Showing {startIndex + 1} to {Math.min(endIndex, farmerData.length)} of {farmerData.length} entries
+              Showing {startIndex + 1} to {Math.min(endIndex, vlcData.length)} of {vlcData.length} entries
             </div>
             <div className="flex items-center gap-2 mt-2 md:mt-0">
               <Button

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -28,8 +28,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
+import { deductionApi } from "@/services/deductionApi";
+import { useAppSelector } from "@/redux/store";
+import { toast } from "react-toastify";
 
 const FarmerDeduction = () => {
+  const { branches } = useAppSelector((state) => state.branch);
   const [searchTerm, setSearchTerm] = useState("");
   const [vlcName, setVlcName] = useState("All");
   const [startDate, setStartDate] = useState<Date | undefined>(
@@ -40,8 +44,41 @@ const FarmerDeduction = () => {
   );
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [farmerData, setFarmerData] = useState<any[]>([
+    {
+      name: "John Smith",
+      billAmount: "$2500.00",
+      dateRange: "2024-01-01 - 2024-01-10",
+      advance: "$500.00",
+      advanceDeduction: "-$250.00",
+      cattleFeedAmount: "$800.00",
+      cattleFeedDeduction: "-$400.00",
+      otherAmount: "$300.00",
+      otherDeduction: "-$150.00",
+      finalAmount: "$1700.00",
+    },
+  ]);
 
-  const farmerData = [
+  useEffect(() => {
+    if (startDate && endDate && vlcName !== "All") {
+      fetchDeductions();
+    }
+  }, [startDate, endDate, vlcName]);
+
+  const fetchDeductions = async () => {
+    try {
+      const { data } = await deductionApi.getDeductionSummary({
+        dairy_id: vlcName,
+        date_from: format(startDate!, "yyyy-MM-dd"),
+        date_to: format(endDate!, "yyyy-MM-dd"),
+      });
+      setFarmerData(data.deductions || []);
+    } catch (error) {
+      toast.error("Failed to fetch deductions");
+    }
+  };
+
+  const oldFarmerData = [
     {
       name: "John Smith",
       billAmount: "$2500.00",
@@ -145,8 +182,11 @@ const FarmerDeduction = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="All">All</SelectItem>
-                <SelectItem value="VLC-001">VLC-001</SelectItem>
-                <SelectItem value="VLC-002">VLC-002</SelectItem>
+                {branches.map((branch) => (
+                  <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
+                    {branch.username}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -197,8 +237,11 @@ const FarmerDeduction = () => {
               </Popover>
             </div>
 
-            <Button className="bg-red-600 hover:bg-red-700 text-white px-15 ">
-              Save
+            <Button 
+              onClick={fetchDeductions}
+              className="bg-red-600 hover:bg-red-700 text-white px-15 "
+            >
+              Fetch Data
             </Button>
           </div>
         </div>

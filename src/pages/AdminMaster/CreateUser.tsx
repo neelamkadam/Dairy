@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { User, Mail, Phone, UserPlus, CheckCircle, XCircle, Copy, Eye, EyeOff } from "lucide-react";
-import { ENV_VARIABLES } from "@/services/config";
+import { api } from "@/services/config";
 
 interface CreateUserResponse {
   success: boolean;
@@ -36,15 +36,7 @@ const CreateUser = () => {
     setResponse(null);
 
     try {
-      const res = await fetch(`${ENV_VARIABLES.API_BASE}/web-users/create`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData)
-      });
-
-      const data: CreateUserResponse = await res.json();
+      const { data } = await api.post<CreateUserResponse>("/web-users/create", formData);
       setResponse(data);
 
       if (data.success) {

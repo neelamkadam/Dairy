@@ -35,8 +35,7 @@ const menuItems: MenuItem[] = [
     children: [
       { title: "VLC Collection", icon: "", href: ROUTES.COLLECTION.VLC_COLLECTION },
       { title: "BMC Collection", icon: "", href: ROUTES.COLLECTION.BMC_COLLECTION },
-      { title: "Chilling Center", icon: "", href: ROUTES.COLLECTION.CHILLING_CENTER },
-      { title: "Farmer Management", icon: "", href: ROUTES.COLLECTION.FARMER_MANAGEMENT }
+      { title: "Chilling Center", icon: "", href: ROUTES.COLLECTION.CHILLING_CENTER }
     ]
   },
   {

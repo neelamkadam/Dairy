@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, FileSpreadsheet } from "lucide-react";
 import { toast } from "react-toastify";
+import { api } from "@/services/config";
 
 const UploadRateChart = () => {
   const [formData, setFormData] = useState({
@@ -46,27 +47,20 @@ const UploadRateChart = () => {
       formDataToSend.append("name", formData.name);
       formDataToSend.append("effective_date", formData.effectiveDate);
 
-      const response = await fetch("https://api.neodairysales.com/conf/createrate", {
-        method: "POST",
-        body: formDataToSend,
+      await api.post("/conf/createrate", formDataToSend, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        toast.success("Rate chart uploaded successfully!");
-        setFormData({
-          organisationId: "",
-          type: "",
-          name: "",
-          effectiveDate: "",
-        });
-        setCsvFile(null);
-        const fileInput = document.getElementById("csv-file") as HTMLInputElement;
-        if (fileInput) fileInput.value = "";
-      } else {
-        toast.error(data.message || "Failed to upload rate chart");
-      }
+      toast.success("Rate chart uploaded successfully!");
+      setFormData({
+        organisationId: "",
+        type: "",
+        name: "",
+        effectiveDate: "",
+      });
+      setCsvFile(null);
+      const fileInput = document.getElementById("csv-file") as HTMLInputElement;
+      if (fileInput) fileInput.value = "";
     } catch (error) {
       toast.error("Network error occurred");
     } finally {
