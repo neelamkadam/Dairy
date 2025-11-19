@@ -1,7 +1,7 @@
 import * as Yup from "yup";
 
 export const InputSchema = Yup.object().shape({
-  userId: Yup.string().min(2).max(20).required("userId is required"),
+  userId: Yup.string().min(2).required("userId is required"),
   password: Yup.string().min(4).max(6).required("password is required"),
 });
 

@@ -9,6 +9,7 @@ import { MobileApplication } from "@/pages/AdminMaster/MobileApplication";
 import { WebApplication } from "@/pages/AdminMaster/WebApplication";
 import CreateUser from "@/pages/AdminMaster/CreateUser";
 import AddBranch from "@/pages/AdminMaster/AddBranch";
+import UploadRateChart from "@/pages/AdminMaster/UploadRateChart";
 import Login from "@/pages/Auth/LogIn";
 import ResetPassword from "@/pages/Auth/ResetPassword";
 import SignUp from "@/pages/Auth/SignUp";
@@ -218,6 +219,10 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "add-branch",
         element: <AddBranch />,
+      },
+      {
+        path: "upload-rate-chart",
+        element: <UploadRateChart />,
       },
       {
         path: "activation",

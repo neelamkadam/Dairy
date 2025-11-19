@@ -42,5 +42,13 @@ export const rateChartApi = {
     const response = await AxiosClient.get(url);
     console.log('🟢 Rate Names API Response:', response.data);
     return response.data;
+  },
+
+  getRateNamesForBoth: async (orgId: number) => {
+    const [cowRates, buffaloRates] = await Promise.all([
+      rateChartApi.getRateNames(orgId, 'cow'),
+      rateChartApi.getRateNames(orgId, 'buffalo')
+    ]);
+    return { cowRates, buffaloRates };
   }
 };

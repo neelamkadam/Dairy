@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAppSelector } from "@/redux/store";
 import { usePostApi } from "@/services/use-api";
 import { toast } from "react-toastify";
@@ -70,6 +70,45 @@ const VLCCllection = () => {
   const endIndex = startIndex + itemsPerPage;
   const paginatedData = farmerData.slice(startIndex, endIndex);
 
+  const getDateRangeForPeriod = (date: Date) => {
+    const day = date.getDate();
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const lastDay = new Date(year, month + 1, 0).getDate();
+
+    if (day <= 10) {
+      return {
+        from: new Date(year, month, 1),
+        to: new Date(year, month, 10)
+      };
+    } else if (day <= 20) {
+      return {
+        from: new Date(year, month, 11),
+        to: new Date(year, month, 20)
+      };
+    } else {
+      return {
+        from: new Date(year, month, 21),
+        to: new Date(year, month, lastDay)
+      };
+    }
+  };
+
+  useEffect(() => {
+    const today = new Date();
+    const range = getDateRangeForPeriod(today);
+    setFromDate(range.from);
+    setToDate(range.to);
+  }, []);
+
+  const handleFromDateChange = (date: Date | undefined) => {
+    if (date) {
+      setFromDate(date);
+      const range = getDateRangeForPeriod(date);
+      setToDate(range.to);
+    }
+  };
+
   const handleApplyFilters = async () => {
     if (!fromDate || !toDate) {
       toast.error("Please select both from and to dates");
@@ -101,39 +140,45 @@ const VLCCllection = () => {
     }
   };
 
+  // Calculate stats from farmer data
+  const uniqueVLCCs = new Set(farmerData.map(f => f.dairy_id)).size;
+  const totalMilk = farmerData.reduce((sum, f) => sum + (parseFloat(f.quantity) || 0), 0);
+  const avgFat = farmerData.length > 0 
+    ? (farmerData.reduce((sum, f) => sum + (parseFloat(f.fat) || 0), 0) / farmerData.length).toFixed(1)
+    : "0.0";
+  const avgSNF = farmerData.length > 0
+    ? (farmerData.reduce((sum, f) => sum + (parseFloat(f.snf) || 0), 0) / farmerData.length).toFixed(1)
+    : "0.0";
+  const totalPayments = farmerData.reduce((sum, f) => sum + (parseFloat(f.amount) || 0), 0);
+
   const centerStats = [
     {
       label: "VLCC Center",
-      value: "10",
-      change: "+12%",
+      value: uniqueVLCCs.toString(),
       icon: Users,
       color: "bg-gradient-to-br from-blue-500 to-blue-600",
     },
     {
       label: "Total Milk Collection",
-      value: "2,450L",
-      change: "+5%",
+      value: `${totalMilk.toFixed(1)}L`,
       icon: TrendingUp,
       color: "bg-gradient-to-br from-green-500 to-green-600",
     },
     {
       label: "Average Fat %",
-      value: "3.5",
-      change: "+8%",
+      value: `${avgFat}%`,
       icon: TrendingUp,
       color: "bg-gradient-to-br from-purple-500 to-purple-600",
     },
     {
       label: "Average SNF %",
-      value: "8.5",
-      change: "+8%",
+      value: `${avgSNF}%`,
       icon: TrendingUp,
       color: "bg-gradient-to-br from-orange-500 to-orange-600",
     },
     {
       label: "Total Payments",
-      value: "$12,450",
-      change: "+15%",
+      value: `₹${totalPayments.toFixed(2)}`,
       icon: IndianRupee,
       color: "bg-gradient-to-br from-teal-500 to-teal-600",
     },
@@ -159,9 +204,6 @@ const VLCCllection = () => {
               <div className="flex flex-col space-y-2">
                 <div className="flex items-center justify-between">
                   <stat.icon className="h-6 w-6 text-white" />
-                  <span className="text-sm font-medium text-white bg-white/20 px-2 py-1 rounded">
-                    {stat.change}
-                  </span>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-white/90">
@@ -250,7 +292,7 @@ const VLCCllection = () => {
                   <Calendar
                     mode="single"
                     selected={fromDate}
-                    onSelect={setFromDate}
+                    onSelect={handleFromDateChange}
                   />
                 </PopoverContent>
               </Popover>

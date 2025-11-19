@@ -56,6 +56,7 @@ export const ROUTES = {
     WEB_APPLICATION:`/admin/web-application`,
     FARMER_APPLICATION:`/admin/farmer-application`,
     ADD_BRANCH:`/admin/add-branch`,
+    UPLOAD_RATE_CHART:`/admin/upload-rate-chart`,
   },
   ACTIVATION:{
     ACTIVATION:`/admin/activation`,
