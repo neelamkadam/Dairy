@@ -98,7 +98,7 @@ const DispatchEntry = () => {
   };
 
   return (
-    <div className="w-[70%] m-auto mt-10">
+    <div className="w-full px-4 md:w-[90%] lg:w-[70%] m-auto mt-4 md:mt-10">
       <Card className="shadow-lg border-0 bg-white">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
@@ -235,18 +235,18 @@ const DispatchEntry = () => {
             </div>
           </div>
 
-          <div className="flex justify-center gap-4 pt-4">
+          <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 pt-4">
             <Button
               onClick={handleClear}
               variant="outline"
-              className="px-8 py-2 text-sm font-medium border-gray-200"
+              className="w-full sm:w-auto px-8 py-2 text-sm font-medium border-gray-200"
             >
               Clear Form
             </Button>
             <Button
               onClick={handleSubmit}
               disabled={isLoading}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 text-sm font-medium disabled:opacity-50"
+              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 text-sm font-medium disabled:opacity-50"
             >
               {isLoading ? "Submitting..." : "Submit Entry"}
             </Button>

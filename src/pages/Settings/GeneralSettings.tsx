@@ -1,5 +1,7 @@
+import { useState, useEffect } from "react";
+import { useSelector } from "react-redux";
+import { RootState } from "@/redux/store";
 import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -18,43 +20,87 @@ import {
   FileText,
   Minus,
   Languages,
-  Search,
-  Settings,
-  User,
   BarChart3,
   Scale,
   Layers,
   Printer,
 } from "lucide-react";
+import { settingsApi } from "@/services/settingsApi";
+import { toast } from "react-toastify";
 
 const GeneralSettings = () => {
+  const branches = useSelector((state: RootState) => state.branch.branches);
+  const [selectedVlc, setSelectedVlc] = useState("");
+  const [addFarmer, setAddFarmer] = useState(0);
+  const [rateChart, setRateChart] = useState(0);
+  const [deduction, setDeduction] = useState(0);
+  const [paymentReceipt, setPaymentReceipt] = useState(0);
+  const [generateBill, setGenerateBill] = useState(0);
+  const [analyser, setAnalyser] = useState(0);
+  const [weightTier, setWeightTier] = useState(0);
+  const [weight, setWeight] = useState(0);
+  const [printer, setPrinter] = useState(0);
+  const [language, setLanguage] = useState("English");
+  const [reportLanguage, setReportLanguage] = useState("English");
+
+  useEffect(() => {
+    if (selectedVlc) {
+      fetchSettings();
+    }
+  }, [selectedVlc]);
+
+  const fetchSettings = async () => {
+    try {
+      const { data } = await settingsApi.get(selectedVlc);
+      if (data.success && data.data) {
+        const settings = data.data;
+        setAddFarmer(settings.add_farmer ?? 0);
+        setRateChart(settings.rate_chart ?? 0);
+        setDeduction(settings.deduction ?? 0);
+        setPaymentReceipt(settings.payment_receipt ?? 0);
+        setGenerateBill(settings.generate_bill ?? 0);
+        setAnalyser(settings.analyser ?? 0);
+        setWeightTier(settings.weight_tier ?? 0);
+        setWeight(settings.weight ?? 0);
+        setPrinter(settings.printer ?? 0);
+        setLanguage(settings.language || "English");
+        setReportLanguage(settings.report_language || "English");
+      }
+    } catch (error) {
+      toast.error("Failed to fetch settings");
+    }
+  };
+
+  const handleSave = async () => {
+    if (!selectedVlc) {
+      toast.error("Please select a VLC");
+      return;
+    }
+    try {
+      const { data } = await settingsApi.update({
+        vlc: selectedVlc,
+        add_farmer: addFarmer,
+        rate_chart: rateChart,
+        deduction: deduction,
+        payment_receipt: paymentReceipt,
+        generate_bill: generateBill,
+        analyser: analyser,
+        weight_tier: weightTier,
+        weight: weight,
+        printer: printer,
+        language: language,
+        report_language: reportLanguage,
+      });
+      if (data.success) {
+        toast.success("Settings updated successfully");
+      }
+    } catch (error) {
+      toast.error("Failed to update settings");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-white">
-        <div className="flex items-center gap-3">
-          <Settings className="h-5 w-5 text-gray-600" />
-          <h1 className="text-xl font-semibold text-gray-900">Settings</h1>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Search settings..."
-              className="pl-10 w-80 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
-            />
-          </div>
-
-          <Button
-            variant="ghost"
-            className="flex items-center gap-2 text-gray-700 hover:text-gray-900"
-          >
-            <User className="h-4 w-4" />
-            <span>Admin</span>
-          </Button>
-        </div>
-      </div>
-
       <div className="max-w-6xl mx-auto p-6 space-y-8">
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center gap-3 mb-6">
@@ -70,32 +116,33 @@ const GeneralSettings = () => {
                 Language
               </h3>
               <RadioGroup
-                defaultValue="english"
-                className="space-y-3 flex gap-4"
+                value={language.toLowerCase()}
+                onValueChange={(val) => setLanguage(val.charAt(0).toUpperCase() + val.slice(1))}
+                className="flex gap-6"
               >
-                <div className="flex items-center space-x-3">
-                  <RadioGroupItem value="english" id="english" />
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="english" id="english" className="border-gray-300" />
                   <Label
                     htmlFor="english"
-                    className="text-sm text-gray-700 cursor-pointer"
+                    className="text-sm text-gray-700 cursor-pointer font-medium"
                   >
                     English
                   </Label>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <RadioGroupItem value="hindi" id="hindi" />
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="hindi" id="hindi" className="border-gray-300" />
                   <Label
                     htmlFor="hindi"
-                    className="text-sm text-gray-700 cursor-pointer"
+                    className="text-sm text-gray-700 cursor-pointer font-medium"
                   >
                     Hindi
                   </Label>
                 </div>
-                <div className="flex items-center space-x-3 mb-3">
-                  <RadioGroupItem value="marathi" id="marathi" />
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="marathi" id="marathi" className="border-gray-300" />
                   <Label
                     htmlFor="marathi"
-                    className="text-sm text-gray-700 cursor-pointer"
+                    className="text-sm text-gray-700 cursor-pointer font-medium"
                   >
                     Marathi
                   </Label>
@@ -108,32 +155,33 @@ const GeneralSettings = () => {
                 Report Language
               </h3>
               <RadioGroup
-                defaultValue="english-report"
-                className="space-y-3 flex "
+                value={reportLanguage.toLowerCase()}
+                onValueChange={(val) => setReportLanguage(val.charAt(0).toUpperCase() + val.slice(1))}
+                className="flex gap-6"
               >
-                <div className="flex items-center space-x-3">
-                  <RadioGroupItem value="english-report" id="english-report" />
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="english" id="english-report" className="border-gray-300" />
                   <Label
                     htmlFor="english-report"
-                    className="text-sm text-gray-700 cursor-pointer"
+                    className="text-sm text-gray-700 cursor-pointer font-medium"
                   >
                     English
                   </Label>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <RadioGroupItem value="hindi-report" id="hindi-report" />
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="hindi" id="hindi-report" className="border-gray-300" />
                   <Label
                     htmlFor="hindi-report"
-                    className="text-sm text-gray-700 cursor-pointer"
+                    className="text-sm text-gray-700 cursor-pointer font-medium"
                   >
                     Hindi
                   </Label>
                 </div>
-                <div className="flex items-center space-x-3 mb-3">
-                  <RadioGroupItem value="marathi-report" id="marathi-report" />
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="marathi" id="marathi-report" className="border-gray-300" />
                   <Label
                     htmlFor="marathi-report"
-                    className="text-sm text-gray-700 cursor-pointer"
+                    className="text-sm text-gray-700 cursor-pointer font-medium"
                   >
                     Marathi
                   </Label>
@@ -151,14 +199,16 @@ const GeneralSettings = () => {
             <label className="text-sm font-medium text-gray-700 mb-2 block">
               Select VLC
             </label>
-            <Select>
+            <Select value={selectedVlc} onValueChange={setSelectedVlc}>
               <SelectTrigger className="w-full border border-gray-200">
                 <SelectValue placeholder="Select VLC" />
               </SelectTrigger>
               <SelectContent className="bg-white">
-                <SelectItem value="vlc1">VLC 1</SelectItem>
-                <SelectItem value="vlc2">VLC 2</SelectItem>
-                <SelectItem value="vlc3">VLC 3</SelectItem>
+                {branches.map((branch) => (
+                  <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
+                    {branch.username} - {branch.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -166,7 +216,7 @@ const GeneralSettings = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-6">
               <div className="flex items-start space-x-3 p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-                <Checkbox id="add-farmer" defaultChecked className="mt-1 text-blue-600 border-gray-300" />
+                <Checkbox id="add-farmer" checked={addFarmer === 1} onCheckedChange={(checked) => setAddFarmer(checked ? 1 : 0)} className="mt-1 text-blue-600 border-gray-300" />
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <UserPlus className="h-4 w-4 text-blue-600" />
@@ -184,7 +234,7 @@ const GeneralSettings = () => {
               </div>
 
               <div className="flex items-start space-x-3 p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-                <Checkbox id="rate-chart" defaultChecked className="mt-1 text-blue-600 border-gray-300" />
+                <Checkbox id="rate-chart" checked={rateChart === 1} onCheckedChange={(checked) => setRateChart(checked ? 1 : 0)} className="mt-1 text-blue-600 border-gray-300" />
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <TrendingUp className="h-4 w-4 text-blue-600" />
@@ -202,7 +252,7 @@ const GeneralSettings = () => {
               </div>
 
               <div className="flex items-start space-x-3 p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-                <Checkbox id="deduction" defaultChecked className="mt-1 text-blue-600 border-gray-300" />
+                <Checkbox id="deduction" checked={deduction === 1} onCheckedChange={(checked) => setDeduction(checked ? 1 : 0)} className="mt-1 text-blue-600 border-gray-300" />
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <Minus className="h-4 w-4 text-blue-600" />
@@ -224,7 +274,8 @@ const GeneralSettings = () => {
               <div className="flex items-start space-x-3 p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
                 <Checkbox
                   id="payment-receipt"
-                  defaultChecked
+                  checked={paymentReceipt === 1}
+                  onCheckedChange={(checked) => setPaymentReceipt(checked ? 1 : 0)}
                   className="mt-1 text-blue-600 border-gray-300"
                 />
                 <div className="flex-1">
@@ -244,7 +295,7 @@ const GeneralSettings = () => {
               </div>
 
               <div className="flex items-start space-x-3 p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-                <Checkbox id="generate-bill" defaultChecked className="mt-1 text-blue-600 border-gray-300" />
+                <Checkbox id="generate-bill" checked={generateBill === 1} onCheckedChange={(checked) => setGenerateBill(checked ? 1 : 0)} className="mt-1 text-blue-600 border-gray-300" />
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <FileText className="h-4 w-4 text-blue-600" />
@@ -280,9 +331,9 @@ const GeneralSettings = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Switch className="bg-blue-500" />
+                  <Switch checked={analyser === 1} onCheckedChange={(checked) => setAnalyser(checked ? 1 : 0)} />
                   <span className="text-xs text-gray-700 font-medium">
-                    Active
+                    {analyser === 1 ? "Active" : "Inactive"}
                   </span>
                 </div>
               </div>
@@ -300,9 +351,9 @@ const GeneralSettings = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Switch defaultChecked className="bg-blue-500" />
+                  <Switch checked={weightTier === 1} onCheckedChange={(checked) => setWeightTier(checked ? 1 : 0)} />
                   <span className="text-xs text-gray-700 font-medium">
-                    Active
+                    {weightTier === 1 ? "Active" : "Inactive"}
                   </span>
                 </div>
               </div>
@@ -322,9 +373,9 @@ const GeneralSettings = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Switch defaultChecked className="bg-blue-500" />
+                  <Switch checked={weight === 1} onCheckedChange={(checked) => setWeight(checked ? 1 : 0)} />
                   <span className="text-xs text-gray-700 font-medium">
-                    Active
+                    {weight === 1 ? "Active" : "Inactive"}
                   </span>
                 </div>
               </div>
@@ -342,9 +393,9 @@ const GeneralSettings = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                <Switch defaultChecked className="bg-blue-500" />
+                <Switch checked={printer === 1} onCheckedChange={(checked) => setPrinter(checked ? 1 : 0)} />
                   <span className="text-xs text-gray-700 font-medium">
-                    Active
+                    {printer === 1 ? "Active" : "Inactive"}
                   </span>
                 </div>
               </div>
@@ -353,7 +404,7 @@ const GeneralSettings = () => {
         </div>
 
         <div className="flex justify-left pt-6">
-          <Button className="px-50 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
+          <Button onClick={handleSave} className="px-50 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
             Save Changes
           </Button>
         </div>

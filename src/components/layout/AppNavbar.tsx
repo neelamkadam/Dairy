@@ -35,10 +35,6 @@ const AppNavbar = ({}: NavbarProps) => {
   const dispatch = useAppDispatch();
 
   const { i18n } = useTranslation();
-  // const handleLogout = () => {
-  //   console.log("Logging out...");
-  //   // Add logout logic here
-  // };
 
   const languages = [
     { key: "en", value: "English" },
@@ -52,31 +48,18 @@ const AppNavbar = ({}: NavbarProps) => {
   };
 
   const handleSignOut = () => {
+    localStorage.removeItem("token");
     dispatch(logout());
     navigate(ROUTES.AUTH.LOGIN);
   }
   return (
-    <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
-      <div className="flex flex-wrap items-center justify-between gap-1">
-        {/* Search */}
-        <div className="flex items-center gap-4 flex-1 max-w-full sm:max-w-md w-full">
-          {/* <div className="relative flex-1">
-            <Search
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-              size={18}
-            />
-            <Input
-              type="text"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 w-full"
-            />
-          </div> */}
-        </div>
+    <header className="bg-white border-b border-gray-200 px-4 md:px-6 py-4 md:py-5 shadow-sm">
+      <div className="flex items-center justify-between">
+        {/* Left side - empty for now */}
+        <div className="flex-1"></div>
 
         {/* Right side actions */}
-        <div className="flex items-center gap-1 flex-wrap justify-end w-full sm:w-auto">
+        <div className="flex items-center gap-2 md:gap-3">
           {/* Localization */}
           <AppDropdown
             triggerText={selectedLang}
@@ -87,45 +70,49 @@ const AppNavbar = ({}: NavbarProps) => {
           {/* Notifications */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="relative p-2">
-                <Bell size={20} />
+              <Button variant="ghost" size="sm" className="relative p-2 hover:bg-gray-100">
+                <Bell size={20} className="text-gray-600" />
                 {notifications.length > 0 && (
-                  <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full flex items-center justify-center text-xs">
+                  <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full flex items-center justify-center text-xs bg-red-500">
                     {notifications.length}
                   </Badge>
                 )}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80">
-              <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+            <DropdownMenuContent align="end" className="w-80 bg-white border border-gray-200 shadow-lg">
+              <DropdownMenuLabel className="font-semibold">Notifications</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {notifications.map((notification) => (
                 <DropdownMenuItem
                   key={notification.id}
-                  className="flex flex-col items-start p-3"
+                  className="flex flex-col items-start p-3 hover:bg-gray-50 cursor-pointer"
                 >
-                  <span className="font-medium">{notification.title}</span>
-                  <span className="text-sm text-gray-500">
-                    {notification.time}
-                  </span>
+                  <span className="font-medium text-gray-900">{notification.title}</span>
+                  <span className="text-sm text-gray-500">{notification.time}</span>
                 </DropdownMenuItem>
               ))}
               {notifications.length === 0 && (
-                <DropdownMenuItem disabled>
+                <DropdownMenuItem disabled className="text-gray-500">
                   No new notifications
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
+
           {/* User Profile */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <AccountCircleIcon color="action" />
+              <Button variant="ghost" size="sm" className="p-1 hover:bg-gray-100 rounded-full">
+                <AccountCircleIcon className="text-gray-600" style={{ fontSize: 32 }} />
+              </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-40 mr-5 border-gray-300 bg-white">
-              <DropdownMenuItem>Profile</DropdownMenuItem>
-              <DropdownMenuItem>Settings</DropdownMenuItem>
-              <DropdownMenuItem onClick={handleSignOut}>Sign out</DropdownMenuItem>
+            <DropdownMenuContent align="end" className="w-48 bg-white border border-gray-200 shadow-lg">
+              <DropdownMenuItem onClick={() => navigate(ROUTES.PROFILE)} className="hover:bg-gray-50 cursor-pointer">Profile</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate(ROUTES.SETTINGS.GENERAL_SETTINGS)} className="hover:bg-gray-50 cursor-pointer">Settings</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSignOut} className="hover:bg-gray-50 cursor-pointer text-red-600">
+                Sign out
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

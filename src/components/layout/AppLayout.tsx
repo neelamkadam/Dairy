@@ -1,4 +1,4 @@
-import { useState,} from "react";
+import { useState, useEffect } from "react";
 import AppNavbar from "./AppNavbar";
 import AppSidebar from "./AppSidebar";
 import { Outlet } from "react-router-dom";
@@ -6,8 +6,15 @@ import { cn } from "@/lib/utils";
 
 
 const AppLayout = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    const saved = localStorage.getItem('sidebarOpen');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+
+  useEffect(() => {
+    localStorage.setItem('sidebarOpen', JSON.stringify(sidebarOpen));
+  }, [sidebarOpen]);
 
   // Initialize theme from localStorage or system preference
   // useEffect(() => {
@@ -26,7 +33,7 @@ const AppLayout = () => {
   // }, []);
 
   const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
+    setSidebarOpen(prev => !prev);
   };
 
   const toggleTheme = () => {

@@ -57,18 +57,13 @@ const SetNewPassword = () => {
       });
 
       if (data.success) {
-        // Set user session and clear temp data
-        dispatch(setAuthentication({
-          isAuthenticated: true,
-          userRole: "user",
-          userData: {
-            id: tempUserData.userId.toString(),
-            name: tempUserData.name,
-            email: tempUserData.email
-          }
-        }));
+        // Clear temp data and logout user
         dispatch(clearTempUserData());
-        navigate(ROUTES.DASHBOARD);
+        localStorage.removeItem("token");
+        
+        // Show success message and redirect to login
+        alert("Password set successfully! Please login with your new password.");
+        navigate(ROUTES.AUTH.LOGIN);
       } else {
         setError(data.message || "Failed to set password");
       }

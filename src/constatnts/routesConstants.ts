@@ -1,14 +1,9 @@
 export const ROUTES = {
   AUTH: {
     LOGIN: `/login`,
-    SIGNUP: `/signup`,
-    OTP_VERIFICATION: `/otp-verification`,
-    RESET_PWD: `/reset-password`,
-    SET_NEW_PWD: `/set-password`,
     SET_NEW_PASSWORD: `/set-new-password`,
     ADMIN_LAYOUT:`/admin`,
   },
-  LANDING_PAGE: "/start",
   DASHBOARD: `/dashboard`,
   COLLECTIONENTRY: {
     VLC_COLLECTION_ENTRY: `/dashboard/collectionentry/vlc-collection-entry`,
@@ -49,6 +44,7 @@ export const ROUTES = {
   SETTINGS:{
     GENERAL_SETTINGS:`/dashboard/general-settings`,
   },
+  PROFILE:`/dashboard/profile`,
   ADMIN_DASHBOARD:`/admin/admin-dashboard`,
   ADMIN_CREATE_USER:`/admin/create-user`,
   ADMIN_MASTER:{

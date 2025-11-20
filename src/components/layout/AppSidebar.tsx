@@ -90,16 +90,21 @@ interface SidebarProps {
 }
 
 const AppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
-  const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const [expandedItems, setExpandedItems] = useState<string[]>(() => {
+    const saved = localStorage.getItem('expandedMenuItems');
+    return saved ? JSON.parse(saved) : [];
+  });
   const navigate = useNavigate();
-   const location = useLocation();
+  const location = useLocation();
 
   const toggleExpanded = (title: string) => {
-    setExpandedItems(prev =>
-      prev.includes(title)
-        ? prev.filter(item => item !== title)
-        : [title]
-    );
+    setExpandedItems(prev => {
+      const newExpanded = prev.includes(title)
+        ? []
+        : [title];
+      localStorage.setItem('expandedMenuItems', JSON.stringify(newExpanded));
+      return newExpanded;
+    });
   };
 
   const handleNavigation = (href?: string) => {
@@ -143,10 +148,19 @@ const AppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
   };
 
   return (
-    <div className={cn(
-      "bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 flex flex-col h-screen fixed left-0 top-0 z-40 lg:relative lg:z-auto",
-      isOpen ? "w-64" : "w-16"
-    )}>
+    <>
+      {/* Mobile Overlay */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
+          onClick={onToggle}
+        />
+      )}
+      
+      <div className={cn(
+        "bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 flex flex-col h-screen fixed left-0 top-0 z-40 lg:relative lg:z-auto",
+        isOpen ? "w-64" : "w-16 -translate-x-full lg:translate-x-0"
+      )}>
       {/* Header */}
       <div className="flex items-center justify-between p-4.5 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-2">
@@ -176,6 +190,7 @@ const AppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
         </div>
       </ScrollArea>
     </div>
+    </>
   );
 };
 

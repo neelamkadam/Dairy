@@ -473,28 +473,17 @@ const FarmerCollectionEntry = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto p-4 lg:p-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
-            <Button variant="ghost" size="sm" className="p-2">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
             <h1 className="md:text-2xl font-semibold text-gray-900">
               Farmer Collection Entry
             </h1>
           </div>
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-              <User className="h-4 w-4 text-gray-600" />
-            </div>
-            <span className="text-sm font-medium text-gray-700">
-              John Smith
-            </span>
-          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 text-left">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-left">
           {/* Main Form */}
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-2">
             <div className="space-y-4 bg-white p-5 rounded-2xl">
               {/* Top Form Fields */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 ">
@@ -588,14 +577,10 @@ const FarmerCollectionEntry = () => {
                 </div>
               </div>
             </div>
-            <Separator className="my-4" />
+            <Separator className="my-1" />
 
             {/* Collection Details */}
             <div className="space-y-4 bg-white p-5 rounded-2xl">
-              <h3 className="text-lg font-semibold text-gray-900">
-                Collection Details
-              </h3>
-
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">
@@ -628,29 +613,32 @@ const FarmerCollectionEntry = () => {
                     type="number"
                     step="0.1"
                     value={quantity}
+                    placeholder="0.00"
                     onChange={(e) => setQuantity(e.target.value)}
                     className="border-gray-200"
                   />
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                    Fat %
+                    Fat (%)
                   </Label>
                   <Input
                     type="number"
                     step="0.1"
                     value={fat}
+                    placeholder="0.0"
                     onChange={(e) => setFat(e.target.value)}
                     className="border-gray-200"
                   />
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                    SNF %
+                    SNF (%)
                   </Label>
                   <Input
                     type="number"
                     step="0.1"
+                    placeholder="0.0"
                     value={snf}
                     onChange={(e) => {
                       setSnf(e.target.value);
@@ -666,6 +654,7 @@ const FarmerCollectionEntry = () => {
                   <Input
                     type="number"
                     step="0.01"
+                    placeholder="0.0"
                     value={clr}
                     onChange={(e) => {
                       setClr(e.target.value);
@@ -691,7 +680,7 @@ const FarmerCollectionEntry = () => {
               </div>
             </div>
 
-            <Separator className="my-4" />
+            <Separator className="my-1" />
 
             {/* Total Amount */}
             <div className="flex justify-between items-center p-4 rounded-2xl bg-white">
@@ -700,7 +689,7 @@ const FarmerCollectionEntry = () => {
               </span>
               <span className="text-2xl font-bold text-green-600">₹{amount.toFixed(2)}</span>
             </div>
-
+            <Separator className="my-1" />
             {/* Submit Button */}
             <Button
               onClick={handleSubmit}

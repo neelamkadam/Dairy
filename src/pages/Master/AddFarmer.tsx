@@ -298,8 +298,8 @@ export const AddFarmer: React.FC = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <div className="flex justify-between items-center gap-2 mt-3">
+    <div className="w-full px-4 md:max-w-2xl mx-auto space-y-4 md:space-y-6">
+      <div className="flex justify-between items-center gap-2 mt-3 mb-2">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
           <ChevronLeft size={20} strokeWidth={1.25} />
         </Button>
@@ -316,8 +316,8 @@ export const AddFarmer: React.FC = () => {
       </div>
 
       <Card className='bg-white border-none'>
-        <CardContent className="p-6">
-          <form onSubmit={handleSubmit} className="space-y-8 text-left">
+        <CardContent className="p-4 md:p-6">
+          <form onSubmit={handleSubmit} className="space-y-6 md:space-y-8 text-left">
             {/* Basic Information */}
             <div>
               <h3 className="text-lg font-semibold mb-4">Basic Information</h3>
@@ -539,7 +539,7 @@ export const AddFarmer: React.FC = () => {
 
             <Button 
               type="submit" 
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white h-11"
               disabled={loading}
             >
               {loading ? 'Saving...' : (isEditMode ? 'Update Farmer' : 'Create Farmer')}

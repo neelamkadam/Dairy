@@ -43,6 +43,7 @@ import TotalCollectionReport from "@/pages/Reports/TotalCollectionReport";
 import VlcCommissionReport from "@/pages/Reports/VlcCommissionReport";
 import VlcDifferenceReport from "@/pages/Reports/VlcDifferenceReport";
 import GeneralSettings from "@/pages/Settings/GeneralSettings";
+import Profile from "@/pages/Profile/Profile";
 import { createBrowserRouter } from "react-router-dom";
 
 export const AppRoutes = createBrowserRouter([
@@ -185,6 +186,10 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "general-settings",
         element: <GeneralSettings />,
+      },
+      {
+        path: "profile",
+        element: <Profile />,
       },
     ],
   },

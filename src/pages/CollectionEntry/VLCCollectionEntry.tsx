@@ -149,8 +149,8 @@ const VLCCollectionEntry = () => {
   };
 
   return (
-    <div className="flex gap-6 w-[95%] m-auto mt-10">
-      <div className="w-[65%]">
+    <div className="flex flex-col lg:flex-row gap-4 md:gap-6 w-full px-4 md:w-[95%] m-auto mt-4 md:mt-10">
+      <div className="w-full lg:w-[65%]">
         <Card className="shadow-lg border-0 bg-white">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
@@ -329,7 +329,7 @@ const VLCCollectionEntry = () => {
             <Button
               onClick={handleSubmit}
               disabled={isLoading}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 text-sm font-medium transition-colors disabled:opacity-50"
+              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 text-sm font-medium transition-colors disabled:opacity-50"
             >
               {isLoading ? "Submitting..." : "Submit Entry"}
             </Button>
@@ -338,7 +338,7 @@ const VLCCollectionEntry = () => {
       </Card>
       </div>
       
-      <div className="w-[35%]">
+      <div className="w-full lg:w-[35%]">
         <LastEntryDetails entries={getFilteredEntries()} />
       </div>
     </div>

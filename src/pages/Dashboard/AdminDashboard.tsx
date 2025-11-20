@@ -9,7 +9,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
 import {
   BarChart,
   Bar,
@@ -19,10 +18,35 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { useState, useEffect } from "react";
+import { adminApi } from "@/services/adminApi";
+import { toast } from "react-toastify";
 
-const data: any[] = [];
-const statisticsData: any[] = [];
 const AdminDashboard = () => {
+  const [mobileAppsCount, setMobileAppsCount] = useState(0);
+  const [farmerAppsCount, setFarmerAppsCount] = useState(0);
+  const [farmerTotalCount, setFarmerTotalCount] = useState(0);
+  const [webAppsCount, setWebAppsCount] = useState(0);
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const { data } = await adminApi.getAllUsers();
+      if (data.success) {
+        const { dairyManagers = [], farmers = [], webUsers = [] } = data.data;
+        const confirmedFarmers = farmers.filter((f: any) => f.confirm === 1);
+        setMobileAppsCount(dairyManagers.length || 0);
+        setFarmerAppsCount(confirmedFarmers.length);
+        setFarmerTotalCount(farmers.length || 0);
+        setWebAppsCount(webUsers.length || 0);
+      }
+    } catch (error) {
+      toast.error("Failed to fetch users");
+    }
+  };
   return (
     <div className="flex min-h-screen bg-gray-50">
       <main className="flex-1 p-6">
@@ -30,7 +54,7 @@ const AdminDashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <MetricCard
             title="Mobile Applications"
-            value="0"
+            value={mobileAppsCount.toString()}
             change="0%"
             changeType="positive"
             icon={Smartphone}
@@ -38,7 +62,7 @@ const AdminDashboard = () => {
           />
           <MetricCard
             title="Farmer Applications"
-            value="0"
+            value={`${farmerAppsCount} (${farmerTotalCount})`}
             change="0%"
             changeType="positive"
             icon={Sprout}
@@ -46,7 +70,7 @@ const AdminDashboard = () => {
           />
           <MetricCard
             title="Web Applications"
-            value="0"
+            value={webAppsCount.toString()}
             change="0%"
             changeType="positive"
             icon={Globe}
@@ -76,7 +100,7 @@ const AdminDashboard = () => {
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
-                data={data}
+                data={[]}
                 margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -111,7 +135,7 @@ const AdminDashboard = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {statisticsData.map((row) => (
+                {[].map((row: any) => (
                   <TableRow key={row.month} className="hover:bg-gray-50">
                     <TableCell className="font-medium">{row.month}</TableCell>
                     <TableCell>{row.mobileApps}</TableCell>

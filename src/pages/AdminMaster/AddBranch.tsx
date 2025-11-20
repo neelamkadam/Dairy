@@ -100,10 +100,10 @@ const AddBranch = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+      <div className="max-w-4xl mx-auto space-y-4 md:space-y-6">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm border p-6">
+        <div className="bg-white rounded-lg shadow-sm border p-4 md:p-6">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
               <Building2 className="w-6 h-6 text-white" />
@@ -122,7 +122,7 @@ const AddBranch = () => {
               Search User
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="mobile_number" className="text-sm font-medium text-gray-700">
@@ -186,7 +186,7 @@ const AddBranch = () => {
         {response?.success && response.branches && response.branches.length > 0 && (
           <Card className="shadow-sm border">
             <CardHeader className="border-b bg-gray-50">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <CardTitle className="text-lg font-medium">Assign Branches for {response.mobile_number}</CardTitle>
                 <div className="flex items-center space-x-2">
                   <Checkbox
@@ -200,8 +200,8 @@ const AddBranch = () => {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-6">
-              <div className="grid gap-3">
+            <CardContent className="p-4 md:p-6">
+              <div className="grid gap-2 md:gap-3">
                 {response.branches.map((branch, index) => (
                   <div key={index} className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-gray-50 transition-colors">
                     <Checkbox

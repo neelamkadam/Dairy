@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import AppInputField from "@/components/AppInput";
 import { LoginFormType } from "@/types/form-types";
@@ -10,7 +10,7 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import { ROUTES } from "@/constatnts/routesConstants";
 import { Checkbox } from "@/components/ui/checkbox";
 import { api } from "@/services/config";
-import { useAppDispatch } from "@/redux/store";
+import { useAppDispatch, useAppSelector } from "@/redux/store";
 import { setAuthentication, setTempUserData } from "@/redux/AuthSlice";
 import { fetchUserBranches } from "@/redux/branchSlice";
 
@@ -19,6 +19,13 @@ const Login: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const { isAuthenticated, userRole } = useAppSelector(state => state.authData);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate(userRole === "admin" ? ROUTES.ADMIN_DASHBOARD : ROUTES.DASHBOARD);
+    }
+  }, [isAuthenticated, userRole, navigate]);
 
   const form: UseFormReturn<LoginFormType> = useForm<LoginFormType>({
     resolver: yupResolver(InputSchema),
@@ -37,6 +44,8 @@ const Login: React.FC = () => {
     try {
       // Check for hardcoded admin credentials
       if (data.userId === "admin@gmail.com" && data.password === "admin") {
+        // Store a dummy token for admin (or generate one if needed)
+        localStorage.setItem("token", "admin-token");
         dispatch(setAuthentication({
           isAuthenticated: true,
           userRole: "admin",
@@ -52,7 +61,7 @@ const Login: React.FC = () => {
 
         if (result.success) {
           if (result.requirePasswordChange === true) {
-            // First time login - show set password screen
+            // First time login - show set password screen (don't authenticate yet)
             dispatch(setTempUserData({
               userId: result.userId,
               name: result.name,
@@ -60,6 +69,10 @@ const Login: React.FC = () => {
             }));
             navigate(ROUTES.AUTH.SET_NEW_PASSWORD);
           } else {
+            // Store token in localStorage if provided
+            if (result.token) {
+              localStorage.setItem("token", result.token);
+            }
             // Regular login - go to dashboard
             dispatch(setAuthentication({
               isAuthenticated: true,
@@ -86,163 +99,126 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
+    <div className="min-h-screen flex">
       {/* Left side - Hero section */}
-      <div className="hidden lg:flex lg:w-1/2 bg-[url('/Image/images.jpg')] bg-cover bg-center relative">
-        <div className="absolute inset-0 bg-black bg-opacity-20"></div>
-        <div className="relative z-10 flex flex-col p-8 xl:p-12">
-          <img 
-            src="/Image/signuppage.webp" 
-            className="w-7 h-7 xl:w-8 xl:h-8" 
-            alt="Logo" 
-          />
-          <div className="flex-1 flex items-center">
-            <div className="max-w-md">
-              <span className="text-white text-lg xl:text-xl block mb-2">
-                {t("welcome_back")}
-              </span>
-              <h1 className="text-4xl xl:text-5xl 2xl:text-6xl text-blue-700 font-bold mb-4">
-                NeoDairy Sales And Services
-              </h1>
-              <span className="text-white text-lg xl:text-xl">
-                {t("business_solution")}
-              </span>
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-green-600 via-emerald-600 to-teal-700 relative overflow-hidden">
+        {/* Animated background elements */}
+        <div className="absolute inset-0">
+          {/* Road */}
+          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gray-800 opacity-20"></div>
+          <div className="absolute bottom-16 left-0 right-0 h-1 bg-yellow-400 opacity-40 animate-road-line"></div>
+          
+          {/* Dairy building on left */}
+          <div className="absolute bottom-20 left-12 text-7xl animate-pulse-slow">🏭</div>
+          
+          {/* Animated tractor with farmer moving right to left */}
+          <div className="absolute bottom-20 animate-tractor-rtl">
+            <div className="text-6xl">🚜</div>
+          </div>
+          
+          {/* Floating milk drops */}
+          <div className="absolute top-20 left-20 text-3xl animate-float-1">🥛</div>
+          <div className="absolute top-40 right-32 text-2xl animate-float-2">🥛</div>
+          <div className="absolute top-60 left-40 text-3xl animate-float-3">🥛</div>
+        </div>
+        
+        <div className="relative z-10 flex flex-col justify-center items-center p-12 text-white">
+          <div className="space-y-8 text-center bg-black/20 backdrop-blur-sm rounded-3xl p-8">
+            <img 
+              src="/src/assets/NeoDairy_Logo.png" 
+              alt="Neo Dairy Logo" 
+              className="w-32 h-auto mx-auto mb-8 bg-white rounded-2xl"
+            />
+            <div>
+              <h1 className="text-5xl font-bold mb-4">Neo Dairy Sales and Services</h1>
+              <p className="text-xl text-green-100">Pvt Ltd.</p>
+            </div>
+            <div className="space-y-4">
+              <p className="text-lg text-green-50">Complete dairy management solution for modern farming operations</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Right side - Login form */}
-      <div className="flex-1 lg:w-1/2 flex flex-col min-h-screen">
-        {/* Mobile logo */}
-        <div className="lg:hidden p-6 pb-0">
-          <img 
-            src="/Image/signuppage.webp" 
-            className="w-8 h-8" 
-            alt="Logo" 
-          />
-        </div>
+      <div className="flex-1 lg:w-1/2 flex items-center justify-center bg-gray-50 p-8">
+        <div className="w-full max-w-md">
+          {/* Mobile logo */}
+          <div className="lg:hidden text-center mb-8">
+            <h2 className="text-2xl font-bold text-blue-600">Neo Dairy Sales and Services</h2>
+            <p className="text-sm text-gray-600">Pvt Ltd.</p>
+          </div>
 
-        {/* Form container */}
-        <div className="flex-1 flex items-center justify-center p-6 lg:p-8">
-          <div className="w-full max-w-md space-y-6">
-            {/* Mobile hero text */}
-            <div className="lg:hidden text-center mb-8">
-              <h2 className="text-2xl font-bold text-blue-700 mb-2">NeoDairy</h2>
-              <p className="text-gray-600">{t("business_solution")}</p>
-            </div>
-
-            {/* Form header */}
+          {/* Login Card */}
+          <div className="bg-white rounded-2xl shadow-xl p-8 space-y-6">
             <div className="text-center">
-              <h1 className="text-2xl sm:text-3xl lg:text-2xl xl:text-3xl font-bold text-gray-900">
-                {t("sign_in")}
-              </h1>
-              <p className="mt-2 text-base lg:text-lg xl:text-xl text-gray-600">
-                {t("enter_credentials")}
-              </p>
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
+                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900">{t("sign_in")}</h2>
+              <p className="text-gray-600 mt-2">{t("enter_credentials")}</p>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
               <div>
                 <AppInputField<LoginFormType>
                   name="userId"
                   form={form}
                   type="text"
                   placeholder={t("user_id")}
-                  label={t("user_id")}
-                  className=""
-                />
-                {errors.userId && (
-                  <p className="text-red-500 text-sm mt-1">
-                    {errors.userId.message}
-                  </p>
-                )}
-              </div>
+                  label={t("E-Mail")}
+                    className=""
+                  />
+                  {errors.userId && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.userId.message}
+                    </p>
+                  )}
+                </div>
 
-              <div>
-                <AppInputField<LoginFormType>
-                  name="password"
-                  form={form}
-                  type="password"
-                  placeholder={t("password")}
-                  label={t("password")}
-                  className=""
-                />
-                {errors.password && (
-                  <p className="text-red-500 text-sm mt-1">
-                    {errors.password.message}
-                  </p>
-                )}
-              </div>
+                <div>
+                  <AppInputField<LoginFormType>
+                    name="password"
+                    form={form}
+                    type="password"
+                    placeholder={t("password")}
+                    label={t("password")}
+                    className=""
+                  />
+                  {errors.password && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.password.message}
+                    </p>
+                  )}
+                </div>
 
-              <div className="flex items-center gap-2">
-                <Checkbox id="remember-me" className="border-gray-500" />
-                <label 
-                  htmlFor="remember-me" 
-                  className="text-sm lg:text-base xl:text-lg font-medium text-gray-700"
-                >
-                  {t("remember_me")}
-                </label>
-              </div>
-
-              <AppButton
-                type="submit"
-                className="w-full text-white bg-blue-500 py-3 rounded-md hover:bg-blue-600 transition-colors duration-200"
-                label={t("sign_in_button")}
-              />
-
-              {/* Uncomment these sections if needed */}
-              {/* <div className="text-right">
-                <NavLink 
-                  to={ROUTES.AUTH.RESET_PWD} 
-                  className="text-red-600 hover:underline text-sm lg:text-base xl:text-lg"
-                >
-                  {t("forgot_password")}
-                </NavLink>
-              </div> */}
-
-              {/* <div className="text-center">
-                <span className="text-sm lg:text-base xl:text-lg text-gray-600">
-                  {t("dont_have_account")}{" "}
-                  <NavLink 
-                    to={ROUTES.AUTH.SIGNUP} 
-                    className="text-red-600 font-semibold hover:underline"
+                <div className="flex items-center gap-2">
+                  <Checkbox id="remember-me" className="border-gray-300" />
+                  <label 
+                    htmlFor="remember-me" 
+                    className="text-sm font-medium text-gray-700 cursor-pointer"
                   >
-                    {t("sign_up")}
-                  </NavLink>
-                </span>
-              </div> */}
-            </form>
-          </div>
-        </div>
+                    {t("remember_me")}
+                  </label>
+                </div>
 
-        {/* Footer links - moved to bottom */}
-        <div className="p-6 lg:p-8 pt-0">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-sm lg:text-base xl:text-lg text-gray-500 border-t pt-6">
-            <NavLink 
-              to="#" 
-              className="hover:text-gray-700 transition-colors duration-200"
-            >
-              {t("terms_of_service")}
-            </NavLink>
-            <NavLink 
-              to="#" 
-              className="hover:text-gray-700 transition-colors duration-200"
-            >
-              {t("privacy_policy")}
-            </NavLink>
-            <NavLink 
-              to="#" 
-              className="hover:text-gray-700 transition-colors duration-200"
-            >
-              {t("help_center")}
-            </NavLink>
+                <AppButton
+                  type="submit"
+                  className="w-full text-white bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-semibold transition-colors duration-200"
+                  label={t("sign_in_button")}
+                />
+              </form>
+            </div>
+
+            <p className="text-center text-sm text-gray-500 mt-6">
+              © 2024 Neo Dairy Sales and Services Pvt Ltd. All rights reserved.
+            </p>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
 };
 
 export default Login;

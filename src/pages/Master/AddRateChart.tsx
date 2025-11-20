@@ -100,7 +100,7 @@ const AddRateChart: React.FC = () => {
         </div>
       </div>
       <hr className="text-gray-300" />
-      <div className="space-y-6 w-[85%] m-auto mt-5">
+      <div className="space-y-6 w-full px-4 md:w-[90%] lg:w-[85%] m-auto mt-5">
         {/* Rate Chart Type Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card className="bg-gradient-to-r from-green-400 to-green-500 text-white cursor-pointer hover:shadow-lg transition-shadow">
@@ -129,7 +129,7 @@ const AddRateChart: React.FC = () => {
         </div>
 
         {/* Configuration Form */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-[85%] text-left">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 w-full text-left">
           <div >
             <label className="block text-sm font-medium mb-2 not-first:">
               Select VLCC
@@ -214,7 +214,7 @@ const AddRateChart: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 md:p-12 text-center">
                 <input
                   type="file"
                   accept=".xlsx,.xls"
@@ -223,7 +223,7 @@ const AddRateChart: React.FC = () => {
                   id="excel-upload"
                 />
                 <label htmlFor="excel-upload" className="cursor-pointer">
-                  <div className="text-6xl text-gray-400 mb-4">⬇️</div>
+                  <div className="text-4xl md:text-6xl text-gray-400 mb-4">⬇️</div>
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
                     Drop Excel file here or click to browse
                   </h3>
@@ -234,7 +234,7 @@ const AddRateChart: React.FC = () => {
                 </label>
               </div>
 
-              <Button className="bg-red-600 hover:bg-red-700 text-white float-right">
+              <Button className="bg-red-600 hover:bg-red-700 text-white w-full sm:w-auto sm:float-right">
                 Download Sample File
               </Button>
               <div className="text-sm mt-20 m-auto rounded border w-30 h-9 p-1 bg-white  text-gray-600 ">
@@ -243,7 +243,7 @@ const AddRateChart: React.FC = () => {
               <Button 
                 onClick={handleSubmit}
                 disabled={loading}
-                className=" mt-40 w-35 h-9 text-white bg-blue-600 hover:bg-blue-700 float-right"
+                className="mt-6 md:mt-40 w-full sm:w-auto h-9 text-white bg-blue-600 hover:bg-blue-700 sm:float-right"
               >
                 {loading ? (
                   <div className="flex items-center gap-2">

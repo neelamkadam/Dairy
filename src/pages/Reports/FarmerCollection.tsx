@@ -45,16 +45,14 @@ const FarmerCollection = () => {
   return (
     <>
       <div className="">
-        <div className="grid grid-cols-2 p-2 bg-white">
-          <h1 className="text-left  p-2">Farmer Collection Report</h1>
-          <span className="flex justify-end mt-2">
-            <X size={20} strokeWidth={1.5} />
-          </span>
+        <div className="flex justify-between items-center p-3 md:p-4 bg-white">
+          <h1 className="text-left text-lg md:text-xl font-semibold">Farmer Collection Report</h1>
+          <X size={20} strokeWidth={1.5} className="cursor-pointer" />
         </div>
         <hr className="text-gray-300" />
         <Tabs defaultValue="collection" className="w-full border-none">
           <TabsContent value="collection" className="space-y-6">
-            <Card className="border-none w-[85%] m-auto mt-5 bg-white text-left">
+            <Card className="border-none w-full px-4 md:w-[90%] lg:w-[85%] m-auto mt-5 bg-white text-left">
               <CardHeader className="text-black text-[20px] font-bold">
                 User Info
               </CardHeader>
@@ -159,12 +157,12 @@ const FarmerCollection = () => {
                     </Popover>
                   </div>
                 </div>
-                <Button className="bg-blue-600 hover:bg-blue-700 w-full text-white">
+                <Button className="bg-blue-600 hover:bg-blue-700 w-full h-11 text-white">
                   Submit
                 </Button>
               </CardContent>
             </Card>
-            <div className="overflow-x-auto mt-10 p-5">
+            <div className="overflow-x-auto mt-6 md:mt-10 px-4 md:px-5">
               <table className="table-auto border-collapse border border-gray-300 w-full">
                 <thead className="bg-gray-200">
                   <tr>
@@ -249,8 +247,8 @@ const FarmerCollection = () => {
                 className="border border-gray-300"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3 mt-25 p-5">
-              <div className="flex gap-4 justify-start">
+            <div className="flex flex-col lg:flex-row justify-between gap-4 mt-6 px-4 md:px-5">
+              <div className="flex flex-wrap gap-3 md:gap-4 items-center">
                 <div className="text-sm text-gray-600 mt-2">
                   Record Count: 1 - 0 of 0
                 </div>
@@ -266,11 +264,11 @@ const FarmerCollection = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex gap-3 justify-end">
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+              <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto">
                   Excel Export
                 </Button>
-                <Button variant="outline" className="bg-red-500 text-white">
+                <Button variant="outline" className="bg-red-500 text-white w-full sm:w-auto">
                   PDF Export
                 </Button>
               </div>
