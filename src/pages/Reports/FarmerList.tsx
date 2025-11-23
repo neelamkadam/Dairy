@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -17,85 +17,45 @@ import {
 } from "@/components/ui/table";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const farmers = [
-  {
-    id: "001",
-    name: "John Smith",
-    contact: "+91 98765 43210",
-    village: "Green Valley",
-    userId: "RV0001",
-  },
-  {
-    id: "002",
-    name: "Mary Johnson",
-    contact: "+91 98765 43211",
-    village: "Riverside",
-    userId: "RV0001",
-  },
-  {
-    id: "003",
-    name: "Robert Wilson",
-    contact: "+91 98765 43212",
-    village: "Hillside",
-    userId: "RV0001",
-  },
-  {
-    id: "004",
-    name: "Sarah Davis",
-    contact: "+91 98765 43213",
-    village: "Lakeside",
-    userId: "RV0001",
-  },
-  {
-    id: "005",
-    name: "Michael Brown",
-    contact: "+91 98765 43214",
-    village: "Mountain View",
-    userId: "RV0001",
-  },
-  {
-    id: "006",
-    name: "Emma Taylor",
-    contact: "+91 98765 43215",
-    village: "Sunnydale",
-    userId: "RV0001",
-  },
-  {
-    id: "007",
-    name: "James Anderson",
-    contact: "+91 98765 43216",
-    village: "Pine Grove",
-    userId: "RV0001",
-  },
-  {
-    id: "008",
-    name: "Patricia Martinez",
-    contact: "+91 98765 43217",
-    village: "Oak Ridge",
-    userId: "RV0001",
-  },
-  {
-    id: "009",
-    name: "David Thompson",
-    contact: "+91 98765 43218",
-    village: "Cedar Hills",
-    userId: "RV0001",
-  },
-  {
-    id: "010",
-    name: "Linda Garcia",
-    contact: "+91 98765 43219",
-    village: "Maple Woods",
-    userId: "RV0001",
-  },
-];
+import { useAppSelector } from "@/redux/store";
+import { userApi } from "@/services/reportsApi";
+import { toast } from "react-toastify";
 
 const FarmerList = () => {
+  const { branches } = useAppSelector((state) => state.branch);
   const [selectedVlcc, setSelectedVlcc] = useState("");
+  const [farmers, setFarmers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  // const [itemsPerPage, setItemsPerPage] = useState(10);
-  const totalPages = Math.ceil(50 / 10);
+  const itemsPerPage = 10;
+
+  const handleShow = async () => {
+    if (!selectedVlcc) {
+      toast.error("Please select a VLC");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const data = await userApi.getFarmers(selectedVlcc);
+      
+      if (data.success && Array.isArray(data.data)) {
+        setFarmers(data.data);
+      } else {
+        setFarmers([]);
+      }
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to fetch farmers");
+      setFarmers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const totalPages = Math.ceil(farmers.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentFarmers = farmers.slice(startIndex, endIndex);
 
   return (
     <div className="p-6 text-left">
@@ -104,18 +64,24 @@ const FarmerList = () => {
         <p className="text-gray-600">Manage and view all farmers</p>
       </div>
       <div className="flex gap-5 mb-5">
-        <Select value={selectedVlcc} onValueChange={setSelectedVlcc}>
-          <SelectTrigger className="w-40 border-gray-300">
-            <SelectValue placeholder="Select VLCC" />
+        <Select value={selectedVlcc} onValueChange={(value) => {
+          setSelectedVlcc(value);
+          setFarmers([]);
+          setCurrentPage(1);
+        }}>
+          <SelectTrigger className="w-48 border-gray-300">
+            <SelectValue placeholder="Select VLC" />
           </SelectTrigger>
           <SelectContent className="bg-white">
-            <SelectItem value="all">All VLCCs</SelectItem>
-            <SelectItem value="green-valley">Green Valley VLCC</SelectItem>
-            <SelectItem value="riverside">Riverside VLCC</SelectItem>
+            {branches?.map((branch) => (
+              <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
+                {branch.username} - {branch.name}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
-        <Button className="bg-blue-600 hover:bg-blue-700 text-white w-[150px]">
-          Show
+        <Button onClick={handleShow} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white w-[150px]">
+          {loading ? "Loading..." : "Show"}
         </Button>
       </div>
       <div className="border border-gray-200 rounded-lg">
@@ -124,27 +90,35 @@ const FarmerList = () => {
             <TableRow className="">
               <TableHead>Farmer ID</TableHead>
               <TableHead>Name</TableHead>
-              <TableHead>Contact Number</TableHead>
-              <TableHead>Village</TableHead>
-              <TableHead>User ID</TableHead>
+              <TableHead>Contact</TableHead>
+              <TableHead>Milk Type</TableHead>
+              <TableHead>Rate Chart</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {farmers.map((farmer) => (
-              <TableRow key={farmer.id} className="hover:bg-gray-50">
-                <TableCell className="font-medium border border-gray-300">{farmer.id}</TableCell>
-                <TableCell className="border border-gray-300">{farmer.name}</TableCell>
-                <TableCell className="border border-gray-300">{farmer.contact}</TableCell>
-                <TableCell className="border border-gray-300">{farmer.village}</TableCell>
-                <TableCell className="border border-gray-300">{farmer.userId}</TableCell>
+            {currentFarmers.length > 0 ? (
+              currentFarmers.map((farmer) => (
+                <TableRow key={farmer.id || farmer.username} className="hover:bg-gray-50">
+                  <TableCell className="font-medium border border-gray-300">{farmer.username}</TableCell>
+                  <TableCell className="border border-gray-300">{farmer.fullName}</TableCell>
+                  <TableCell className="border border-gray-300">{farmer.mobile_number}</TableCell>
+                  <TableCell className="border border-gray-300">{farmer.milkType}</TableCell>
+                  <TableCell className="border border-gray-300">{farmer.rateChart}</TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-10 text-gray-500">
+                  {loading ? "Loading..." : "Select VLC and click Show to view farmers"}
+                </TableCell>
               </TableRow>
-            ))}
+            )}
           </TableBody>
         </Table>
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4">
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600">
-              Showing 1-10 of 50 items
+              Showing {farmers.length > 0 ? startIndex + 1 : 0}-{Math.min(endIndex, farmers.length)} of {farmers.length} items
             </span>
           </div>
 
@@ -158,7 +132,7 @@ const FarmerList = () => {
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            {[1, 2, 3].map((page) => (
+            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((page) => (
               <Button
                 key={page}
                 variant={currentPage === page ? "outline" : "default"}

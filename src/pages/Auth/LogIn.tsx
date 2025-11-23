@@ -4,7 +4,7 @@ import AppInputField from "@/components/AppInput";
 import { LoginFormType } from "@/types/form-types";
 import { SubmitHandler, useForm, UseFormReturn } from "react-hook-form";
 import { InputSchema } from "@/lib/InputSchema";
-import { NavLink, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import AppButton from "@/components/AppButton";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { ROUTES } from "@/constatnts/routesConstants";
@@ -13,6 +13,7 @@ import { api } from "@/services/config";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
 import { setAuthentication, setTempUserData } from "@/redux/AuthSlice";
 import { fetchUserBranches } from "@/redux/branchSlice";
+import NeoDairyLogo from "@/assets/NeoDairy_Logo.png";
 
 
 const Login: React.FC = () => {
@@ -125,9 +126,9 @@ const Login: React.FC = () => {
         <div className="relative z-10 flex flex-col justify-center items-center p-12 text-white">
           <div className="space-y-8 text-center bg-black/20 backdrop-blur-sm rounded-3xl p-8">
             <img 
-              src="/src/assets/NeoDairy_Logo.png" 
+              src={NeoDairyLogo} 
               alt="Neo Dairy Logo" 
-              className="w-32 h-auto mx-auto mb-8 bg-white rounded-2xl"
+              className="w-32 h-auto mx-auto mb-8 bg-white rounded-2xl p-2"
             />
             <div>
               <h1 className="text-5xl font-bold mb-4">Neo Dairy Sales and Services</h1>
@@ -213,7 +214,7 @@ const Login: React.FC = () => {
             </div>
 
             <p className="text-center text-sm text-gray-500 mt-6">
-              © 2024 Neo Dairy Sales and Services Pvt Ltd. All rights reserved.
+              © {new Date().getFullYear()} Neo Dairy Sales and Services Pvt Ltd. All rights reserved.
             </p>
           </div>
         </div>

@@ -19,80 +19,141 @@ import { CalendarIcon, X, ChevronRight, ChevronLeft } from "lucide-react";
 import { useState } from "react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useAppSelector } from "@/redux/store";
+import { toast } from "react-toastify";
+import { api } from "@/services/config";
 
 const FarmerCollection = () => {
-  const [fromDate, setFromDate] = useState<Date>();
-  const [toDate, setToDate] = useState<Date>();
+  const { branches } = useAppSelector((state) => state.branch);
+  const [vlcName, setVlcName] = useState("");
+  const [milkType, setMilkType] = useState("All");
+  const [isFromCalendarOpen, setIsFromCalendarOpen] = useState(false);
+  const [isToCalendarOpen, setIsToCalendarOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [collectionData, setCollectionData] = useState<any[]>([]);
+  const [summary, setSummary] = useState<any>(null);
 
-  const collectionReportData = [
-    {
-      date: "2025-04-22",
-      farmerId: "001",
-      name: "John",
-      liter: "20.5",
-      kg: "19.5",
-      fat: "3.5",
-      snf: "6.5",
-      clr: "29",
-      milkType: "COW",
-      userId: "RV0001",
-      shift: "Morning",
-      rate: "32",
-      amount: "640 /-",
-    },
-  ];
+  const getDefaultShift = () => {
+    const hour = new Date().getHours();
+    return hour >= 17 ? "Evening" : "Morning";
+  };
+
+  const getDateRange = (date: Date = new Date()) => {
+    const day = date.getDate();
+    const month = date.getMonth();
+    const year = date.getFullYear();
+    
+    let startDay, endDay;
+    
+    if (day <= 10) {
+      startDay = 1;
+      endDay = 10;
+    } else if (day <= 20) {
+      startDay = 11;
+      endDay = 20;
+    } else {
+      startDay = 21;
+      endDay = new Date(year, month + 1, 0).getDate(); // Last day of month
+    }
+    
+    return {
+      from: new Date(year, month, startDay),
+      to: new Date(year, month, endDay)
+    };
+  };
+
+  const defaultRange = getDateRange();
+  const [shift, setShift] = useState(getDefaultShift());
+  const [fromDate, setFromDate] = useState<Date>(defaultRange.from);
+  const [toDate, setToDate] = useState<Date>(defaultRange.to);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(100);
+
+  const handleSubmit = async () => {
+    if (!vlcName || !fromDate || !toDate) {
+      toast.error("Please fill all required fields");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data } = await api.get("/webreports/collections", {
+        params: {
+          dairy_id: vlcName,
+          milk_type: milkType,
+          shift: shift,
+          from: format(fromDate, "yyyy-MM-dd"),
+          to: format(toDate, "yyyy-MM-dd"),
+        },
+      });
+
+      if (data.success) {
+        setCollectionData(data.data || []);
+        setSummary(data.summary || null);
+        setCurrentPage(1);
+        toast.success(data.message || "Data fetched successfully");
+      }
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to fetch data");
+      setCollectionData([]);
+      setSummary(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
 
   return (
     <>
       <div className="">
         <div className="flex justify-between items-center p-3 md:p-4 bg-white">
           <h1 className="text-left text-lg md:text-xl font-semibold">Farmer Collection Report</h1>
-          <X size={20} strokeWidth={1.5} className="cursor-pointer" />
         </div>
         <hr className="text-gray-300" />
         <Tabs defaultValue="collection" className="w-full border-none">
           <TabsContent value="collection" className="space-y-6">
             <Card className="border-none w-full px-4 md:w-[90%] lg:w-[85%] m-auto mt-5 bg-white text-left">
-              <CardHeader className="text-black text-[20px] font-bold">
-                User Info
-              </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                   <div>
                     <label className="text-sm font-medium">VLC Name</label>
-                    <Select>
+                    <Select value={vlcName} onValueChange={setVlcName}>
                       <SelectTrigger className="w-full border border-gray-200">
-                        <SelectValue placeholder="All" />
+                        <SelectValue placeholder="Select VLC" />
                       </SelectTrigger>
                       <SelectContent className="bg-white">
-                        <SelectItem value="all">All</SelectItem>
-                        <SelectItem value="green-valley">
-                          Green Valley
-                        </SelectItem>
+                        {branches.map((branch) => (
+                          <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
+                            {branch.username} - {branch.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
                   <div>
                     <label className="text-sm font-medium">Milk Type</label>
-                    <Select>
+                    <Select value={milkType} onValueChange={setMilkType}>
                       <SelectTrigger className="w-full border-gray-200">
                         <SelectValue placeholder="Cow" />
                       </SelectTrigger>
                       <SelectContent className="bg-white">
-                        <SelectItem value="cow">Cow</SelectItem>
-                        <SelectItem value="buffalo">Buffalo</SelectItem>
+                        <SelectItem value="All">All</SelectItem>
+                        <SelectItem value="Cow">Cow</SelectItem>
+                        <SelectItem value="Buffalo">Buffalo</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div>
                     <label className="text-sm font-medium">Shift</label>
-                    <Select>
+                    <Select value={shift} onValueChange={setShift}>
                       <SelectTrigger className="w-full border-gray-200">
                         <SelectValue placeholder="Morning" />
                       </SelectTrigger>
                       <SelectContent className="bg-white">
-                        <SelectItem value="morning">Morning</SelectItem>
-                        <SelectItem value="evening">Evening</SelectItem>
+                        <SelectItem value="All">All</SelectItem>
+                        <SelectItem value="Morning">Morning</SelectItem>
+                        <SelectItem value="Evening">Evening</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -101,28 +162,30 @@ const FarmerCollection = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">From Date</label>
-                    <Popover>
+                    <Popover open={isFromCalendarOpen} onOpenChange={setIsFromCalendarOpen}>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
                           className={cn(
-                            "w-full justify-start text-left font-normal border-gray-200",
+                            "w-full justify-start text-left font-normal bg-gray-50 border-gray-200 hover:bg-gray-100",
                             !fromDate && "text-muted-foreground"
                           )}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {fromDate
-                            ? format(fromDate, "dd-MM-yyyy")
-                            : "Select date"}
+                          {fromDate ? format(fromDate, "dd-MM-yyyy") : "Select date"}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
+                      <PopoverContent className="w-auto p-0 bg-white z-50" align="start" sideOffset={5}>
                         <Calendar
                           mode="single"
                           selected={fromDate}
-                          onSelect={setFromDate}
+                          onSelect={(date) => {
+                            if (date) {
+                              setFromDate(date);
+                              setIsFromCalendarOpen(false);
+                            }
+                          }}
                           initialFocus
-                          className="pointer-events-auto bg-white"
                         />
                       </PopoverContent>
                     </Popover>
@@ -130,35 +193,37 @@ const FarmerCollection = () => {
 
                   <div className="space-y-2">
                     <label className="text-sm font-medium">To Date</label>
-                    <Popover>
+                    <Popover open={isToCalendarOpen} onOpenChange={setIsToCalendarOpen}>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
                           className={cn(
-                            "w-full justify-start text-left font-normal border-gray-200",
+                            "w-full justify-start text-left font-normal bg-gray-50 border-gray-200 hover:bg-gray-100",
                             !toDate && "text-muted-foreground"
                           )}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {toDate
-                            ? format(toDate, "dd-MM-yyyy")
-                            : "Select date"}
+                          {toDate ? format(toDate, "dd-MM-yyyy") : "Select date"}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
+                      <PopoverContent className="w-auto p-0 bg-white z-50" align="start" sideOffset={5}>
                         <Calendar
                           mode="single"
                           selected={toDate}
-                          onSelect={setToDate}
+                          onSelect={(date) => {
+                            if (date) {
+                              setToDate(date);
+                              setIsToCalendarOpen(false);
+                            }
+                          }}
                           initialFocus
-                          className="pointer-events-auto bg-white"
                         />
                       </PopoverContent>
                     </Popover>
                   </div>
                 </div>
-                <Button className="bg-blue-600 hover:bg-blue-700 w-full h-11 text-white">
-                  Submit
+                <Button onClick={handleSubmit} disabled={loading} className="bg-blue-600 hover:bg-blue-700 w-full h-11 text-white">
+                  {loading ? "Loading..." : "Submit"}
                 </Button>
               </CardContent>
             </Card>
@@ -179,88 +244,103 @@ const FarmerCollection = () => {
                     <th className="border border-gray-300 px-4 py-2">
                       Milk Type
                     </th>
-                    <th className="border border-gray-300 px-4 py-2">
-                      User Id
-                    </th>
                     <th className="border border-gray-300 px-4 py-2">Shift</th>
                     <th className="border border-gray-300 px-4 py-2">Rate</th>
                     <th className="border border-gray-300 px-4 py-2">Amount</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {collectionReportData.map((row, index) => (
-                    <tr key={index}>
-                      <td className="border border-gray-300 px-4 py-2">
-                        {row.date}
-                      </td>
-                      <td className="border border-gray-300 px-4 py-2">
-                        {row.farmerId}
-                      </td>
-                      <td className="border border-gray-300 px-4 py-2">
-                        {row.name}
-                      </td>
-                      <td className="border border-gray-300 px-4 py-2">
-                        {row.liter}
-                      </td>
-                      <td className="border border-gray-300 px-4 py-2">
-                        {row.kg}
-                      </td>
-                      <td className="border border-gray-300 px-4 py-2">
-                        {row.fat}
-                      </td>
-                      <td className="border border-gray-300 px-4 py-2">
-                        {row.snf}
-                      </td>
-                      <td className="border border-gray-300 px-4 py-2">
-                        {row.clr}
-                      </td>
-                      <td className="border border-gray-300 px-4 py-2">
-                        {row.milkType}
-                      </td>
-                      <td className="border border-gray-300 px-4 py-2">
-                        {row.userId}
-                      </td>
-                      <td className="border border-gray-300 px-4 py-2">
-                        {row.shift}
-                      </td>
-                      <td className="border border-gray-300 px-4 py-2">
-                        {row.rate}
-                      </td>
-                      <td className="border border-gray-300 px-4 py-2">
-                        {row.amount}
+                  {collectionData.length > 0 ? (
+                    collectionData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((row, index) => (
+                      <tr key={row.id || index}>
+                        <td className="border border-gray-300 px-4 py-2">
+                          {format(new Date(row.created_at), "dd-MM-yyyy")}
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2">
+                          {row.farmer_code}
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2">
+                          {row.farmer_name}
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2">
+                          {row.quantity}
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2">
+                          {(parseFloat(row.quantity) * 1.03).toFixed(2)}
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2">
+                          {row.fat}
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2">
+                          {row.snf}
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2">
+                          {row.clr}
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2">
+                          {row.type}
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2">
+                          {row.shift}
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2">
+                          {row.rate}
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2">
+                          ₹{row.amount}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={13} className="border border-gray-300 px-4 py-8 text-center text-gray-500">
+                        {loading ? "Loading..." : "No data available. Please submit the form to fetch data."}
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
             {/* Pagination */}
-            <div className="flex justify-center gap-2">
-              <ChevronLeft
-                size={20}
-                strokeWidth={1.5}
-                className="border border-gray-300"
-              />
-              <ChevronRight
-                size={20}
-                strokeWidth={1.5}
-                className="border border-gray-300"
-              />
-            </div>
+            {collectionData.length > 0 && (
+              <div className="flex justify-center gap-2 items-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="border-gray-300"
+                >
+                  <ChevronLeft size={20} strokeWidth={1.5} />
+                </Button>
+                <span className="text-sm text-gray-600">
+                  Page {currentPage} of {Math.ceil(collectionData.length / itemsPerPage)}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(Math.ceil(collectionData.length / itemsPerPage), prev + 1))}
+                  disabled={currentPage === Math.ceil(collectionData.length / itemsPerPage)}
+                  className="border-gray-300"
+                >
+                  <ChevronRight size={20} strokeWidth={1.5} />
+                </Button>
+              </div>
+            )}
             <div className="flex flex-col lg:flex-row justify-between gap-4 mt-6 px-4 md:px-5">
               <div className="flex flex-wrap gap-3 md:gap-4 items-center">
                 <div className="text-sm text-gray-600 mt-2">
-                  Record Count: 1 - 0 of 0
+                  Record Count: {collectionData.length > 0 ? `${(currentPage - 1) * itemsPerPage + 1} - ${Math.min(currentPage * itemsPerPage, collectionData.length)} of ${collectionData.length}` : "0 - 0 of 0"}
                 </div>
                 <span className="text-sm text-gray-600 mt-2">Result per page:</span>
-                <Select defaultValue="100">
+                <Select value={itemsPerPage.toString()} onValueChange={(value) => { setItemsPerPage(Number(value)); setCurrentPage(1); }}>
                   <SelectTrigger className="w-20 border-gray-200">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-white">
-                    <SelectItem value="100">100</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
                     <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

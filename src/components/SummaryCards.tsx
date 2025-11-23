@@ -1,25 +1,35 @@
 import { Card, CardContent } from "@/components/ui/card";
 
-const SummaryCards = ({ className }: any) => {
+interface SummaryCardsProps {
+  className?: string;
+  data?: {
+    totalBillAmount: number;
+    totalDeductions: number;
+    totalFinalAmount: number;
+    remainingBalance: number;
+  };
+}
+
+const SummaryCards = ({ className, data }: SummaryCardsProps) => {
   const summaryData = [
     {
       title: "Total Bill Amount",
-      amount: "₹14400.00",
+      amount: `₹${(data?.totalBillAmount || 0).toFixed(2)}`,
       color: "text-blue-600",
     },
     {
       title: "Total Deductions",
-      amount: "₹3062.00",
+      amount: `₹${(data?.totalDeductions || 0).toFixed(2)}`,
       color: "text-blue-600",
     },
     {
       title: "Total Final Amount",
-      amount: "₹11338.00",
+      amount: `₹${(data?.totalFinalAmount || 0).toFixed(2)}`,
       color: "text-blue-600",
     },
     {
       title: "Remaining Balance",
-      amount: "₹3000.00",
+      amount: `₹${(data?.remainingBalance || 0).toFixed(2)}`,
       color: "text-blue-600",
     },
   ];

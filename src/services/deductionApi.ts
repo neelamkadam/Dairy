@@ -1,4 +1,5 @@
 import { api } from "./config";
+import { normalizeFarmerId } from "@/utils/farmerIdUtils";
 
 export interface DeductionSummaryParams {
   dairy_id: string;
@@ -7,11 +8,29 @@ export interface DeductionSummaryParams {
 }
 
 export const deductionApi = {
-  getDeductionSummary: (params: DeductionSummaryParams) =>
-    api.get("/deductions/summary", { params }),
-
-  getFarmerDeductions: (farmerId: string, dairyId: string, dateFrom: string, dateTo: string) =>
-    api.get("/deductions/farmer", {
-      params: { farmer_id: farmerId, dairy_id: dairyId, date_from: dateFrom, date_to: dateTo }
+  getAllFarmersBalance: (dairyId: number, dateFrom: string, dateTo: string) =>
+    api.get("/payments/getdairybillsummary", {
+      params: { dairyid: dairyId, datefrom: dateFrom, dateto: dateTo }
     }),
+
+  getFarmerBillDetails: (farmerId: string, dairyId: number, dateFrom: string, dateTo: string) =>
+    api.get("/payments/getFarmerBillDetails", {
+      params: {
+        farmer_id: normalizeFarmerId(farmerId),
+        dairyid: dairyId,
+        datefrom: dateFrom,
+        dateto: dateTo
+      }
+    }),
+
+  updateFarmerBill: (payload: any) =>
+    api.put("/payments/getFarmerBillUpdate", payload),
+
+  checkPreviousBillCycle: (dairyId: number, dateFrom: string, dateTo: string) =>
+    api.get("/payments/getdairybillsummary", {
+      params: { dairyid: dairyId, datefrom: dateFrom, dateto: dateTo }
+    }),
+
+  getFinalizedBills: (billIds: number[]) =>
+    api.post("/bill/finalize", { billIds }),
 };

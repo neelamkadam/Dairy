@@ -1,7 +1,44 @@
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { useState, useEffect } from "react";
+import { useAppSelector } from "@/redux/store";
+import { reportsApi } from "@/services/reportsApi";
+import { toast } from "react-toastify";
 
 const RateChartReport = () => {
+  const { branches } = useAppSelector((state) => state.branch);
+  const [vlcId, setVlcId] = useState("");
+  const [milkType, setMilkType] = useState("Cow");
+  const [rateChartName] = useState("Rate Chart 1");
+  const [loading, setLoading] = useState(false);
+  const [rateMatrix, setRateMatrix] = useState<any[][]>([]);
+
+  const handleShow = async () => {
+    if (!vlcId) {
+      toast.error("Please select a VLC");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const data = await reportsApi.previewRateMatrix({
+        organisation_id: vlcId,
+        type: milkType.toLowerCase(),
+        name: rateChartName
+      });
+      
+      if (data.success && data.matrix) {
+        setRateMatrix(data.matrix);
+      }
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to fetch rate chart");
+      setRateMatrix([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fatSnfRows = [
     { fat: "3.0", values: [30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45] },
     { fat: "3.1", values: [31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46] },
@@ -34,19 +71,35 @@ const RateChartReport = () => {
         {/* Controls */}
         <div className="flex flex-col sm:flex-row gap-4 items-end bg-white p-4" >
           <div>
-            <Select defaultValue="select">
+            <Label className="mb-1">VLC Name</Label>
+            <Select value={vlcId} onValueChange={setVlcId}>
               <SelectTrigger className="w-48 border-gray-200">
-                <SelectValue placeholder="Select VLCC" />
+                <SelectValue placeholder="Select VLC" />
               </SelectTrigger>
               <SelectContent className="bg-white">
-                <SelectItem value="select">Select VLCC</SelectItem>
-                <SelectItem value="vlcc1">VLCC 1</SelectItem>
-                <SelectItem value="vlcc2">VLCC 2</SelectItem>
-                <SelectItem value="vlcc3">VLCC 3</SelectItem>
+                {branches?.map((branch) => (
+                  <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
+                    {branch.username} - {branch.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white">Show</Button>
+          <div>
+            <Label className="mb-1">Milk Type</Label>
+            <Select value={milkType} onValueChange={setMilkType}>
+              <SelectTrigger className="w-48 border-gray-200">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-white">
+                <SelectItem value="Cow">Cow</SelectItem>
+                <SelectItem value="Buffalo">Buffalo</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button onClick={handleShow} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white">
+            {loading ? "Loading..." : "Show"}
+          </Button>
           <div className="ml-auto">
             <Button variant="outline" className="bg-blue-600 text-white hover:bg-blue-700">
               Excel Export
@@ -56,32 +109,36 @@ const RateChartReport = () => {
 
         {/* Rate Chart Table */}
         <div className="border rounded-lg overflow-x-auto m-4">
-          <div className="min-w-[750px]">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50 border-b ">
-                  <th className="p-3 text-left font-semibold border-r">FAT/SNF</th>
-                  {snfColumns.map((snf) => (
-                    <th key={snf} className="p-3 text-center font-semibold border-r last:border-r-0 min-w-16">
-                      {snf}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {fatSnfRows.map((row, index) => (
-                  <tr key={row.fat} className={`border-b hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-25'}`}>
-                    <td className="p-3 font-semibold border-r bg-gray-50">{row.fat}</td>
-                    {row.values.map((value, valueIndex) => (
-                      <td key={valueIndex} className="p-3 text-center border-r last:border-r-0">
-                        {value}
-                      </td>
+          {rateMatrix.length > 0 ? (
+            <div className="min-w-[750px]">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50 border-b">
+                    {rateMatrix[0]?.map((header, index) => (
+                      <th key={index} className="p-3 text-center font-semibold border-r last:border-r-0 min-w-16">
+                        {header}
+                      </th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {rateMatrix.slice(1).map((row, rowIndex) => (
+                    <tr key={rowIndex} className={`border-b hover:bg-gray-50 ${rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-25'}`}>
+                      {row.map((cell, cellIndex) => (
+                        <td key={cellIndex} className={`p-3 text-center border-r last:border-r-0 ${cellIndex === 0 ? 'font-semibold bg-gray-50' : ''}`}>
+                          {cell}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-10 text-gray-500">
+              Select VLC and click Show to view rate chart
+            </div>
+          )}
         </div>
     </div>
   );      

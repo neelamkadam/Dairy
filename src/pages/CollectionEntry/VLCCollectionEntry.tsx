@@ -23,6 +23,8 @@ import { useState, useEffect } from "react";
 import { usePostApi } from "@/services/use-api";
 import { toast } from "react-toastify";
 import { useAppSelector } from "@/redux/store";
+import { rateChartApi } from "@/services/rateChartApi";
+import { calculateCLRFromFatAndSNF, calculateSNFFromFatAndCLR } from "@/utils/milkCalculations";
 
 
 interface FormData {
@@ -30,10 +32,14 @@ interface FormData {
   shift: string;
   userId: string;
   vlcName: string;
+  milkType: 'Cow' | 'Buffalo';
+  rateChartName: string;
   weight: string;
   fat: string;
   snf: string;
   clr: string;
+  rate: string;
+  amount: number;
 }
 
 const VLCCollectionEntry = () => {
@@ -57,10 +63,14 @@ const VLCCollectionEntry = () => {
     shift: getDefaultShift(),
     userId: "",
     vlcName: "",
+    milkType: 'Cow',
+    rateChartName: 'Rate Chart 1',
     weight: "",
     fat: "",
     snf: "",
     clr: "",
+    rate: "",
+    amount: 0,
   });
 
   const handleInputChange = (field: keyof FormData, value: string | Date | undefined) => {
@@ -78,6 +88,64 @@ const VLCCollectionEntry = () => {
       vlcName: selectedBranch?.name || ""
     }));
   };
+
+  // Auto-calculate CLR from FAT and SNF
+  useEffect(() => {
+    if (formData.fat && formData.snf && !formData.clr) {
+      const calculatedCLR = calculateCLRFromFatAndSNF(formData.fat, formData.snf);
+      if (calculatedCLR) setFormData(prev => ({ ...prev, clr: calculatedCLR }));
+    }
+  }, [formData.fat, formData.snf]);
+
+  // Auto-calculate SNF from FAT and CLR
+  useEffect(() => {
+    if (formData.fat && formData.clr && !formData.snf) {
+      const calculatedSNF = calculateSNFFromFatAndCLR(formData.fat, formData.clr);
+      if (calculatedSNF) setFormData(prev => ({ ...prev, snf: calculatedSNF }));
+    }
+  }, [formData.fat, formData.clr]);
+
+  // Calculate rate and amount when fat, snf, and weight change
+  useEffect(() => {
+    const fetchRate = async () => {
+      if (!formData.fat || !formData.snf || !formData.userId || !formData.date || !formData.rateChartName) return;
+
+      const selectedBranch = branches?.find(branch => branch.username === formData.userId);
+      if (!selectedBranch) return;
+
+      try {
+        const response = await rateChartApi.getRate(
+          parseFloat(formData.fat),
+          parseFloat(formData.snf),
+          selectedBranch.branch_id,
+          formData.rateChartName,
+          formData.milkType,
+          format(formData.date, 'yyyy-MM-dd')
+        );
+
+        if (response?.price) {
+          const rate = response.price.toString();
+          const amount = formData.weight ? parseFloat(formData.weight) * parseFloat(rate) : 0;
+          setFormData(prev => ({
+            ...prev,
+            rate,
+            amount
+          }));
+        } else {
+          setFormData(prev => ({ ...prev, rate: '0', amount: 0 }));
+        }
+      } catch (error: any) {
+        console.error('❌ Error fetching rate:', error);
+        setFormData(prev => ({ ...prev, rate: '0', amount: 0 }));
+        if (error?.response?.status === 404) {
+          toast.error('Rate not found for selected parameters');
+        }
+      }
+    };
+
+    const timer = setTimeout(fetchRate, 300);
+    return () => clearTimeout(timer);
+  }, [formData.fat, formData.snf, formData.weight, formData.userId, formData.date, formData.milkType, formData.rateChartName, branches]);
 
   const fetchLastEntries = async () => {
     if (!branches?.length || !formData.date || !formData.shift) return;
@@ -110,7 +178,7 @@ const VLCCollectionEntry = () => {
   const handleSubmit = async () => {
     // Validation
     if (!formData.date || !formData.shift || !formData.userId || !formData.vlcName || 
-        !formData.weight || !formData.fat || !formData.snf || !formData.clr) {
+        !formData.weight || !formData.fat || !formData.snf || !formData.clr || !formData.rate) {
       toast.error("All fields are required");
       return;
     }
@@ -124,8 +192,12 @@ const VLCCollectionEntry = () => {
         weight: parseFloat(formData.weight),
         fat: parseFloat(formData.fat),
         snf: parseFloat(formData.snf),
-        clr: parseFloat(formData.clr)
+        clr: parseFloat(formData.clr),
+        rate: parseFloat(formData.rate),
+        amount: formData.amount
       };
+
+      console.log('📤 Submitting VLC entry:', payload);
 
       const response = await postData(payload);
       
@@ -134,14 +206,19 @@ const VLCCollectionEntry = () => {
         // Reset form
         setFormData({
           date: new Date(),
-          shift: "",
+          shift: getDefaultShift(),
           userId: "",
           vlcName: "",
+          milkType: 'Cow',
+          rateChartName: 'Rate Chart 1',
           weight: "",
           fat: "",
           snf: "",
           clr: "",
+          rate: "",
+          amount: 0,
         });
+        fetchLastEntries();
       }
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to create VLC entry");
@@ -303,7 +380,10 @@ const VLCCollectionEntry = () => {
                 step="0.1"
                 placeholder="0.0"
                 value={formData.snf}
-                onChange={(e) => handleInputChange("snf", e.target.value)}
+                onChange={(e) => {
+                  handleInputChange("snf", e.target.value);
+                  if (e.target.value) setFormData(prev => ({ ...prev, clr: '' }));
+                }}
                 className="bg-gray-50 border-gray-200 focus:bg-white"
               />
             </div>
@@ -318,8 +398,44 @@ const VLCCollectionEntry = () => {
                 step="0.1"
                 placeholder="0.0"
                 value={formData.clr}
-                onChange={(e) => handleInputChange("clr", e.target.value)}
+                onChange={(e) => {
+                  handleInputChange("clr", e.target.value);
+                  if (e.target.value) setFormData(prev => ({ ...prev, snf: '' }));
+                }}
                 className="bg-gray-50 border-gray-200 focus:bg-white"
+              />
+            </div>
+          </div>
+
+          {/* Rate and Amount Row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="rate" className="text-sm font-medium text-gray-700">
+                Rate per kg
+              </Label>
+              <Input
+                id="rate"
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={formData.rate}
+                readOnly
+                className="bg-gray-100 border-gray-200 text-gray-700"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="amount" className="text-sm font-medium text-gray-700">
+                Total Amount
+              </Label>
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={formData.amount.toFixed(2)}
+                readOnly
+                className="bg-gray-100 border-gray-200 text-gray-700 font-semibold"
               />
             </div>
           </div>

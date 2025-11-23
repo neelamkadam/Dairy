@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
@@ -10,6 +10,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAppSelector } from "@/redux/store";
+import { toast } from "react-toastify";
+import { api } from "@/services/config";
 import {
   Table,
   TableBody,
@@ -35,73 +38,68 @@ import { cn } from "@/lib/utils";
 import SwapVertIcon from "@mui/icons-material/SwapVert";
 
 const ShiftReports:React.FC = () => {
+  const { branches } = useAppSelector((state) => state.branch);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [reportData, setReportData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
 
-  // Sample data
-  const farmerData = [
-    {
-      id: "001",
-      quantity: 1250.5,
-      fat: 3.8,
-      snf: 8.5,
-      clr: 29.5,
-      rate: 45.75,
-      total: 57210.38,
-    },
-    {
-      id: "002",
-      quantity: 1120.3,
-      fat: 3.9,
-      snf: 8.6,
-      clr: 29.6,
-      rate: 46.25,
-      total: 51813.88,
-    },
-    {
-      id: "003",
-      quantity: 1180.7,
-      fat: 3.7,
-      snf: 8.4,
-      clr: 29.4,
-      rate: 45.5,
-      total: 53721.85,
-    },
-    {
-      id: "004",
-      quantity: 1090.2,
-      fat: 3.8,
-      snf: 8.5,
-      clr: 29.5,
-      rate: 45.75,
-      total: 49876.65,
-    },
-    {
-      id: "005",
-      quantity: 1310.8,
-      fat: 3.9,
-      snf: 8.6,
-      clr: 29.6,
-      rate: 46.25,
-      total: 60619.5,
-    },
-  ];
-  const totals = {
-    quantity: 5000,
-    avgFat: 20,
-    avgSnf: 25,
-    avgClr: 100,
-    avgRate: 45.75,
-    totalAmount: "50,00,000",
+  const [formData, setFormData] = useState({
+    selectedDairy: "",
+    milkType: "",
+    shift: "",
+    date: undefined as Date | undefined,
+  });
+
+  const fetchCollectionReport = async () => {
+    if (!formData.selectedDairy || !formData.shift || !formData.date) {
+      toast.error("Please fill all required fields");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await api.get(
+        `/report/collection-report`,
+        {
+          params: {
+            shift: formData.shift.toUpperCase(),
+            dairy_id: formData.selectedDairy,
+            date: format(formData.date, "yyyy-MM-dd")
+          }
+        }
+      );
+      if (response.data.success && response.data.data.records.length > 0) {
+        setReportData(response.data.data);
+      } else {
+        setReportData(null);
+        toast.info("No data available for the selected criteria");
+      }
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to fetch report");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const totalPages = Math.ceil(50 / itemsPerPage); // Assuming 50 total items
-  const [formData, setFormData] = useState({
-    vlc: "",
-    fatRate: "",
-    snfRate: "",
-    effectiveDate: undefined as Date | undefined,
-  });
+  // Filter data based on milk type
+  const allRecords = reportData?.records || [];
+  const farmerData = formData.milkType && formData.milkType !== "mixed" 
+    ? allRecords.filter((record: any) => record.type.toLowerCase() === formData.milkType.toLowerCase())
+    : allRecords;
+
+  // Calculate totals for filtered data
+  const totals = {
+    quantity: farmerData.reduce((sum: number, record: any) => sum + parseFloat(record.quantity || 0), 0),
+    avgFat: farmerData.length > 0 ? (farmerData.reduce((sum: number, record: any) => sum + parseFloat(record.fat || 0), 0) / farmerData.length).toFixed(2) : 0,
+    avgSnf: farmerData.length > 0 ? (farmerData.reduce((sum: number, record: any) => sum + parseFloat(record.snf || 0), 0) / farmerData.length).toFixed(2) : 0,
+    totalAmount: farmerData.reduce((sum: number, record: any) => sum + parseFloat(record.amount || 0), 0),
+  };
+
+  const totalPages = Math.ceil(farmerData.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedData = farmerData.slice(startIndex, endIndex);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -116,13 +114,6 @@ const ShiftReports:React.FC = () => {
               Daily Shift Report
             </h1>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-white hover:bg-slate-600"
-          >
-            <User className="h-6 w-6" />
-          </Button>
         </div>
       </header>
       <div className="p-4">
@@ -131,14 +122,16 @@ const ShiftReports:React.FC = () => {
             <label className="text-sm font-medium text-gray-700">
               VLC Name
             </label>
-            <Select>
+            <Select value={formData.selectedDairy} onValueChange={(value) => setFormData({...formData, selectedDairy: value})}>
               <SelectTrigger className=" w-full bg-white border-gray-200">
                 <SelectValue placeholder="Select VLC" />
               </SelectTrigger>
               <SelectContent className="bg-white">
-                <SelectItem value="vlc1">VLC 001</SelectItem>
-                <SelectItem value="vlc2">VLC 002</SelectItem>
-                <SelectItem value="vlc3">VLC 003</SelectItem>
+                {branches.map((branch) => (
+                  <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
+                    {branch.username}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -147,14 +140,14 @@ const ShiftReports:React.FC = () => {
             <label className="text-sm font-medium text-gray-700">
               Milk Type
             </label>
-            <Select>
+            <Select value={formData.milkType} onValueChange={(value) => setFormData({...formData, milkType: value})}>
               <SelectTrigger className=" w-full bg-white border-gray-200">
                 <SelectValue placeholder="Select Type" />
               </SelectTrigger>
               <SelectContent className="bg-white">
+                <SelectItem value="mixed">All</SelectItem>
                 <SelectItem value="cow">Cow Milk</SelectItem>
                 <SelectItem value="buffalo">Buffalo Milk</SelectItem>
-                <SelectItem value="mixed">Mixed</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -171,8 +164,8 @@ const ShiftReports:React.FC = () => {
                     !formData.effectiveDate && "text-muted-foreground"
                   )}
                 >
-                  {formData.effectiveDate
-                    ? format(formData.effectiveDate, "yyyy/MM/dd")
+                  {formData.date
+                    ? format(formData.date, "yyyy/MM/dd")
                     : "yyyy / mm / dd"}
                   <CalendarIcon className="mr-2 h-4 w-4 " />
                 </Button>
@@ -180,9 +173,9 @@ const ShiftReports:React.FC = () => {
               <PopoverContent className="p-0" align="start">
                 <Calendar
                   mode="single"
-                  selected={formData.effectiveDate}
+                  selected={formData.date}
                   onSelect={(date) =>
-                    setFormData({ ...formData, effectiveDate: date })
+                    setFormData({ ...formData, date: date })
                   }
                   initialFocus
                   className="p-3 pointer-events-auto bg-white"
@@ -195,19 +188,23 @@ const ShiftReports:React.FC = () => {
             <label className="text-sm font-medium text-gray-700">
               Shift Type
             </label>
-            <Select>
+            <Select value={formData.shift} onValueChange={(value) => setFormData({...formData, shift: value})}>
               <SelectTrigger className="w-full bg-white border-gray-200">
                 <SelectValue placeholder="Select Shift" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white">
                 <SelectItem value="morning">Morning</SelectItem>
                 <SelectItem value="evening">Evening</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="flex justify-end mt-6 mr-5">
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-              Generate Report
+            <Button 
+              onClick={fetchCollectionReport}
+              disabled={loading}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {loading ? "Loading..." : "Show"}
             </Button>
           </div>
         </div>
@@ -219,49 +216,48 @@ const ShiftReports:React.FC = () => {
             <TableRow className="bg-gray-100 ">
               <TableHead className="font-semibold text-center border border-gray-100">
                 Farmer ID
-                <SwapVertIcon />
               </TableHead>
               <TableHead className="font-semibold text-center border border-gray-100">
                 Quantity
-                <SwapVertIcon />
               </TableHead>
               <TableHead className="font-semibold text-center border border-gray-100">
                 Fat
-                <SwapVertIcon />
               </TableHead>
               <TableHead className="font-semibold text-center border border-gray-100">
                 SNF
-                <SwapVertIcon />
               </TableHead>
               <TableHead className="font-semibold text-center border border-gray-100">
-                CLR
-                <SwapVertIcon />
+                Milk Type
               </TableHead>
               <TableHead className="font-semibold text-center border border-gray-100">
                 Rate
-                <SwapVertIcon />
               </TableHead>
               <TableHead className="font-semibold text-center border border-gray-100">
                 Total Amount
-                <SwapVertIcon />
               </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {farmerData.map((farmer) => (
+            {paginatedData.length > 0 ? paginatedData.map((record: any, index: number) => (
               <TableRow
-                key={farmer.id}
+                key={`${record.code}-${record.type}-${index}`}
                 className="hover:bg-gray-50 bg-white border-gray-100 "
               >
-                <TableCell className="font-medium border border-gray-100">{farmer.id}</TableCell>
-                <TableCell className="font-medium border border-gray-100">{farmer.quantity}</TableCell>
-                <TableCell className="font-medium border border-gray-100">{farmer.fat}</TableCell>
-                <TableCell className="font-medium border border-gray-100">{farmer.snf}</TableCell>
-                <TableCell className="font-medium border border-gray-100">{farmer.clr}</TableCell>
-                <TableCell className="font-medium border border-gray-100">{farmer.rate}</TableCell>
-                <TableCell className="font-medium border border-gray-100">{farmer.total.toLocaleString()}</TableCell>
+                <TableCell className="font-medium border border-gray-100">{record.code}</TableCell>
+                <TableCell className="font-medium border border-gray-100">{record.quantity}</TableCell>
+                <TableCell className="font-medium border border-gray-100">{record.fat}</TableCell>
+                <TableCell className="font-medium border border-gray-100">{record.snf}</TableCell>
+                <TableCell className="font-medium border border-gray-100">{record.type}</TableCell>
+                <TableCell className="font-medium border border-gray-100">{record.rate}</TableCell>
+                <TableCell className="font-medium border border-gray-100">₹{record.amount}</TableCell>
               </TableRow>
-            ))}
+            )) : (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                  No data available. Please select criteria and click Show.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
 
@@ -294,20 +290,23 @@ const ShiftReports:React.FC = () => {
               <ChevronLeft className="h-4 w-4" />
             </Button>
 
-            {[1, 2, 3].map((page) => (
-              <Button
-                key={page}
-                variant={currentPage === page ? "outline" : "default"}
-                size="sm"
-                onClick={() => setCurrentPage(page)}
-                className={cn(
-                  currentPage === page &&
-                    "bg-blue-600 hover:bg-blue-700 border-none"
-                )}
-              >
-                {page}
-              </Button>
-            ))}
+            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+              const page = i + 1;
+              return (
+                <Button
+                  key={page}
+                  variant={currentPage === page ? "outline" : "default"}
+                  size="sm"
+                  onClick={() => setCurrentPage(page)}
+                  className={cn(
+                    currentPage === page &&
+                      "bg-blue-600 hover:bg-blue-700 border-none"
+                  )}
+                >
+                  {page}
+                </Button>
+              );
+            })}
 
             <Button
               variant="default"
@@ -322,7 +321,7 @@ const ShiftReports:React.FC = () => {
           </div>
 
           <span className="text-sm text-gray-600">
-            Showing 1-10 of 50 items
+            Showing {startIndex + 1}-{Math.min(endIndex, farmerData.length)} of {farmerData.length} items
           </span>
         </div>
 
@@ -332,28 +331,16 @@ const ShiftReports:React.FC = () => {
             <TableHeader className="bg-gray-200">
               <TableRow>
                 <TableHead className="text-center font-semibold border border-gray-100">
-                  Total Quantity
-                  <SwapVertIcon />
+                  Total Quantity (L)
                 </TableHead>
                 <TableHead className="text-center font-semibold border border-gray-100">
-                  Average Fat
-                  <SwapVertIcon />
+                  Average Fat (%)
                 </TableHead>
                 <TableHead className="text-center font-semibold border border-gray-100">
-                  Average SNF
-                  <SwapVertIcon />
+                  Average SNF (%)
                 </TableHead>
                 <TableHead className="text-center font-semibold border border-gray-100">
-                  Average CLR
-                  <SwapVertIcon />
-                </TableHead>
-                <TableHead className="text-center font-semibold border border-gray-100">
-                  Average Rate
-                  <SwapVertIcon />
-                </TableHead>
-                <TableHead className="text-center font-semibold border border-gray-100">
-                  Total Amount
-                  <SwapVertIcon />
+                  Total Amount (₹)
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -362,8 +349,6 @@ const ShiftReports:React.FC = () => {
                 <TableCell>{totals.quantity}</TableCell>
                 <TableCell>{totals.avgFat}</TableCell>
                 <TableCell>{totals.avgSnf}</TableCell>
-                <TableCell>{totals.avgClr}</TableCell>
-                <TableCell>{totals.avgRate}</TableCell>
                 <TableCell>{totals.totalAmount}</TableCell>
               </TableRow>
             </TableBody>

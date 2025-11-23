@@ -3,102 +3,200 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Calendar, ChevronLeft } from "lucide-react";
 import { billApi } from "@/services/billApi";
-import { paymentApi } from "@/services/paymentApi";
+import { deductionApi } from "@/services/deductionApi";
 import { normalizeFarmerId } from "@/utils/farmerIdUtils";
 import { adjustDeductionsForNegativeBalance } from "@/utils/priorityUtils";
+import { format, getDaysInMonth } from "date-fns";
 import { toast } from "react-toastify";
 import { useAppSelector } from "@/redux/store";
 
 const GenerateBill = () => {
   const { branches } = useAppSelector((state) => state.branch);
-  const [billCycle, setBillCycle] = useState("1 May 2024 - 31 May 2024");
+  
+  const getCurrentPeriod = () => {
+    const today = new Date();
+    const day = today.getDate();
+    const month = today.getMonth();
+    const year = today.getFullYear();
+    
+    let startDay, endDay;
+    
+    if (day <= 10) {
+      startDay = 1;
+      endDay = 10;
+    } else if (day <= 20) {
+      startDay = 11;
+      endDay = 20;
+    } else {
+      startDay = 21;
+      endDay = getDaysInMonth(today);
+    }
+    
+    return {
+      start: new Date(year, month, startDay),
+      end: new Date(year, month, endDay)
+    };
+  };
+  
+  const currentPeriod = getCurrentPeriod();
+  const [startDate, setStartDate] = useState<Date>(currentPeriod.start);
+  const [endDate, setEndDate] = useState<Date>(currentPeriod.end);
+  const [selectedDairy, setSelectedDairy] = useState<number>(0);
   const [loading, setLoading] = useState(false);
-  const [farmersData, setFarmersData] = useState<any[]>([
-    {
-      id: "F001",
-      name: "John Smith",
-      liter: "450L",
-      amount: "$675",
-      advance: "$100",
-      cattleFeed: "$150",
-      netPayable: "$425",
-    },
-    {
-      id: "F002",
-      name: "Mary Johnson",
-      liter: "320L",
-      amount: "$480",
-      advance: "$75",
-      cattleFeed: "$200",
-      netPayable: "$205",
-    },
-    {
-      id: "F003",
-      name: "Robert Davis",
-      liter: "580L",
-      amount: "$870",
-      advance: "$150",
-      cattleFeed: "$180",
-      netPayable: "$540",
-    },
-    {
-      id: "F004",
-      name: "Sarah Wilson",
-      liter: "290L",
-      amount: "$435",
-      advance: "$80",
-      cattleFeed: "$120",
-      netPayable: "$235",
-    },
-  ]);
+  const [farmersData, setFarmersData] = useState<any[]>([]);
 
-  const totals = {
-    totalAmount: "$4100",
-    totalDeduction: "$1640",
-    totalNetPayable: "$2460",
+  const totals = farmersData.reduce(
+    (acc, farmer) => ({
+      totalAmount: acc.totalAmount + (farmer.milk_total * 36.52),
+      totalDeduction: acc.totalDeduction + farmer.advance_total + farmer.cattlefeed_total + farmer.other1_total + farmer.other2_total,
+      totalNetPayable: acc.totalNetPayable + farmer.net_payable,
+    }),
+    { totalAmount: 0, totalDeduction: 0, totalNetPayable: 0 }
+  );
+
+  useEffect(() => {
+    if (branches.length > 0) {
+      setSelectedDairy(branches[0].branch_id);
+    }
+  }, [branches]);
+
+  const fetchBillData = async () => {
+    try {
+      const { data } = await deductionApi.getAllFarmersBalance(
+        selectedDairy,
+        format(startDate, "yyyy-MM-dd"),
+        format(endDate, "yyyy-MM-dd")
+      );
+      console.log(data);
+
+      // Process the nested data structure
+      const farmerMap = new Map();
+      
+      (data.data || []).forEach((dateEntry: any) => {
+        dateEntry.farmers.forEach((farmer: any) => {
+          const farmerId = farmer.farmer_id;
+          
+          if (farmerMap.has(farmerId)) {
+            const existing = farmerMap.get(farmerId);
+            existing.milk_total += farmer.milk_total || 0;
+            existing.advance_total += farmer.deductions?.advance || 0;
+            existing.cattlefeed_total += farmer.deductions?.cattle_feed || 0;
+            existing.other1_total += farmer.deductions?.other1 || 0;
+            existing.other2_total += farmer.deductions?.other2 || 0;
+            existing.received_total += farmer.total_received || 0;
+          } else {
+            farmerMap.set(farmerId, {
+              farmer_id: farmerId,
+              name: farmer.farmer_name || `Farmer ${farmerId}`,
+              milk_total: farmer.milk_total || 0,
+              advance_total: farmer.deductions?.advance || 0,
+              cattlefeed_total: farmer.deductions?.cattle_feed || 0,
+              other1_total: farmer.deductions?.other1 || 0,
+              other2_total: farmer.deductions?.other2 || 0,
+              received_total: farmer.total_received || 0,
+              net_payable: farmer.net_payable || 0,
+              advance_remaining: 0,
+              cattlefeed_remaining: 0,
+              other1_remaining: 0,
+              other2_remaining: 0,
+            });
+          }
+        });
+      });
+      
+      setFarmersData(Array.from(farmerMap.values()));
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to fetch bill data");
+    }
+  };
+
+  const checkPreviousBillCycle = async () => {
+    const prevEndDate = new Date(startDate);
+    prevEndDate.setDate(prevEndDate.getDate() - 1);
+    const prevStartDate = new Date(prevEndDate);
+    prevStartDate.setDate(prevStartDate.getDate() - (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+
+    try {
+      const { data } = await deductionApi.checkPreviousBillCycle(
+        selectedDairy,
+        format(prevStartDate, "yyyy-MM-dd"),
+        format(prevEndDate, "yyyy-MM-dd")
+      );
+
+      const hasUnfinalized = (data.farmers || []).some((f: any) => !f.is_finalized);
+      return !hasUnfinalized;
+    } catch {
+      return true;
+    }
   };
 
   const handleGenerateBill = async () => {
     setLoading(true);
     try {
-      const [startDate, endDate] = billCycle.split(" - ");
-      const billRequests = await Promise.all(
-        farmersData.map(async (farmer) => {
-          const deductions = {
-            advance: parseFloat(farmer.advance.replace("$", "")),
-            cattlefeed: parseFloat(farmer.cattleFeed.replace("$", "")),
-            other1: 0,
-            other2: 0,
-          };
+      const canGenerate = await checkPreviousBillCycle();
+      if (!canGenerate) {
+        toast.error("Previous bill cycle has unfinalized bills. Please finalize them first.");
+        setLoading(false);
+        return;
+      }
 
-          const totalBill = parseFloat(farmer.amount.replace("$", ""));
-          const adjusted = await adjustDeductionsForNegativeBalance(deductions, totalBill);
+      const records = farmersData.map((farmer) => {
+        const deductions = {
+          advance: farmer.advance_total,
+          cattlefeed: farmer.cattlefeed_total,
+          other1: farmer.other1_total,
+          other2: farmer.other2_total,
+        };
 
-          return {
-            farmer_id: normalizeFarmerId(farmer.id),
-            dairy_id: branches[0]?.branch_id || 0,
-            period_start: startDate,
-            period_end: endDate,
-            milk_total: parseFloat(farmer.liter.replace("L", "")),
-            total_advance: adjusted.advance,
-            total_feed: adjusted.cattlefeed,
-            total_other: adjusted.other1 + adjusted.other2,
-            total_received: 0,
-            net_payable: parseFloat(farmer.netPayable.replace("$", "")),
-            remaining_advance: 0,
-            remaining_cattle_feed: 0,
-            remaining_other1: 0,
-            remaining_other2: 0,
-          };
-        })
-      );
+        const adjusted = adjustDeductionsForNegativeBalance(deductions, farmer.milk_total);
 
-      await billApi.generateBulkBills(billRequests);
-      toast.success("Bills generated successfully");
-    } catch (error) {
-      toast.error("Failed to generate bills");
+        return {
+          farmer_id: normalizeFarmerId(farmer.farmer_id),
+          dairy_id: selectedDairy,
+          period_start: format(startDate, "yyyy-MM-dd"),
+          period_end: format(endDate, "yyyy-MM-dd"),
+          milk_total: farmer.milk_total,
+          advance_total: adjusted.advance,
+          cattlefeed_total: adjusted.cattlefeed,
+          other1_total: adjusted.other1,
+          other2_total: adjusted.other2,
+          received_total: farmer.received_total,
+          net_payable: farmer.milk_total - (adjusted.advance + adjusted.cattlefeed + adjusted.other1 + adjusted.other2),
+          advance_remaining: farmer.advance_remaining,
+          cattlefeed_remaining: farmer.cattlefeed_remaining,
+          other1_remaining: farmer.other1_remaining,
+          other2_remaining: farmer.other2_remaining,
+          status: "GENERATED",
+          is_finalized: 1,
+        };
+      });
+
+      const billsData = {
+        success: true,
+        dairy_id: selectedDairy,
+        records,
+      };
+
+      const response = await billApi.generateBills(billsData);
+      const billIds = response.data?.billIds || response.data?.data?.billIds || [];
+
+      if (billIds.length > 0) {
+        await deductionApi.getFinalizedBills(billIds);
+      }
+
+      toast.success("Bills generated and finalized successfully");
+      await fetchBillData();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to generate bills");
     } finally {
       setLoading(false);
     }
@@ -132,72 +230,112 @@ const GenerateBill = () => {
             <CardTitle>Select Bill Cycle</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center space-x-2">
-              <Label htmlFor="billCycle" className="sr-only">
-                Bill Cycle
-              </Label>
-              <div className="relative flex-1  w-full">
-                <Input
-                  id="billCycle"
-                  value={billCycle}
-                  onChange={(e) => setBillCycle(e.target.value)}
-                  className="pr-10 border-gray-300"
-                />
-                <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <div className="flex items-center gap-4 mb-4">
+              <div className="flex items-center gap-2">
+                <Label>Select VLC:</Label>
+                <Select value={selectedDairy.toString()} onValueChange={(value) => setSelectedDairy(parseInt(value))}>
+                  <SelectTrigger className="w-48 bg-white border-gray-300">
+                    <SelectValue placeholder="Select VLC" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border border-gray-300 shadow-lg">
+                    {branches.map((branch) => (
+                      <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
+                        {branch.username}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+              <div className="flex items-center gap-2">
+                <Label>Start Date:</Label>
+                <Input
+                  type="date"
+                  value={format(startDate, "yyyy-MM-dd")}
+                  onChange={(e) => setStartDate(new Date(e.target.value))}
+                  className="border-gray-300"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label>End Date:</Label>
+                <Input
+                  type="date"
+                  value={format(endDate, "yyyy-MM-dd")}
+                  onChange={(e) => setEndDate(new Date(e.target.value))}
+                  className="border-gray-300"
+                />
+              </div>
+              <Button 
+                onClick={fetchBillData}
+                disabled={loading}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {loading ? "Loading..." : "Show"}
+              </Button>
             </div>
           </CardContent>
           <CardContent className="p-2">
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 ">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Farmer ID
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      ID
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                       Name
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                       Liter
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                       Amount
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                       Advance
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Cattle Feed
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      Feed
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Net Payable
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      Other1
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      Other2
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      Net Pay
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {farmersData.map((farmer) => (
-                    <tr key={farmer.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {farmer.id}
+                    <tr key={farmer.farmer_id} className="hover:bg-gray-50">
+                      <td className="px-3 py-2 text-xs font-medium text-gray-900">
+                        {farmer.farmer_id}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-3 py-2 text-xs text-gray-900">
                         {farmer.name}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {farmer.liter}
+                      <td className="px-3 py-2 text-xs text-gray-900">
+                        {farmer.milk_total.toFixed(1)}L
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {farmer.amount}
+                      <td className="px-3 py-2 text-xs text-gray-900">
+                        ₹{(farmer.milk_total).toFixed(1)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {farmer.advance}
+                      <td className="px-3 py-2 text-xs text-red-600">
+                        ₹{farmer.advance_total.toFixed(0)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {farmer.cattleFeed}
+                      <td className="px-3 py-2 text-xs text-red-600">
+                        ₹{farmer.cattlefeed_total.toFixed(0)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {farmer.netPayable}
+                      <td className="px-3 py-2 text-xs text-red-600">
+                        ₹{farmer.other1_total.toFixed(0)}
+                      </td>
+                      <td className="px-3 py-2 text-xs text-red-600">
+                        ₹{farmer.other2_total.toFixed(0)}
+                      </td>
+                      <td className="px-3 py-2 text-xs font-medium text-green-600">
+                        ₹{farmer.net_payable.toFixed(0)}
                       </td>
                     </tr>
                   ))}
@@ -206,32 +344,20 @@ const GenerateBill = () => {
             </div>
 
             {/* Totals */}
-            <div className="bg-gray-50 px-6 py-4 border-t border-gray-300">
-              <div className="flex justify-between items-center">
-                <div className="flex gap-55">
+            <div className="bg-gray-50 px-4 py-3 border-t border-gray-300">
+              <div className="flex justify-between items-center text-sm">
+                <div className="flex gap-8">
                   <div>
-                    <span className="text-sm font-medium text-gray-700">
-                      Total Amount
-                    </span>
-                    <p className="text-lg font-bold text-gray-900">
-                      {totals.totalAmount}
-                    </p>
+                    <span className="text-xs font-medium text-gray-600">Total Amount</span>
+                    <p className="text-sm font-bold text-gray-900">₹{totals.totalAmount.toFixed(0)}</p>
                   </div>
                   <div>
-                    <span className="text-sm font-medium text-gray-700">
-                      Total Deduction
-                    </span>
-                    <p className="text-lg font-bold text-gray-900">
-                      {totals.totalDeduction}
-                    </p>
+                    <span className="text-xs font-medium text-gray-600">Total Deduction</span>
+                    <p className="text-sm font-bold text-red-600">₹{totals.totalDeduction.toFixed(0)}</p>
                   </div>
                   <div>
-                    <span className="text-sm font-medium text-gray-700">
-                      Total Net Payable
-                    </span>
-                    <p className="text-lg font-bold text-gray-900">
-                      {totals.totalNetPayable}
-                    </p>
+                    <span className="text-xs font-medium text-gray-600">Total Net Payable</span>
+                    <p className="text-sm font-bold text-green-600">₹{totals.totalNetPayable.toFixed(0)}</p>
                   </div>
                 </div>
               </div>

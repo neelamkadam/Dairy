@@ -9,11 +9,56 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Download
-} from "lucide-react";
+import { Download } from "lucide-react";
+import { useState } from "react";
+import { useAppSelector } from "@/redux/store";
+import { reportsApi } from "@/services/reportsApi";
+import { toast } from "react-toastify";
+import { format } from "date-fns";
 
 const TotalCollectionReport = () => {
+  const { branches } = useAppSelector((state) => state.branch);
+  const [dairyId, setDairyId] = useState("");
+  const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [startShift, setStartShift] = useState("Morning");
+  const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [endShift, setEndShift] = useState("Evening");
+  const [milkType, setMilkType] = useState("All");
+  const [loading, setLoading] = useState(false);
+  const [summary, setSummary] = useState({
+    total_liters: "0",
+    avg_fat: "0",
+    avg_snf: "0",
+    total_amount: "0"
+  });
+
+  const handleShowReport = async () => {
+    if (!dairyId) {
+      toast.error("Please select a dairy");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const data = await reportsApi.getShiftCollectionReport({
+        dairyid: dairyId,
+        startDate,
+        startShift,
+        endDate,
+        endShift,
+        milkType
+      });
+      
+      if (data.success && data.summary) {
+        setSummary(data.summary);
+      }
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to fetch report");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="p-4">
       <div className="text-left p-4">
@@ -27,74 +72,68 @@ const TotalCollectionReport = () => {
           {/* Filter Form */}
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 p-3 bg-gray-50 rounded-lg">
             <div>
-              <Label className="mb-1">VLCC Name</Label>
-              <Select defaultValue="select">
+              <Label className="mb-1">VLC Name</Label>
+              <Select value={dairyId} onValueChange={setDairyId}>
                 <SelectTrigger className="w-full border-gray-200">
-                  <SelectValue placeholder="Select VLCC" />
+                  <SelectValue placeholder="Select VLC" />
                 </SelectTrigger>
                 <SelectContent className="bg-white">
-                  <SelectItem value="select">Select VLCC</SelectItem>
-                  <SelectItem value="vlcc1">VLCC 1</SelectItem>
-                  <SelectItem value="vlcc2">VLCC 2</SelectItem>
+                  {branches?.map((branch) => (
+                    <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
+                      {branch.username} - {branch.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div>
               <Label className="mb-1">From Date</Label>
-              <Input type="date" placeholder="yyyy / mm / dd" className="border-gray-200"/>
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border-gray-200"/>
             </div>
             <div>
-              <Label className="mb-1">Shift Type</Label>
-              <Select defaultValue="select">
+              <Label className="mb-1">Start Shift</Label>
+              <Select value={startShift} onValueChange={setStartShift}>
                 <SelectTrigger className="w-full border-gray-200">
-                  <SelectValue placeholder="Select shift" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-white">
-                  <SelectItem value="select">Select shift</SelectItem>
-                  <SelectItem value="morning">Morning</SelectItem>
-                  <SelectItem value="evening">Evening</SelectItem>
+                  <SelectItem value="Morning">Morning</SelectItem>
+                  <SelectItem value="Evening">Evening</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label className="mb-1">Till Date</Label>
-              <Input type="date" placeholder="yyyy / mm / dd" className="border-gray-200" />
+              <Label className="mb-1">To Date</Label>
+              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border-gray-200" />
             </div>
             <div>
-              <Label className="mb-1">Shift Type</Label>
-              <Select defaultValue="select">
+              <Label className="mb-1">End Shift</Label>
+              <Select value={endShift} onValueChange={setEndShift}>
                 <SelectTrigger className="w-full border-gray-200">
-                  <SelectValue placeholder="Select shift" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-white">
-                  <SelectItem value="select">Select shift</SelectItem>
-                  <SelectItem value="morning">Morning</SelectItem>
-                  <SelectItem value="evening">Evening</SelectItem>
+                  <SelectItem value="Morning">Morning</SelectItem>
+                  <SelectItem value="Evening">Evening</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
           <div className="flex justify-between items-center p-3">
-            <Select defaultValue="select">
+            <Select value={milkType} onValueChange={setMilkType}>
               <SelectTrigger className="w-48 border-gray-200">
-                <SelectValue placeholder="Select milk type" />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-white">
-                <SelectItem value="select">Select milk type</SelectItem>
-                <SelectItem value="cow">Cow Milk</SelectItem>
-                <SelectItem value="buffalo">Buffalo Milk</SelectItem>
+                <SelectItem value="All">All</SelectItem>
+                <SelectItem value="Cow">Cow</SelectItem>
+                <SelectItem value="Buffalo">Buffalo</SelectItem>
               </SelectContent>
             </Select>
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex items-center gap-2 border-gray-300">
-                <Download className="h-4 w-4" />
-                Export
-              </Button>
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-                Show Report
-              </Button>
-            </div>
+            <Button onClick={handleShowReport} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white">
+              {loading ? "Loading..." : "Show Report"}
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -120,7 +159,7 @@ const TotalCollectionReport = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Total Collection</p>
-                <p className="text-2xl font-bold text-gray-900">6,027.6 L</p>
+                <p className="text-2xl font-bold text-gray-900">{parseFloat(summary.total_liters).toFixed(2)} L</p>
               </div>
             </div>
           </CardContent>
@@ -146,7 +185,7 @@ const TotalCollectionReport = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Average FAT</p>
-                <p className="text-2xl font-bold text-gray-900">4.1%</p>
+                <p className="text-2xl font-bold text-gray-900">{parseFloat(summary.avg_fat).toFixed(2)}%</p>
               </div>
             </div>
           </CardContent>
@@ -171,8 +210,8 @@ const TotalCollectionReport = () => {
                 </svg>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Total Amount</p>
-                <p className="text-2xl font-bold text-gray-900">₹272,510.93</p>
+                <p className="text-sm text-gray-600">Average SNF</p>
+                <p className="text-2xl font-bold text-gray-900">{parseFloat(summary.avg_snf).toFixed(2)}%</p>
               </div>
             </div>
           </CardContent>
@@ -197,8 +236,8 @@ const TotalCollectionReport = () => {
                 </svg>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Active VLCCs</p>
-                <p className="text-2xl font-bold text-gray-900">5</p>
+                <p className="text-sm text-gray-600">Total Amount</p>
+                <p className="text-2xl font-bold text-gray-900">₹{parseFloat(summary.total_amount).toFixed(2)}</p>
               </div>
             </div>
           </CardContent>

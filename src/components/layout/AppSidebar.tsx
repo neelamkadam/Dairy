@@ -1,11 +1,13 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronDown, ChevronRight, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ROUTES } from "@/constatnts/routesConstants";
 import { useLocation, useNavigate } from "react-router-dom";
+import NeoDairyLogo from "@/assets/NeoDairy_Logo.png";
+import { useAppSelector } from "@/redux/store";
 
 interface MenuItem {
   title: string;
@@ -90,6 +92,44 @@ interface SidebarProps {
 }
 
 const AppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
+  const authState = useAppSelector((state) => state.authData);
+  const userData = authState?.userData;
+  const [showCompany, setShowCompany] = useState(false);
+  const [isSpinning, setIsSpinning] = useState(false);
+  
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const interval = setInterval(() => {
+      setIsSpinning(true);
+      setTimeout(() => {
+        setShowCompany(prev => !prev);
+        setIsSpinning(false);
+      }, 300);
+    }, 5000);
+    
+    return () => clearInterval(interval);
+  }, [isOpen]);
+  
+  // Add CSS animation styles
+  const animations = `
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.8; }
+    }
+    @keyframes spin {
+      from { transform: rotateY(0deg); }
+      to { transform: rotateY(360deg); }
+    }
+  `;
+  
+  // Inject styles
+  if (typeof document !== 'undefined' && !document.getElementById('sidebar-animations')) {
+    const style = document.createElement('style');
+    style.id = 'sidebar-animations';
+    style.textContent = animations;
+    document.head.appendChild(style);
+  }
   const [expandedItems, setExpandedItems] = useState<string[]>(() => {
     const saved = localStorage.getItem('expandedMenuItems');
     return saved ? JSON.parse(saved) : [];
@@ -162,26 +202,51 @@ const AppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
         isOpen ? "w-64" : "w-16 -translate-x-full lg:translate-x-0"
       )}>
       {/* Header */}
-      <div className="flex items-center justify-between p-4.5 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <span className="text-white text-lg">💧</span>
+      <div className="flex flex-col p-4.5 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <img 
+              src={NeoDairyLogo} 
+              alt="NeoDairy Logo" 
+              className={cn(
+                "transition-all duration-500 ease-in-out transform flex-shrink-0",
+                isOpen ? "w-12 h-auto" : "w-8 h-8"
+              )}
+              style={{
+                filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.1))',
+                animation: 'pulse 2s infinite'
+              }}
+            />
+            {isOpen && (
+              <div className="flex flex-col">
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {showCompany ? 'Welcome To' : 'Welcome'}
+                </span>
+                <span 
+                  className={cn(
+                    "text-base font-semibold text-gray-800 dark:text-gray-200 break-words leading-tight transition-all duration-300",
+                    isSpinning && "animate-spin"
+                  )}
+                  style={{
+                    animation: isSpinning ? 'spin 0.3s ease-in-out' : 'none'
+                  }}
+                >
+                  {showCompany ? 'NDSASPL' : (userData?.name || 'User')}
+                </span>
+              </div>
+            )}
           </div>
-          {isOpen && (
-            <span className="font-bold text-xl text-gray-900 dark:text-white">
-              DairyFlow
-            </span>
-          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onToggle}
+            className="p-1 z-10 flex-shrink-0"
+          >
+            {isOpen ? <X size={20} /> : <Menu size={20} />}
+          </Button>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onToggle}
-          className="p-1 z-10"
-        >
-          {isOpen ? <X size={20} /> : <Menu size={20} />}
-        </Button>
       </div>
+
 
       {/* Navigation */}
       <ScrollArea className="flex-1 px-3 py-4">

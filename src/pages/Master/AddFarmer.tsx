@@ -110,14 +110,18 @@ export const AddFarmer: React.FC = () => {
       
       if (formData.milkType === 'Both') {
         const { cowRates, buffaloRates } = await rateChartApi.getRateNamesForBoth(dairyId);
-        setCowRateNames(cowRates?.data || []);
-        setBuffaloRateNames(buffaloRates?.data || []);
+        const cowData = Array.isArray(cowRates?.data) ? cowRates.data.map((item: any) => typeof item === 'string' ? item : item.name) : [];
+        const buffaloData = Array.isArray(buffaloRates?.data) ? buffaloRates.data.map((item: any) => typeof item === 'string' ? item : item.name) : [];
+        setCowRateNames(cowData);
+        setBuffaloRateNames(buffaloData);
       } else if (formData.milkType === 'Cow') {
         const response = await rateChartApi.getRateNames(dairyId, 'cow');
-        setCowRateNames(response?.data || []);
+        const data = Array.isArray(response?.data) ? response.data.map((item: any) => typeof item === 'string' ? item : item.name) : [];
+        setCowRateNames(data);
       } else if (formData.milkType === 'Buffalo') {
         const response = await rateChartApi.getRateNames(dairyId, 'buffalo');
-        setBuffaloRateNames(response?.data || []);
+        const data = Array.isArray(response?.data) ? response.data.map((item: any) => typeof item === 'string' ? item : item.name) : [];
+        setBuffaloRateNames(data);
       }
     } catch (error) {
       console.error('Error loading rate charts:', error);

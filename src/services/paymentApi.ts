@@ -1,4 +1,5 @@
 import { api } from "./config";
+import { normalizeFarmerId } from "@/utils/farmerIdUtils";
 
 export interface CreatePaymentRequest {
   date: string;
@@ -24,8 +25,13 @@ export interface GetPaymentParams {
 }
 
 export const paymentApi = {
-  create: (payload: CreatePaymentRequest) => 
-    api.post("/payments", payload),
+  create: (payload: CreatePaymentRequest) => {
+    const normalized = {
+      ...payload,
+      farmer_id: normalizeFarmerId(payload.farmer_id)
+    };
+    return api.post("/payments", normalized);
+  },
 
   update: (id: string, payload: UpdatePaymentRequest) => 
     api.put(`/payments/${id}`, payload),
@@ -36,14 +42,18 @@ export const paymentApi = {
   activate: (id: string) => 
     api.put(`/payments/activate/${id}`),
 
-  getPayments: (params: GetPaymentParams) => 
-    api.get("/payments/getpayment", { params }),
+  getPayments: (params: GetPaymentParams) => {
+    const normalized = params.farmer_id 
+      ? { ...params, farmer_id: normalizeFarmerId(params.farmer_id) }
+      : params;
+    return api.get("/payments/getpayment", { params: normalized });
+  },
 
   delete: (id: string) => 
     api.delete(`/payments/delete/${id}`),
 
   getDairyBillSummary: (dairyId: string, dateFrom: string, dateTo: string) =>
     api.get("/payments/getdairybillsummary", {
-      params: { dairyid: dairyId, datefrom: dateFrom, dateto: dateTo }
+      params: { dairy_id: dairyId, datefrom: dateFrom, dateto: dateTo }
     }),
 };

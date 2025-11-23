@@ -17,30 +17,73 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import SwapVertIcon from "@mui/icons-material/SwapVert";
 import { Search } from "lucide-react";
+import { useAppSelector } from "@/redux/store";
+import { reportsApi } from "@/services/reportsApi";
+import { toast } from "react-toastify";
+import { format } from "date-fns";
+import { Label } from "@/components/ui/label";
 
 const RemainingBalanceReport = () => {
+  const { branches } = useAppSelector((state) => state.branch);
   const [searchTerm, setSearchTerm] = useState("");
-  console.log(setSearchTerm);
-  const farmers = [
-    { id: "F001", name: "John Smith", balance: 1500.0 },
-    { id: "F002", name: "Emma Wilson", balance: 2300.5 },
-    { id: "F003", name: "Michael Brown", balance: 750.25 },
-    { id: "F004", name: "Sarah Davis", balance: 3200.75 },
-    { id: "F005", name: "Robert Johnson", balance: 1800.0 },
-    { id: "F006", name: "Lisa Anderson", balance: 950.5 },
-    { id: "F007", name: "David Miller", balance: 2700.25 },
-    { id: "F008", name: "Jennifer Taylor", balance: 1600.0 },
-  ];
+  const [vlcId, setVlcId] = useState("");
+  const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [farmers, setFarmers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const handleShowReport = async () => {
+    if (!vlcId) {
+      toast.error("Please select a VLC");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const data = await reportsApi.getFarmerBalances({
+        dairy_id: vlcId,
+        date
+      });
+      
+      if (data.success && Array.isArray(data.data)) {
+        // Filter out farmer_id = 0, all zero balances, and keep only latest data per farmer
+        const filtered = data.data.filter((f: any) => {
+          if (f.farmer_id === '0' || f.farmer_id === 0) return false;
+          const total = parseFloat(f.advance_remaining || 0) + parseFloat(f.other1_remaining || 0) + 
+                        parseFloat(f.other2_remaining || 0) + parseFloat(f.cattlefeed_remaining || 0);
+          return total > 0;
+        });
+        const latestMap = new Map();
+        filtered.forEach((f: any) => {
+          const existing = latestMap.get(f.farmer_id);
+          if (!existing || new Date(f.date) > new Date(existing.date)) {
+            latestMap.set(f.farmer_id, f);
+          }
+        });
+        setFarmers(Array.from(latestMap.values()));
+      } else {
+        setFarmers([]);
+      }
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to fetch balances");
+      setFarmers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredFarmers = farmers.filter(
     (farmer) =>
-      farmer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      farmer.id.toLowerCase().includes(searchTerm.toLowerCase())
+      farmer.farmer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      farmer.farmer_id?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalBalance = farmers.reduce((sum, farmer) => sum + farmer.balance, 0);
+  const totalBalance = filteredFarmers.reduce((sum, farmer) => 
+    sum + parseFloat(farmer.advance_remaining || 0) + 
+    parseFloat(farmer.other1_remaining || 0) + 
+    parseFloat(farmer.other2_remaining || 0) + 
+    parseFloat(farmer.cattlefeed_remaining || 0), 0
+  );
 
   return (
     <div className="p-4 space-y-4 bg-white w-full h-screen">
@@ -48,32 +91,33 @@ const RemainingBalanceReport = () => {
         <div className="flex items-center space-x-3">
           <h1 className="text-xl font-bold">Remaining Amount Report</h1>
         </div>
-        <div className="text-right">
-          <p className="text-blue-950">April 22, 2025</p>
-        </div>
       </div>
       <div className="flex flex-col sm:flex-row gap-4">
-        <div className="">
-          <label className="text-sm font-medium mb-2 block text-left text-gray-700">
-            Select VLCC
-          </label>
-          <Select defaultValue="choose">
-            <SelectTrigger className="border-gray-300 w-2xs">
-              <SelectValue placeholder="Choose VLCC" />
+        <div>
+          <Label className="mb-1">Select VLC</Label>
+          <Select value={vlcId} onValueChange={(value) => {
+            setVlcId(value);
+            setFarmers([]);
+          }}>
+            <SelectTrigger className="border-gray-300 w-48">
+              <SelectValue placeholder="Select VLC" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="choose">Choose VLCC</SelectItem>
-              <SelectItem value="vlcc1">VLCC 1</SelectItem>
-              <SelectItem value="vlcc2">VLCC 2</SelectItem>
-              <SelectItem value="vlcc3">VLCC 3</SelectItem>
+            <SelectContent className="bg-white">
+              {branches?.map((branch) => (
+                <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
+                  {branch.username} - {branch.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
-        <div className="">
-          <Button className="bg-blue-600 hover:bg-blue-700 mt-7 text-white">
-            Show Report
-          </Button>
+        <div>
+          <Label className="mb-1">Date</Label>
+          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="border-gray-300" />
         </div>
+        <Button onClick={handleShowReport} disabled={loading} className="bg-blue-600 hover:bg-blue-700 mt-6 text-white">
+          {loading ? "Loading..." : "Show Report"}
+        </Button>
       </div>
 
       {/* Search and Export */}
@@ -82,7 +126,9 @@ const RemainingBalanceReport = () => {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <Input
-              placeholder="Search frames..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search farmers..."
               className="pl-10 w-64 border-gray-200"
             />
           </div>
@@ -134,36 +180,41 @@ const RemainingBalanceReport = () => {
           <Table>
             <TableHeader>
               <TableRow className="bg-gray-100 ">
-                <TableHead className="font-semibold text-left">
-                  Farmer ID
-                  <SwapVertIcon />
-                </TableHead>
-                <TableHead className="font-semibold text-left">
-                  Farmer Name
-                  <SwapVertIcon />
-                </TableHead>
-                <TableHead className="font-semibold text-right">
-                  Remaining Balance
-                  <SwapVertIcon />
-                </TableHead>
+                <TableHead className="font-semibold text-left">Farmer ID</TableHead>
+                <TableHead className="font-semibold text-left">Farmer Name</TableHead>
+                <TableHead className="font-semibold text-right">Advance</TableHead>
+                <TableHead className="font-semibold text-right">Other 1</TableHead>
+                <TableHead className="font-semibold text-right">Other 2</TableHead>
+                <TableHead className="font-semibold text-right">Cattle Feed</TableHead>
+                <TableHead className="font-semibold text-right">Total</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredFarmers.map((farmer) => (
-                <TableRow
-                  key={farmer.id}
-                  className="hover:bg-gray-50 bg-white border-gray-100 "
-                >
-                  <TableCell className="font-medium text-left">
-                    {farmer.id}
-                  </TableCell>
-                  <TableCell className="text-left">{farmer.name}</TableCell>
-                  <TableCell className="text-right font-semibold">
-                    {" "}
-                    ₹{farmer.balance.toFixed(2)}
+              {filteredFarmers.length > 0 ? (
+                filteredFarmers.map((farmer, index) => {
+                  const total = parseFloat(farmer.advance_remaining || 0) + 
+                    parseFloat(farmer.other1_remaining || 0) + 
+                    parseFloat(farmer.other2_remaining || 0) + 
+                    parseFloat(farmer.cattlefeed_remaining || 0);
+                  return (
+                    <TableRow key={index} className="hover:bg-gray-50 bg-white border-gray-100">
+                      <TableCell className="font-medium text-left">{farmer.farmer_id}</TableCell>
+                      <TableCell className="text-left">{farmer.farmer_name}</TableCell>
+                      <TableCell className="text-right">₹{parseFloat(farmer.advance_remaining).toFixed(2)}</TableCell>
+                      <TableCell className="text-right">₹{parseFloat(farmer.other1_remaining).toFixed(2)}</TableCell>
+                      <TableCell className="text-right">₹{parseFloat(farmer.other2_remaining).toFixed(2)}</TableCell>
+                      <TableCell className="text-right">₹{parseFloat(farmer.cattlefeed_remaining).toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-semibold">₹{total.toFixed(2)}</TableCell>
+                    </TableRow>
+                  );
+                })
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-10 text-gray-500">
+                    {loading ? "Loading..." : "Select VLC and date, then click Show Report"}
                   </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -172,8 +223,8 @@ const RemainingBalanceReport = () => {
       <div className="bg-gray-100 p-4 rounded-lg">
         <div className="flex justify-between items-center">
           <span className="text-lg font-semibold">Total Remaining Balance</span>
-          <span className="text-2xl font-bold ">
-            ${totalBalance.toFixed(2)}
+          <span className="text-2xl font-bold">
+            ₹{totalBalance.toFixed(2)}
           </span>
         </div>
       </div>
