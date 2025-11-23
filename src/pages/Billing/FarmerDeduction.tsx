@@ -37,39 +37,74 @@ const FarmerDeduction = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [vlcName, setVlcName] = useState("");
   
+  const calculateEndDate = (start: Date) => {
+    const day = start.getDate();
+    const month = start.getMonth();
+    const year = start.getFullYear();
+    
+    let endDay;
+    if (day === 1) {
+      endDay = 10;
+    } else if (day === 11) {
+      endDay = 20;
+    } else if (day === 21) {
+      endDay = getDaysInMonth(start);
+    } else {
+      endDay = getDaysInMonth(start);
+    }
+    
+    return new Date(year, month, endDay);
+  };
+  
   const getCurrentPeriod = () => {
     const today = new Date();
     const day = today.getDate();
     const month = today.getMonth();
     const year = today.getFullYear();
     
-    let startDay, endDay;
-    
+    let startDay;
     if (day <= 10) {
       startDay = 1;
-      endDay = 10;
     } else if (day <= 20) {
       startDay = 11;
-      endDay = 20;
     } else {
       startDay = 21;
-      endDay = getDaysInMonth(today);
     }
     
+    const start = new Date(year, month, startDay);
     return {
-      start: new Date(year, month, startDay),
-      end: new Date(year, month, endDay)
+      start,
+      end: calculateEndDate(start)
     };
   };
   
   const currentPeriod = getCurrentPeriod();
   const [startDate, setStartDate] = useState<Date | undefined>(currentPeriod.start);
   const [endDate, setEndDate] = useState<Date | undefined>(currentPeriod.end);
+  
+  const handleStartDateChange = (date: Date | undefined) => {
+    if (date) {
+      const day = date.getDate();
+      const month = date.getMonth();
+      const year = date.getFullYear();
+      
+      let correctedDay;
+      if (day <= 10) {
+        correctedDay = 1;
+      } else if (day <= 20) {
+        correctedDay = 11;
+      } else {
+        correctedDay = 21;
+      }
+      
+      const correctedDate = new Date(year, month, correctedDay);
+      setStartDate(correctedDate);
+      setEndDate(calculateEndDate(correctedDate));
+    }
+  };
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [farmerData, setFarmerData] = useState<any[]>([]);
-  const [editingFarmerId, setEditingFarmerId] = useState<string | null>(null);
-  const [originalValues, setOriginalValues] = useState<any>(null);
 
   useEffect(() => {
     if (startDate && endDate && vlcName) {
@@ -132,6 +167,39 @@ const FarmerDeduction = () => {
       
       const processedData = Array.from(farmerMap.values());
 
+      // Fetch bill details for deduction fields
+      if (processedData.length > 0) {
+        const farmerIds = processedData.map(f => f.farmer_id);
+        const billDetailsResponse = await deductionApi.getBillDetailsByFarmers(
+          parseInt(vlcName),
+          farmerIds,
+          format(startDate, "yyyy-MM-dd"),
+          format(endDate, "yyyy-MM-dd")
+        );
+
+        // Merge bill details with processed data
+        const billDetailsMap = new Map(
+          (billDetailsResponse.data.data || []).map((detail: any) => [
+            detail.farmer_id,
+            detail
+          ])
+        );
+
+        processedData.forEach(farmer => {
+          const billDetail = billDetailsMap.get(farmer.farmer_id);
+          if (billDetail) {
+            farmer.advance = parseFloat(billDetail.advance_total || 0) + parseFloat(billDetail.advance_remaining || 0);
+            farmer.advanceDeduction = parseFloat(billDetail.advance_total || 0);
+            farmer.cattleFeedAmount = parseFloat(billDetail.cattlefeed_total || 0) + parseFloat(billDetail.cattlefeed_remaining || 0);
+            farmer.cattleFeedDeduction = parseFloat(billDetail.cattlefeed_total || 0);
+            farmer.other1Amount = parseFloat(billDetail.other1_total || 0) + parseFloat(billDetail.other1_remaining || 0);
+            farmer.other1Deduction = parseFloat(billDetail.other1_total || 0);
+            farmer.other2Amount = parseFloat(billDetail.other2_total || 0) + parseFloat(billDetail.other2_remaining || 0);
+            farmer.other2Deduction = parseFloat(billDetail.other2_total || 0);
+          }
+        });
+      }
+
       setFarmerData(processedData);
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to fetch deductions");
@@ -142,14 +210,6 @@ const FarmerDeduction = () => {
 
   const handleDeductionChange = (farmerId: string, field: string, value: string) => {
     const numValue = parseFloat(value) || 0;
-    
-    // Start editing mode if not already editing this farmer
-    if (editingFarmerId !== farmerId) {
-      const farmer = farmerData.find(f => f.farmer_id === farmerId);
-      setOriginalValues(farmer);
-      setEditingFarmerId(farmerId);
-    }
-    
     setFarmerData(prev => prev.map(farmer => 
       farmer.farmer_id === farmerId 
         ? { ...farmer, [field]: numValue }
@@ -157,66 +217,51 @@ const FarmerDeduction = () => {
     ));
   };
 
-  const handleSaveFarmer = async (farmerId: string) => {
-    try {
-      const farmer = farmerData.find(f => f.farmer_id === farmerId);
-      if (!farmer || !startDate || !endDate) return;
-
-      const billData = {
-        farmer_id: farmerId,
-        dairy_id: parseInt(vlcName),
-        date: format(new Date(), "yyyy-MM-dd"),
-        period_start: format(startDate, "yyyy-MM-dd"),
-        period_end: format(endDate, "yyyy-MM-dd"),
-        milk_total: farmer.billAmount,
-        advance_total: farmer.advanceDeduction,
-        cattlefeed_total: farmer.cattleFeedDeduction,
-        other1_total: farmer.other1Deduction,
-        other2_total: farmer.other2Deduction,
-        received_total: farmer.receivedAmount,
-        net_payable: farmer.billAmount - (farmer.advanceDeduction + farmer.cattleFeedDeduction + farmer.other1Deduction + farmer.other2Deduction),
-        advance_remaining: 0,
-        cattlefeed_remaining: 0,
-        other1_remaining: 0,
-        other2_remaining: 0
-      };
-
-      // Generate bill for single farmer
-      await deductionApi.updateFarmerBill(billData);
-      toast.success(`Bill generated for ${farmer.name}`);
-      
-      setEditingFarmerId(null);
-      setOriginalValues(null);
-      
-      // Refresh data
-      fetchDeductions();
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to generate bill");
-    }
-  };
-
-  const handleCancelEdit = (farmerId: string) => {
-    if (originalValues) {
-      setFarmerData(prev => prev.map(farmer => 
-        farmer.farmer_id === farmerId ? originalValues : farmer
-      ));
-    }
-    setEditingFarmerId(null);
-    setOriginalValues(null);
-  };
-
   const handleSave = async () => {
+    if (!startDate || !endDate) {
+      toast.error("Date range is required");
+      return;
+    }
+
     try {
-      const updatePayload = farmerData.map(farmer => ({
-        farmer_id: farmer.farmer_id,
-        advance_deduction: farmer.advanceDeduction,
-        cattle_feed_deduction: farmer.cattleFeedDeduction,
-        other1_deduction: farmer.other1Deduction,
-        other2_deduction: farmer.other2Deduction,
-      }));
-      
-      await deductionApi.updateFarmerBill(updatePayload);
-      toast.success("Deductions updated successfully");
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const farmer of farmerData) {
+        try {
+          const billData = {
+            farmer_id: farmer.farmer_id,
+            dairy_id: parseInt(vlcName),
+            date: format(new Date(), "yyyy-MM-dd"),
+            period_start: format(startDate, "yyyy-MM-dd"),
+            period_end: format(endDate, "yyyy-MM-dd"),
+            milk_total: farmer.billAmount,
+            advance_total: farmer.advanceDeduction,
+            cattlefeed_total: farmer.cattleFeedDeduction,
+            other1_total: farmer.other1Deduction,
+            other2_total: farmer.other2Deduction,
+            received_total: farmer.receivedAmount,
+            net_payable: farmer.billAmount - (farmer.advanceDeduction + farmer.cattleFeedDeduction + farmer.other1Deduction + farmer.other2Deduction),
+            advance_remaining: 0,
+            cattlefeed_remaining: 0,
+            other1_remaining: 0,
+            other2_remaining: 0
+          };
+
+          await deductionApi.updateFarmerBill(billData);
+          successCount++;
+        } catch (error) {
+          errorCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        toast.success(`Successfully updated ${successCount} farmer bill(s)`);
+        fetchDeductions();
+      }
+      if (errorCount > 0) {
+        toast.error(`Failed to update ${errorCount} farmer bill(s)`);
+      }
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to update deductions");
     }
@@ -291,7 +336,7 @@ const FarmerDeduction = () => {
                   <Calendar
                     mode="single"
                     selected={startDate}
-                    onSelect={setStartDate}
+                    onSelect={handleStartDateChange}
                     initialFocus
                     className={cn("p-3 pointer-events-auto bg-white")}
                   />
@@ -300,26 +345,14 @@ const FarmerDeduction = () => {
 
               <span className="text-gray-500 ">-</span>
 
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-36 justify-start text-left font-normal"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {endDate ? format(endDate, "dd-MM-yyyy") : "End date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-white border border-gray-300 shadow-lg" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={endDate}
-                    onSelect={setEndDate}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto bg-white")}
-                  />
-                </PopoverContent>
-              </Popover>
+              <Button
+                variant="outline"
+                disabled
+                className="w-36 justify-start text-left font-normal bg-gray-100 cursor-not-allowed"
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {endDate ? format(endDate, "dd-MM-yyyy") : "End date"}
+              </Button>
             </div>
 
             <Button 
@@ -328,15 +361,6 @@ const FarmerDeduction = () => {
             >
               Fetch Data
             </Button>
-            
-            {farmerData.length > 0 && (
-              <Button 
-                onClick={handleSave}
-                className="bg-green-600 hover:bg-green-700 text-white px-15 ml-4"
-              >
-                Save Changes
-              </Button>
-            )}
           </div>
         </div>
 
@@ -353,8 +377,8 @@ const FarmerDeduction = () => {
 
         {/* Farmer Table */}
         <Card className="bg-white shadow-sm border border-gray-200 mb-6 mt-0 pl-4 pr-4">
-          {/* <div className="overflow-x-auto"> */}
-            <Table className="">
+          <div className="overflow-x-auto">
+            <Table className="min-w-max">
               <TableHeader className="bg-gray-200">
                 <TableRow className="border-b border-gray-200">
                   <TableHead className="font-semibold text-gray-700">
@@ -410,32 +434,13 @@ const FarmerDeduction = () => {
                     <TableCell className="text-gray-700">
                       ₹{farmer.advance.toFixed(2)}
                     </TableCell>
-                    <TableCell className="relative">
+                    <TableCell>
                       <Input
                         type="number"
                         value={farmer.advanceDeduction}
                         onChange={(e) => handleDeductionChange(farmer.farmer_id, 'advanceDeduction', e.target.value)}
                         className="w-20 h-8 text-red-600"
                       />
-                      {editingFarmerId === farmer.farmer_id && (
-                        <div className="absolute top-0 right-0 flex gap-1 bg-white shadow-lg rounded p-1 z-10">
-                          <Button
-                            size="sm"
-                            onClick={() => handleSaveFarmer(farmer.farmer_id)}
-                            className="bg-green-600 hover:bg-green-700 text-white h-6 px-2 text-xs"
-                          >
-                            Save
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleCancelEdit(farmer.farmer_id)}
-                            className="h-6 px-2 text-xs"
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      )}
                     </TableCell>
                     <TableCell className="text-gray-700">
                       ₹{farmer.cattleFeedAmount.toFixed(2)}
@@ -480,7 +485,7 @@ const FarmerDeduction = () => {
                 ))}
               </TableBody>
             </Table>
-          {/* </div> */}
+          </div>
         </Card>
 
         {/* Pagination */}
@@ -494,6 +499,18 @@ const FarmerDeduction = () => {
           />
         )}
       </div>
+      
+      {/* Fixed Save Button */}
+      {farmerData.length > 0 && (
+        <div className="fixed bottom-6 right-6 z-50">
+          <Button 
+            onClick={handleSave}
+            className="bg-green-600 hover:bg-green-700 text-white px-8 py-6 text-lg shadow-lg"
+          >
+            Save Changes
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

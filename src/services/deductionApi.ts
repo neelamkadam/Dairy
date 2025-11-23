@@ -33,4 +33,23 @@ export const deductionApi = {
 
   getFinalizedBills: (billIds: number[]) =>
     api.post("/bill/finalize", { billIds }),
+
+  getBillDetailsByFarmers: async (dairyId: number, farmerIds: string[], periodStart: string, periodEnd: string) => {
+    console.log('🔵 Get Bill Details by Farmers API Request:', {
+      endpoint: '/web/billing/bill-details',
+      params: { dairy_id: dairyId, farmer_id: farmerIds.join(','), period_start: periodStart, period_end: periodEnd }
+    });
+    
+    const response = await api.get("/web/billing/bill-details", {
+      params: { 
+        dairy_id: dairyId, 
+        farmer_id: farmerIds.join(','), 
+        period_start: periodStart, 
+        period_end: periodEnd 
+      }
+    });
+    
+    console.log('🟢 Get Bill Details by Farmers API Response:', response.data);
+    return response;
+  },
 };

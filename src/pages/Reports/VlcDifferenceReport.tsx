@@ -28,7 +28,7 @@ const VlcDifferenceReport = () => {
   const [vlcId, setVlcId] = useState("");
   const [fromDate, setFromDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [toDate, setToDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [shift, setShift] = useState("All");
+  const [shift, setShift] = useState("Morning");
   const [reportData, setReportData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
@@ -48,7 +48,7 @@ const VlcDifferenceReport = () => {
         vlc_id: vlcId,
         from: fromDate,
         to: toDate,
-        shift: shift === "All" ? undefined : shift,
+        shift: shift,
       });
       
       if (data.success) {
@@ -105,7 +105,6 @@ const VlcDifferenceReport = () => {
               <SelectValue placeholder="Select shift" />
             </SelectTrigger>
             <SelectContent className="bg-white">
-              <SelectItem value="All">All</SelectItem>
               <SelectItem value="Morning">Morning</SelectItem>
               <SelectItem value="Evening">Evening</SelectItem>
             </SelectContent>
