@@ -23,6 +23,18 @@ export const reportsApi = {
     return data;
   },
 
+  getVlcCommissionReport: async (params: {
+    vlc_id: string;
+    start_date: string;
+    end_date: string;
+  }) => {
+    const queryString = new URLSearchParams(params as any).toString();
+    console.log('📡 Full API URL:', `${api.defaults.baseURL}/webreports/vlc-commission?${queryString}`);
+    const { data } = await api.get('/webreports/vlc-commission', { params });
+    console.log('📥 Response:', data);
+    return data;
+  },
+
   getShiftCollectionReport: async (params: {
     dairyid: string;
     startDate: string;

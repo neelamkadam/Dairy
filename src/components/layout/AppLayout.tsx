@@ -50,15 +50,14 @@ const AppLayout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex w-full">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Sidebar */}
-      
       <AppSidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
       
       {/* Main Content Area */}
       <div className={cn(
-        "flex-1 flex flex-col overflow-hidden transition-all duration-300",
-        sidebarOpen ? "lg:ml-0" : "lg:ml-0"
+        "flex flex-col h-screen transition-all duration-300",
+        sidebarOpen ? "lg:ml-64" : "lg:ml-16"
       )}>
         {/* Navbar */}
         <AppNavbar theme={theme} onThemeToggle={toggleTheme} />

@@ -107,24 +107,43 @@ export const AddFarmer: React.FC = () => {
   const loadRateChartNames = async () => {
     try {
       const dairyId = parseInt(formData.VLC);
+      console.log('Loading rate charts for dairy:', dairyId, 'milk type:', formData.milkType);
       
       if (formData.milkType === 'Both') {
         const { cowRates, buffaloRates } = await rateChartApi.getRateNamesForBoth(dairyId);
+        console.log('Cow rates response:', cowRates);
+        console.log('Buffalo rates response:', buffaloRates);
         const cowData = Array.isArray(cowRates?.data) ? cowRates.data.map((item: any) => typeof item === 'string' ? item : item.name) : [];
         const buffaloData = Array.isArray(buffaloRates?.data) ? buffaloRates.data.map((item: any) => typeof item === 'string' ? item : item.name) : [];
+        console.log('Processed cow rate names:', cowData);
+        console.log('Processed buffalo rate names:', buffaloData);
         setCowRateNames(cowData);
         setBuffaloRateNames(buffaloData);
+        if (cowData.length === 0 || buffaloData.length === 0) {
+          toast.info('No rate charts found for the selected VLC. Please create rate charts first.');
+        }
       } else if (formData.milkType === 'Cow') {
         const response = await rateChartApi.getRateNames(dairyId, 'cow');
+        console.log('Cow rate names response:', response);
         const data = Array.isArray(response?.data) ? response.data.map((item: any) => typeof item === 'string' ? item : item.name) : [];
+        console.log('Processed cow rate names:', data);
         setCowRateNames(data);
+        if (data.length === 0) {
+          toast.info('No cow rate charts found for the selected VLC. Please create rate charts first.');
+        }
       } else if (formData.milkType === 'Buffalo') {
         const response = await rateChartApi.getRateNames(dairyId, 'buffalo');
+        console.log('Buffalo rate names response:', response);
         const data = Array.isArray(response?.data) ? response.data.map((item: any) => typeof item === 'string' ? item : item.name) : [];
+        console.log('Processed buffalo rate names:', data);
         setBuffaloRateNames(data);
+        if (data.length === 0) {
+          toast.info('No buffalo rate charts found for the selected VLC. Please create rate charts first.');
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading rate charts:', error);
+      toast.error(error?.response?.data?.message || 'Failed to load rate charts');
     }
   };
 
@@ -411,22 +430,32 @@ export const AddFarmer: React.FC = () => {
             {/* Milk Type */}
             <div>
               <h3 className="text-lg font-semibold mb-4">Milk Type<span className='text-red-600'>*</span></h3>
+              {!formData.VLC && (
+                <p className="text-sm text-amber-600 mb-2">Please select VLC first</p>
+              )}
               <RadioGroup
                 value={formData.milkType}
-                onValueChange={(value) => setFormData({...formData, milkType: value as any, rateChart: '', cowRateChart: '', buffaloRateChart: ''})}
+                onValueChange={(value) => {
+                  if (!formData.VLC) {
+                    toast.warning('Please select VLC first');
+                    return;
+                  }
+                  setFormData({...formData, milkType: value as any, rateChart: '', cowRateChart: '', buffaloRateChart: ''});
+                }}
+                disabled={!formData.VLC}
               >
                 <div className="flex items-center space-x-6">
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Cow" id="cow" className='border-gray-300' />
-                    <Label htmlFor="cow">Cow</Label>
+                    <RadioGroupItem value="Cow" id="cow" className='border-gray-300' disabled={!formData.VLC} />
+                    <Label htmlFor="cow" className={!formData.VLC ? 'text-gray-400' : ''}>Cow</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Buffalo" id="buffalo" className='border-gray-300' />
-                    <Label htmlFor="buffalo">Buffalo</Label>
+                    <RadioGroupItem value="Buffalo" id="buffalo" className='border-gray-300' disabled={!formData.VLC} />
+                    <Label htmlFor="buffalo" className={!formData.VLC ? 'text-gray-400' : ''}>Buffalo</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Both" id="both" className='border-gray-300' />
-                    <Label htmlFor="both">Both</Label>
+                    <RadioGroupItem value="Both" id="both" className='border-gray-300' disabled={!formData.VLC} />
+                    <Label htmlFor="both" className={!formData.VLC ? 'text-gray-400' : ''}>Both</Label>
                   </div>
                 </div>
               </RadioGroup>
