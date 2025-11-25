@@ -45,6 +45,7 @@ export const ROUTES = {
     GENERAL_SETTINGS:`/dashboard/general-settings`,
   },
   PROFILE:`/dashboard/profile`,
+  AVATAR_SELECTOR:`/dashboard/avatar-selector`,
   ADMIN_DASHBOARD:`/admin/admin-dashboard`,
   ADMIN_CREATE_USER:`/admin/create-user`,
   ADMIN_MASTER:{

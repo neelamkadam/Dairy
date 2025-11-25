@@ -44,6 +44,7 @@ import VlcCommissionReport from "@/pages/Reports/VlcCommissionReport";
 import VlcDifferenceReport from "@/pages/Reports/VlcDifferenceReport";
 import GeneralSettings from "@/pages/Settings/GeneralSettings";
 import Profile from "@/pages/Profile/Profile";
+import AvatarSelector from "@/pages/Profile/AvatarSelector";
 import { createBrowserRouter } from "react-router-dom";
 
 export const AppRoutes = createBrowserRouter([
@@ -190,6 +191,10 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "profile",
         element: <Profile />,
+      },
+      {
+        path: "avatar-selector",
+        element: <AvatarSelector />,
       },
     ],
   },

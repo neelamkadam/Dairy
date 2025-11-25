@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Bell} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ArrowDown } from "lucide-react";
 
 import {
   DropdownMenu,
@@ -34,6 +35,25 @@ const AppNavbar = ({}: NavbarProps) => {
   ]);
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const [showLanguageGuide, setShowLanguageGuide] = useState(false);
+  const [userAvatar, setUserAvatar] = useState('https://api.dicebear.com/7.x/avataaars/svg?seed=default');
+
+  useEffect(() => {
+    const savedAvatar = localStorage.getItem('userAvatar');
+    if (savedAvatar) setUserAvatar(savedAvatar);
+  }, []);
+
+  useEffect(() => {
+    const hasSeenGuide = localStorage.getItem('hasSeenLanguageGuide');
+    if (!hasSeenGuide) {
+      setShowLanguageGuide(true);
+    }
+  }, []);
+
+  const dismissGuide = () => {
+    localStorage.setItem('hasSeenLanguageGuide', 'true');
+    setShowLanguageGuide(false);
+  };
 
   const languages = [
     { key: "en", value: "English", flag: "🇬🇧" },
@@ -84,13 +104,28 @@ const AppNavbar = ({}: NavbarProps) => {
         {/* Right side actions */}
         <div className="flex items-center gap-2 md:gap-3">
           {/* Localization */}
-          <AppDropdown
-            triggerText={selectedLang}
-            selectedKey={i18n.language}
-            menuItems={languages}
-            onItemSelect={handleItemSelect}
-            className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+          <div className="relative">
+            <AppDropdown
+              triggerText={selectedLang}
+              selectedKey={i18n.language}
+              menuItems={languages}
+              onItemSelect={(key, value) => {
+                handleItemSelect(key, value);
+                dismissGuide();
+              }}
+              className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {showLanguageGuide && (
+              <div className="absolute top-full mt-2 right-0 z-50 animate-bounce">
+                <div className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 whitespace-nowrap">
+                  <span className="text-sm font-medium">Select your language</span>
+                  <button onClick={dismissGuide} className="ml-2 text-white hover:text-gray-200">
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Notifications
           <DropdownMenu>
@@ -127,8 +162,8 @@ const AppNavbar = ({}: NavbarProps) => {
           {/* User Profile */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="p-1 hover:bg-gray-100 rounded-full">
-                <AccountCircleIcon className="text-gray-600" style={{ fontSize: 32 }} />
+              <Button variant="ghost" size="sm" className="p-0 hover:bg-gray-100 rounded-full">
+                <img src={userAvatar} alt="avatar" className="w-10 h-10 rounded-full" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 bg-white border border-gray-200 shadow-lg">

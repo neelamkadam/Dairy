@@ -1,10 +1,19 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAppSelector } from "@/redux/store";
-import { User, Mail, Building2, Calendar, Shield } from "lucide-react";
+import { User, Mail, Building2, Calendar, Shield, Edit2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 
 const Profile = () => {
   const { userData } = useAppSelector(state => state.authData);
   const { branches } = useAppSelector(state => state.branch);
+  const navigate = useNavigate();
+  const [avatar, setAvatar] = useState('https://api.dicebear.com/7.x/avataaars/svg?seed=default');
+
+  useEffect(() => {
+    const savedAvatar = localStorage.getItem('userAvatar');
+    if (savedAvatar) setAvatar(savedAvatar);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-4 md:p-6">
@@ -21,8 +30,16 @@ const Profile = () => {
             <Card className="shadow-lg border-0">
               <CardContent className="pt-6">
                 <div className="flex flex-col items-center text-center">
-                  <div className="w-32 h-32 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mb-4 shadow-lg">
-                    <User className="w-16 h-16 text-white" />
+                  <div className="relative">
+                    <div className="w-32 h-32 rounded-full flex items-center justify-center mb-4 shadow-lg overflow-hidden bg-white">
+                      <img src={avatar} alt="avatar" className="w-full h-full object-cover" />
+                    </div>
+                    <button
+                      onClick={() => navigate('/dashboard/avatar-selector')}
+                      className="absolute bottom-4 right-0 w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-gray-100 transition-colors border-2 border-blue-500"
+                    >
+                      <Edit2 className="w-5 h-5 text-blue-600" />
+                    </button>
                   </div>
                   <h2 className="text-2xl font-bold text-gray-900 mb-1">{userData?.name || 'User'}</h2>
                   <p className="text-gray-600 mb-4">{userData?.email || 'No email'}</p>
