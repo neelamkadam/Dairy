@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, FileDown } from "lucide-react";
+import { Search, FileDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAppSelector } from "@/redux/store";
 import { reportsApi } from "@/services/reportsApi";
 import { toast } from "react-toastify";
@@ -25,6 +25,7 @@ import { format } from "date-fns";
 import { Label } from "@/components/ui/label";
 import { generateRemainingBalanceReportPDF } from "@/templates/RemainingBalanceReportTemplate";
 import { generateRemainingBalanceReportExcel } from "@/templates/RemainingBalanceReportExcelTemplate";
+import { cn } from "@/lib/utils";
 
 const RemainingBalanceReport = () => {
   const { branches } = useAppSelector((state) => state.branch);
@@ -33,6 +34,8 @@ const RemainingBalanceReport = () => {
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [farmers, setFarmers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const handleShowReport = async () => {
     if (!vlcId) {
@@ -79,6 +82,11 @@ const RemainingBalanceReport = () => {
       farmer.farmer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       farmer.farmer_id?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const totalPages = Math.ceil(filteredFarmers.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedFarmers = filteredFarmers.slice(startIndex, endIndex);
 
   const totalBalance = filteredFarmers.reduce((sum, farmer) => 
     sum + parseFloat(farmer.advance_remaining || 0) + 
@@ -192,8 +200,8 @@ const RemainingBalanceReport = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredFarmers.length > 0 ? (
-                filteredFarmers.map((farmer, index) => {
+              {paginatedFarmers.length > 0 ? (
+                paginatedFarmers.map((farmer, index) => {
                   const total = parseFloat(farmer.advance_remaining || 0) + 
                     parseFloat(farmer.other1_remaining || 0) + 
                     parseFloat(farmer.other2_remaining || 0) + 
@@ -235,7 +243,10 @@ const RemainingBalanceReport = () => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-600">Rows per page:</span>
-          <Select defaultValue="10">
+          <Select value={itemsPerPage.toString()} onValueChange={(value) => {
+            setItemsPerPage(Number(value));
+            setCurrentPage(1);
+          }}>
             <SelectTrigger className="w-16 border-gray-200 bg-gray-50">
               <SelectValue />
             </SelectTrigger>
@@ -245,41 +256,44 @@ const RemainingBalanceReport = () => {
               <SelectItem value="50">50</SelectItem>
             </SelectContent>
           </Select>
+          <span className="text-sm text-gray-600">
+            {filteredFarmers.length > 0 ? `${startIndex + 1}-${Math.min(endIndex, filteredFarmers.length)} of ${filteredFarmers.length}` : '0-0 of 0'}
+          </span>
         </div>
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <span>1-8 of 8</span>
-          <div className="flex gap-1">
-            <Button variant="outline" size="sm" disabled>
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+        <div className="flex items-center gap-2">
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+            disabled={currentPage === 1}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          {Array.from({ length: Math.min(totalPages, 3) }, (_, i) => {
+            const page = Math.max(1, Math.min(currentPage - 1, totalPages - 2)) + i;
+            return totalPages > 0 && page <= totalPages ? (
+              <Button
+                key={page}
+                variant={currentPage === page ? "outline" : "default"}
+                size="sm"
+                onClick={() => setCurrentPage(page)}
+                className={cn(
+                  currentPage === page &&
+                    "bg-blue-600 hover:bg-blue-700 border-none text-white"
+                )}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-            </Button>
-            <Button variant="outline" size="sm" disabled>
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </Button>
-          </div>
+                {page}
+              </Button>
+            ) : null;
+          })}
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage === totalPages || totalPages === 0}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
         </div>
       </div>
     </div>

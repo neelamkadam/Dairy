@@ -23,6 +23,7 @@ export const generateVLCDifferenceReportPDF = (
   const tableBody = [
     [
       { text: "Period", rowSpan: 2, style: "tableHeader", alignment: "center" },
+      { text: "Shift", rowSpan: 2, style: "tableHeader", alignment: "center" },
       { text: "VLC Collection Data", colSpan: 4, style: "tableHeaderBlue", alignment: "center" },
       {},
       {},
@@ -37,6 +38,7 @@ export const generateVLCDifferenceReportPDF = (
       {},
     ],
     [
+      {},
       {},
       { text: "Weight", style: "subHeader", alignment: "center" },
       { text: "Fat", style: "subHeader", alignment: "center" },
@@ -53,6 +55,7 @@ export const generateVLCDifferenceReportPDF = (
     ],
     ...reportData.map((period) => [
       { text: period.period, alignment: "center" },
+      { text: period.shift, alignment: "center" },
       { text: period.vlc.total_weight, alignment: "center" },
       { text: period.vlc.avg_fat, alignment: "center" },
       { text: period.vlc.avg_snf, alignment: "center" },
@@ -115,7 +118,7 @@ export const generateVLCDifferenceReportPDF = (
       {
         table: {
           headerRows: 2,
-          widths: ["auto", "*", "*", "*", "*", "*", "*", "*", "*", "*", "*", "*", "*"],
+          widths: ["auto", "auto", "*", "*", "*", "*", "*", "*", "*", "*", "*", "*", "*", "*"],
           body: tableBody,
         },
         layout: {

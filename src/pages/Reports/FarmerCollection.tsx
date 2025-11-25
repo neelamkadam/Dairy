@@ -38,7 +38,7 @@ const FarmerCollection = () => {
 
   const getDefaultShift = () => {
     const hour = new Date().getHours();
-    return hour >= 17 ? "Evening" : "Morning";
+    return hour >= 16 ? "Evening" : "Morning";
   };
 
   const getDateRange = (date: Date = new Date()) => {

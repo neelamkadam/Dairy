@@ -33,7 +33,7 @@ const VlcDifferenceReport = () => {
   
   const getDefaultShift = () => {
     const hour = new Date().getHours();
-    return hour >= 17 ? "Evening" : "Morning";
+    return hour >= 16 ? "Evening" : "Morning";
   };
   
   const [shift, setShift] = useState(getDefaultShift());
@@ -124,6 +124,7 @@ const VlcDifferenceReport = () => {
               <SelectValue placeholder="Select shift" />
             </SelectTrigger>
             <SelectContent className="bg-white">
+              <SelectItem value="All">All</SelectItem>
               <SelectItem value="Morning">Morning</SelectItem>
               <SelectItem value="Evening">Evening</SelectItem>
             </SelectContent>
@@ -150,6 +151,7 @@ const VlcDifferenceReport = () => {
           <TableHeader>
             <TableRow className="bg-gradient-to-r from-blue-50 to-blue-100">
               <TableHead rowSpan={2} className="text-center border border-gray-200 font-bold text-gray-900 py-3">Period</TableHead>
+              <TableHead rowSpan={2} className="text-center border border-gray-200 font-bold text-gray-900 py-3">Shift</TableHead>
               <TableHead colSpan={4} className="text-center border border-gray-200 font-bold text-blue-900 py-3">
                 VLC Collection Data
               </TableHead>
@@ -180,6 +182,7 @@ const VlcDifferenceReport = () => {
               reportData.map((period: any, index: number) => (
                 <TableRow key={index} className="hover:bg-gray-50">
                   <TableCell className="border border-gray-200 text-center font-medium bg-gray-50">{period.period}</TableCell>
+                  <TableCell className="border border-gray-200 text-center font-medium bg-gray-50">{period.shift}</TableCell>
                   <TableCell className="border border-gray-200 text-center bg-blue-50/30">{period.vlc.total_weight}</TableCell>
                   <TableCell className="border border-gray-200 text-center bg-blue-50/30">{period.vlc.avg_fat}</TableCell>
                   <TableCell className="border border-gray-200 text-center bg-blue-50/30">{period.vlc.avg_snf}</TableCell>
@@ -204,7 +207,7 @@ const VlcDifferenceReport = () => {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={13} className="text-center py-10 text-gray-500 bg-gray-50">
+                <TableCell colSpan={14} className="text-center py-10 text-gray-500 bg-gray-50">
                   Select VLC and date range, then click Show to view the report
                 </TableCell>
               </TableRow>

@@ -55,7 +55,7 @@ const VLCCollectionEntry = () => {
 
   const getDefaultShift = () => {
     const hour = new Date().getHours();
-    return hour >= 17 ? "evening" : "morning";
+    return hour >= 16 ? "evening" : "morning";
   };
 
   const [formData, setFormData] = useState<FormData>({

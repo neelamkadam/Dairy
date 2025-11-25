@@ -103,7 +103,7 @@ const FarmerDeduction = () => {
     }
   };
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const itemsPerPage = 10;
   const [farmerData, setFarmerData] = useState<any[]>([]);
 
   useEffect(() => {
@@ -188,14 +188,28 @@ const FarmerDeduction = () => {
         processedData.forEach(farmer => {
           const billDetail = billDetailsMap.get(farmer.farmer_id);
           if (billDetail) {
-            farmer.advance = parseFloat(billDetail.advance_total || 0) + parseFloat(billDetail.advance_remaining || 0);
-            farmer.advanceDeduction = parseFloat(billDetail.advance_total || 0);
-            farmer.cattleFeedAmount = parseFloat(billDetail.cattlefeed_total || 0) + parseFloat(billDetail.cattlefeed_remaining || 0);
-            farmer.cattleFeedDeduction = parseFloat(billDetail.cattlefeed_total || 0);
-            farmer.other1Amount = parseFloat(billDetail.other1_total || 0) + parseFloat(billDetail.other1_remaining || 0);
-            farmer.other1Deduction = parseFloat(billDetail.other1_total || 0);
-            farmer.other2Amount = parseFloat(billDetail.other2_total || 0) + parseFloat(billDetail.other2_remaining || 0);
-            farmer.other2Deduction = parseFloat(billDetail.other2_total || 0);
+            const advTotal = parseFloat(billDetail.advance_total || 0);
+            const advRemaining = parseFloat(billDetail.advance_remaining || 0);
+            const cfTotal = parseFloat(billDetail.cattlefeed_total || 0);
+            const cfRemaining = parseFloat(billDetail.cattlefeed_remaining || 0);
+            const o1Total = parseFloat(billDetail.other1_total || 0);
+            const o1Remaining = parseFloat(billDetail.other1_remaining || 0);
+            const o2Total = parseFloat(billDetail.other2_total || 0);
+            const o2Remaining = parseFloat(billDetail.other2_remaining || 0);
+
+            const hasData = advTotal > 0 || advRemaining > 0 || cfTotal > 0 || cfRemaining > 0 || 
+                           o1Total > 0 || o1Remaining > 0 || o2Total > 0 || o2Remaining > 0;
+
+            if (hasData) {
+              farmer.advance = advTotal + advRemaining;
+              farmer.advanceDeduction = advTotal;
+              farmer.cattleFeedAmount = cfTotal + cfRemaining;
+              farmer.cattleFeedDeduction = cfTotal;
+              farmer.other1Amount = o1Total + o1Remaining;
+              farmer.other1Deduction = o1Total;
+              farmer.other2Amount = o2Total + o2Remaining;
+              farmer.other2Deduction = o2Total;
+            }
           }
         });
       }
@@ -375,6 +389,18 @@ const FarmerDeduction = () => {
           }}
         />
 
+        {/* Save Button */}
+        {farmerData.length > 0 && (
+          <div className="flex justify-end px-4 mb-4">
+            <Button 
+              onClick={handleSave}
+              className="bg-green-600 hover:bg-green-700 text-white px-8"
+            >
+              Save Changes
+            </Button>
+          </div>
+        )}
+
         {/* Farmer Table */}
         <Card className="bg-white shadow-sm border border-gray-200 mb-6 mt-0 pl-4 pr-4">
           <div className="overflow-x-auto">
@@ -489,28 +515,16 @@ const FarmerDeduction = () => {
         </Card>
 
         {/* Pagination */}
-        {filteredData.length > itemsPerPage && (
+        {filteredData.length > 10 && (
           <Pagination
             currentPage={currentPage}
             setCurrentPage={setCurrentPage}
-            itemsPerPage={itemsPerPage}
-            setItemsPerPage={setItemsPerPage}
+            itemsPerPage={10}
+            setItemsPerPage={() => {}}
             totalItems={filteredData.length}
           />
         )}
       </div>
-      
-      {/* Fixed Save Button */}
-      {farmerData.length > 0 && (
-        <div className="fixed bottom-6 right-6 z-50">
-          <Button 
-            onClick={handleSave}
-            className="bg-green-600 hover:bg-green-700 text-white px-8 py-6 text-lg shadow-lg"
-          >
-            Save Changes
-          </Button>
-        </div>
-      )}
     </div>
   );
 };

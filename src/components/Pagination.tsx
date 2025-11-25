@@ -18,11 +18,13 @@ const Pagination = ({
   totalItems
 }: PaginationProps) => {
   const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
 
   return (
     <div className="flex items-center justify-between mt-6 p-4">
       <div className="text-sm text-gray-600">
-        Total Farmers: {totalItems}
+        Showing {totalItems > 0 ? startIndex + 1 : 0}-{endIndex} of {totalItems}
       </div>
       
       <div className="flex items-center gap-4">
@@ -51,17 +53,20 @@ const Pagination = ({
           </Button>
 
           <div className="flex items-center gap-1">
-            {[1, 2, 3].map((page) => (
-              <Button
-                key={page}
-                variant={currentPage === page ? "default" : "outline"}
-                size="sm"
-                onClick={() => setCurrentPage(page)}
-                className={currentPage === page ? "bg-blue-600 text-white" : ""}
-              >
-                {page}
-              </Button>
-            ))}
+            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+              const page = Math.max(1, Math.min(currentPage - 2, totalPages - 4)) + i;
+              return page <= totalPages ? (
+                <Button
+                  key={page}
+                  variant={currentPage === page ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setCurrentPage(page)}
+                  className={currentPage === page ? "bg-blue-600 text-white" : ""}
+                >
+                  {page}
+                </Button>
+              ) : null;
+            })}
           </div>
 
           <Button
