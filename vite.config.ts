@@ -9,7 +9,7 @@ const removeConsolePlugin = (): Plugin => ({
   transform(code, id) {
     if (id.endsWith('.ts') || id.endsWith('.tsx')) {
       return {
-        code: code.replace(/console\.(log|debug|info|warn)\([^)]*\);?/g, ''),
+        code: code.replace(/console\.(log|debug|info|warn)\s*\([^)]*\)\s*;?/g, ''),
         map: null
       };
     }
@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(), 
     tailwindcss(),
-    ...(mode === 'production' ? [removeConsolePlugin()] : [])
+    // ...(mode === 'production' ? [removeConsolePlugin()] : [])
   ],
   resolve: {
     alias: {
@@ -30,6 +30,10 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     rollupOptions: {
+      onwarn(warning, warn) {
+        if (warning.code === 'UNUSED_EXTERNAL_IMPORT') return;
+        warn(warning);
+      },
       output: {
         manualChunks: {
           'vendor': ['react', 'react-dom', 'react-router-dom'],

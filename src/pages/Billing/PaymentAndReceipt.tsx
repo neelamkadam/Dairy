@@ -63,7 +63,7 @@ const PaymentAndReceipt: React.FC = () => {
         datefrom: format(formData.fromDate, "yyyy-MM-dd"),
       });
       const selectedDate = format(formData.fromDate, "yyyy-MM-dd");
-      const filtered = (data.data || []).filter(payment => 
+      const filtered = (data.data || []).filter((payment: any) => 
         format(new Date(payment.date), "yyyy-MM-dd") === selectedDate
       );
       setPaymentData(filtered);
@@ -72,8 +72,8 @@ const PaymentAndReceipt: React.FC = () => {
     }
   };
 
-  const handleDeletePayment = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this payment?')) return;
+  const handleDeletePayment = async (id: number) => {
+    if (!window.confirm('Are you sure you want to delete this payment?')) return;
     
     try {
       await paymentApi.delete(id);

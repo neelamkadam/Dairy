@@ -105,38 +105,38 @@ const Login: React.FC = () => {
       {/* Left side - Hero section */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-green-600 via-emerald-600 to-teal-700 relative overflow-hidden">
         {/* Animated background elements */}
-        <div className="absolute inset-0">
+        <div className="absolute inset-0 pointer-events-none">
           {/* Road */}
-          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gray-800 opacity-20"></div>
-          <div className="absolute bottom-16 left-0 right-0 h-1 bg-yellow-400 opacity-40 animate-road-line"></div>
+          <div className="absolute bottom-0 left-0 right-0 h-24 md:h-32 bg-gray-800 opacity-20"></div>
+          <div className="absolute bottom-12 md:bottom-16 left-0 right-0 h-1 bg-yellow-400 opacity-40"></div>
           
           {/* Dairy building on left */}
-          <div className="absolute bottom-20 left-12 text-7xl animate-pulse-slow">🏭</div>
+          <div className="absolute bottom-16 md:bottom-20 left-8 md:left-12 text-5xl md:text-7xl opacity-80">🏭</div>
           
           {/* Animated tractor with farmer moving right to left */}
-          <div className="absolute bottom-20 animate-tractor-rtl">
-            <div className="text-6xl">🚜</div>
+          <div className="absolute bottom-16 md:bottom-20 right-0 animate-[slide_15s_linear_infinite]">
+            <div className="text-4xl md:text-6xl">🚜</div>
           </div>
           
           {/* Floating milk drops */}
-          <div className="absolute top-20 left-20 text-3xl animate-float-1">🥛</div>
-          <div className="absolute top-40 right-32 text-2xl animate-float-2">🥛</div>
-          <div className="absolute top-60 left-40 text-3xl animate-float-3">🥛</div>
+          <div className="absolute top-16 md:top-20 left-16 md:left-20 text-2xl md:text-3xl animate-[float_3s_ease-in-out_infinite]">🥛</div>
+          <div className="absolute top-32 md:top-40 right-24 md:right-32 text-xl md:text-2xl animate-[float_4s_ease-in-out_infinite_0.5s]">🥛</div>
+          <div className="absolute top-48 md:top-60 left-32 md:left-40 text-2xl md:text-3xl animate-[float_3.5s_ease-in-out_infinite_1s]">🥛</div>
         </div>
         
-        <div className="relative z-10 flex flex-col justify-center items-center p-12 text-white">
-          <div className="space-y-8 text-center bg-black/20 backdrop-blur-sm rounded-3xl p-8">
+        <div className="relative z-10 flex flex-col justify-center items-center p-6 xl:p-12 text-white w-full">
+          <div className="space-y-4 xl:space-y-8 text-center bg-black/20 backdrop-blur-sm rounded-3xl p-6 xl:p-8 max-w-xl">
             <img 
               src={NeoDairyLogo} 
               alt="Neo Dairy Logo" 
-              className="w-32 h-auto mx-auto mb-8 bg-white rounded-2xl p-2"
+              className="w-24 xl:w-32 h-auto mx-auto mb-4 xl:mb-8 bg-white rounded-2xl p-2"
             />
             <div>
-              <h1 className="text-5xl font-bold mb-4">Neo Dairy Sales and Services</h1>
-              <p className="text-xl text-green-100">Pvt Ltd.</p>
+              <h1 className="text-3xl xl:text-5xl font-bold mb-2 xl:mb-4 leading-tight">Neo Dairy Sales and Services</h1>
+              <p className="text-lg xl:text-xl text-green-100">Pvt Ltd.</p>
             </div>
-            <div className="space-y-4">
-              <p className="text-lg text-green-50">Empowring Dairy with Technology</p>
+            <div className="space-y-2 xl:space-y-4">
+              <p className="text-base xl:text-lg text-green-50">Empowring Dairy with Technology</p>
             </div>
           </div>
         </div>
