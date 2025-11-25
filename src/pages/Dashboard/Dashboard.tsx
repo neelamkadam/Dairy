@@ -62,10 +62,11 @@ const Dashboard = () => {
   };
 
   const kpis = calculateKPIs();
+  const activeCenters = collections.filter(c => c.quantity > 0).length;
   const kpiData = [
     {
       title: "VLCC Center",
-      value: branches.length.toString(),
+      value: `${activeCenters} (${branches.length})`,
       change: "",
       icon: Users,
       gradient: "bg-gradient-to-br from-cyan-400 to-cyan-600"
@@ -101,8 +102,8 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">     
-      <main className="p-4 md:p-6 space-y-4 md:space-y-6 text-left">
+    <div className="min-h-screen bg-gray-50 w-full overflow-x-hidden">     
+      <main className="p-4 md:p-6 space-y-4 md:space-y-6 text-left max-w-full">
         {/* Dashboard Header */}
         <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4 mb-6 md:mb-8">
           <div>
@@ -111,10 +112,10 @@ const Dashboard = () => {
           </div>
           
           {/* Date, Time & Shift Selector */}
-          <div className="flex items-center justify-center lg:justify-end">
+          <div className="flex items-center justify-center lg:justify-end w-full">
             <Card className="shadow-sm w-full lg:w-auto">
               <CardContent className="p-3 lg:p-2">
-                <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 w-full">
+                <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 w-full justify-center sm:justify-start">
                   <div className="flex items-center gap-2 min-w-0 flex-shrink">
                     <Calendar className="w-4 h-4 text-gray-500 flex-shrink-0" />
                     <input
@@ -163,7 +164,7 @@ const Dashboard = () => {
         </div>
         
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 md:gap-6">
           {kpiData.map((kpi, index) => (
             <KPICard
               key={index}
@@ -177,14 +178,14 @@ const Dashboard = () => {
         </div>
 
         {/* Charts Section */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           {/* Pie Chart */}
           <Card className="shadow-sm">
             <CardHeader>
               <CardTitle className="text-base md:text-lg font-semibold">Milk Collection by Branch</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-64 md:h-80">
+              <div className="h-64 md:h-80 w-full overflow-hidden">
                 <FarmersChart collections={collections} branches={branches} />
               </div>
             </CardContent>
@@ -196,7 +197,7 @@ const Dashboard = () => {
               <CardTitle className="text-base md:text-lg font-semibold">Branch-wise Collection</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-64 md:h-80">
+              <div className="h-64 md:h-80 w-full overflow-hidden">
                 <MilkCollectionChart collections={collections} branches={branches} />
               </div>
             </CardContent>

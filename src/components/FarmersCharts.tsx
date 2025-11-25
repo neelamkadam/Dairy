@@ -24,16 +24,16 @@ const FarmersChart = ({ collections, branches }: FarmersChartProps) => {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex-1 flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center min-h-0">
         {data.length > 0 ? (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minHeight={200}>
             <PieChart>
               <Pie
                 data={data}
                 cx="50%"
                 cy="50%"
-                innerRadius={60}
-                outerRadius={100}
+                innerRadius="30%"
+                outerRadius="60%"
                 dataKey="value"
                 label={({ value }) => `${value}L`}
               >
@@ -48,7 +48,7 @@ const FarmersChart = ({ collections, branches }: FarmersChartProps) => {
           <p className="text-gray-500">No data available</p>
         )}
       </div>
-      <div className="flex flex-wrap gap-4 mt-4 justify-center">
+      <div className="flex flex-wrap gap-2 md:gap-4 mt-4 justify-center">
         {data.map((entry, index) => (
           <div key={index} className="flex items-center gap-2">
             <div 

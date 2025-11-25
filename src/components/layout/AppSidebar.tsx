@@ -190,16 +190,17 @@ const AppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
   return (
     <>
       {/* Mobile Overlay */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
-          onClick={onToggle}
-        />
-      )}
+      <div 
+        className={cn(
+          "fixed inset-0 bg-black transition-opacity duration-300 z-30 lg:hidden",
+          isOpen ? "bg-opacity-50" : "bg-opacity-0 pointer-events-none"
+        )}
+        onClick={onToggle}
+      />
       
       <div className={cn(
         "bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 flex flex-col h-screen fixed left-0 top-0 z-40",
-        isOpen ? "w-64" : "w-16 -translate-x-full lg:translate-x-0"
+        isOpen ? "w-64 translate-x-0" : "w-64 -translate-x-full lg:w-16 lg:translate-x-0"
       )}>
       {/* Header */}
       <div className="flex flex-col p-4.5 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">

@@ -16,6 +16,12 @@ const AppLayout = () => {
     localStorage.setItem('sidebarOpen', JSON.stringify(sidebarOpen));
   }, [sidebarOpen]);
 
+  useEffect(() => {
+    const handleToggle = () => setSidebarOpen(prev => !prev);
+    window.addEventListener('toggleSidebar', handleToggle);
+    return () => window.removeEventListener('toggleSidebar', handleToggle);
+  }, []);
+
   // Initialize theme from localStorage or system preference
   // useEffect(() => {
   //   const savedTheme = localStorage.getItem('theme') as 'light' | 'dark';
@@ -57,7 +63,7 @@ const AppLayout = () => {
       {/* Main Content Area */}
       <div className={cn(
         "flex flex-col h-screen transition-all duration-300",
-        sidebarOpen ? "lg:ml-64" : "lg:ml-16"
+        sidebarOpen ? "ml-0 lg:ml-64" : "ml-0 lg:ml-16"
       )}>
         {/* Navbar */}
         <AppNavbar theme={theme} onThemeToggle={toggleTheme} />

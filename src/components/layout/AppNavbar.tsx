@@ -55,8 +55,24 @@ const AppNavbar = ({}: NavbarProps) => {
   return (
     <header className="bg-white border-b border-gray-200 px-4 md:px-6 py-4 md:py-5 shadow-sm">
       <div className="flex items-center justify-between">
-        {/* Left side - empty for now */}
-        <div className="flex-1"></div>
+        {/* Left side - Mobile Menu Button */}
+        <div className="flex items-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              const event = new CustomEvent('toggleSidebar');
+              window.dispatchEvent(event);
+            }}
+            className="lg:hidden p-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </Button>
+        </div>
 
         {/* Right side actions */}
         <div className="flex items-center gap-2 md:gap-3">
