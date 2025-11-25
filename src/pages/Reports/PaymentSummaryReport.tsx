@@ -246,7 +246,7 @@ const PaymentSummaryReport = () => {
             <div className="flex justify-end gap-3">
                 <Button
               variant="outline"
-              className="bg-blue-600 text-white border-blue-600 hover:bg-blue-700"
+              className="bg-green-600 text-white border-green-600 hover:bg-green-700"
             >
               Excel Export
             </Button>

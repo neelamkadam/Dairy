@@ -240,7 +240,7 @@ const ShiftReports:React.FC = () => {
               onClick={handleExportExcel}
               disabled={!farmerData || farmerData.length === 0}
               variant="outline"
-              className="flex items-center gap-2 text-white bg-blue-500"
+              className="flex items-center gap-2 text-white bg-green-500"
             >
               <Download className="h-4 w-4" />
               Excel Export

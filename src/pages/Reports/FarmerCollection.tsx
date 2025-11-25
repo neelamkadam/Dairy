@@ -261,7 +261,7 @@ const FarmerCollection = () => {
               <Button 
                 onClick={handleExportExcel}
                 disabled={!collectionData || collectionData.length === 0}
-                className="bg-blue-600 hover:bg-blue-700 text-white h-11 flex items-center justify-center gap-2"
+                className="bg-green-600 hover:bg-green-700 text-white h-11 flex items-center justify-center gap-2"
               >
                 <Download className="h-4 w-4" />
                 Excel Export

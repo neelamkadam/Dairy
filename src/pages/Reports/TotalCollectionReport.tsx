@@ -15,6 +15,8 @@ import { useAppSelector } from "@/redux/store";
 import { reportsApi } from "@/services/reportsApi";
 import { toast } from "react-toastify";
 import { format } from "date-fns";
+import { generateTotalCollectionReportPDF } from "@/templates/TotalCollectionReportTemplate";
+import { generateTotalCollectionReportExcel } from "@/templates/TotalCollectionReportExcelTemplate";
 
 const TotalCollectionReport = () => {
   const { branches } = useAppSelector((state) => state.branch);
@@ -57,6 +59,29 @@ const TotalCollectionReport = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleExportPDF = () => {
+    if (!summary || summary.total_liters === "0") {
+      toast.error("No data to export");
+      return;
+    }
+    const selectedBranch = branches?.find(b => b.branch_id.toString() === dairyId);
+    const vlcName = selectedBranch ? selectedBranch.name : "";
+    const dairyName = selectedBranch ? selectedBranch.username : "";
+    generateTotalCollectionReportPDF(vlcName, dairyName, startDate, startShift, endDate, endShift, milkType, summary);
+    toast.success("PDF exported successfully");
+  };
+
+  const handleExportExcel = () => {
+    if (!summary || summary.total_liters === "0") {
+      toast.error("No data to export");
+      return;
+    }
+    const selectedBranch = branches?.find(b => b.branch_id.toString() === dairyId);
+    const vlcName = selectedBranch ? selectedBranch.name : "";
+    generateTotalCollectionReportExcel(vlcName, startDate, startShift, endDate, endShift, milkType, summary);
+    toast.success("Excel exported successfully");
   };
 
   return (
@@ -137,6 +162,28 @@ const TotalCollectionReport = () => {
           </div>
         </CardContent>
       </Card>
+      
+      {/* Export Buttons */}
+      <div className="flex justify-end gap-2 mb-4">
+        <Button 
+          onClick={handleExportExcel}
+          disabled={!summary || summary.total_liters === "0"}
+          className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
+        >
+          <Download className="h-4 w-4" />
+          Excel Export
+        </Button>
+        <Button 
+          onClick={handleExportPDF}
+          disabled={!summary || summary.total_liters === "0"}
+          variant="destructive" 
+          className="bg-red-600 hover:bg-red-700 flex items-center gap-2"
+        >
+          <Download className="h-4 w-4" />
+          PDF Export
+        </Button>
+      </div>
+
       {/* Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-5 text-center">
         <Card className="bg-white border-blue-200">
@@ -244,13 +291,7 @@ const TotalCollectionReport = () => {
         </Card>
       </div>
 
-      {/* Export Buttons */}
-      <div className="flex justify-end gap-2 mt-8">
-        <Button className="bg-blue-600 hover:bg-blue-700 text-white" >Excel Export</Button>
-        <Button variant="destructive" className="bg-red-600 hover:bg-red-700">
-          PDF Export
-        </Button>
-      </div>
+
     </div>
   );
 };

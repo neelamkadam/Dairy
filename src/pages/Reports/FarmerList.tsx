@@ -20,6 +20,9 @@ import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/redux/store";
 import { userApi } from "@/services/reportsApi";
 import { toast } from "react-toastify";
+import { generateFarmerListPDF } from "@/templates/FarmerListTemplate";
+import { generateFarmerListExcel } from "@/templates/FarmerListExcelTemplate";
+import { Download } from "lucide-react";
 
 const FarmerList = () => {
   const { branches } = useAppSelector((state) => state.branch);
@@ -50,6 +53,29 @@ const FarmerList = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleExportPDF = () => {
+    if (!farmers || farmers.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+    const selectedBranch = branches?.find(b => b.branch_id.toString() === selectedVlcc);
+    const vlcName = selectedBranch ? selectedBranch.name : "";
+    const dairyName = selectedBranch ? selectedBranch.username : "";
+    generateFarmerListPDF(vlcName, dairyName, farmers);
+    toast.success("PDF exported successfully");
+  };
+
+  const handleExportExcel = () => {
+    if (!farmers || farmers.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+    const selectedBranch = branches?.find(b => b.branch_id.toString() === selectedVlcc);
+    const vlcName = selectedBranch ? `${selectedBranch.username} - ${selectedBranch.name}` : "";
+    generateFarmerListExcel(vlcName, farmers);
+    toast.success("Excel exported successfully");
   };
 
   const totalPages = Math.ceil(farmers.length / itemsPerPage);
@@ -84,6 +110,27 @@ const FarmerList = () => {
           {loading ? "Loading..." : "Show"}
         </Button>
       </div>
+      
+      <div className="flex justify-end gap-3 mb-4">
+        <Button 
+          onClick={handleExportExcel}
+          disabled={!farmers || farmers.length === 0}
+          className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
+        >
+          <Download className="h-4 w-4" />
+          Excel Export
+        </Button>
+        <Button 
+          onClick={handleExportPDF}
+          disabled={!farmers || farmers.length === 0}
+          variant="default" 
+          className="bg-red-500 text-white flex items-center gap-2"
+        >
+          <Download className="h-4 w-4" />
+          PDF Export
+        </Button>
+      </div>
+
       <div className="border border-gray-200 rounded-lg">
         <Table className="">
           <TableHeader className="bg-gray-200">
@@ -160,14 +207,7 @@ const FarmerList = () => {
           </div>
         </div>
       </div>
-      <div className="flex justify-end gap-3 mt-6">
-        <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-          Excel Export
-        </Button>
-        <Button variant="default" className="bg-red-500 text-white">
-          PDF Export
-        </Button>
-      </div>
+
     </div>
   );
 };

@@ -139,7 +139,7 @@ const VlcDifferenceReport = () => {
         <Button 
           onClick={handleExportPDF} 
           disabled={!reportData || reportData.length === 0}
-          className="text-white bg-green-600 w-[120px] mt-4.5 flex items-center gap-2"
+          className="text-white bg-red-600 w-[120px] mt-4.5 flex items-center gap-2"
         >
           <FileDown size={16} />
           Export PDF

@@ -19,7 +19,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { ChevronLeft, ChevronRight, CalendarIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarIcon, FileDown } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
@@ -28,6 +28,8 @@ import { format } from "date-fns";
 import { useAppSelector } from "@/redux/store";
 import { reportsApi } from "@/services/reportsApi";
 import { toast } from "react-toastify";
+import { generateVlcCommissionReportPDF } from "@/templates/VlcCommissionReportTemplate";
+import { generateVlcCommissionReportExcel } from "@/templates/VlcCommissionReportExcelTemplate";
 
 const VlcCommissionReport = () => {
   const { branches } = useAppSelector((state) => state.branch);
@@ -91,6 +93,24 @@ const VlcCommissionReport = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleExportPDF = () => {
+    if (reportData.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+    generateVlcCommissionReportPDF(reportData, branches, format(fromDate!, 'yyyy-MM-dd'), format(toDate!, 'yyyy-MM-dd'));
+    toast.success("PDF exported successfully");
+  };
+
+  const handleExportExcel = () => {
+    if (reportData.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+    generateVlcCommissionReportExcel(reportData, branches, format(fromDate!, 'yyyy-MM-dd'), format(toDate!, 'yyyy-MM-dd'));
+    toast.success("Excel exported successfully");
   };
   return (
     <div className="bg-white w-full h-screen">
@@ -170,6 +190,24 @@ const VlcCommissionReport = () => {
         </div>
         <Button onClick={handleShowReport} disabled={loading} className="text-white bg-blue-600 w-[90px] mt-4.5">
           {loading ? "Loading..." : "Show"}
+        </Button>
+      </div>
+      <div className="flex gap-3 justify-end px-6">
+        <Button 
+          onClick={handleExportExcel}
+          disabled={reportData.length === 0}
+          className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
+        >
+          <FileDown size={16} />
+          Excel Export
+        </Button>
+        <Button 
+          onClick={handleExportPDF}
+          disabled={reportData.length === 0}
+          className="text-white bg-red-600 hover:bg-red-700 flex items-center gap-2"
+        >
+          <FileDown size={16} />
+          PDF Export
         </Button>
       </div>
       <div className="overflow-x-auto p-6">
@@ -276,12 +314,7 @@ const VlcCommissionReport = () => {
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
-        <div className="flex gap-3 justify-end ">
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-              Excel Export
-            </Button>
-            <Button className="text-white bg-red-500">PDF Export</Button>
-          </div>
+
       </div>
     </div>
   );

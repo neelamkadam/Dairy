@@ -17,12 +17,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search } from "lucide-react";
+import { Search, FileDown } from "lucide-react";
 import { useAppSelector } from "@/redux/store";
 import { reportsApi } from "@/services/reportsApi";
 import { toast } from "react-toastify";
 import { format } from "date-fns";
 import { Label } from "@/components/ui/label";
+import { generateRemainingBalanceReportPDF } from "@/templates/RemainingBalanceReportTemplate";
+import { generateRemainingBalanceReportExcel } from "@/templates/RemainingBalanceReportExcelTemplate";
 
 const RemainingBalanceReport = () => {
   const { branches } = useAppSelector((state) => state.branch);
@@ -85,6 +87,28 @@ const RemainingBalanceReport = () => {
     parseFloat(farmer.cattlefeed_remaining || 0), 0
   );
 
+  const handleExportPDF = () => {
+    if (filteredFarmers.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+    const selectedBranch = branches?.find(b => b.branch_id.toString() === vlcId);
+    const vlcName = selectedBranch ? `${selectedBranch.username} - ${selectedBranch.name}` : vlcId;
+    generateRemainingBalanceReportPDF(filteredFarmers, vlcName, date, totalBalance);
+    toast.success("PDF exported successfully");
+  };
+
+  const handleExportExcel = () => {
+    if (filteredFarmers.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+    const selectedBranch = branches?.find(b => b.branch_id.toString() === vlcId);
+    const vlcName = selectedBranch ? `${selectedBranch.username} - ${selectedBranch.name}` : vlcId;
+    generateRemainingBalanceReportExcel(filteredFarmers, vlcName, date, totalBalance);
+    toast.success("Excel exported successfully");
+  };
+
   return (
     <div className="p-4 space-y-4 bg-white w-full h-screen">
       <div className="flex items-center justify-between">
@@ -135,42 +159,20 @@ const RemainingBalanceReport = () => {
         </div>
         <div className="flex gap-2">
           <Button
-            variant="outline"
-            className="flex items-center gap-2 border-gray-300"
+            onClick={handleExportPDF}
+            disabled={filteredFarmers.length === 0}
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white"
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            Export PDF
+            <FileDown size={16} />
+            PDF Export
           </Button>
           <Button
-            variant="outline"
-            className="flex items-center gap-2 border-gray-300"
+            onClick={handleExportExcel}
+            disabled={filteredFarmers.length === 0}
+            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a4 4 0 01-4-4V5a4 4 0 014-4h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a4 4 0 01-4 4z"
-              />
-            </svg>
-            Export Excel
+            <FileDown size={16} />
+            Excel Export
           </Button>
         </div>
       </div>

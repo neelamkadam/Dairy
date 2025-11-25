@@ -5,6 +5,8 @@ import { useState, useEffect } from "react";
 import { useAppSelector } from "@/redux/store";
 import { reportsApi } from "@/services/reportsApi";
 import { toast } from "react-toastify";
+import { generateRateChartReportExcel } from "@/templates/RateChartReportExcelTemplate";
+import { Download } from "lucide-react";
 
 const RateChartReport = () => {
   const { branches } = useAppSelector((state) => state.branch);
@@ -37,6 +39,17 @@ const RateChartReport = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleExportExcel = () => {
+    if (!rateMatrix || rateMatrix.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+    const selectedBranch = branches?.find(b => b.branch_id.toString() === vlcId);
+    const vlcName = selectedBranch ? `${selectedBranch.username} - ${selectedBranch.name}` : "";
+    generateRateChartReportExcel(vlcName, milkType, rateMatrix);
+    toast.success("Excel exported successfully");
   };
 
   const fatSnfRows = [
@@ -101,7 +114,13 @@ const RateChartReport = () => {
             {loading ? "Loading..." : "Show"}
           </Button>
           <div className="ml-auto">
-            <Button variant="outline" className="bg-blue-600 text-white hover:bg-blue-700">
+            <Button 
+              onClick={handleExportExcel}
+              disabled={!rateMatrix || rateMatrix.length === 0}
+              variant="outline" 
+              className="bg-green-600 text-white hover:bg-green-700 flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" />
               Excel Export
             </Button>
           </div>
