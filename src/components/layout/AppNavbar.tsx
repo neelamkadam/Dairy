@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Bell} from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -25,6 +25,7 @@ interface NavbarProps {
 }
 
 const AppNavbar = ({}: NavbarProps) => {
+  const { i18n } = useTranslation();
   const [selectedLang, setSelectedLang] = useState("English");
   const [notifications] = useState([
     { id: 1, title: "New milk collection entry", time: "2 min ago" },
@@ -34,13 +35,19 @@ const AppNavbar = ({}: NavbarProps) => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
-  const { i18n } = useTranslation();
-
   const languages = [
-    { key: "en", value: "English" },
-    { key: "hi", value: "Hindi" },
-    { key: "mr", value: "Marathi" },
+    { key: "en", value: "English", flag: "🇬🇧" },
+    { key: "hi", value: "हिंदी", flag: "🇮🇳" },
+    { key: "mr", value: "मराठी", flag: "🇮🇳" },
   ];
+
+  useEffect(() => {
+    const currentLang = languages.find(lang => lang.key === i18n.language);
+    if (currentLang) {
+      setSelectedLang(currentLang.value);
+    }
+  }, [i18n.language]);
+
   const handleItemSelect = (key: any, value: any) => {
     console.log(`Selected item: ${key} ${value}`);
     setSelectedLang(value);
@@ -79,8 +86,10 @@ const AppNavbar = ({}: NavbarProps) => {
           {/* Localization */}
           <AppDropdown
             triggerText={selectedLang}
+            selectedKey={i18n.language}
             menuItems={languages}
             onItemSelect={handleItemSelect}
+            className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
 
           {/* Notifications

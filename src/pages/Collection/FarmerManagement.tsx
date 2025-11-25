@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +30,7 @@ interface FarmerData {
 }
 
 const FarmerManagement = () => {
+  const { t } = useTranslation();
   const location = useLocation();
   const { dairyId, fromDate, toDate, selectedType, selectedShift } = location.state || {};
   const { postData, isLoading } = usePostApi({ path: "/web/dashboard/farmer-collections" });
@@ -63,14 +65,14 @@ const FarmerManagement = () => {
   const totalMilk = farmerData.reduce((sum, f) => sum + (parseFloat(f.quantity) || 0), 0);
 
   const stats = [
-    { label: "Total Farmers", value: uniqueFarmers.toString(), icon: Users, color: "bg-blue-500" },
-    { label: "Active Farmers", value: activeFarmers.toString(), icon: TrendingUp, color: "bg-green-500" },
-    { label: "Total Milk", value: `${totalMilk.toFixed(1)}L`, icon: Users, color: "bg-orange-500" }
+    { label: t('total_farmers'), value: uniqueFarmers.toString(), icon: Users, color: "bg-blue-500" },
+    { label: t('active_farmers'), value: activeFarmers.toString(), icon: TrendingUp, color: "bg-green-500" },
+    { label: t('total_milk'), value: `${totalMilk.toFixed(1)}L`, icon: Users, color: "bg-orange-500" }
   ];
   return (
     <>
     <div className="space-y-6 animate-in slide-in-from-bottom-4 text-left duration-500 m-5">
-            <div className="text-2xl font-semibold text-gray-800">Farmers Management</div>
+            <div className="text-2xl font-semibold text-gray-800">{t('farmers_management')}</div>
             
             {/* Stats Cards */}
             <div className="grid w-[85%] grid-cols-1 md:grid-cols-3 gap-6">
@@ -96,9 +98,9 @@ const FarmerManagement = () => {
               <CardHeader className="border-b bg-gray-50/50">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-4">
-                    <span className="text-sm text-gray-600">Record Count: {farmerData.length} records</span>
+                    <span className="text-sm text-gray-600">{t('record_count')}: {farmerData.length} {t('records')}</span>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-600">Result per page:</span>
+                      <span className="text-sm text-gray-600">{t('result_per_page')}:</span>
                       <Select defaultValue="100">
                         <SelectTrigger className="w-20 h-8">
                           <SelectValue />
@@ -114,11 +116,11 @@ const FarmerManagement = () => {
                   <div className="flex gap-2">
                     <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
                       <FileSpreadsheet className="h-4 w-4 mr-2" />
-                      Excel Export
+                      {t('excel_export')}
                     </Button>
                     <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white">
                       <FileText className="h-4 w-4 mr-2" />
-                      PDF Export
+                      {t('pdf_export')}
                     </Button>
                   </div>
                 </div>
@@ -128,18 +130,18 @@ const FarmerManagement = () => {
                   <table className="w-full">
                     <thead className="bg-gray-50 border-b">
                       <tr>
-                        <th className="text-left p-4 font-medium text-gray-700">Date</th>
-                        <th className="text-left p-4 font-medium text-gray-700">Farmer Id</th>
-                        <th className="text-left p-4 font-medium text-gray-700">Name</th>
-                        <th className="text-left p-4 font-medium text-gray-700">Liter</th>
-                        <th className="text-left p-4 font-medium text-gray-700">Kg</th>
-                        <th className="text-left p-4 font-medium text-gray-700">Fat</th>
-                        <th className="text-left p-4 font-medium text-gray-700">Snf</th>
-                        <th className="text-left p-4 font-medium text-gray-700">Clr</th>
-                        <th className="text-left p-4 font-medium text-gray-700">Milk Type</th>
-                        <th className="text-left p-4 font-medium text-gray-700">Shift</th>
-                        <th className="text-left p-4 font-medium text-gray-700">Rate</th>
-                        <th className="text-left p-4 font-medium text-gray-700">Amount</th>
+                        <th className="text-left p-4 font-medium text-gray-700">{t('date')}</th>
+                        <th className="text-left p-4 font-medium text-gray-700">{t('farmer_id')}</th>
+                        <th className="text-left p-4 font-medium text-gray-700">{t('name')}</th>
+                        <th className="text-left p-4 font-medium text-gray-700">{t('liter')}</th>
+                        <th className="text-left p-4 font-medium text-gray-700">{t('kg')}</th>
+                        <th className="text-left p-4 font-medium text-gray-700">{t('fat')}</th>
+                        <th className="text-left p-4 font-medium text-gray-700">{t('snf')}</th>
+                        <th className="text-left p-4 font-medium text-gray-700">{t('clr')}</th>
+                        <th className="text-left p-4 font-medium text-gray-700">{t('milk_type')}</th>
+                        <th className="text-left p-4 font-medium text-gray-700">{t('shift')}</th>
+                        <th className="text-left p-4 font-medium text-gray-700">{t('rate')}</th>
+                        <th className="text-left p-4 font-medium text-gray-700">{t('amount')}</th>
                       </tr>
                     </thead>
                     <tbody>

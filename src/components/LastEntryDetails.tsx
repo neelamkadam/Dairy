@@ -1,5 +1,6 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useTranslation } from "react-i18next";
 
 interface Entry {
   id: number;
@@ -18,12 +19,13 @@ interface LastEntryDetailsProps {
 }
 
 const LastEntryDetails = ({ entries = [] }: LastEntryDetailsProps) => {
+  const { t } = useTranslation();
 
   return (
     <Card className="w-full shadow-lg border-0 bg-white">
       <CardHeader className="pb-4">
         <CardTitle className="text-lg font-semibold text-gray-800 text-left">
-          Last Entry Details
+          {t('last_entry_details')}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -33,27 +35,27 @@ const LastEntryDetails = ({ entries = [] }: LastEntryDetailsProps) => {
               <div key={entry.id} className="border-b pb-4 last:border-b-0">
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">VLC ID:</span>
+                    <span className="text-sm text-gray-600">{t('vlc_id')}:</span>
                     <span className="text-sm font-medium text-gray-800">{entry.vlc_id}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">VLC Name:</span>
+                    <span className="text-sm text-gray-600">{t('vlc_name')}:</span>
                     <span className="text-sm font-medium text-gray-800">{entry.vlc_name}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Weight:</span>
+                    <span className="text-sm text-gray-600">{t('weight')}:</span>
                     <span className="text-sm font-medium text-gray-800">{entry.weight} kg</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Fat:</span>
+                    <span className="text-sm text-gray-600">{t('fat')}:</span>
                     <span className="text-sm font-medium text-gray-800">{entry.fat}%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">SNF:</span>
+                    <span className="text-sm text-gray-600">{t('snf')}:</span>
                     <span className="text-sm font-medium text-gray-800">{entry.snf}%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">CLR:</span>
+                    <span className="text-sm text-gray-600">{t('clr')}:</span>
                     <span className="text-sm font-medium text-gray-800">{entry.clr}</span>
                   </div>
                 </div>

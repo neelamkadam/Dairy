@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,6 +18,7 @@ import { Validator } from '@/utils/validation';
 import { toast } from 'react-toastify';
 
 export const AddFarmer: React.FC = () => {
+  const { t } = useTranslation();
   const branches = useAppSelector((state) => state.branch.branches);
   const navigate = useNavigate();
   const { farmerId: routeFarmerId } = useParams<{ farmerId?: string }>();
@@ -324,9 +326,8 @@ export const AddFarmer: React.FC = () => {
     <div className="w-full px-4 md:max-w-2xl mx-auto space-y-4 md:space-y-6">
       <div className="flex justify-between items-center gap-2 mt-3 mb-2">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-          <ChevronLeft size={20} strokeWidth={1.25} />
         </Button>
-        <span className="font-semibold">{isEditMode ? 'Edit Farmer' : 'Add Farmer'}</span>
+        <span className="font-semibold">{isEditMode ? t('edit_farmer') : t('add_farmer')}</span>
         <Button 
           variant="ghost" 
           size="sm" 
@@ -334,7 +335,6 @@ export const AddFarmer: React.FC = () => {
           onClick={() => handleSubmit()}
           disabled={loading}
         >
-          {loading ? 'Saving...' : 'Save'}
         </Button>
       </div>
 
@@ -343,12 +343,12 @@ export const AddFarmer: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-6 md:space-y-8 text-left">
             {/* Basic Information */}
             <div>
-              <h3 className="text-lg font-semibold mb-4">Basic Information</h3>
+              <h3 className="text-lg font-semibold mb-4">{t('basic_information')}</h3>
               <div className="">
               <Label htmlFor="VLC" className='mb-1'>VLC<span className='text-red-600'>*</span></Label>
                   <Select value={formData.VLC} onValueChange={(value) => setFormData({...formData, VLC: value})}>
                     <SelectTrigger className='w-full bg-gray-50 border-gray-200'>
-                      <SelectValue placeholder="Select VLC" />
+                      <SelectValue placeholder={t('select_vlc')} />
                     </SelectTrigger>
                     <SelectContent className='bg-white'>
                       {branches?.map((branch) => (
@@ -358,21 +358,21 @@ export const AddFarmer: React.FC = () => {
                       ))}
                     </SelectContent>
                   </Select>
-                  <Label htmlFor="farmerId" className='mt-3 mb-1'>Farmer ID<span className='text-red-600'>*</span></Label>
+                  <Label htmlFor="farmerId" className='mt-3 mb-1'>{t('farmer_id')}<span className='text-red-600'>*</span></Label>
                   <Input
                     id="farmerId"
                     value={formData.farmerId}
-                    placeholder="Enter farmer ID"
+                    placeholder={t('enter_farmer_id')}
                     onChange={(e) => {
                       const value = e.target.value.replace(/\D/g, '');
                       setFormData({...formData, farmerId: value});
                     }}
                     className='border-gray-200'
                   />
-                  <Label htmlFor="fullName" className='mt-3 mb-1'>Full Name<span className='text-red-600'>*</span></Label>
+                  <Label htmlFor="fullName" className='mt-3 mb-1'>{t('full_name')}<span className='text-red-600'>*</span></Label>
                   <Input
                     id="fullName"
-                    placeholder="Enter farmer's full name"
+                    placeholder={t('enter_full_name')}
                     value={formData.fullName}
                     onChange={(e) => setFormData({...formData, fullName: e.target.value})}
                     required
@@ -384,16 +384,16 @@ export const AddFarmer: React.FC = () => {
 
             {/* Contact Information */}
             <div>
-              <h3 className="text-lg font-semibold mb-4">Contact Information</h3>
+              <h3 className="text-lg font-semibold mb-4">{t('contact_information')}</h3>
               <div className="">
-                  <Label htmlFor="phoneNumber" className='mb-1'>Phone Number<span className='text-red-600'>*</span></Label>
+                  <Label htmlFor="phoneNumber" className='mb-1'>{t('phone_number')}<span className='text-red-600'>*</span></Label>
                   <div className="flex">
                     <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500">
                       +91
                     </span>
                     <Input
                       id="phoneNumber"
-                      placeholder="Enter phone number"
+                      placeholder={t('enter_phone_number')}
                       className="rounded border-gray-200"
                       value={formData.phoneNumber}
                       onChange={(e) => {
@@ -403,21 +403,21 @@ export const AddFarmer: React.FC = () => {
                       required
                     />
                   </div>
-                  <Label htmlFor="email" className='mt-3 mb-1'>Email Address (Optional)</Label>
+                  <Label htmlFor="email" className='mt-3 mb-1'>{t('email_address_optional')}</Label>
                   <Input
                     id="email"
                     type="email"
-                    placeholder="Enter email address"
+                    placeholder={t('enter_email_address')}
                     value={formData.email}
                     onChange={(e) => setFormData({...formData, email: e.target.value})}
                       className='border-gray-200'
                   />
 
                 <div className="md:col-span-2 mt-3 mb-1">
-                  <Label htmlFor="address" className='mb-1'>Address<span className='text-red-600'>*</span></Label>
+                  <Label htmlFor="address" className='mb-1'>{t('address')}<span className='text-red-600'>*</span></Label>
                   <Textarea
                     id="address"
-                    placeholder="Enter complete address"
+                    placeholder={t('enter_complete_address')}
                     value={formData.address}
                     onChange={(e) => setFormData({...formData, address: e.target.value})}
                     required
@@ -429,9 +429,9 @@ export const AddFarmer: React.FC = () => {
 
             {/* Milk Type */}
             <div>
-              <h3 className="text-lg font-semibold mb-4">Milk Type<span className='text-red-600'>*</span></h3>
+              <h3 className="text-lg font-semibold mb-4">{t('milk_type')}<span className='text-red-600'>*</span></h3>
               {!formData.VLC && (
-                <p className="text-sm text-amber-600 mb-2">Please select VLC first</p>
+                <p className="text-sm text-amber-600 mb-2">{t('please_select_vlc_first')}</p>
               )}
               <RadioGroup
                 value={formData.milkType}
@@ -447,15 +447,15 @@ export const AddFarmer: React.FC = () => {
                 <div className="flex items-center space-x-6">
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="Cow" id="cow" className='border-gray-300' disabled={!formData.VLC} />
-                    <Label htmlFor="cow" className={!formData.VLC ? 'text-gray-400' : ''}>Cow</Label>
+                    <Label htmlFor="cow" className={!formData.VLC ? 'text-gray-400' : ''}>{t('cow')}</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="Buffalo" id="buffalo" className='border-gray-300' disabled={!formData.VLC} />
-                    <Label htmlFor="buffalo" className={!formData.VLC ? 'text-gray-400' : ''}>Buffalo</Label>
+                    <Label htmlFor="buffalo" className={!formData.VLC ? 'text-gray-400' : ''}>{t('buffalo')}</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="Both" id="both" className='border-gray-300' disabled={!formData.VLC} />
-                    <Label htmlFor="both" className={!formData.VLC ? 'text-gray-400' : ''}>Both</Label>
+                    <Label htmlFor="both" className={!formData.VLC ? 'text-gray-400' : ''}>{t('both')}</Label>
                   </div>
                 </div>
               </RadioGroup>
@@ -465,10 +465,10 @@ export const AddFarmer: React.FC = () => {
             {formData.milkType === 'Both' ? (
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="cowRateChart" className='mb-1'>Cow Rate Chart<span className='text-red-600'>*</span></Label>
+                  <Label htmlFor="cowRateChart" className='mb-1'>{t('cow_rate_chart')}<span className='text-red-600'>*</span></Label>
                   <Select value={formData.cowRateChart} onValueChange={(value) => setFormData({...formData, cowRateChart: value})}>
                     <SelectTrigger className='bg-gray-50 w-full border-gray-200'>
-                      <SelectValue placeholder="Select cow rate chart" />
+                      <SelectValue placeholder={t('select_cow_rate_chart')} />
                     </SelectTrigger>
                     <SelectContent className='bg-white'>
                       {cowRateNames.map((name) => (
@@ -478,10 +478,10 @@ export const AddFarmer: React.FC = () => {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="buffaloRateChart" className='mb-1'>Buffalo Rate Chart<span className='text-red-600'>*</span></Label>
+                  <Label htmlFor="buffaloRateChart" className='mb-1'>{t('buffalo_rate_chart')}<span className='text-red-600'>*</span></Label>
                   <Select value={formData.buffaloRateChart} onValueChange={(value) => setFormData({...formData, buffaloRateChart: value})}>
                     <SelectTrigger className='bg-gray-50 w-full border-gray-200'>
-                      <SelectValue placeholder="Select buffalo rate chart" />
+                      <SelectValue placeholder={t('select_buffalo_rate_chart')} />
                     </SelectTrigger>
                     <SelectContent className='bg-white'>
                       {buffaloRateNames.map((name) => (
@@ -493,10 +493,10 @@ export const AddFarmer: React.FC = () => {
               </div>
             ) : formData.milkType ? (
               <div>
-                <Label htmlFor="rateChart" className='mb-1'>Rate Chart<span className='text-red-600'>*</span></Label>
+                <Label htmlFor="rateChart" className='mb-1'>{t('rate_chart')}<span className='text-red-600'>*</span></Label>
                 <Select value={formData.rateChart} onValueChange={(value) => setFormData({...formData, rateChart: value})}>
                   <SelectTrigger className='bg-gray-50 w-full border-gray-200'>
-                    <SelectValue placeholder="Select rate chart" />
+                    <SelectValue placeholder={t('select_rate_chart')} />
                   </SelectTrigger>
                   <SelectContent className='bg-white'>
                     {(formData.milkType === 'Cow' ? cowRateNames : buffaloRateNames).map((name) => (
@@ -509,12 +509,12 @@ export const AddFarmer: React.FC = () => {
 
             {/* Personal Documents */}
             <div>
-              <h3 className="text-lg font-semibold mb-4">Personal Documents</h3>
+              <h3 className="text-lg font-semibold mb-4">{t('personal_documents')}</h3>
               <div className="">
-                  <Label htmlFor="panCard" className='mb-1'>PAN Card (Optional)</Label>
+                  <Label htmlFor="panCard" className='mb-1'>{t('pan_card_optional')}</Label>
                   <Input
                     id="panCard"
-                    placeholder="ENTER PAN NUMBER"
+                    placeholder={t('enter_pan_number')}
                     value={formData.panCard}
                     onChange={(e) => {
                       const value = Validator.formatPanCard(e.target.value);
@@ -522,10 +522,10 @@ export const AddFarmer: React.FC = () => {
                     }}
                     className='border-gray-200'
                   />
-                  <Label htmlFor="aadhaarCard" className='mt-3 mb-1'>Aadhaar Card (Optional)</Label>
+                  <Label htmlFor="aadhaarCard" className='mt-3 mb-1'>{t('aadhaar_card_optional')}</Label>
                   <Input
                     id="aadhaarCard"
-                    placeholder="Enter Aadhaar number"
+                    placeholder={t('enter_aadhaar_number')}
                     value={formData.aadhaarCard}
                     onChange={(e) => {
                       const value = e.target.value.replace(/\D/g, '').slice(0, 12);
@@ -538,20 +538,20 @@ export const AddFarmer: React.FC = () => {
 
             {/* Bank Details */}
             <div>
-              <h3 className="text-lg font-semibold mb-4">Bank Details (Optional)</h3>
+              <h3 className="text-lg font-semibold mb-4">{t('bank_details_optional')}</h3>
               <div className="">
-                  <Label htmlFor="bankName" className='mb-1'>Bank Name</Label>
+                  <Label htmlFor="bankName" className='mb-1'>{t('bank_name')}</Label>
                   <Input
                     id="bankName"
-                    placeholder="Enter bank name"
+                    placeholder={t('enter_bank_name')}
                     value={formData.bankName}
                     onChange={(e) => setFormData({...formData, bankName: e.target.value})}
                     className='border-gray-200'
                   />
-                  <Label htmlFor="accountNumber" className='mt-3 mb-1'>Account Number</Label>
+                  <Label htmlFor="accountNumber" className='mt-3 mb-1'>{t('account_number')}</Label>
                   <Input
                     id="accountNumber"
-                    placeholder="Enter account number"
+                    placeholder={t('enter_account_number')}
                     value={formData.accountNumber}
                     onChange={(e) => {
                       const value = e.target.value.replace(/\D/g, '');
@@ -559,10 +559,10 @@ export const AddFarmer: React.FC = () => {
                     }}
                     className='border-gray-200'
                   />
-                  <Label htmlFor="ifscCode" className='mt-3 mb-1'>IFSC Code</Label>
+                  <Label htmlFor="ifscCode" className='mt-3 mb-1'>{t('ifsc_code')}</Label>
                   <Input
                     id="ifscCode"
-                    placeholder="ENTER IFSC CODE"
+                    placeholder={t('enter_ifsc_code')}
                     value={formData.ifscCode}
                     onChange={(e) => setFormData({...formData, ifscCode: e.target.value.toUpperCase()})}
                     className='border-gray-200'
@@ -575,7 +575,7 @@ export const AddFarmer: React.FC = () => {
               className="w-full bg-blue-600 hover:bg-blue-700 text-white h-11"
               disabled={loading}
             >
-              {loading ? 'Saving...' : (isEditMode ? 'Update Farmer' : 'Create Farmer')}
+              {loading ? t('saving') : (isEditMode ? t('update_farmer') : t('create_farmer'))}
             </Button>
           </form>
         </CardContent>

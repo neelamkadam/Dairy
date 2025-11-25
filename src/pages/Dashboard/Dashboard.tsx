@@ -7,8 +7,10 @@ import MilkCollectionChart from "@/components/MilkCollectionChart";
 import FarmersChart from "@/components/FarmersCharts";
 import { useAppSelector, useAppDispatch } from "@/redux/store";
 import { fetchCollectionsSummary } from "@/redux/dashboardSlice";
+import { useTranslation } from "react-i18next";
 
 const Dashboard = () => {
+  const { t } = useTranslation();
   const getDefaultShift = () => {
     const hour = new Date().getHours();
     return hour >= 16 ? 'evening' : 'morning';
@@ -65,35 +67,35 @@ const Dashboard = () => {
   const activeCenters = collections.filter(c => c.quantity > 0).length;
   const kpiData = [
     {
-      title: "VLCC Center",
+      title: t('vlcc_center'),
       value: `${activeCenters} (${branches.length})`,
       change: "",
       icon: Users,
       gradient: "bg-gradient-to-br from-cyan-400 to-cyan-600"
     },
     {
-      title: "Total Milk Collection",
+      title: t('total_milk_collection'),
       value: `${kpis.totalQuantity.toFixed(1)}L`,
       change: "",
       icon: Droplets,
       gradient: "bg-gradient-to-br from-blue-400 to-blue-600"
     },
     {
-      title: "Average Fat %",
+      title: t('average_fat'),
       value: kpis.avgFat.toFixed(2),
       change: "",
       icon: TrendingUp,
       gradient: "bg-gradient-to-br from-teal-400 to-teal-600"
     },
     {
-      title: "Average SNF %",
+      title: t('average_snf'),
       value: kpis.avgSnf.toFixed(2),
       change: "",
       icon: Activity,
       gradient: "bg-gradient-to-br from-cyan-500 to-cyan-700"
     },
     {
-      title: "Total Payments",
+      title: t('total_payments'),
       value: `₹${kpis.totalAmount.toFixed(2)}`,
       change: "",
       icon: IndianRupee,
@@ -107,7 +109,7 @@ const Dashboard = () => {
         {/* Dashboard Header */}
         <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4 mb-6 md:mb-8">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Dashboard Overview</h1>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{t('dashboard_overview')}</h1>
             <p className="text-gray-600 mt-1 text-sm md:text-base">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
           </div>
           
@@ -145,13 +147,13 @@ const Dashboard = () => {
                         <SelectItem value="morning" className="hover:bg-gray-50">
                           <div className="flex items-center gap-2">
                             <Sun className="w-4 h-4 text-orange-500" />
-                            Morning
+                            {t('morning')}
                           </div>
                         </SelectItem>
                         <SelectItem value="evening" className="hover:bg-gray-50">
                           <div className="flex items-center gap-2">
                             <Moon className="w-4 h-4 text-blue-500" />
-                            Evening
+                            {t('evening')}
                           </div>
                         </SelectItem>
                       </SelectContent>
@@ -182,7 +184,7 @@ const Dashboard = () => {
           {/* Pie Chart */}
           <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle className="text-base md:text-lg font-semibold">Milk Collection by Branch</CardTitle>
+              <CardTitle className="text-base md:text-lg font-semibold">{t('milk_collection_by_branch')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-64 md:h-80 w-full overflow-hidden">
@@ -194,7 +196,7 @@ const Dashboard = () => {
           {/* Bar Chart */}
           <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle className="text-base md:text-lg font-semibold">Branch-wise Collection</CardTitle>
+              <CardTitle className="text-base md:text-lg font-semibold">{t('branch_wise_collection')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-64 md:h-80 w-full overflow-hidden">

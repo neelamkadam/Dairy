@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
@@ -16,6 +17,7 @@ import { usePostApi } from "@/services/use-api";
 import { toast } from "react-toastify";
 
 const DispatchEntry = () => {
+  const { t } = useTranslation();
   const { postData, isLoading } = usePostApi({
     path: "/web/collection/dispatch-entry"
   });
@@ -103,7 +105,7 @@ const DispatchEntry = () => {
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <CardTitle className="text-xl font-semibold text-gray-800">
-              Dispatch Entry
+              {t('dispatch_entry')}
             </CardTitle>
             <HelpCircle className="h-5 w-5 text-gray-400" />
           </div>
@@ -111,7 +113,7 @@ const DispatchEntry = () => {
         <CardContent className="space-y-6">
           <div className="space-y-2">
             <Label className="text-sm font-medium text-gray-700">
-              Dispatch Date
+              {t('dispatch_date')}
             </Label>
             <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
               <PopoverTrigger asChild>
@@ -146,7 +148,7 @@ const DispatchEntry = () => {
 
           <div className="space-y-2">
             <Label className="text-sm font-medium text-gray-700">
-              Weight (ltr)
+              {t('weight')} (ltr)
             </Label>
             <Input
               type="number"
@@ -161,7 +163,7 @@ const DispatchEntry = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label className="text-sm font-medium text-gray-700">
-                Average Fat %
+                {t('avg_fat')}
               </Label>
               <Input
                 type="number"
@@ -174,7 +176,7 @@ const DispatchEntry = () => {
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-medium text-gray-700">
-                Average SNF %
+                {t('avg_snf')}
               </Label>
               <Input
                 type="number"
@@ -190,7 +192,7 @@ const DispatchEntry = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label className="text-sm font-medium text-gray-700">
-                Rate Per Liter
+                {t('rate_per_liter')}
               </Label>
               <Input
                 type="number"
@@ -203,7 +205,7 @@ const DispatchEntry = () => {
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-medium text-gray-700">
-                Commission Amount Per Liter
+                {t('commission_per_liter')}
               </Label>
               <Input
                 type="number"
@@ -218,7 +220,7 @@ const DispatchEntry = () => {
 
           <div className="space-y-2">
             <Label className="text-sm font-medium text-gray-700">
-              Total Amount
+              {t('total_amount')}
             </Label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
@@ -241,14 +243,14 @@ const DispatchEntry = () => {
               variant="outline"
               className="w-full sm:w-auto px-8 py-2 text-sm font-medium border-gray-200"
             >
-              Clear Form
+              {t('clear_form')}
             </Button>
             <Button
               onClick={handleSubmit}
               disabled={isLoading}
               className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 text-sm font-medium disabled:opacity-50"
             >
-              {isLoading ? "Submitting..." : "Submit Entry"}
+              {isLoading ? t('submitting') : t('submit_entry')}
             </Button>
           </div>
         </CardContent>

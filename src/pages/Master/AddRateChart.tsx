@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +13,7 @@ import { toast } from "react-toastify";
 import { api } from "@/services/config";
 
 const AddRateChart = () => {
+  const { t } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
   const [formData, setFormData] = useState({
     vlcc: "",
@@ -125,8 +127,8 @@ const AddRateChart = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-4 md:p-6">
       <div className="max-w-5xl mx-auto space-y-6">
         <div className="mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Rate Chart Management</h1>
-          <p className="text-gray-600">Upload and manage milk rate charts for your branches</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">{t('rate_chart_management')}</h1>
+          <p className="text-gray-600">{t('upload_manage_rate_charts')}</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
@@ -149,8 +151,8 @@ const AddRateChart = () => {
                   <h3 className={cn(
                     "text-xl font-bold mb-1",
                     formData.rateChart === "cow" ? "text-green-700" : "text-gray-900"
-                  )}>Cow Rate Chart</h3>
-                  <p className="text-gray-600 text-sm">Manage cow milk pricing</p>
+                  )}>{t('cow_rate_chart')}</h3>
+                  <p className="text-gray-600 text-sm">{t('manage_cow_milk_pricing')}</p>
                 </div>
               </div>
             </CardContent>
@@ -175,8 +177,8 @@ const AddRateChart = () => {
                   <h3 className={cn(
                     "text-xl font-bold mb-1",
                     formData.rateChart === "buffalo" ? "text-orange-700" : "text-gray-900"
-                  )}>Buffalo Rate Chart</h3>
-                  <p className="text-gray-600 text-sm">Manage buffalo milk pricing</p>
+                  )}>{t('buffalo_rate_chart')}</h3>
+                  <p className="text-gray-600 text-sm">{t('manage_buffalo_milk_pricing')}</p>
                 </div>
               </div>
             </CardContent>
@@ -187,10 +189,10 @@ const AddRateChart = () => {
           <CardContent className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6">
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700 text-left">Select VLCC</label>
+                <label className="block text-sm font-medium text-gray-700 text-left">{t('select_vlcc')}</label>
                 <Select value={formData.vlcc} onValueChange={(value) => setFormData({ ...formData, vlcc: value })}>
                   <SelectTrigger className="bg-gray-50 h-10">
-                    <SelectValue placeholder="Select VLCC" />
+                    <SelectValue placeholder={t('select_vlcc')} />
                   </SelectTrigger>
                   <SelectContent className="bg-white">
                     {branches.map((branch) => (
@@ -203,25 +205,25 @@ const AddRateChart = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700 text-left">Milk Type</label>
+                <label className="block text-sm font-medium text-gray-700 text-left">{t('milk_type')}</label>
                 <Select value={formData.rateChart} onValueChange={(value) => setFormData({ ...formData, rateChart: value })}>
                   <SelectTrigger className="bg-gray-50 h-10">
-                    <SelectValue placeholder="Select milk type">
-                      {formData.rateChart === "cow" ? "🐄 Cow" : formData.rateChart === "buffalo" ? "🐃 Buffalo" : "Select milk type"}
+                    <SelectValue placeholder={t('select_milk_type')}>
+                      {formData.rateChart === "cow" ? `🐄 ${t('cow')}` : formData.rateChart === "buffalo" ? `🐃 ${t('buffalo')}` : t('select_milk_type')}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent className="bg-white">
-                    <SelectItem value="cow">🐄 Cow</SelectItem>
-                    <SelectItem value="buffalo">🐃 Buffalo</SelectItem>
+                    <SelectItem value="cow">🐄 {t('cow')}</SelectItem>
+                    <SelectItem value="buffalo">🐃 {t('buffalo')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700 text-left">Rate Chart Name</label>
+                <label className="block text-sm font-medium text-gray-700 text-left">{t('rate_chart_name')}</label>
                 <Select value={formData.rateChartName} onValueChange={(value) => setFormData({ ...formData, rateChartName: value })}>
                   <SelectTrigger className="bg-gray-50 h-10">
-                    <SelectValue placeholder="Select rate chart" />
+                    <SelectValue placeholder={t('select_rate_chart')} />
                   </SelectTrigger>
                   <SelectContent className="bg-white">
                     <SelectItem value="Rate Chart 1">Rate Chart 1</SelectItem>
@@ -232,12 +234,12 @@ const AddRateChart = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700 text-left">Effective Date</label>
+                <label className="block text-sm font-medium text-gray-700 text-left">{t('effective_date')}</label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className={cn("w-full h-10 justify-start text-left font-normal bg-gray-50", !formData.effectiveDate && "text-muted-foreground")}>
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {formData.effectiveDate ? format(formData.effectiveDate, "dd MMM yyyy") : "Select date"}
+                      {formData.effectiveDate ? format(formData.effectiveDate, "dd MMM yyyy") : t('select_date')}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0 bg-white" align="start">
@@ -258,15 +260,15 @@ const AddRateChart = () => {
                   {csvFile ? (
                     <div className="flex flex-col items-center">
                       <CheckCircle2 className="w-16 h-16 text-green-500 mb-4" />
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">File Selected</h3>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('file_selected')}</h3>
                       <p className="text-sm text-gray-600 bg-green-50 px-4 py-2 rounded-full">{csvFile.name}</p>
-                      <Button variant="outline" className="mt-4" onClick={(e) => { e.preventDefault(); setCsvFile(null); setPreviewData(null); }}>Change File</Button>
+                      <Button variant="outline" className="mt-4" onClick={(e) => { e.preventDefault(); setCsvFile(null); setPreviewData(null); }}>{t('change_file')}</Button>
                     </div>
                   ) : (
                     <div>
                       <Upload className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Drop file here or click to browse</h3>
-                      <p className="text-gray-500 text-sm">Supported formats: .csv, .xls, .xlsx</p>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('drop_file_or_browse')}</h3>
+                      <p className="text-gray-500 text-sm">{t('supported_formats')}</p>
                     </div>
                   )}
                 </label>
@@ -275,7 +277,7 @@ const AddRateChart = () => {
               {previewData && (
                 <div className="mt-4 border rounded-lg overflow-hidden">
                   <div className="bg-gray-100 px-4 py-2 border-b">
-                    <h4 className="font-semibold text-gray-700">Preview (First 5 rows)</h4>
+                    <h4 className="font-semibold text-gray-700">{t('preview_first_5_rows')}</h4>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
@@ -298,18 +300,18 @@ const AddRateChart = () => {
               <div className="flex flex-col sm:flex-row gap-3 justify-between items-center pt-4">
                 <Button onClick={generateSampleCSV} variant="outline" className="w-full sm:w-auto border-blue-600 text-blue-600 hover:bg-blue-50">
                   <Download className="w-4 h-4 mr-2" />
-                  Download Sample File
+                  {t('download_sample_file')}
                 </Button>
                 <Button onClick={handleSubmit} disabled={loading || !csvFile || !formData.vlcc || !formData.rateChart || !formData.rateChartName || !formData.effectiveDate} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-8">
                   {loading ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                      Uploading...
+                      {t('uploading')}
                     </>
                   ) : (
                     <>
                       <Upload className="w-4 h-4 mr-2" />
-                      Upload Rate Chart
+                      {t('upload_rate_chart')}
                     </>
                   )}
                 </Button>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -61,6 +62,7 @@ interface Collection {
 }
 
 const FarmerCollectionEntry = () => {
+  const { t } = useTranslation();
   const branches = useAppSelector((state) => state.branch.branches);
   const [selectedBranch, setSelectedBranch] = useState<number | null>(null);
   const [date, setDate] = useState<Date>(new Date());
@@ -146,7 +148,7 @@ const FarmerCollectionEntry = () => {
 
   const handleFarmerSearch = async () => {
     if (!selectedBranch || !farmerIdInput.trim()) {
-      toast.error('Please select VLC and enter Farmer ID');
+      toast.error(t('please_select_vlc_and_farmer_id'));
       return;
     }
 
@@ -158,7 +160,7 @@ const FarmerCollectionEntry = () => {
       const farmer = await userApi.getById(normalized, selectedBranch);
       
       if (!farmer) {
-        toast.error('Farmer not found');
+        toast.error(t('farmer_not_found'));
         setFarmerData(null);
         setFarmerName('');
         setFarmerId('');
@@ -229,13 +231,13 @@ const FarmerCollectionEntry = () => {
       quantityRef.current?.focus();
     } catch (error) {
       console.error('Error searching farmer:', error);
-      toast.error('Error searching farmer');
+      toast.error(t('error_searching_farmer'));
     }
   };
 
   const handleSubmit = async () => {
     if (!selectedBranch || !farmerId || !quantity || !fat || !snf || !clr || !rate) {
-      toast.error('Please fill all required fields');
+      toast.error(t('please_fill_required_fields'));
       return;
     }
     setLoading(true);
@@ -282,7 +284,7 @@ const FarmerCollectionEntry = () => {
           };
           
           await collectionApi.update(existing.id, payload);
-          toast.success('Collections merged successfully');
+          toast.success(t('collections_merged_successfully'));
           setIsMultipleMode(false);
         }
       } else {
@@ -302,10 +304,10 @@ const FarmerCollectionEntry = () => {
         
         if (editingId) {
           await collectionApi.update(editingId, payload);
-          toast.success('Collection updated successfully');
+          toast.success(t('collection_updated_successfully'));
         } else {
           await collectionApi.create(payload);
-          toast.success('Collection created successfully');
+          toast.success(t('collection_created_successfully'));
         }
       }
       
@@ -314,7 +316,7 @@ const FarmerCollectionEntry = () => {
         await fetchRecentCollections(selectedBranch, dateStr, shift);
       }
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Failed to save collection');
+      toast.error(error?.response?.data?.message || t('failed_to_save_collection'));
     } finally {
       setLoading(false);
     }
@@ -411,7 +413,7 @@ const FarmerCollectionEntry = () => {
     setAmount(0);
     setEditingId(null);
     quantityRef.current?.focus();
-    toast.info('Enter new collection details to merge with existing');
+    toast.info(t('enter_new_collection_details'));
   };
 
   const handleModify = () => {
@@ -443,14 +445,14 @@ const FarmerCollectionEntry = () => {
     if (existing) {
       try {
         await collectionApi.delete(existing.id);
-        toast.success('Collection deleted successfully');
+        toast.success(t('collection_deleted_successfully'));
         setShowModal(false);
         resetForm();
         if (selectedBranch) {
           await fetchRecentCollections(selectedBranch, format(date, 'yyyy-MM-dd'), shift);
         }
       } catch (error) {
-        toast.error('Failed to delete collection');
+        toast.error(t('failed_to_delete_collection'));
       }
     }
   };
@@ -476,7 +478,7 @@ const FarmerCollectionEntry = () => {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
             <h1 className="md:text-2xl font-semibold text-gray-900">
-              Farmer Collection Entry
+              {t('farmer_collection_entry')}
             </h1>
           </div>
         </div>
@@ -489,11 +491,11 @@ const FarmerCollectionEntry = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 ">
                 <div>
                   <Label className="text-sm font-medium text-gray-700 block">
-                    VLC Name
+                    {t('vlc_name')}
                   </Label>
                   <Select onValueChange={handleBranchChange}>
                     <SelectTrigger className="w-full border-gray-200">
-                      <SelectValue placeholder="Select VLC" />
+                      <SelectValue placeholder={t('select_vlc')} />
                     </SelectTrigger>
                     <SelectContent className="bg-white">
                       {branches.map((branch) => (
@@ -507,7 +509,7 @@ const FarmerCollectionEntry = () => {
 
                 <div>
                   <Label className="text-sm font-medium text-gray-700">
-                    Date
+                    {t('date')}
                   </Label>
                   <Popover>
                     <PopoverTrigger asChild>
@@ -533,15 +535,15 @@ const FarmerCollectionEntry = () => {
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-700">
-                    Shift
+                    {t('shift')}
                   </Label>
                   <Select value={shift} onValueChange={handleShiftChange}>
                     <SelectTrigger className="w-full bg-white border-gray-200">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-white">
-                      <SelectItem value="Morning">Morning</SelectItem>
-                      <SelectItem value="Evening">Evening</SelectItem>
+                      <SelectItem value="Morning">{t('morning')}</SelectItem>
+                      <SelectItem value="Evening">{t('evening')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -550,14 +552,14 @@ const FarmerCollectionEntry = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="md:col-span-2">
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                    Farmer ID
+                    {t('farmer_id')}
                   </Label>
                   <div className="flex gap-2">
                     <Input
                       value={farmerIdInput}
                       onChange={(e) => setFarmerIdInput(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleFarmerSearch()}
-                      placeholder="Enter Farmer ID"
+                      placeholder={t('enter_farmer_id')}
                       className="border-gray-200"
                     />
                     <Button onClick={handleFarmerSearch} className="bg-blue-500 hover:bg-blue-600">
@@ -567,7 +569,7 @@ const FarmerCollectionEntry = () => {
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                    Farmer Name
+                    {t('farmer_name')}
                   </Label>
                   <Input
                     value={farmerName}
@@ -584,7 +586,7 @@ const FarmerCollectionEntry = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                    Milk Type
+                    {t('milk_type')}
                   </Label>
                   <div className="flex gap-2">
                     {availableMilkTypes.map(type => (
@@ -606,7 +608,7 @@ const FarmerCollectionEntry = () => {
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                    Quantity
+                    {t('quantity')}
                   </Label>
                   <Input
                     ref={quantityRef}
@@ -620,7 +622,7 @@ const FarmerCollectionEntry = () => {
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                    Fat (%)
+                    {t('fat')} (%)
                   </Label>
                   <Input
                     type="number"
@@ -633,7 +635,7 @@ const FarmerCollectionEntry = () => {
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                    SNF (%)
+                    {t('snf')} (%)
                   </Label>
                   <Input
                     type="number"
@@ -649,7 +651,7 @@ const FarmerCollectionEntry = () => {
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                    CLR
+                    {t('clr')}
                   </Label>
                   <Input
                     type="number"
@@ -665,7 +667,7 @@ const FarmerCollectionEntry = () => {
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                    Rate per ltr
+                    {t('rate_per_liter')}
                   </Label>
                   <Input
                     type="number"
@@ -685,7 +687,7 @@ const FarmerCollectionEntry = () => {
             {/* Total Amount */}
             <div className="flex justify-between items-center p-4 rounded-2xl bg-white">
               <span className="text-lg font-semibold text-gray-900">
-                Total Amount
+                {t('total_amount')}
               </span>
               <span className="text-2xl font-bold text-green-600">₹{amount.toFixed(2)}</span>
             </div>
@@ -697,7 +699,7 @@ const FarmerCollectionEntry = () => {
               className="w-full md:w-[40%] bg-green-500 hover:bg-green-600 text-white py-3 text-lg font-medium"
             >
               <Save className="mr-2" />
-              {loading ? 'Saving...' : editingId ? 'Update' : 'Submit'}
+              {loading ? t('saving') : editingId ? t('update') : t('submit')}
             </Button>
           </div>
 
@@ -706,7 +708,7 @@ const FarmerCollectionEntry = () => {
             <Card className="shadow-sm border-0 shadow-gray-200/50 p-5 bg-white">
               <CardHeader className="p-0 pb-4">
                 <CardTitle className="text-lg font-semibold text-gray-900">
-                  Recent Collections
+                  {t('recent_collections')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
@@ -768,7 +770,7 @@ const FarmerCollectionEntry = () => {
                   </div>
                 ) : (
                   <div className="text-sm text-gray-500 text-center py-4">
-                    {selectedBranch ? 'No recent collections' : 'Select VLC to view collections'}
+                    {selectedBranch ? t('no_recent_collections') : t('select_vlc_to_view')}
                   </div>
                 )}
               </CardContent>
@@ -782,45 +784,45 @@ const FarmerCollectionEntry = () => {
         <Dialog open={showModal} onOpenChange={setShowModal}>
           <DialogContent className="bg-white sm:max-w-lg">
             <DialogHeader>
-              <DialogTitle className="text-2xl font-bold text-gray-900">Collection Already Exists</DialogTitle>
+              <DialogTitle className="text-2xl font-bold text-gray-900">{t('collection_already_exists')}</DialogTitle>
             </DialogHeader>
             
             <div className="space-y-4 py-4">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p className="text-sm font-medium text-blue-900 mb-2">
-                  Farmer: <span className="font-bold">{farmerName}</span>
+                  {t('farmer')}: <span className="font-bold">{farmerName}</span>
                 </p>
                 <p className="text-sm text-blue-800">
-                  A collection for <span className="font-semibold">{milkType}</span> milk in <span className="font-semibold">{shift}</span> shift already exists.
+                  {t('collection_exists_message', { milkType, shift })}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <p className="text-sm font-medium text-gray-700">What would you like to do?</p>
+                <p className="text-sm font-medium text-gray-700">{t('what_would_you_like_to_do')}</p>
                 
                 <div className="grid grid-cols-1 gap-3">
                   <Button 
                     onClick={handleMultipleCollection} 
                     className="bg-green-500 hover:bg-green-600 text-white h-auto py-3 flex flex-col items-start"
                   >
-                    <span className="font-semibold">Add Multiple Collection</span>
-                    <span className="text-xs opacity-90">Add new collection to the existing one</span>
+                    <span className="font-semibold">{t('add_multiple_collection')}</span>
+                    <span className="text-xs opacity-90">{t('add_multiple_collection_desc')}</span>
                   </Button>
                   
                   <Button 
                     onClick={handleModify} 
                     className="bg-blue-500 hover:bg-blue-600 text-white h-auto py-3 flex flex-col items-start"
                   >
-                    <span className="font-semibold">Modify Existing</span>
-                    <span className="text-xs opacity-90">Update the previous collection details</span>
+                    <span className="font-semibold">{t('modify_existing')}</span>
+                    <span className="text-xs opacity-90">{t('modify_existing_desc')}</span>
                   </Button>
                   
                   <Button 
                     onClick={handleDelete} 
                     className="bg-red-500 hover:bg-red-600 text-white h-auto py-3 flex flex-col items-start"
                   >
-                    <span className="font-semibold">Delete Collection</span>
-                    <span className="text-xs opacity-90">Remove the existing collection</span>
+                    <span className="font-semibold">{t('delete_collection')}</span>
+                    <span className="text-xs opacity-90">{t('delete_collection_desc')}</span>
                   </Button>
                   
                   <Button 
@@ -828,7 +830,7 @@ const FarmerCollectionEntry = () => {
                     variant="outline"
                     className="h-auto py-3"
                   >
-                    Cancel
+                    {t('cancel')}
                   </Button>
                 </div>
               </div>

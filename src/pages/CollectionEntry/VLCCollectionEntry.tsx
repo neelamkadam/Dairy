@@ -25,6 +25,7 @@ import { toast } from "react-toastify";
 import { useAppSelector } from "@/redux/store";
 import { rateChartApi } from "@/services/rateChartApi";
 import { calculateCLRFromFatAndSNF, calculateSNFFromFatAndCLR } from "@/utils/milkCalculations";
+import { useTranslation } from "react-i18next";
 
 
 interface FormData {
@@ -43,6 +44,7 @@ interface FormData {
 }
 
 const VLCCollectionEntry = () => {
+  const { t } = useTranslation();
   const { postData, isLoading } = usePostApi({
     path: "/web/collection/vlc-entry"
   });
@@ -232,7 +234,7 @@ const VLCCollectionEntry = () => {
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <CardTitle className="text-xl font-semibold text-gray-800">
-              VLC Collection Entry
+              {t('vlc_collection_entry')}
             </CardTitle>
             <HelpCircle className="h-5 w-5 text-gray-400" />
           </div>
@@ -242,7 +244,7 @@ const VLCCollectionEntry = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="date" className="text-sm font-medium text-gray-700">
-                Date
+                {t('date')}
               </Label>
               <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                 <PopoverTrigger asChild>
@@ -279,15 +281,15 @@ const VLCCollectionEntry = () => {
 
             <div className="space-y-2 ">
               <Label htmlFor="shift" className="text-sm font-medium text-gray-700">
-                Shift
+                {t('shift')}
               </Label>
               <Select value={formData.shift} onValueChange={(value) => handleInputChange("shift", value)} >
                 <SelectTrigger className="bg-gray-50 border-gray-200 hover:bg-gray-100 w-full">
                   <SelectValue placeholder="Select shift" />
                 </SelectTrigger>
                 <SelectContent className="bg-white" >
-                  <SelectItem value="morning">Morning</SelectItem>
-                  <SelectItem value="evening">Evening</SelectItem>
+                  <SelectItem value="morning">{t('morning')}</SelectItem>
+                  <SelectItem value="evening">{t('evening')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -299,7 +301,7 @@ const VLCCollectionEntry = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="userId" className="text-sm font-medium text-gray-700">
-                VLC ID
+                {t('vlc_id')}
               </Label>
               <Select value={formData.userId} onValueChange={handleVLCIdChange}>
                 <SelectTrigger className="bg-gray-50 border-gray-200 hover:bg-gray-100 w-full">
@@ -323,7 +325,7 @@ const VLCCollectionEntry = () => {
 
             <div className="space-y-2">
               <Label htmlFor="vlcName" className="text-sm font-medium text-gray-700">
-                VLC Name
+                {t('vlc_name')}
               </Label>
               <Input
                 id="vlcName"
@@ -339,7 +341,7 @@ const VLCCollectionEntry = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="weight" className="text-sm font-medium text-gray-700">
-                Weight (kg)
+                {t('weight')} (kg)
               </Label>
               <Input
                 id="weight"
@@ -354,7 +356,7 @@ const VLCCollectionEntry = () => {
 
             <div className="space-y-2">
               <Label htmlFor="fat" className="text-sm font-medium text-gray-700">
-                Fat (%)
+                {t('fat')} (%)
               </Label>
               <Input
                 id="fat"
@@ -372,7 +374,7 @@ const VLCCollectionEntry = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="snf" className="text-sm font-medium text-gray-700">
-                SNF (%)
+                {t('snf')} (%)
               </Label>
               <Input
                 id="snf"
@@ -390,7 +392,7 @@ const VLCCollectionEntry = () => {
 
             <div className="space-y-2">
               <Label htmlFor="clr" className="text-sm font-medium text-gray-700">
-                CLR
+                {t('clr')}
               </Label>
               <Input
                 id="clr"
@@ -411,7 +413,7 @@ const VLCCollectionEntry = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="rate" className="text-sm font-medium text-gray-700">
-                Rate per kg
+                {t('rate_per_kg')}
               </Label>
               <Input
                 id="rate"
@@ -426,7 +428,7 @@ const VLCCollectionEntry = () => {
 
             <div className="space-y-2">
               <Label htmlFor="amount" className="text-sm font-medium text-gray-700">
-                Total Amount
+                {t('total_amount')}
               </Label>
               <Input
                 id="amount"
@@ -447,7 +449,7 @@ const VLCCollectionEntry = () => {
               disabled={isLoading}
               className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 text-sm font-medium transition-colors disabled:opacity-50"
             >
-              {isLoading ? "Submitting..." : "Submit Entry"}
+              {isLoading ? t('submitting') : t('submit_entry')}
             </Button>
           </div>
         </CardContent>

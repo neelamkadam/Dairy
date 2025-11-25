@@ -18,6 +18,7 @@ import {
 import { CalendarIcon, X, ChevronRight, ChevronLeft } from "lucide-react";
 import { useState } from "react";
 import { format } from "date-fns";
+import { useTranslation } from "react-i18next";
 import { generateFarmerCollectionPDF } from "@/templates/FarmerCollectionTemplate";
 import { generateFarmerCollectionExcel } from "@/templates/FarmerCollectionExcelTemplate";
 import { Download } from "lucide-react";
@@ -27,6 +28,7 @@ import { toast } from "react-toastify";
 import { api } from "@/services/config";
 
 const FarmerCollection = () => {
+  const { t } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
   const [vlcName, setVlcName] = useState("");
   const [milkType, setMilkType] = useState("All");
@@ -138,7 +140,7 @@ const FarmerCollection = () => {
     <>
       <div className="">
         <div className="flex justify-between items-center p-3 md:p-4 bg-white">
-          <h1 className="text-left text-lg md:text-xl font-semibold">Farmer Collection Report</h1>
+          <h1 className="text-left text-lg md:text-xl font-semibold">{t('farmer_collection')}</h1>
         </div>
         <hr className="text-gray-300" />
         <Tabs defaultValue="collection" className="w-full border-none">
@@ -147,7 +149,7 @@ const FarmerCollection = () => {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                   <div>
-                    <label className="text-sm font-medium">VLC Name</label>
+                    <label className="text-sm font-medium">{t('vlc_name')}</label>
                     <Select value={vlcName} onValueChange={setVlcName}>
                       <SelectTrigger className="w-full border border-gray-200">
                         <SelectValue placeholder="Select VLC" />
@@ -162,28 +164,28 @@ const FarmerCollection = () => {
                     </Select>
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Milk Type</label>
+                    <label className="text-sm font-medium">{t('milk_type')}</label>
                     <Select value={milkType} onValueChange={setMilkType}>
                       <SelectTrigger className="w-full border-gray-200">
                         <SelectValue placeholder="Cow" />
                       </SelectTrigger>
                       <SelectContent className="bg-white">
-                        <SelectItem value="All">All</SelectItem>
-                        <SelectItem value="Cow">Cow</SelectItem>
-                        <SelectItem value="Buffalo">Buffalo</SelectItem>
+                        <SelectItem value="All">{t('all')}</SelectItem>
+                        <SelectItem value="Cow">{t('cow')}</SelectItem>
+                        <SelectItem value="Buffalo">{t('buffalo')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Shift</label>
+                    <label className="text-sm font-medium">{t('shift')}</label>
                     <Select value={shift} onValueChange={setShift}>
                       <SelectTrigger className="w-full border-gray-200">
                         <SelectValue placeholder="Morning" />
                       </SelectTrigger>
                       <SelectContent className="bg-white">
-                        <SelectItem value="All">All</SelectItem>
-                        <SelectItem value="Morning">Morning</SelectItem>
-                        <SelectItem value="Evening">Evening</SelectItem>
+                        <SelectItem value="All">{t('all')}</SelectItem>
+                        <SelectItem value="Morning">{t('morning')}</SelectItem>
+                        <SelectItem value="Evening">{t('evening')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -191,7 +193,7 @@ const FarmerCollection = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">From Date</label>
+                    <label className="text-sm font-medium">{t('from_date')}</label>
                     <Popover open={isFromCalendarOpen} onOpenChange={setIsFromCalendarOpen}>
                       <PopoverTrigger asChild>
                         <Button
@@ -222,7 +224,7 @@ const FarmerCollection = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">To Date</label>
+                    <label className="text-sm font-medium">{t('to_date')}</label>
                     <Popover open={isToCalendarOpen} onOpenChange={setIsToCalendarOpen}>
                       <PopoverTrigger asChild>
                         <Button
@@ -253,7 +255,7 @@ const FarmerCollection = () => {
                   </div>
                 </div>
                 <Button onClick={handleSubmit} disabled={loading} className="bg-blue-600 hover:bg-blue-700 w-full h-11 text-white">
-                  {loading ? "Loading..." : "Submit"}
+                  {loading ? t('loading') : t('submit')}
                 </Button>
               </CardContent>
             </Card>
@@ -264,7 +266,7 @@ const FarmerCollection = () => {
                 className="bg-green-600 hover:bg-green-700 text-white h-11 flex items-center justify-center gap-2"
               >
                 <Download className="h-4 w-4" />
-                Excel Export
+                {t('excel_export')}
               </Button>
               <Button 
                 onClick={handleExportPDF}
@@ -273,29 +275,29 @@ const FarmerCollection = () => {
                 className="bg-red-500 text-white h-11 flex items-center justify-center gap-2"
               >
                 <Download className="h-4 w-4" />
-                PDF Export
+                {t('pdf_export')}
               </Button>
             </div>
             <div className="overflow-x-auto mt-6 md:mt-10 px-4 md:px-5">
               <table className="table-auto border-collapse border border-gray-300 w-full">
                 <thead className="bg-gray-200">
                   <tr>
-                    <th className="border border-gray-300 px-4 py-2">Date</th>
+                    <th className="border border-gray-300 px-4 py-2">{t('date')}</th>
                     <th className="border border-gray-300 px-4 py-2">
-                      Farmer Id
+                      {t('farmer_id')}
                     </th>
-                    <th className="border border-gray-300 px-4 py-2">Name</th>
-                    <th className="border border-gray-300 px-4 py-2">Liter</th>
-                    <th className="border border-gray-300 px-4 py-2">Kg</th>
-                    <th className="border border-gray-300 px-4 py-2">Fat</th>
-                    <th className="border border-gray-300 px-4 py-2">Snf</th>
-                    <th className="border border-gray-300 px-4 py-2">Clr</th>
+                    <th className="border border-gray-300 px-4 py-2">{t('name')}</th>
+                    <th className="border border-gray-300 px-4 py-2">{t('liter')}</th>
+                    <th className="border border-gray-300 px-4 py-2">{t('kg')}</th>
+                    <th className="border border-gray-300 px-4 py-2">{t('fat')}</th>
+                    <th className="border border-gray-300 px-4 py-2">{t('snf')}</th>
+                    <th className="border border-gray-300 px-4 py-2">{t('clr')}</th>
                     <th className="border border-gray-300 px-4 py-2">
-                      Milk Type
+                      {t('milk_type')}
                     </th>
-                    <th className="border border-gray-300 px-4 py-2">Shift</th>
-                    <th className="border border-gray-300 px-4 py-2">Rate</th>
-                    <th className="border border-gray-300 px-4 py-2">Amount</th>
+                    <th className="border border-gray-300 px-4 py-2">{t('shift')}</th>
+                    <th className="border border-gray-300 px-4 py-2">{t('rate')}</th>
+                    <th className="border border-gray-300 px-4 py-2">{t('amount')}</th>
                   </tr>
                 </thead>
                 <tbody>

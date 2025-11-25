@@ -8,6 +8,7 @@ import { ROUTES } from "@/constatnts/routesConstants";
 import { useLocation, useNavigate } from "react-router-dom";
 import NeoDairyLogo from "@/assets/NeoDairy_Logo.png";
 import { useAppSelector } from "@/redux/store";
+import { useTranslation } from "react-i18next";
 
 interface MenuItem {
   title: string;
@@ -16,72 +17,70 @@ interface MenuItem {
   children?: MenuItem[];
 }
 
-const menuItems: MenuItem[] = [
+const getMenuItems = (t: any): MenuItem[] => [
   {
-    title: "Dashboard",
+    title: t('dashboard'),
     icon: "📊",
     href: ROUTES.DASHBOARD,
   },
   {
-    title: "Collection Entry",
+    title: t('collection_entry'),
     icon: "💧",
     children: [
-      { title: "VLC Collection Entry", icon: "", href:ROUTES.COLLECTIONENTRY.VLC_COLLECTION_ENTRY },
-      { title: "Farmer Collection Entry", icon: "", href: ROUTES.COLLECTIONENTRY.FARMER_COLLECTION_ENTRY },
-      { title: "Dispatch Entry", icon: "", href:ROUTES.COLLECTIONENTRY.DISPATCH_ENTRY }
+      { title: t('vlc_collection_entry'), icon: "", href:ROUTES.COLLECTIONENTRY.VLC_COLLECTION_ENTRY },
+      { title: t('farmer_collection_entry'), icon: "", href: ROUTES.COLLECTIONENTRY.FARMER_COLLECTION_ENTRY },
+      { title: t('dispatch_entry'), icon: "", href:ROUTES.COLLECTIONENTRY.DISPATCH_ENTRY }
     ]
   },
   {
-    title: "Collection",
+    title: t('collection'),
     icon: "🗂️",
     children: [
-      { title: "VLC Collection", icon: "", href: ROUTES.COLLECTION.VLC_COLLECTION },
-      // { title: "BMC Collection", icon: "", href: ROUTES.COLLECTION.BMC_COLLECTION },
-      // { title: "Chilling Center", icon: "", href: ROUTES.COLLECTION.CHILLING_CENTER }
+      { title: t('vlc_collection'), icon: "", href: ROUTES.COLLECTION.VLC_COLLECTION },
     ]
   },
   {
-    title: "Master",
+    title: t('master'),
     icon: "⚙️",
     children: [
-      { title: "Add Farmer", icon: "", href:ROUTES.MASTER.ADD_FARMER },
-      { title: "Add Rate Chart", icon: "", href: ROUTES.MASTER.ADD_RATECHART }
+      { title: t('add_farmer'), icon: "", href:ROUTES.MASTER.ADD_FARMER },
+      { title: t('add_rate_chart'), icon: "", href: ROUTES.MASTER.ADD_RATECHART }
     ]
   },
   {
-    title: "Billing",
+    title: t('billing'),
     icon: "💳",
     children: [
-      { title: "Payment & Receipt", icon: "", href:ROUTES.BILLING.PAYMENTANDRECEIPT },
-      { title: "Farmer Deduction", icon: "", href:ROUTES.BILLING.FARMER_DEDUCTION },
-      { title: "Generate Bill", icon: "", href:ROUTES.BILLING.GENERATE_BILL},
-      { title: "VLC Commission Entry", icon: "", href: ROUTES.BILLING.VLC_COMMISSION_ENTRY},
-      { title: "VLC TS Entry", icon: "", href: ROUTES.BILLING.VLC_TS_ENTRY }
+      { title: t('payment_receipt'), icon: "", href:ROUTES.BILLING.PAYMENTANDRECEIPT },
+      { title: t('farmer_deduction'), icon: "", href:ROUTES.BILLING.FARMER_DEDUCTION },
+      { title: t('generate_bill'), icon: "", href:ROUTES.BILLING.GENERATE_BILL},
+      { title: t('vlc_commission_entry'), icon: "", href: ROUTES.BILLING.VLC_COMMISSION_ENTRY},
+      { title: t('vlc_ts_entry'), icon: "", href: ROUTES.BILLING.VLC_TS_ENTRY }
     ]
   },
   {
-    title: "Reports",
+    title: t('reports'),
     icon: "📈",
     children: [
-      { title: "Shift Report", icon: "", href: ROUTES.REPORTS.SHIFT_REPORTS},
-      { title: "Farmer Collection", icon: "", href: ROUTES.REPORTS.FARMER_COLLECTION},
-      { title: "Total Collection Report", icon: "", href: ROUTES.REPORTS.TOTAL_COLLECTION_REPORT},
-      { title: "Payment Summary Report", icon: "", href: ROUTES.REPORTS.PAYMENT_SUMMARY},
-      { title: "Rate Chart Report", icon: "", href:ROUTES.REPORTS.RATECHART_REPORT},
-      { title: "Farmer Bill Invoice Report", icon: "", href: ROUTES.REPORTS.FARMER_BILL_INVOICE_REPORT },
-      { title: "Farmer List", icon: "", href: ROUTES.REPORTS.FARMER_LIST},
-      { title: "VLC Difference Report", icon: "", href:ROUTES.REPORTS.VLC_DIFFERENCE_REPORT },
-      { title: "Remaining Balance Report", icon: "", href: ROUTES.REPORTS.REMAINING_BALANCE },
-      { title: "Farmer Passbook", icon: "", href: ROUTES.REPORTS.FARMER_PASSBOOK},
-      { title: "VLC Commission Report", icon: "", href: ROUTES.REPORTS.VLC_COMMISSION_REPORT },
-      { title: "P/L Statement", icon: "", href: ROUTES.REPORTS.PL_STATEMENT }
+      { title: t('shift_report'), icon: "", href: ROUTES.REPORTS.SHIFT_REPORTS},
+      { title: t('farmer_collection'), icon: "", href: ROUTES.REPORTS.FARMER_COLLECTION},
+      { title: t('total_collection_report'), icon: "", href: ROUTES.REPORTS.TOTAL_COLLECTION_REPORT},
+      { title: t('payment_summary_report'), icon: "", href: ROUTES.REPORTS.PAYMENT_SUMMARY},
+      { title: t('rate_chart_report'), icon: "", href:ROUTES.REPORTS.RATECHART_REPORT},
+      { title: t('farmer_bill_invoice_report'), icon: "", href: ROUTES.REPORTS.FARMER_BILL_INVOICE_REPORT },
+      { title: t('farmer_list'), icon: "", href: ROUTES.REPORTS.FARMER_LIST},
+      { title: t('vlc_difference_report'), icon: "", href:ROUTES.REPORTS.VLC_DIFFERENCE_REPORT },
+      { title: t('remaining_balance_report'), icon: "", href: ROUTES.REPORTS.REMAINING_BALANCE },
+      { title: t('farmer_passbook'), icon: "", href: ROUTES.REPORTS.FARMER_PASSBOOK},
+      { title: t('vlc_commission_report'), icon: "", href: ROUTES.REPORTS.VLC_COMMISSION_REPORT },
+      { title: t('pl_statement'), icon: "", href: ROUTES.REPORTS.PL_STATEMENT }
     ]
   },
   {
-    title: "Settings",
+    title: t('settings'),
     icon: "⚙️",
     children: [
-      { title: "General Settings", icon: "", href: ROUTES.SETTINGS.GENERAL_SETTINGS },
+      { title: t('general_settings'), icon: "", href: ROUTES.SETTINGS.GENERAL_SETTINGS },
     ]
   }
 ];
@@ -92,10 +91,12 @@ interface SidebarProps {
 }
 
 const AppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
+  const { t } = useTranslation();
   const authState = useAppSelector((state) => state.authData);
   const userData = authState?.userData;
   const [showCompany, setShowCompany] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
+  const menuItems = getMenuItems(t);
   
   useEffect(() => {
     if (!isOpen) return;

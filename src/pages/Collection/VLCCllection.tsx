@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useAppSelector } from "@/redux/store";
 import { usePostApi } from "@/services/use-api";
 import { toast } from "react-toastify";
@@ -52,6 +53,7 @@ interface VLCCData {
 }
 
 const VLCCllection = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { branches } = useAppSelector((state) => state.branch);
   const { postData, isLoading } = usePostApi({
@@ -173,31 +175,31 @@ const VLCCllection = () => {
 
   const centerStats = [
     {
-      label: "VLCC Center",
+      label: t('vlcc_center'),
       value: uniqueVLCCs.toString(),
       icon: Users,
       color: "bg-gradient-to-br from-blue-500 to-blue-600",
     },
     {
-      label: "Total Milk Collection",
+      label: t('total_milk_collection'),
       value: `${totalMilk.toFixed(1)}L`,
       icon: TrendingUp,
       color: "bg-gradient-to-br from-green-500 to-green-600",
     },
     {
-      label: "Average Fat %",
+      label: t('average_fat'),
       value: `${avgFat}%`,
       icon: TrendingUp,
       color: "bg-gradient-to-br from-purple-500 to-purple-600",
     },
     {
-      label: "Average SNF %",
+      label: t('average_snf'),
       value: `${avgSNF}%`,
       icon: TrendingUp,
       color: "bg-gradient-to-br from-orange-500 to-orange-600",
     },
     {
-      label: "Total Payments",
+      label: t('total_payments'),
       value: `₹${totalPayments.toFixed(2)}`,
       icon: IndianRupee,
       color: "bg-gradient-to-br from-teal-500 to-teal-600",
@@ -207,7 +209,7 @@ const VLCCllection = () => {
   return (
     <div className="space-y-4 bg-gray-50 min-h-screen p-4">
       <div className="text-xl font-bold text-gray-800">
-        VLC Collection Dashboard
+        {t('vlc_collection_dashboard')}
       </div>
 
       {/* Center Stats */}
@@ -242,20 +244,20 @@ const VLCCllection = () => {
       {/* Filters */}
       <Card className="border-0 shadow-lg bg-white">
         <CardHeader className="border-b">
-          <CardTitle className="text-xl font-semibold text-gray-800">Filter Options</CardTitle>
+          <CardTitle className="text-xl font-semibold text-gray-800">{t('filter_options')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 p-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label className="text-sm font-medium text-gray-700">
-                VLC ID
+                {t('vlc_id')}
               </Label>
               <Select value={selectedBranch} onValueChange={setSelectedBranch}>
                 <SelectTrigger className="w-full bg-gray-50 border-gray-200">
-                  <SelectValue placeholder="All" />
+                  <SelectValue placeholder={t('all')} />
                 </SelectTrigger>
                 <SelectContent className="bg-white">
-                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="all">{t('all')}</SelectItem>
                   {branches?.map((branch) => (
                     <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
                       {branch.username} - {branch.name}
@@ -266,29 +268,29 @@ const VLCCllection = () => {
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-medium text-gray-700">
-                Milk Type
+                {t('milk_type')}
               </Label>
               <Select value={selectedType} onValueChange={setSelectedType}>
                 <SelectTrigger className="w-full bg-gray-50 border-gray-200">
-                  <SelectValue placeholder="Cow" />
+                  <SelectValue placeholder={t('cow')} />
                 </SelectTrigger>
                 <SelectContent className="bg-white">
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="cow">Cow</SelectItem>
-                  <SelectItem value="buffalo">Buffalo</SelectItem>
+                  <SelectItem value="all">{t('all')}</SelectItem>
+                  <SelectItem value="cow">{t('cow')}</SelectItem>
+                  <SelectItem value="buffalo">{t('buffalo')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">Shift</Label>
+              <Label className="text-sm font-medium text-gray-700">{t('shift')}</Label>
               <Select value={selectedShift} onValueChange={setSelectedShift}>
                 <SelectTrigger className="w-full bg-gray-50 border-gray-200">
-                  <SelectValue placeholder="Morning" />
+                  <SelectValue placeholder={t('morning')} />
                 </SelectTrigger>
                 <SelectContent className="bg-white">
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="morning">Morning</SelectItem>
-                  <SelectItem value="evening">Evening</SelectItem>
+                  <SelectItem value="all">{t('all')}</SelectItem>
+                  <SelectItem value="morning">{t('morning')}</SelectItem>
+                  <SelectItem value="evening">{t('evening')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -296,7 +298,7 @@ const VLCCllection = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="text-sm font-medium text-gray-700">
-                From Date
+                {t('from_date')}
               </Label>
               <Popover>
                 <PopoverTrigger asChild>
@@ -305,7 +307,7 @@ const VLCCllection = () => {
                     className="w-full justify-start text-left font-normal bg-gray-50 border-gray-200"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {fromDate ? format(fromDate, "dd-MM-yyyy") : "Select date"}
+                    {fromDate ? format(fromDate, "dd-MM-yyyy") : t('select_date')}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 bg-white z-50" align="start">
@@ -319,7 +321,7 @@ const VLCCllection = () => {
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-medium text-gray-700">
-                To Date
+                {t('to_date')}
               </Label>
               <Popover>
                 <PopoverTrigger asChild>
@@ -328,7 +330,7 @@ const VLCCllection = () => {
                     className="w-full justify-start text-left font-normal bg-gray-50 border-gray-200"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {toDate ? format(toDate, "dd-MM-yyyy") : "Select date"}
+                    {toDate ? format(toDate, "dd-MM-yyyy") : t('select_date')}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 bg-white z-50" align="start">
@@ -346,7 +348,7 @@ const VLCCllection = () => {
             disabled={isLoading}
             className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 disabled:opacity-50"
           >
-            {isLoading ? "Loading..." : "Apply"}
+            {isLoading ? t('loading') : t('apply')}
           </Button>
         </CardContent>
       </Card>
@@ -355,12 +357,12 @@ const VLCCllection = () => {
       <Card className="border-0 shadow-lg bg-white">
         <CardHeader className="border-b">
           <div className="flex flex-wrap justify-between items-center gap-4">
-            <CardTitle className="text-xl font-semibold text-gray-800">VLC List</CardTitle>
+            <CardTitle className="text-xl font-semibold text-gray-800">{t('vlc_list')}</CardTitle>
             <div className="flex flex-wrap gap-3 items-center">
               <div className="relative w-full sm:w-auto">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
-                  placeholder="Search..."
+                  placeholder={t('search')}
                   className="pl-10 w-full sm:w-64 bg-gray-50 border-gray-200"
                 />
               </div>
@@ -369,7 +371,7 @@ const VLCCllection = () => {
                 className="border-gray-200 flex items-center gap-2"
               >
                 <FileSpreadsheet className="h-4 w-4" />
-                Export
+                {t('export')}
               </Button>
             </div>
           </div>
@@ -380,18 +382,18 @@ const VLCCllection = () => {
               <TableHeader>
                 <TableRow className="bg-gray-50">
                   <TableHead className="text-gray-700 font-semibold px-4 py-3">
-                    VLCC ID
+                    {t('vlc_id')}
                   </TableHead>
-                  <TableHead className="text-gray-700 font-semibold px-4 py-3">VLC Name</TableHead>
+                  <TableHead className="text-gray-700 font-semibold px-4 py-3">{t('vlc_name')}</TableHead>
                   <TableHead className="text-gray-700 font-semibold px-4 py-3">
-                    Total Milk (Ltr)
+                    {t('total_milk_ltr')}
                   </TableHead>
                   <TableHead className="text-gray-700 font-semibold px-4 py-3">
-                    Total Milk (Kg)
+                    {t('total_milk_kg')}
                   </TableHead>
-                  <TableHead className="text-gray-700 font-semibold px-4 py-3">Milk Type</TableHead>
-                  <TableHead className="text-gray-700 font-semibold px-4 py-3">Status</TableHead>
-                  <TableHead className="text-gray-700 font-semibold px-4 py-3">Actions</TableHead>
+                  <TableHead className="text-gray-700 font-semibold px-4 py-3">{t('milk_type')}</TableHead>
+                  <TableHead className="text-gray-700 font-semibold px-4 py-3">{t('status')}</TableHead>
+                  <TableHead className="text-gray-700 font-semibold px-4 py-3">{t('actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -426,7 +428,7 @@ const VLCCllection = () => {
                               : "bg-gray-100 text-gray-800 hover:bg-gray-100"
                           }
                         >
-                          {vlc.is_active === 1 ? "Active" : "Inactive"}
+                          {vlc.is_active === 1 ? t('active') : t('inactive')}
                         </Badge>
                       </TableCell>
                       <TableCell className="px-4 py-3">
@@ -446,7 +448,7 @@ const VLCCllection = () => {
         {farmerData.length > 0 && (
           <div className="flex flex-wrap items-center justify-between border-t bg-gray-50 px-4 py-3">
             <div className="text-sm text-gray-600">
-              Showing {startIndex + 1} to {Math.min(endIndex, vlcData.length)} of {vlcData.length} entries
+              {t('showing')} {startIndex + 1} {t('to')} {Math.min(endIndex, vlcData.length)} {t('of')} {vlcData.length} {t('entries')}
             </div>
             <div className="flex items-center gap-2 mt-2 md:mt-0">
               <Button
@@ -456,7 +458,7 @@ const VLCCllection = () => {
                 disabled={currentPage === 1}
                 className="border-gray-200"
               >
-                Previous
+                {t('previous')}
               </Button>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                 <Button
@@ -480,7 +482,7 @@ const VLCCllection = () => {
                 disabled={currentPage === totalPages}
                 className="border-gray-200"
               >
-                Next
+                {t('next')}
               </Button>
             </div>
           </div>
