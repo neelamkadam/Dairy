@@ -2,7 +2,7 @@ import * as Yup from "yup";
 
 export const InputSchema = Yup.object().shape({
   userId: Yup.string().min(2).required("userId is required"),
-  password: Yup.string().min(4).max(6).required("password is required"),
+  password: Yup.string().min(4).required("password is required"),
 });
 
 export const SignupInputSchema = Yup.object().shape({
@@ -35,7 +35,7 @@ export const SignupInputSchema = Yup.object().shape({
     .required("Mobile number is required"),
 
   enterOtp: Yup.string()
-    .matches(/^\d{4}$/, "OTP must be exactly 4 digits")
+    .matches(/^\d{6}$/, "OTP must be exactly 4 digits")
     .required("OTP is required"),
   state: Yup.string().required("OTP is required"),
   password: Yup.string()
