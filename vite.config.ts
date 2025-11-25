@@ -11,6 +11,20 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor': ['react', 'react-dom', 'react-router-dom'],
+          'charts': ['recharts'],
+          'pdf': ['pdfmake', 'jspdf', 'jspdf-autotable'],
+          'excel': ['xlsx'],
+          'ui': ['@radix-ui/react-select', '@radix-ui/react-popover', '@radix-ui/react-dialog'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000,
+  },
   server: {
     proxy: {
       '/api': {

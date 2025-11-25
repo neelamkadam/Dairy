@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
+import { generateShiftReportPDF } from "@/templates/ShiftReportTemplate";
+import { generateShiftReportExcel } from "@/templates/ShiftReportExcelTemplate";
 import {
   Select,
   SelectContent,
@@ -30,12 +32,10 @@ import {
 import {
   FileText,
   Download,
-  User,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import SwapVertIcon from "@mui/icons-material/SwapVert";
 
 const ShiftReports:React.FC = () => {
   const { branches } = useAppSelector((state) => state.branch);
@@ -44,11 +44,16 @@ const ShiftReports:React.FC = () => {
   const [reportData, setReportData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
+  const getDefaultShift = () => {
+    const hour = new Date().getHours();
+    return hour >= 16 ? "evening" : "morning";
+  };
+
   const [formData, setFormData] = useState({
     selectedDairy: "",
-    milkType: "",
-    shift: "",
-    date: undefined as Date | undefined,
+    milkType: "mixed",
+    shift: getDefaultShift(),
+    date: new Date() as Date | undefined,
   });
 
   const fetchCollectionReport = async () => {
@@ -82,6 +87,31 @@ const ShiftReports:React.FC = () => {
     }
   };
 
+  const handleExportPDF = () => {
+    if (!farmerData || farmerData.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+    const selectedBranch = branches?.find(b => b.branch_id.toString() === formData.selectedDairy);
+    const vlcName = selectedBranch ? selectedBranch.name : "";
+    const Dairyname = selectedBranch ? selectedBranch.username : "";
+    const dateStr = formData.date ? format(formData.date, "yyyy-MM-dd") : "";
+    generateShiftReportPDF(farmerData, vlcName, Dairyname, dateStr, formData.shift, formData.milkType, totals);
+    toast.success("PDF exported successfully");
+  };
+
+  const handleExportExcel = () => {
+    if (!farmerData || farmerData.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+    const selectedBranch = branches?.find(b => b.branch_id.toString() === formData.selectedDairy);
+    const vlcName = selectedBranch ? selectedBranch.name : "";
+    const dateStr = formData.date ? format(formData.date, "yyyy-MM-dd") : "";
+    generateShiftReportExcel(farmerData, vlcName, dateStr, formData.shift, formData.milkType, totals);
+    toast.success("Excel exported successfully");
+  };
+
   // Filter data based on milk type
   const allRecords = reportData?.records || [];
   const farmerData = formData.milkType && formData.milkType !== "mixed" 
@@ -90,10 +120,10 @@ const ShiftReports:React.FC = () => {
 
   // Calculate totals for filtered data
   const totals = {
-    quantity: farmerData.reduce((sum: number, record: any) => sum + parseFloat(record.quantity || 0), 0),
-    avgFat: farmerData.length > 0 ? (farmerData.reduce((sum: number, record: any) => sum + parseFloat(record.fat || 0), 0) / farmerData.length).toFixed(2) : 0,
-    avgSnf: farmerData.length > 0 ? (farmerData.reduce((sum: number, record: any) => sum + parseFloat(record.snf || 0), 0) / farmerData.length).toFixed(2) : 0,
-    totalAmount: farmerData.reduce((sum: number, record: any) => sum + parseFloat(record.amount || 0), 0),
+    quantity: farmerData.reduce((sum: number, record: any) => sum + parseFloat(record.quantity || 0), 0).toFixed(2),
+    avgFat: farmerData.length > 0 ? (farmerData.reduce((sum: number, record: any) => sum + parseFloat(record.fat || 0), 0) / farmerData.length).toFixed(2) : "0.00",
+    avgSnf: farmerData.length > 0 ? (farmerData.reduce((sum: number, record: any) => sum + parseFloat(record.snf || 0), 0) / farmerData.length).toFixed(2) : "0.00",
+    totalAmount: farmerData.reduce((sum: number, record: any) => sum + parseFloat(record.amount || 0), 0).toFixed(2),
   };
 
   const totalPages = Math.ceil(farmerData.length / itemsPerPage);
@@ -166,7 +196,7 @@ const ShiftReports:React.FC = () => {
                 >
                   {formData.date
                     ? format(formData.date, "yyyy/MM/dd")
-                    : "yyyy / mm / dd"}
+                    : format(new Date(), "yyyy/MM/dd")}
                   <CalendarIcon className="mr-2 h-4 w-4 " />
                 </Button>
               </PopoverTrigger>
@@ -198,13 +228,31 @@ const ShiftReports:React.FC = () => {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex justify-end mt-6 mr-5">
+          <div className="flex justify-end gap-3 mt-6 mr-5">
             <Button 
               onClick={fetchCollectionReport}
               disabled={loading}
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               {loading ? "Loading..." : "Show"}
+            </Button>
+            <Button
+              onClick={handleExportExcel}
+              disabled={!farmerData || farmerData.length === 0}
+              variant="outline"
+              className="flex items-center gap-2 text-white bg-blue-500"
+            >
+              <Download className="h-4 w-4" />
+              Excel Export
+            </Button>
+            <Button
+              onClick={handleExportPDF}
+              disabled={!farmerData || farmerData.length === 0}
+              variant="outline"
+              className="flex items-center gap-2 bg-red-500 text-white"
+            >
+              <Download className="h-4 w-4" />
+              PDF Export
             </Button>
           </div>
         </div>
@@ -355,23 +403,7 @@ const ShiftReports:React.FC = () => {
           </Table>
         </div>
 
-        {/* Export Buttons */}
-        <div className="flex flex-col sm:flex-row gap-3 justify-end">
-          <Button
-            variant="outline"
-            className="flex items-center gap-2 text-white bg-blue-500"
-          >
-            <Download className="h-4 w-4" />
-            Excel Export
-          </Button>
-          <Button
-            variant="outline"
-            className="flex items-center gap-2 bg-red-500 text-white"
-          >
-            <Download className="h-4 w-4" />
-            PDF Export
-          </Button>
-        </div>
+
       </div>
     </div>
   );

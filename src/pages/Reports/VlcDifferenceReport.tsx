@@ -22,13 +22,21 @@ import { useAppSelector } from "@/redux/store";
 import { reportsApi } from "@/services/reportsApi";
 import { toast } from "react-toastify";
 import { format } from "date-fns";
+import { generateVLCDifferenceReportPDF } from "@/templates/VLCdifferanceReportTemplate";
+import { FileDown } from "lucide-react";
 
 const VlcDifferenceReport = () => {
   const { branches } = useAppSelector((state) => state.branch);
   const [vlcId, setVlcId] = useState("");
   const [fromDate, setFromDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [toDate, setToDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [shift, setShift] = useState("Morning");
+  
+  const getDefaultShift = () => {
+    const hour = new Date().getHours();
+    return hour >= 17 ? "Evening" : "Morning";
+  };
+  
+  const [shift, setShift] = useState(getDefaultShift());
   const [reportData, setReportData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
@@ -59,6 +67,17 @@ const VlcDifferenceReport = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleExportPDF = () => {
+    if (!reportData || reportData.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+    const selectedBranch = branches?.find(b => b.username === vlcId);
+    const branchName = selectedBranch ? `${selectedBranch.name}` : vlcId;
+    generateVLCDifferenceReportPDF(reportData, vlcId, fromDate, toDate, shift, branchName);
+    toast.success("PDF exported successfully");
   };
 
   return (
@@ -116,6 +135,14 @@ const VlcDifferenceReport = () => {
           className="text-white bg-blue-600 w-[90px] mt-4.5"
         >
           {loading ? "Loading..." : "Show"}
+        </Button>
+        <Button 
+          onClick={handleExportPDF} 
+          disabled={!reportData || reportData.length === 0}
+          className="text-white bg-green-600 w-[120px] mt-4.5 flex items-center gap-2"
+        >
+          <FileDown size={16} />
+          Export PDF
         </Button>
       </div>
       <div className="overflow-x-auto mt-4 border border-gray-200 rounded-lg shadow-sm">

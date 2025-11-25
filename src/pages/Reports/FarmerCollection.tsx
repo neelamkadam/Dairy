@@ -18,6 +18,9 @@ import {
 import { CalendarIcon, X, ChevronRight, ChevronLeft } from "lucide-react";
 import { useState } from "react";
 import { format } from "date-fns";
+import { generateFarmerCollectionPDF } from "@/templates/FarmerCollectionTemplate";
+import { generateFarmerCollectionExcel } from "@/templates/FarmerCollectionExcelTemplate";
+import { Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/redux/store";
 import { toast } from "react-toastify";
@@ -100,6 +103,33 @@ const FarmerCollection = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleExportPDF = () => {
+    if (!collectionData || collectionData.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+    const selectedBranch = branches?.find(b => b.branch_id.toString() === vlcName);
+    const branchName = selectedBranch ? selectedBranch.name : "";
+    const dairyName = selectedBranch ? selectedBranch.username : "";
+    const fromDateStr = format(fromDate, "dd-MM-yyyy");
+    const toDateStr = format(toDate, "dd-MM-yyyy");
+    generateFarmerCollectionPDF(collectionData, branchName, dairyName, fromDateStr, toDateStr, shift, milkType);
+    toast.success("PDF exported successfully");
+  };
+
+  const handleExportExcel = () => {
+    if (!collectionData || collectionData.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+    const selectedBranch = branches?.find(b => b.branch_id.toString() === vlcName);
+    const branchName = selectedBranch ? selectedBranch.name : "";
+    const fromDateStr = format(fromDate, "dd-MM-yyyy");
+    const toDateStr = format(toDate, "dd-MM-yyyy");
+    generateFarmerCollectionExcel(collectionData, branchName, fromDateStr, toDateStr, shift, milkType);
+    toast.success("Excel exported successfully");
   };
 
 
@@ -227,6 +257,25 @@ const FarmerCollection = () => {
                 </Button>
               </CardContent>
             </Card>
+            <div className="flex justify-end gap-3 px-4 md:px-0 md:w-[90%] lg:w-[85%] m-auto mt-4">
+              <Button 
+                onClick={handleExportExcel}
+                disabled={!collectionData || collectionData.length === 0}
+                className="bg-blue-600 hover:bg-blue-700 text-white h-11 flex items-center justify-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Excel Export
+              </Button>
+              <Button 
+                onClick={handleExportPDF}
+                disabled={!collectionData || collectionData.length === 0}
+                variant="outline" 
+                className="bg-red-500 text-white h-11 flex items-center justify-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                PDF Export
+              </Button>
+            </div>
             <div className="overflow-x-auto mt-6 md:mt-10 px-4 md:px-5">
               <table className="table-auto border-collapse border border-gray-300 w-full">
                 <thead className="bg-gray-200">
@@ -344,14 +393,7 @@ const FarmerCollection = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto">
-                  Excel Export
-                </Button>
-                <Button variant="outline" className="bg-red-500 text-white w-full sm:w-auto">
-                  PDF Export
-                </Button>
-              </div>
+
             </div>
           </TabsContent>
         </Tabs>

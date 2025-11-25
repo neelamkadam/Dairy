@@ -9,8 +9,13 @@ import { useAppSelector, useAppDispatch } from "@/redux/store";
 import { fetchCollectionsSummary } from "@/redux/dashboardSlice";
 
 const Dashboard = () => {
+  const getDefaultShift = () => {
+    const hour = new Date().getHours();
+    return hour >= 16 ? 'evening' : 'morning';
+  };
+
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [selectedShift, setSelectedShift] = useState('morning');
+  const [selectedShift, setSelectedShift] = useState(getDefaultShift());
   const dispatch = useAppDispatch();
   const { branches } = useAppSelector(state => state.branch);
   const { collections, loading } = useAppSelector(state => state.dashboard);

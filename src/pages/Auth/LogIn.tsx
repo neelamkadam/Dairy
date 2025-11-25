@@ -14,6 +14,7 @@ import { useAppDispatch, useAppSelector } from "@/redux/store";
 import { setAuthentication, setTempUserData } from "@/redux/AuthSlice";
 import { fetchUserBranches } from "@/redux/branchSlice";
 import NeoDairyLogo from "@/assets/NeoDairy_Logo.png";
+import { toast } from "react-toastify";
 
 
 const Login: React.FC = () => {
@@ -91,11 +92,11 @@ const Login: React.FC = () => {
             navigate(ROUTES.DASHBOARD);
           }
         } else {
-          console.log("Login failed:", result.message);
+          toast.error(result.message || "Invalid username or password");
         }
       }
     } catch (error) {
-      console.log("Login failed", error);
+      toast.error("Invalid username or password");
     }
   };
 
