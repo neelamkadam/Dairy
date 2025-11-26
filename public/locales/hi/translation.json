@@ -51,6 +51,7 @@
   "total_milk_collection": "कुल दूध संग्रह",
   "average_fat": "औसत वसा %",
   "average_snf": "औसत एसएनएफ %",
+  "average_rate" : "औसत दाम",
   "total_payments": "कुल भुगतान",
   "milk_collection_by_branch": "शाखा द्वारा दूध संग्रह",
   "branch_wise_collection": "शाखा-वार संग्रह",

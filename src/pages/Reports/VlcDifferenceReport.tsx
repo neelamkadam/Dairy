@@ -23,7 +23,8 @@ import { reportsApi } from "@/services/reportsApi";
 import { toast } from "react-toastify";
 import { format } from "date-fns";
 import { generateVLCDifferenceReportPDF } from "@/templates/VLCdifferanceReportTemplate";
-import { FileDown } from "lucide-react";
+import { FileDown, FileSpreadsheet } from "lucide-react";
+import * as XLSX from 'xlsx';
 
 const VlcDifferenceReport = () => {
   const { branches } = useAppSelector((state) => state.branch);
@@ -80,10 +81,79 @@ const VlcDifferenceReport = () => {
     toast.success("PDF exported successfully");
   };
 
+  const handleExportExcel = () => {
+    if (!reportData || reportData.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+    const exportData = reportData.map((period: any) => ({
+      'Period': period.period,
+      'Shift': period.shift,
+      'VLC Weight': period.vlc.total_weight,
+      'VLC Fat': period.vlc.avg_fat,
+      'VLC SNF': period.vlc.avg_snf,
+      'VLC Amount': period.vlc.total_amount,
+      'Dairy Weight': period.dairy.total_weight,
+      'Dairy Fat': period.dairy.avg_fat,
+      'Dairy SNF': period.dairy.avg_snf,
+      'Dairy Amount': period.dairy.total_amount,
+      'Diff Weight': period.difference.weight,
+      'Diff Fat': period.difference.fat,
+      'Diff SNF': period.difference.snf,
+      'Diff Amount': period.difference.amount,
+    }));
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const range = XLSX.utils.decode_range(ws['!ref']!);
+    
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+      const address = XLSX.utils.encode_col(C) + "1";
+      if (!ws[address]) continue;
+      ws[address].s = {
+        fill: { fgColor: { rgb: "DBEAFE" } },
+        font: { bold: true, color: { rgb: "1E3A8A" } },
+        alignment: { horizontal: "center", vertical: "center" }
+      };
+    }
+    
+    for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+      for (let C = 2; C <= 5; ++C) {
+        const address = XLSX.utils.encode_cell({ r: R, c: C });
+        if (!ws[address]) continue;
+        ws[address].s = { fill: { fgColor: { rgb: "DBEAFE" } } };
+      }
+    }
+    
+    for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+      for (let C = 6; C <= 9; ++C) {
+        const address = XLSX.utils.encode_cell({ r: R, c: C });
+        if (!ws[address]) continue;
+        ws[address].s = { fill: { fgColor: { rgb: "D1FAE5" } } };
+      }
+    }
+    
+    for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+      for (let C = 10; C <= 13; ++C) {
+        const address = XLSX.utils.encode_cell({ r: R, c: C });
+        if (!ws[address]) continue;
+        const value = parseFloat(ws[address].v);
+        ws[address].s = {
+          fill: { fgColor: { rgb: "E9D5FF" } },
+          font: { bold: true, color: { rgb: value < 0 ? "DC2626" : value > 0 ? "16A34A" : "4B5563" } }
+        };
+      }
+    }
+    
+    ws['!cols'] = Array(14).fill({ wch: 12 });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'VLC Difference Report');
+    XLSX.writeFile(wb, `VLC_Difference_Report_${vlcId}_${format(new Date(), 'dd-MM-yyyy')}.xlsx`, { cellStyles: true });
+    toast.success("Excel exported successfully");
+  };
+
   return (
     <div className="p-6 bg-white w-full h-screen">
       <h1 className="text-lg font-bold mb-7">VLCC Difference Report</h1>
-      <div className="grid grid-cols-1 md:grid-cols-6 gap-4 p-3 rounded-lg">
+      <div className="grid grid-cols-1 md:grid-cols-7 gap-4 p-3 rounded-lg">
         <div>
           <Label className="mb-1">VLC Name</Label>
           <Select value={vlcId} onValueChange={setVlcId}>
@@ -144,6 +214,14 @@ const VlcDifferenceReport = () => {
         >
           <FileDown size={16} />
           Export PDF
+        </Button>
+        <Button 
+          onClick={handleExportExcel} 
+          disabled={!reportData || reportData.length === 0}
+          className="text-white bg-green-600 w-[130px] mt-4.5 flex items-center gap-2"
+        >
+          <FileSpreadsheet size={16} />
+          Export Excel
         </Button>
       </div>
       <div className="overflow-x-auto mt-4 border border-gray-200 rounded-lg shadow-sm">

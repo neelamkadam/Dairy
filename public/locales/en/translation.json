@@ -51,6 +51,7 @@
   "total_milk_collection": "Total Milk Collection",
   "average_fat": "Average Fat %",
   "average_snf": "Average SNF %",
+  "average_rate" : "Average Rate",
   "total_payments": "Total Payments",
   "milk_collection_by_branch": "Milk Collection by Branch",
   "branch_wise_collection": "Branch-wise Collection",

@@ -34,6 +34,7 @@ import {
   EllipsisVertical,
   IndianRupee,
 } from "lucide-react";
+import * as XLSX from 'xlsx';
 import {
   Table,
   TableBody,
@@ -172,6 +173,40 @@ const VLCCllection = () => {
     ? (farmerData.reduce((sum, f) => sum + (parseFloat(f.snf) || 0), 0) / farmerData.length).toFixed(1)
     : "0.0";
   const totalPayments = farmerData.reduce((sum, f) => sum + (parseFloat(f.amount) || 0), 0);
+
+  const handleExportToExcel = () => {
+    const exportData = vlcData.map((vlc) => {
+      const branch = branches.find(b => b.branch_id === vlc.dairy_id);
+      const vlcFarmers = farmerData.filter(f => f.dairy_id === vlc.dairy_id);
+      const avgFat = vlcFarmers.length > 0 
+        ? (vlcFarmers.reduce((sum, f) => sum + (parseFloat(f.fat) || 0), 0) / vlcFarmers.length).toFixed(2)
+        : '0.00';
+      const avgSNF = vlcFarmers.length > 0
+        ? (vlcFarmers.reduce((sum, f) => sum + (parseFloat(f.snf) || 0), 0) / vlcFarmers.length).toFixed(2)
+        : '0.00';
+      const totalAmount = vlcFarmers.reduce((sum, f) => sum + (parseFloat(f.amount) || 0), 0);
+      const avgRate = vlc.totalMilkLtr > 0 ? (totalAmount / vlc.totalMilkLtr).toFixed(2) : '0.00';
+      
+      return {
+        'VLC ID': branch?.username || vlc.dairy_id,
+        'VLC Name': branch?.name || 'N/A',
+        'Total Milk (Ltr)': vlc.totalMilkLtr.toFixed(2),
+        'Total Milk (Kg)': (vlc.totalMilkLtr * 1.03).toFixed(2),
+        'Average FAT (%)': avgFat,
+        'Average SNF (%)': avgSNF,
+        'Average Rate (₹)': avgRate,
+        'Total Amount (₹)': totalAmount,
+        'Milk Type': vlc.milkTypes.join(', '),
+        'Status': vlc.is_active === 1 ? 'Active' : 'Inactive'
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'VLC Collection');
+    XLSX.writeFile(wb, `VLC_Collection_${format(new Date(), 'dd-MM-yyyy')}.xlsx`);
+    toast.success('Excel file exported successfully');
+  };
 
   const centerStats = [
     {
@@ -368,7 +403,8 @@ const VLCCllection = () => {
               </div>
               <Button
                 variant="outline"
-                className="border-gray-200 flex items-center gap-2"
+                onClick={handleExportToExcel}
+                className="border-gray-200 flex bg-green-600 text-white items-center gap-2 hover:bg-green-50"
               >
                 <FileSpreadsheet className="h-4 w-4" />
                 {t('export')}
@@ -388,17 +424,27 @@ const VLCCllection = () => {
                   <TableHead className="text-gray-700 font-semibold px-4 py-3">
                     {t('total_milk_ltr')}
                   </TableHead>
-                  <TableHead className="text-gray-700 font-semibold px-4 py-3">
-                    {t('total_milk_kg')}
-                  </TableHead>
+                  <TableHead className="text-gray-700 font-semibold px-4 py-3">{t('average_fat')}</TableHead>
+                  <TableHead className="text-gray-700 font-semibold px-4 py-3">{t('average_snf')}</TableHead>
+                  <TableHead className="text-gray-700 font-semibold px-4 py-3">{t('average_rate')}</TableHead>
+                  <TableHead className="text-gray-700 font-semibold px-4 py-3">{t('total_amount')}</TableHead>
                   <TableHead className="text-gray-700 font-semibold px-4 py-3">{t('milk_type')}</TableHead>
                   <TableHead className="text-gray-700 font-semibold px-4 py-3">{t('status')}</TableHead>
-                  <TableHead className="text-gray-700 font-semibold px-4 py-3">{t('actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedData.map((vlc, index) => {
                   const branch = branches.find(b => b.branch_id === vlc.dairy_id);
+                  const vlcFarmers = farmerData.filter(f => f.dairy_id === vlc.dairy_id);
+                  const avgFat = vlcFarmers.length > 0 
+                    ? (vlcFarmers.reduce((sum, f) => sum + (parseFloat(f.fat) || 0), 0) / vlcFarmers.length).toFixed(2)
+                    : '0.00';
+                  const avgSNF = vlcFarmers.length > 0
+                    ? (vlcFarmers.reduce((sum, f) => sum + (parseFloat(f.snf) || 0), 0) / vlcFarmers.length).toFixed(2)
+                    : '0.00';
+                  const totalAmount = vlcFarmers.reduce((sum, f) => sum + (parseFloat(f.amount) || 0), 0);
+                  const avgRate = vlc.totalMilkLtr > 0 ? (totalAmount / vlc.totalMilkLtr).toFixed(2) : '0.00';
+                  
                   return (
                     <TableRow
                       key={index}
@@ -415,7 +461,16 @@ const VLCCllection = () => {
                         {vlc.totalMilkLtr.toFixed(2)} Ltr
                       </TableCell>
                       <TableCell className="px-4 py-3">
-                        {(vlc.totalMilkLtr * 1.03).toFixed(2)} Kg
+                        {avgFat}%
+                      </TableCell>
+                      <TableCell className="px-4 py-3">
+                        {avgSNF}%
+                      </TableCell>
+                      <TableCell className="px-4 py-3">
+                        ₹{avgRate}
+                      </TableCell>
+                      <TableCell className="px-4 py-3">
+                        ₹{totalAmount.toFixed(2)}
                       </TableCell>
                       <TableCell className="px-4 py-3">
                         {vlc.milkTypes.join(', ')}
@@ -430,12 +485,6 @@ const VLCCllection = () => {
                         >
                           {vlc.is_active === 1 ? t('active') : t('inactive')}
                         </Badge>
-                      </TableCell>
-                      <TableCell className="px-4 py-3">
-                        <EllipsisVertical
-                          className="text-gray-500 cursor-pointer hover:text-gray-700"
-                          size={18}
-                        />
                       </TableCell>
                     </TableRow>
                   );
