@@ -1,9 +1,429 @@
+import { useState, useEffect } from "react";
+import { Calendar, Download, Loader2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAppSelector } from "@/redux/store";
+import { api } from "@/services/config";
+import { toast } from "react-toastify";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+interface FarmerDetail {
+  farmer_id: string;
+  farmer_username: string;
+  farmer_name: string;
+  date: string;
+  milk_total: number;
+  total_received: number;
+  deductions: {
+    advance: number;
+    cattle_feed: number;
+    other1: number;
+    other2: number;
+    total: number;
+  };
+  net_payable: number;
+}
+
+interface DateWiseData {
+  date: string;
+  farmers: FarmerDetail[];
+}
+
+interface PaymentSummaryData {
+  success: boolean;
+  dairy_id: string;
+  startDate: string;
+  endDate: string;
+  data: DateWiseData[];
+}
+
 const PaymentSummaryReport = () => {
+  const [dateFrom, setDateFrom] = useState(new Date().toISOString().split('T')[0]);
+  const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<PaymentSummaryData | null>(null);
+  const [selectedBranch, setSelectedBranch] = useState<number | null>(null);
+  const { branches } = useAppSelector(state => state.branch);
+
+  useEffect(() => {
+    if (branches.length > 0 && !selectedBranch) {
+      setSelectedBranch(branches[0].branch_id);
+    }
+  }, [branches]);
+
+  const fetchPaymentSummary = async () => {
+    if (!selectedBranch) {
+      toast.error('Please select a VLC');
+      return;
+    }
+    
+    setLoading(true);
+    console.log('Fetching payment summary with params:', {
+      dairyid: selectedBranch,
+      datefrom: dateFrom,
+      dateto: dateTo
+    });
+    
+    try {
+      const response = await api.get('/payments/getdairybillsummary', {
+        params: {
+          dairyid: selectedBranch,
+          datefrom: dateFrom,
+          dateto: dateTo
+        }
+      });
+      console.log('API Response:', response);
+      console.log('Response data:', response.data);
+      setData(response.data);
+      toast.success('Data loaded successfully');
+    } catch (error: any) {
+      console.error('API Error:', error);
+      console.error('Error response:', error.response);
+      toast.error(error.response?.data?.message || 'Failed to load payment summary');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (branches.length > 0) {
+      setData(null);
+    }
+  }, [branches]);
+
+  const getAggregatedFarmers = () => {
+    if (!data?.data) return [];
+    
+    const farmerMap = new Map();
+    
+    data.data.forEach(dateData => {
+      dateData.farmers.forEach(farmer => {
+        const farmerId = farmer.farmer_id;
+        
+        if (!farmerMap.has(farmerId)) {
+          farmerMap.set(farmerId, {
+            farmer_id: farmerId,
+            farmer_username: farmer.farmer_username,
+            farmer_name: farmer.farmer_name,
+            milk_total: 0,
+            previous_balance: 0,
+            advance: 0,
+            cattle_feed: 0,
+            other1: 0,
+            other2: 0,
+            received: 0,
+            total_deduction: 0,
+            net_payable: 0,
+            remaining_balance: 0
+          });
+        }
+        
+        const aggregated = farmerMap.get(farmerId);
+        aggregated.milk_total += farmer.milk_total || 0;
+        aggregated.advance += farmer.deductions.advance || 0;
+        aggregated.cattle_feed += farmer.deductions.cattle_feed || 0;
+        aggregated.other1 += farmer.deductions.other1 || 0;
+        aggregated.other2 += farmer.deductions.other2 || 0;
+        aggregated.received += farmer.from_bills?.received_total || 0;
+        aggregated.net_payable += farmer.net_payable || 0;
+        
+        const totalDeduction = (farmer.from_bills?.advance_total || 0) + 
+                              (farmer.from_bills?.cattlefeed_total || 0) + 
+                              (farmer.from_bills?.other1_total || 0) + 
+                              (farmer.from_bills?.other2_total || 0);
+        aggregated.total_deduction += totalDeduction;
+        
+        const totalRemaining = (farmer.from_bills?.advance_remaining || 0) + 
+                              (farmer.from_bills?.cattlefeed_remaining || 0) + 
+                              (farmer.from_bills?.other1_remaining || 0) + 
+                              (farmer.from_bills?.other2_remaining || 0);
+        aggregated.remaining_balance += totalRemaining;
+        
+        if (farmer.previous_bill) {
+          const prevRemaining = (farmer.previous_bill.advance_remaining || 0) + 
+                               (farmer.previous_bill.cattlefeed_remaining || 0) + 
+                               (farmer.previous_bill.other1_remaining || 0) + 
+                               (farmer.previous_bill.other2_remaining || 0);
+          aggregated.previous_balance = prevRemaining;
+        }
+      });
+    });
+    
+    return Array.from(farmerMap.values());
+  };
+
+  const calculateTotals = () => {
+    const farmers = getAggregatedFarmers();
+    
+    return farmers.reduce((acc, farmer) => ({
+      totalMilk: acc.totalMilk + farmer.milk_total,
+      totalAdvance: acc.totalAdvance + farmer.advance,
+      totalFeed: acc.totalFeed + farmer.cattle_feed,
+      totalOther1: acc.totalOther1 + farmer.other1,
+      totalOther2: acc.totalOther2 + farmer.other2,
+      totalReceived: acc.totalReceived + farmer.received,
+      totalDeduction: acc.totalDeduction + farmer.total_deduction,
+      totalNet: acc.totalNet + farmer.net_payable,
+      totalRemaining: acc.totalRemaining + farmer.remaining_balance
+    }), {
+      totalMilk: 0,
+      totalAdvance: 0,
+      totalFeed: 0,
+      totalOther1: 0,
+      totalOther2: 0,
+      totalReceived: 0,
+      totalDeduction: 0,
+      totalNet: 0,
+      totalRemaining: 0
+    });
+  };
+
+  const exportToPDF = () => {
+    if (!data) return;
+
+    const doc = new jsPDF('l', 'mm', 'a4');
+    const farmers = getAggregatedFarmers();
+    const totals = calculateTotals();
+    const branch = branches.find(b => b.branch_id === selectedBranch);
+    
+    doc.setFontSize(16);
+    doc.text('Payment Summary Report', 148, 15, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.text(`Branch: ${branch?.name || 'N/A'}`, 148, 22, { align: 'center' });
+    doc.text(`Period: ${dateFrom} to ${dateTo}`, 148, 28, { align: 'center' });
+    
+    const tableData = farmers.map(f => [
+      f.farmer_username,
+      f.farmer_name,
+      f.milk_total.toFixed(2),
+      f.previous_balance.toFixed(2),
+      f.advance.toFixed(2),
+      f.cattle_feed.toFixed(2),
+      f.other1.toFixed(2),
+      f.other2.toFixed(2),
+      f.received.toFixed(2),
+      f.total_deduction.toFixed(2),
+      Math.max(0, f.net_payable).toFixed(2),
+      f.remaining_balance.toFixed(2)
+    ]);
+
+    autoTable(doc, {
+      startY: 35,
+      head: [['ID', 'Name', 'Milk', 'Prev Bal', 'Adv', 'Cattle', 'Oth1', 'Oth2', 'Recieved', 'Deduction', 'Net', 'Remaning']],
+      body: tableData,
+      foot: [[
+        'Total',
+        '',
+        totals.totalMilk.toFixed(2),
+        '',
+        totals.totalAdvance.toFixed(2),
+        totals.totalFeed.toFixed(2),
+        totals.totalOther1.toFixed(2),
+        totals.totalOther2.toFixed(2),
+        totals.totalReceived.toFixed(2),
+        totals.totalDeduction.toFixed(2),
+        Math.max(0, totals.totalNet).toFixed(2),
+        totals.totalRemaining.toFixed(2)
+      ]],
+      theme: 'grid',
+      styles: { fontSize: 7 },
+      headStyles: { fillColor: [66, 139, 202] },
+      footStyles: { fillColor: [200, 200, 200], fontStyle: 'bold' }
+    });
+
+    doc.save(`PaymentSummary_${dateFrom}_${dateTo}.pdf`);
+    toast.success('PDF exported successfully');
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="text-6xl font-bold text-gray-300 mb-4">Coming Soon</h1>
-        <p className="text-xl text-gray-500">Payment Summary Report is under development</p>
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">Payment Summary Report</h1>
+        
+        <Card className="mb-6">
+          <CardContent className="p-4">
+            <div className="flex flex-wrap gap-4 items-end">
+              <div className="flex-1 min-w-[200px]">
+                <label className="block text-sm font-medium text-gray-700 mb-2">VLC Center</label>
+                <select
+                  value={selectedBranch || ''}
+                  onChange={(e) => setSelectedBranch(Number(e.target.value))}
+                  className="w-full border rounded px-3 py-2"
+                >
+                  <option value="">Select VLC</option>
+                  {branches.map((branch) => (
+                    <option key={branch.branch_id} value={branch.branch_id}>
+                      {branch.username} - {branch.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="flex-1 min-w-[150px]">
+                <label className="block text-sm font-medium text-gray-700 mb-2">From Date</label>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              
+              <div className="flex-1 min-w-[150px]">
+                <label className="block text-sm font-medium text-gray-700 mb-2">To Date</label>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              
+              <div className="flex gap-2">
+                <button
+                  onClick={fetchPaymentSummary}
+                  disabled={loading}
+                  className="flex items-center gap-2 bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 disabled:opacity-50"
+                >
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calendar className="w-4 h-4" />}
+                  Show
+                </button>
+                <button
+                  onClick={exportToPDF}
+                  disabled={!data || loading}
+                  className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+                >
+                  <Download className="w-4 h-4" />
+                  Export PDF
+                </button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {(() => {
+          const totals = calculateTotals();
+          return (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-600">Total Milk</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold">₹{totals.totalMilk.toFixed(2)}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-600">Total Advances</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold">₹{totals.totalAdvance.toFixed(2)}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-600">Total Feed</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold">₹{totals.totalFeed.toFixed(2)}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-600">Net Payable</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold text-green-600">₹{totals.totalNet.toFixed(2)}</p>
+                </CardContent>
+              </Card>
+            </div>
+          );
+        })()}
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Farmer Payment Details</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="flex justify-center items-center h-64">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="px-2 py-2 text-left text-xs">Code</th>
+                      <th className="px-2 py-2 text-left text-xs">Name</th>
+                      <th className="px-2 py-2 text-right text-xs">Milk</th>
+                      <th className="px-2 py-2 text-right text-xs">Prev Bal</th>
+                      <th className="px-2 py-2 text-right text-xs">Advance</th>
+                      <th className="px-2 py-2 text-right text-xs">Feed</th>
+                      <th className="px-2 py-2 text-right text-xs">Other1</th>
+                      <th className="px-2 py-2 text-right text-xs">Other2</th>
+                      <th className="px-2 py-2 text-right text-xs">Received</th>
+                      <th className="px-2 py-2 text-right text-xs">Deduction</th>
+                      <th className="px-2 py-2 text-right text-xs">Net Pay</th>
+                      <th className="px-2 py-2 text-right text-xs">Remaining</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const farmers = getAggregatedFarmers();
+                      return farmers.length > 0 ? (
+                        farmers.map((farmer) => (
+                          <tr key={farmer.farmer_id} className="border-b hover:bg-gray-50">
+                            <td className="px-2 py-2 text-xs">{farmer.farmer_username}</td>
+                            <td className="px-2 py-2 text-xs">{farmer.farmer_name}</td>
+                            <td className="px-2 py-2 text-right text-xs">₹{farmer.milk_total.toFixed(2)}</td>
+                            <td className="px-2 py-2 text-right text-xs">₹{farmer.previous_balance.toFixed(2)}</td>
+                            <td className="px-2 py-2 text-right text-xs">₹{farmer.advance.toFixed(2)}</td>
+                            <td className="px-2 py-2 text-right text-xs">₹{farmer.cattle_feed.toFixed(2)}</td>
+                            <td className="px-2 py-2 text-right text-xs">₹{farmer.other1.toFixed(2)}</td>
+                            <td className="px-2 py-2 text-right text-xs">₹{farmer.other2.toFixed(2)}</td>
+                            <td className="px-2 py-2 text-right text-xs">₹{farmer.received.toFixed(2)}</td>
+                            <td className="px-2 py-2 text-right text-xs">₹{farmer.total_deduction.toFixed(2)}</td>
+                            <td className="px-2 py-2 text-right text-xs font-semibold">₹{Math.max(0, farmer.net_payable).toFixed(2)}</td>
+                            <td className="px-2 py-2 text-right text-xs">₹{farmer.remaining_balance.toFixed(2)}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={12} className="px-4 py-8 text-center text-gray-500">
+                            No data available. Select filters and click Show to load data.
+                          </td>
+                        </tr>
+                      );
+                    })()}
+                  </tbody>
+                  <tfoot>
+                    {(() => {
+                      const totals = calculateTotals();
+                      return (
+                        <tr className="bg-gray-200 font-bold">
+                          <td className="px-2 py-2 text-xs" colSpan={2}>Total</td>
+                          <td className="px-2 py-2 text-right text-xs">₹{totals.totalMilk.toFixed(2)}</td>
+                          <td className="px-2 py-2 text-right text-xs"></td>
+                          <td className="px-2 py-2 text-right text-xs">₹{totals.totalAdvance.toFixed(2)}</td>
+                          <td className="px-2 py-2 text-right text-xs">₹{totals.totalFeed.toFixed(2)}</td>
+                          <td className="px-2 py-2 text-right text-xs">₹{totals.totalOther1.toFixed(2)}</td>
+                          <td className="px-2 py-2 text-right text-xs">₹{totals.totalOther2.toFixed(2)}</td>
+                          <td className="px-2 py-2 text-right text-xs">₹{totals.totalReceived.toFixed(2)}</td>
+                          <td className="px-2 py-2 text-right text-xs">₹{totals.totalDeduction.toFixed(2)}</td>
+                          <td className="px-2 py-2 text-right text-xs">₹{Math.max(0, totals.totalNet).toFixed(2)}</td>
+                          <td className="px-2 py-2 text-right text-xs">₹{totals.totalRemaining.toFixed(2)}</td>
+                        </tr>
+                      );
+                    })()}
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

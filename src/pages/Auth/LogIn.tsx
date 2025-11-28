@@ -113,8 +113,8 @@ const Login: React.FC = () => {
           {/* Dairy building on left */}
           <div className="absolute bottom-16 md:bottom-20 left-8 md:left-12 text-5xl md:text-7xl opacity-80">🏭</div>
           
-          {/* Animated tractor with farmer moving right to left */}
-          <div className="absolute bottom-16 md:bottom-20 right-0 animate-[slide_15s_linear_infinite]">
+          {/* Animated tractor moving middle to left */}
+          <div className="absolute bottom-16 md:bottom-20 left-1/2 animate-[slide_8s_linear_infinite]">
             <div className="text-4xl md:text-6xl">🚜</div>
           </div>
           

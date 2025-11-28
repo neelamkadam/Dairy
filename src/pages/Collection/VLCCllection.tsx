@@ -63,12 +63,29 @@ const VLCCllection = () => {
 
   const [toDate, setToDate] = useState<Date>();
   const [fromDate, setFromDate] = useState<Date>();
-  const [selectedBranch, setSelectedBranch] = useState("all");
+  const [selectedBranches, setSelectedBranches] = useState<number[]>([]);
   const [selectedType, setSelectedType] = useState("all");
   const [selectedShift, setSelectedShift] = useState("all");
   const [farmerData, setFarmerData] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  const toggleBranch = (branchId: number) => {
+    setSelectedBranches(prev => 
+      prev.includes(branchId) 
+        ? prev.filter(id => id !== branchId)
+        : [...prev, branchId]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedBranches.length === branches.length) {
+      setSelectedBranches([]);
+    } else {
+      setSelectedBranches(branches.map(b => b.branch_id));
+    }
+  };
   
   const vlcData = farmerData.reduce((acc: any[], item) => {
     const existing = acc.find(v => v.dairy_id === item.dairy_id);
@@ -138,13 +155,14 @@ const VLCCllection = () => {
       return;
     }
 
-    try {
-      const branchIds = selectedBranch === "all" 
-        ? branches.map(b => b.branch_id) 
-        : [parseInt(selectedBranch)];
+    if (selectedBranches.length === 0) {
+      toast.error("Please select at least one VLC Center");
+      return;
+    }
 
+    try {
       const payload = {
-        branches: branchIds,
+        branches: selectedBranches,
         type: selectedType === "all" ? "All" : selectedType.charAt(0).toUpperCase() + selectedType.slice(1),
         shift: selectedShift === "all" ? "All" : selectedShift.charAt(0).toUpperCase() + selectedShift.slice(1),
         from_date: formatDate(fromDate, "yyyy-MM-dd"),
@@ -285,21 +303,63 @@ const VLCCllection = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label className="text-sm font-medium text-gray-700">
-                {t('vlc_id')}
+                {t('vlc_id')} 
               </Label>
-              <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-                <SelectTrigger className="w-full bg-gray-50 border-gray-200">
-                  <SelectValue placeholder={t('all')} />
-                </SelectTrigger>
-                <SelectContent className="bg-white">
-                  <SelectItem value="all">{t('all')}</SelectItem>
-                  {branches?.map((branch) => (
-                    <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
-                      {branch.username} - {branch.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal bg-gray-50 border-gray-200"
+                  >
+                    {selectedBranches.length === 0 
+                      ? "Select VLC Centers" 
+                      : `${selectedBranches.length} VLC(s) selected`}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-0 bg-white" align="start">
+                  <div className="p-2 border-b flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={toggleSelectAll}
+                      className="flex-1 text-xs"
+                    >
+                      {selectedBranches.length === branches.length ? 'Deselect All' : 'Select All'}
+                    </Button>
+                    {selectedBranches.length > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedBranches([])}
+                        className="flex-1 text-xs"
+                      >
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                  <div className="max-h-60 overflow-y-auto p-2">
+                    {branches?.map((branch) => (
+                      <div
+                        key={branch.branch_id}
+                        className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                        onClick={() => toggleBranch(branch.branch_id)}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedBranches.includes(branch.branch_id)}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            toggleBranch(branch.branch_id);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="h-4 w-4"
+                        />
+                        <span className="text-sm">{branch.username} - {branch.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-medium text-gray-700">

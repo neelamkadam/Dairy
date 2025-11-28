@@ -235,17 +235,7 @@ input[type="number"] {
   }
 } */
 
-/* Login page animations */
-@keyframes slide {
-  0% {
-    transform: translateX(100vw);
-  }
-  100% {
-    transform: translateX(-100%);
-  }
-}
-
-@keyframes float {
+@keyframes slide { 0% { left: 50%; } 100% { left: 8%; } } @keyframes float {
   0%, 100% {
     transform: translateY(0px);
   }

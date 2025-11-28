@@ -52,15 +52,22 @@ const Dashboard = () => {
       totalQuantity: 0,
       avgFat: 0,
       avgSnf: 0,
-      totalAmount: 0
+      totalAmount: 0,
+      totalFarmers: 0,
+      avgRate: 0,
+      avgQuantity: 0
     };
 
     const totalQuantity = collections.reduce((sum, item) => sum + item.quantity, 0);
     const totalAmount = collections.reduce((sum, item) => sum + item.amount, 0);
+    const totalFarmers = collections.reduce((sum, item) => sum + item.farmer_count, 0) || 0;
     const avgFat = totalQuantity > 0 ? collections.reduce((sum, item) => sum + (item.fat * item.quantity), 0) / totalQuantity : 0;
     const avgSnf = totalQuantity > 0 ? collections.reduce((sum, item) => sum + (item.snf * item.quantity), 0) / totalQuantity : 0;
+    const avgRate = totalQuantity > 0 ? totalAmount / totalQuantity : 0;
+    const activeCollections = collections.filter(c => c.quantity > 0).length;
+    const avgQuantity = activeCollections > 0 ? totalQuantity / activeCollections : 0;
 
-    return { totalQuantity, avgFat, avgSnf, totalAmount };
+    return { totalQuantity, avgFat, avgSnf, totalAmount, totalFarmers, avgRate, avgQuantity };
   };
 
   const kpis = calculateKPIs();
@@ -74,11 +81,25 @@ const Dashboard = () => {
       gradient: "bg-gradient-to-br from-cyan-400 to-cyan-600"
     },
     {
+      title: t('total_active_farmers'),
+      value: kpis.totalFarmers.toString(),
+      change: "",
+      icon: Users,
+      gradient: "bg-gradient-to-br from-green-400 to-green-600"
+    },
+    {
       title: t('total_milk_collection'),
       value: `${kpis.totalQuantity.toFixed(1)}L`,
       change: "",
       icon: Droplets,
       gradient: "bg-gradient-to-br from-blue-400 to-blue-600"
+    },
+    {
+      title: t('total_amount'),
+      value: `₹${kpis.totalAmount.toFixed(2)}`,
+      change: "",
+      icon: IndianRupee,
+      gradient: "bg-gradient-to-br from-purple-400 to-purple-600"
     },
     {
       title: t('average_fat'),
@@ -91,15 +112,22 @@ const Dashboard = () => {
       title: t('average_snf'),
       value: kpis.avgSnf.toFixed(2),
       change: "",
-      icon: Activity,
+      icon: TrendingUp,
       gradient: "bg-gradient-to-br from-cyan-500 to-cyan-700"
     },
     {
-      title: t('total_payments'),
-      value: `₹${kpis.totalAmount.toFixed(2)}`,
+      title: t('average_quantity'),
+      value: `${kpis.avgQuantity.toFixed(2)}L`,
+      change: "",
+      icon: Droplets,
+      gradient: "bg-gradient-to-br from-pink-400 to-pink-600"
+    },
+    {
+      title: t('average_rate'),
+      value: `₹${kpis.avgRate.toFixed(2)}`,
       change: "",
       icon: IndianRupee,
-      gradient: "bg-gradient-to-br from-blue-500 to-blue-700"
+      gradient: "bg-gradient-to-br from-orange-400 to-orange-600"
     }
   ];
 
@@ -166,7 +194,7 @@ const Dashboard = () => {
         </div>
         
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           {kpiData.map((kpi, index) => (
             <KPICard
               key={index}

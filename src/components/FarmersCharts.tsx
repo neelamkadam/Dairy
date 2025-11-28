@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { CollectionData } from "@/redux/dashboardSlice";
 
@@ -9,7 +10,8 @@ interface FarmersChartProps {
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'];
 
 const FarmersChart = ({ collections, branches }: FarmersChartProps) => {
-  const data = collections
+  const [hiddenItems, setHiddenItems] = useState<Set<string>>(new Set());
+  const allData = collections
     .filter(item => item.quantity > 0)
     .map((item, index) => {
       const branch = branches.find(b => b.branch_id === item.dairy_id);
@@ -19,6 +21,20 @@ const FarmersChart = ({ collections, branches }: FarmersChartProps) => {
         color: COLORS[index % COLORS.length]
       };
     });
+
+  const data = allData.filter(item => !hiddenItems.has(item.name));
+
+  const toggleItem = (name: string) => {
+    setHiddenItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(name)) {
+        newSet.delete(name);
+      } else {
+        newSet.add(name);
+      }
+      return newSet;
+    });
+  };
 
   const totalQuantity = data.reduce((sum, item) => sum + item.value, 0);
 
@@ -49,13 +65,25 @@ const FarmersChart = ({ collections, branches }: FarmersChartProps) => {
         )}
       </div>
       <div className="flex flex-wrap gap-2 md:gap-4 mt-4 justify-center">
-        {data.map((entry, index) => (
-          <div key={index} className="flex items-center gap-2">
+        {allData.map((entry, index) => (
+          <div 
+            key={index} 
+            className="flex items-center gap-2 cursor-pointer"
+            onClick={() => toggleItem(entry.name)}
+          >
             <div 
               className="w-3 h-3 rounded-full" 
-              style={{ backgroundColor: entry.color }}
+              style={{ 
+                backgroundColor: entry.color,
+                opacity: hiddenItems.has(entry.name) ? 0.3 : 1
+              }}
             />
-            <span className="text-sm text-gray-600">{entry.name}</span>
+            <span 
+              className="text-sm text-gray-600"
+              style={{ opacity: hiddenItems.has(entry.name) ? 0.3 : 1 }}
+            >
+              {entry.name}
+            </span>
           </div>
         ))}
       </div>
