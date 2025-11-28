@@ -7,16 +7,24 @@ export interface CollectionData {
   fat: number;
   snf: number;
   amount: number;
+  farmers: number;
+}
+
+export interface GraphData {
+  date: string;
+  quantity: number;
 }
 
 export interface DashboardState {
   collections: CollectionData[];
+  graph: GraphData[];
   loading: boolean;
   error: string | null;
 }
 
 const initialState: DashboardState = {
   collections: [],
+  graph: [],
   loading: false,
   error: null,
 };
@@ -32,7 +40,7 @@ export const fetchCollectionsSummary = createAsyncThunk(
         return rejectWithValue(data.message || 'Failed to fetch collections');
       }
 
-      return data.data;
+      return { collections: data.data, graph: data.graph || [] };
     } catch (error) {
       return rejectWithValue('Network error occurred');
     }
@@ -53,7 +61,8 @@ export const dashboardSlice = createSlice({
       })
       .addCase(fetchCollectionsSummary.fulfilled, (state, action) => {
         state.loading = false;
-        state.collections = action.payload;
+        state.collections = action.payload.collections;
+        state.graph = action.payload.graph;
         state.error = null;
       })
       .addCase(fetchCollectionsSummary.rejected, (state, action) => {

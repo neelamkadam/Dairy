@@ -9,6 +9,7 @@ import autoTable from 'jspdf-autotable';
 import { api } from '@/services/config';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/redux/store';
+import { toast } from 'react-toastify';
 
 interface CollectionRecord {
   date: string;
@@ -27,21 +28,25 @@ interface CollectionRecord {
 interface FarmerBill {
   farmer_id: string;
   farmer_name: string;
-  mobile_number: string;
-  total_milk_amount: number;
-  total_advance: number;
-  total_feed: number;
-  total_other: number;
+  milk_total: number;
+  received_total: number;
   net_payable: number;
-  is_finalized: number;
+  deductions: {
+    advance: number;
+    cattle_feed: number;
+    other1: number;
+    other2: number;
+  };
 }
 
 interface FarmerPayment {
+  id: number;
   farmer_id: string;
+  farmer_name: string;
   payment_type: string;
-  amount: number;
+  amount_taken: string;
+  received: string;
   date: string;
-  description: string;
 }
 
 const FarmerBillInvoiceReport = () => {
@@ -54,6 +59,7 @@ const FarmerBillInvoiceReport = () => {
   const [farmerBills, setFarmerBills] = useState<FarmerBill[]>([]);
   const [farmerPayments, setFarmerPayments] = useState<FarmerPayment[]>([]);
   const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
 
   useEffect(() => {
     const today = new Date();
@@ -79,7 +85,7 @@ const FarmerBillInvoiceReport = () => {
 
   const handleShow = async () => {
     if (!selectedVLC || !fromDate || !toDate) {
-      alert('Please select VLC Center and date range');
+      toast.error('Please select VLC Center and date range');
       return;
     }
 
@@ -126,14 +132,21 @@ const FarmerBillInvoiceReport = () => {
       setCollectionData(filteredData);
       setFarmerBills(collectionResponse.data.farmerwise_bills || []);
       setFarmerPayments(collectionResponse.data.farmer_payments || []);
+      setCurrentPage(0);
     } catch (error: any) {
       console.error('Error fetching data:', error);
       console.error('Error response:', error.response?.data);
       console.error('Error status:', error.response?.status);
-      alert(`Failed to fetch data: ${error.response?.data?.message || error.message}`);
+      toast.error(`Failed to fetch data: ${error.response?.data?.message || error.message}`);
     } finally {
       setLoading(false);
     }
+  };
+
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toISOString().split('T')[0];
   };
 
   const calculateTotals = () => {
@@ -174,70 +187,102 @@ const FarmerBillInvoiceReport = () => {
     };
   };
 
+  const groupByFarmer = () => {
+    const grouped: { [key: string]: CollectionRecord[] } = {};
+    collectionData.forEach(item => {
+      if (!grouped[item.farmer_id]) grouped[item.farmer_id] = [];
+      grouped[item.farmer_id].push(item);
+    });
+    return grouped;
+  };
+
   const exportToPDF = () => {
     const doc = new jsPDF('landscape');
-    const totals = calculateTotals();
     const vlcName = branches.find(v => v.branch_id.toString() === selectedVLC)?.name || 'VLC Center';
+    const grouped = groupByFarmer();
+    let startY = 38;
 
-    doc.setFontSize(16);
-    doc.text('Farmer Bill Invoice Report', 14, 15);
-    doc.setFontSize(10);
-    doc.text(`VLC Center: ${vlcName}`, 14, 22);
-    doc.text(`Period: ${fromDate} to ${toDate}`, 14, 28);
-    if (farmerCode) doc.text(`Farmer Code: ${farmerCode.padStart(4, '0')}`, 14, 34);
+    Object.keys(grouped).forEach((farmerId, index) => {
+      if (index > 0) doc.addPage();
+      
+      const farmerData = grouped[farmerId];
+      const farmerName = farmerData[0].farmer_name;
+      const bill = farmerBills.find(b => b.farmer_id === farmerId);
+      const payments = farmerPayments.filter(p => p.farmer_id === farmerId);
 
-    const tableData = collectionData.map(item => [
-      item.date,
-      item.shift,
-      item.farmer_id,
-      item.farmer_name,
-      item.type,
-      parseFloat(item.liters).toFixed(2),
-      parseFloat(item.fat).toFixed(1),
-      parseFloat(item.snf).toFixed(1),
-      parseFloat(item.clr).toFixed(1),
-      parseFloat(item.rate).toFixed(2),
-      parseFloat(item.amount).toFixed(2)
-    ]);
+      doc.setFontSize(16);
+      doc.text('Farmer Bill Invoice Report', 14, 15);
+      doc.setFontSize(10);
+      doc.text(`VLC Center: ${vlcName}`, 14, 22);
+      doc.text(`Period: ${fromDate} to ${toDate}`, 14, 28);
+      doc.text(`Farmer: ${farmerId} - ${farmerName}`, 14, 34);
 
-    autoTable(doc, {
-      startY: farmerCode ? 38 : 32,
-      head: [['Date', 'Shift', 'Code', 'Name', 'Type', 'Liters', 'FAT%', 'SNF%', 'CLR', 'Rate', 'Amount']],
-      body: tableData,
-      foot: [[
-        'Total', '', '', '', '',
-        totals.totalLiters.toFixed(2),
-        totals.averageFat.toFixed(1),
-        totals.averageSnf.toFixed(1),
-        '', '',
-        totals.totalAmount.toFixed(2)
-      ]],
-      theme: 'grid',
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [66, 139, 202] }
-    });
+      const tableData = farmerData.map(item => [
+        formatDate(item.date),
+        item.shift,
+        item.type,
+        parseFloat(item.liters).toFixed(2),
+        parseFloat(item.fat).toFixed(1),
+        parseFloat(item.snf).toFixed(1),
+        parseFloat(item.clr).toFixed(1),
+        parseFloat(item.rate).toFixed(2),
+        parseFloat(item.amount).toFixed(2)
+      ]);
 
-    if (farmerCode && farmerBills.length > 0) {
-      const bill = farmerBills.find(b => b.farmer_id === farmerCode.padStart(4, '0'));
+      const farmerTotal = farmerData.reduce((sum, item) => sum + parseFloat(item.amount), 0);
+      const farmerLiters = farmerData.reduce((sum, item) => sum + parseFloat(item.liters), 0);
+
+      autoTable(doc, {
+        startY: 38,
+        head: [['Date', 'Shift', 'Type', 'Liters', 'FAT%', 'SNF%', 'CLR', 'Rate', 'Amount']],
+        body: tableData,
+        foot: [['Total', '', '', farmerLiters.toFixed(2), '', '', '', '', farmerTotal.toFixed(2)]],
+        theme: 'grid',
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [66, 139, 202] }
+      });
+
+      let finalY = (doc as any).lastAutoTable.finalY + 10;
+
+      if (payments.length > 0) {
+        doc.setFontSize(12);
+        doc.text('Payments/Deductions', 14, finalY);
+        
+        const paymentData = payments.map(p => [
+          formatDate(p.date),
+          p.payment_type,
+          `₹${parseFloat(p.amount_taken).toFixed(2)}`
+        ]);
+
+        autoTable(doc, {
+          startY: finalY + 5,
+          head: [['Date', 'Type', 'Amount']],
+          body: paymentData,
+          theme: 'grid',
+          styles: { fontSize: 9 }
+        });
+
+        finalY = (doc as any).lastAutoTable.finalY + 10;
+      }
+
       if (bill) {
-        const finalY = (doc as any).lastAutoTable.finalY + 10;
         doc.setFontSize(12);
         doc.text('Bill Summary', 14, finalY);
         
         autoTable(doc, {
           startY: finalY + 5,
           body: [
-            ['Total Milk Amount', `₹${bill.total_milk_amount.toFixed(2)}`],
-            ['Total Advance', `₹${bill.total_advance.toFixed(2)}`],
-            ['Total Feed', `₹${bill.total_feed.toFixed(2)}`],
-            ['Total Other Deductions', `₹${bill.total_other.toFixed(2)}`],
+            ['Total Milk Amount', `₹${bill.milk_total.toFixed(2)}`],
+            ['Advance', `₹${bill.deductions.advance.toFixed(2)}`],
+            ['Cattle Feed', `₹${bill.deductions.cattle_feed.toFixed(2)}`],
+            ['Other Deductions', `₹${(bill.deductions.other1 + bill.deductions.other2).toFixed(2)}`],
             ['Net Payable', `₹${Math.max(0, bill.net_payable).toFixed(2)}`]
           ],
           theme: 'plain',
           styles: { fontSize: 10 }
         });
       }
-    }
+    });
 
     doc.save(`FarmerBillInvoice_${fromDate}_to_${toDate}.pdf`);
   };
@@ -302,98 +347,156 @@ const FarmerBillInvoiceReport = () => {
         </Card>
       )}
 
-      {collectionData.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Collection Details</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="border p-2">Date</th>
-                    <th className="border p-2">Shift</th>
-                    <th className="border p-2">Code</th>
-                    <th className="border p-2">Name</th>
-                    <th className="border p-2">Type</th>
-                    <th className="border p-2">Liters</th>
-                    <th className="border p-2">FAT%</th>
-                    <th className="border p-2">SNF%</th>
-                    <th className="border p-2">CLR</th>
-                    <th className="border p-2">Rate</th>
-                    <th className="border p-2">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {collectionData.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50">
-                      <td className="border p-2">{item.date}</td>
-                      <td className="border p-2">{item.shift}</td>
-                      <td className="border p-2">{item.farmer_id}</td>
-                      <td className="border p-2">{item.farmer_name}</td>
-                      <td className="border p-2">{item.type}</td>
-                      <td className="border p-2 text-right">{parseFloat(item.liters).toFixed(2)}</td>
-                      <td className="border p-2 text-right">{parseFloat(item.fat).toFixed(1)}</td>
-                      <td className="border p-2 text-right">{parseFloat(item.snf).toFixed(1)}</td>
-                      <td className="border p-2 text-right">{parseFloat(item.clr).toFixed(1)}</td>
-                      <td className="border p-2 text-right">{parseFloat(item.rate).toFixed(2)}</td>
-                      <td className="border p-2 text-right">{parseFloat(item.amount).toFixed(2)}</td>
-                    </tr>
-                  ))}
-                  <tr className="bg-blue-50 font-bold">
-                    <td colSpan={5} className="border p-2 text-right">Total</td>
-                    <td className="border p-2 text-right">{totals.totalLiters.toFixed(2)}</td>
-                    <td className="border p-2 text-right">{totals.averageFat.toFixed(1)}</td>
-                    <td className="border p-2 text-right">{totals.averageSnf.toFixed(1)}</td>
-                    <td className="border p-2"></td>
-                    <td className="border p-2"></td>
-                    <td className="border p-2 text-right">{totals.totalAmount.toFixed(2)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {collectionData.length > 0 && (() => {
+        const grouped = Object.entries(groupByFarmer());
+        const totalPages = grouped.length;
+        const [farmerId, farmerData] = grouped[currentPage] || [];
+        if (!farmerId) return null;
 
-      {farmerCode && farmerBills.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Bill Summary</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {(() => {
-              const bill = farmerBills.find(b => b.farmer_id === farmerCode.padStart(4, '0'));
-              if (!bill) return <p>No bill data found for this farmer</p>;
-              return (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 bg-gray-50 rounded">
-                    <p className="text-sm text-gray-600">Total Milk Amount</p>
-                    <p className="text-xl font-bold">₹{bill.total_milk_amount.toFixed(2)}</p>
-                  </div>
-                  <div className="p-4 bg-gray-50 rounded">
-                    <p className="text-sm text-gray-600">Total Advance</p>
-                    <p className="text-xl font-bold">₹{bill.total_advance.toFixed(2)}</p>
-                  </div>
-                  <div className="p-4 bg-gray-50 rounded">
-                    <p className="text-sm text-gray-600">Total Feed</p>
-                    <p className="text-xl font-bold">₹{bill.total_feed.toFixed(2)}</p>
-                  </div>
-                  <div className="p-4 bg-gray-50 rounded">
-                    <p className="text-sm text-gray-600">Total Other Deductions</p>
-                    <p className="text-xl font-bold">₹{bill.total_other.toFixed(2)}</p>
-                  </div>
-                  <div className="p-4 bg-green-50 rounded col-span-2">
-                    <p className="text-sm text-gray-600">Net Payable</p>
-                    <p className="text-2xl font-bold text-green-600">₹{Math.max(0, bill.net_payable).toFixed(2)}</p>
-                  </div>
+        const bill = farmerBills.find(b => b.farmer_id === farmerId);
+        const payments = farmerPayments.filter(p => p.farmer_id === farmerId);
+        const farmerTotal = farmerData.reduce((sum, item) => sum + parseFloat(item.amount), 0);
+        const farmerLiters = farmerData.reduce((sum, item) => sum + parseFloat(item.liters), 0);
+
+        return (
+          <>
+            <div className="flex justify-between items-center">
+              <p className="text-sm text-gray-600">Farmer {currentPage + 1} of {totalPages}</p>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={() => setCurrentPage(p => Math.max(0, p - 1))} 
+                  disabled={currentPage === 0}
+                  variant="outline"
+                  size="sm"
+                >
+                  Previous
+                </Button>
+                <Button 
+                  onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))} 
+                  disabled={currentPage === totalPages - 1}
+                  variant="outline"
+                  size="sm"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Farmer: {farmerId} - {farmerData[0].farmer_name}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="border p-2">Date</th>
+                        <th className="border p-2">Shift</th>
+                        <th className="border p-2">Type</th>
+                        <th className="border p-2">Liters</th>
+                        <th className="border p-2">FAT%</th>
+                        <th className="border p-2">SNF%</th>
+                        <th className="border p-2">CLR</th>
+                        <th className="border p-2">Rate</th>
+                        <th className="border p-2">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {farmerData.map((item, idx) => (
+                        <tr key={idx} className="hover:bg-gray-50">
+                          <td className="border p-2">{formatDate(item.date)}</td>
+                          <td className="border p-2">{item.shift}</td>
+                          <td className="border p-2">{item.type}</td>
+                          <td className="border p-2 text-right">{parseFloat(item.liters).toFixed(2)}</td>
+                          <td className="border p-2 text-right">{parseFloat(item.fat).toFixed(1)}</td>
+                          <td className="border p-2 text-right">{parseFloat(item.snf).toFixed(1)}</td>
+                          <td className="border p-2 text-right">{parseFloat(item.clr).toFixed(1)}</td>
+                          <td className="border p-2 text-right">{parseFloat(item.rate).toFixed(2)}</td>
+                          <td className="border p-2 text-right">{parseFloat(item.amount).toFixed(2)}</td>
+                        </tr>
+                      ))}
+                      <tr className="bg-blue-50 font-bold">
+                        <td colSpan={3} className="border p-2 text-right">Total</td>
+                        <td className="border p-2 text-right">{farmerLiters.toFixed(2)}</td>
+                        <td className="border p-2"></td>
+                        <td className="border p-2"></td>
+                        <td className="border p-2"></td>
+                        <td className="border p-2"></td>
+                        <td className="border p-2 text-right">{farmerTotal.toFixed(2)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
-              );
-            })()}
-          </CardContent>
-        </Card>
-      )}
+              </CardContent>
+            </Card>
+
+            {payments.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Payments/Deductions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="border p-2">Date</th>
+                          <th className="border p-2">Type</th>
+                          <th className="border p-2">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {payments.map((payment) => (
+                          <tr key={payment.id} className="hover:bg-gray-50">
+                            <td className="border p-2">{formatDate(payment.date)}</td>
+                            <td className="border p-2">{payment.payment_type}</td>
+                            <td className="border p-2 text-right">₹{parseFloat(payment.amount_taken).toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {bill && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Bill Summary</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 bg-gray-50 rounded">
+                      <p className="text-sm text-gray-600">Total Milk Amount</p>
+                      <p className="text-xl font-bold">₹{bill.milk_total.toFixed(2)}</p>
+                    </div>
+                    <div className="p-4 bg-gray-50 rounded">
+                      <p className="text-sm text-gray-600">Advance</p>
+                      <p className="text-xl font-bold">₹{bill.deductions.advance.toFixed(2)}</p>
+                    </div>
+                    <div className="p-4 bg-gray-50 rounded">
+                      <p className="text-sm text-gray-600">Cattle Feed</p>
+                      <p className="text-xl font-bold">₹{bill.deductions.cattle_feed.toFixed(2)}</p>
+                    </div>
+                    <div className="p-4 bg-gray-50 rounded">
+                      <p className="text-sm text-gray-600">Other Deductions</p>
+                      <p className="text-xl font-bold">₹{(bill.deductions.other1 + bill.deductions.other2).toFixed(2)}</p>
+                    </div>
+                    <div className="p-4 bg-green-50 rounded col-span-2">
+                      <p className="text-sm text-gray-600">Net Payable</p>
+                      <p className="text-2xl font-bold text-green-600">₹{Math.max(0, bill.net_payable).toFixed(2)}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            </div>
+          </>
+        );
+      })()}
     </div>
   );
 };

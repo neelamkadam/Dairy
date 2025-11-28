@@ -16,11 +16,17 @@ const Dashboard = () => {
     return hour >= 16 ? 'evening' : 'morning';
   };
 
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
   const [selectedShift, setSelectedShift] = useState(getDefaultShift());
   const dispatch = useAppDispatch();
   const { branches } = useAppSelector(state => state.branch);
-  const { collections, loading } = useAppSelector(state => state.dashboard);
+  const { collections, graph, loading } = useAppSelector(state => state.dashboard);
 
   const fetchDashboardData = () => {
     if (branches.length > 0) {
@@ -37,6 +43,22 @@ const Dashboard = () => {
   useEffect(() => {
     fetchDashboardData();
   }, [selectedDate, selectedShift, branches]);
+
+  useEffect(() => {
+    const checkDate = setInterval(() => {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const currentDate = `${year}-${month}-${day}`;
+      
+      if (currentDate !== selectedDate) {
+        setSelectedDate(currentDate);
+      }
+    }, 60000); // Check every minute
+
+    return () => clearInterval(checkDate);
+  }, [selectedDate]);
 
   const getCurrentTime = () => {
     return new Date().toLocaleTimeString('en-US', { 
@@ -60,7 +82,7 @@ const Dashboard = () => {
 
     const totalQuantity = collections.reduce((sum, item) => sum + item.quantity, 0);
     const totalAmount = collections.reduce((sum, item) => sum + item.amount, 0);
-    const totalFarmers = collections.reduce((sum, item) => sum + item.farmer_count, 0) || 0;
+    const totalFarmers = collections.reduce((sum, item) => sum + item.farmers, 0);
     const avgFat = totalQuantity > 0 ? collections.reduce((sum, item) => sum + (item.fat * item.quantity), 0) / totalQuantity : 0;
     const avgSnf = totalQuantity > 0 ? collections.reduce((sum, item) => sum + (item.snf * item.quantity), 0) / totalQuantity : 0;
     const avgRate = totalQuantity > 0 ? totalAmount / totalQuantity : 0;
@@ -221,14 +243,14 @@ const Dashboard = () => {
             </CardContent>
           </Card>
           
-          {/* Bar Chart */}
+          {/* Line Chart */}
           <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle className="text-base md:text-lg font-semibold">{t('branch_wise_collection')}</CardTitle>
+              <CardTitle className="text-base md:text-lg font-semibold">7-Day Collection Trend</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-64 md:h-80 w-full overflow-hidden">
-                <MilkCollectionChart collections={collections} branches={branches} />
+                <MilkCollectionChart graph={graph} />
               </div>
             </CardContent>
           </Card>

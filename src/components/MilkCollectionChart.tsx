@@ -1,31 +1,47 @@
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
-import { CollectionData } from "@/redux/dashboardSlice";
+import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
+import { GraphData } from "@/redux/dashboardSlice";
 
 interface MilkCollectionChartProps {
-  collections: CollectionData[];
-  branches: Array<{ branch_id: number; name: string }>;
+  graph: GraphData[];
 }
 
-const MilkCollectionChart = ({ collections, branches }: MilkCollectionChartProps) => {
-  const data = collections.map(item => {
-    const branch = branches.find(b => b.branch_id === item.dairy_id);
+const MilkCollectionChart = ({ graph }: MilkCollectionChartProps) => {
+  const data = graph.map(item => {
+    const date = new Date(item.date);
     return {
-      name: branch?.name || `Dairy ${item.dairy_id}`,
+      day: date.toLocaleDateString('en-US', { weekday: 'short' }),
+      date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       quantity: item.quantity
     };
   });
+
+  const CustomXAxisTick = (props: any) => {
+    const { x, y, payload } = props;
+    const item = data.find(d => d.date === payload.value);
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text x={0} y={0} dy={16} textAnchor="middle" fill="#6B7280" fontSize={12}>
+          {item?.day}
+        </text>
+        <text x={0} y={0} dy={30} textAnchor="middle" fill="#6B7280" fontSize={10}>
+          {payload.value}
+        </text>
+      </g>
+    );
+  };
 
   return (
     <div className="h-full flex items-center justify-center">
       {data.length > 0 ? (
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
             <XAxis 
-              dataKey="name" 
+              dataKey="date" 
               axisLine={false}
               tickLine={false}
-              tick={{ fontSize: 12, fill: '#6B7280' }}
+              tick={<CustomXAxisTick />}
+              height={60}
             />
             <YAxis 
               axisLine={false}
@@ -34,18 +50,15 @@ const MilkCollectionChart = ({ collections, branches }: MilkCollectionChartProps
               label={{ value: 'Quantity (L)', angle: -90, position: 'insideLeft', style: { fontSize: 12, fill: '#6B7280' } }}
             />
             <Tooltip formatter={(value) => `${value}L`} />
-            <Bar 
+            <Line 
+              type="monotone"
               dataKey="quantity" 
-              fill="url(#blueGradient)"
-              radius={[4, 4, 0, 0]}
+              stroke="#3B82F6"
+              strokeWidth={2}
+              dot={{ fill: '#3B82F6', r: 4 }}
+              activeDot={{ r: 6 }}
             />
-            <defs>
-              <linearGradient id="blueGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#3B82F6" />
-                <stop offset="100%" stopColor="#1D4ED8" />
-              </linearGradient>
-            </defs>
-          </BarChart>
+          </LineChart>
         </ResponsiveContainer>
       ) : (
         <p className="text-gray-500">No data available</p>
