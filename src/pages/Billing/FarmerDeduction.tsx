@@ -226,27 +226,33 @@ const FarmerDeduction = () => {
     const numValue = parseFloat(value) || 0;
     setFarmerData(prev => prev.map(farmer => 
       farmer.farmer_id === farmerId 
-        ? { ...farmer, [field]: numValue }
+        ? { ...farmer, [field]: numValue, modified: true }
         : farmer
     ));
   };
 
   const handleSave = async () => {
-    if (!startDate || !endDate) {
-      toast.error("Date range is required");
+    if (!startDate || !endDate || !vlcName) {
+      toast.error("Please select VLC and date range");
       return;
     }
 
     try {
+      const modifiedFarmers = farmerData.filter(f => f.modified);
+      
+      if (modifiedFarmers.length === 0) {
+        toast.info("No changes to save");
+        return;
+      }
+
       let successCount = 0;
       let errorCount = 0;
 
-      for (const farmer of farmerData) {
+      for (const farmer of modifiedFarmers) {
         try {
           const billData = {
             farmer_id: farmer.farmer_id,
             dairy_id: parseInt(vlcName),
-            date: format(new Date(), "yyyy-MM-dd"),
             period_start: format(startDate, "yyyy-MM-dd"),
             period_end: format(endDate, "yyyy-MM-dd"),
             milk_total: farmer.billAmount,
@@ -256,15 +262,16 @@ const FarmerDeduction = () => {
             other2_total: farmer.other2Deduction,
             received_total: farmer.receivedAmount,
             net_payable: farmer.billAmount - (farmer.advanceDeduction + farmer.cattleFeedDeduction + farmer.other1Deduction + farmer.other2Deduction),
-            advance_remaining: 0,
-            cattlefeed_remaining: 0,
-            other1_remaining: 0,
-            other2_remaining: 0
+            advance_remaining: farmer.advance - farmer.advanceDeduction,
+            cattlefeed_remaining: farmer.cattleFeedAmount - farmer.cattleFeedDeduction,
+            other1_remaining: farmer.other1Amount - farmer.other1Deduction,
+            other2_remaining: farmer.other2Amount - farmer.other2Deduction
           };
 
-          await deductionApi.updateFarmerBill(billData);
+          await deductionApi.updateFarmerBillWeb(billData);
           successCount++;
         } catch (error) {
+          console.error('Error updating farmer:', farmer.farmer_id, error);
           errorCount++;
         }
       }
