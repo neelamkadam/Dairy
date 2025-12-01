@@ -26,6 +26,9 @@ export const deductionApi = {
   updateFarmerBill: (payload: any) =>
     api.put("/payments/getFarmerBillUpdate", payload),
 
+  updateFarmerBillWeb: (payload: any) =>
+    api.put("/web/billing/update-farmer-bill", payload),
+
   checkPreviousBillCycle: (dairyId: number, dateFrom: string, dateTo: string) =>
     api.get("/payments/getdairybillsummary", {
       params: { dairyid: dairyId, datefrom: dateFrom, dateto: dateTo }
