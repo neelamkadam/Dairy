@@ -13,6 +13,7 @@ import {
 import { Calendar, ChevronLeft } from "lucide-react";
 import { billApi } from "@/services/billApi";
 import { deductionApi } from "@/services/deductionApi";
+import { webUserApi } from "@/services/webUserApi";
 import { normalizeFarmerId } from "@/utils/farmerIdUtils";
 import { adjustDeductionsForNegativeBalance } from "@/utils/priorityUtils";
 import { format, getDaysInMonth } from "date-fns";
@@ -50,16 +51,24 @@ const GenerateBill = () => {
   const currentPeriod = getCurrentPeriod();
   const [startDate, setStartDate] = useState<Date>(currentPeriod.start);
   const [endDate, setEndDate] = useState<Date>(currentPeriod.end);
+  const { userData } = useAppSelector((state) => state.authData);
   const [selectedDairy, setSelectedDairy] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [farmersData, setFarmersData] = useState<any[]>([]);
+  const [priority, setPriority] = useState<string[]>(['advance', 'cattleFeed', 'other1', 'other2']);
 
   const totals = farmersData.reduce(
-    (acc, farmer) => ({
-      totalAmount: acc.totalAmount + (farmer.milk_total * 36.52),
-      totalDeduction: acc.totalDeduction + farmer.advance_total + farmer.cattlefeed_total + farmer.other1_total + farmer.other2_total,
-      totalNetPayable: acc.totalNetPayable + farmer.net_payable,
-    }),
+    (acc, farmer) => {
+      const netPayable = farmer.hasBill 
+        ? farmer.milk_total - farmer.advanceDeduction - farmer.cattleFeedDeduction - farmer.other1Deduction - farmer.other2Deduction + (farmer.received_total || 0)
+        : farmer.milk_total - farmer.advance - farmer.cattleFeedAmount - farmer.other1Amount - farmer.other2Amount + (farmer.received_total || 0);
+      
+      return {
+        totalAmount: acc.totalAmount + farmer.milk_total,
+        totalDeduction: acc.totalDeduction + (farmer.advanceDeduction || 0) + (farmer.cattleFeedDeduction || 0) + (farmer.other1Deduction || 0) + (farmer.other2Deduction || 0),
+        totalNetPayable: acc.totalNetPayable + netPayable,
+      };
+    },
     { totalAmount: 0, totalDeduction: 0, totalNetPayable: 0 }
   );
 
@@ -68,6 +77,21 @@ const GenerateBill = () => {
       setSelectedDairy(branches[0].branch_id);
     }
   }, [branches]);
+
+  useEffect(() => {
+    if (userData?.id) {
+      fetchPriority();
+    }
+  }, [userData?.id]);
+
+  const fetchPriority = async () => {
+    try {
+      const { data } = await webUserApi.getPriority(parseInt(userData.id!));
+      setPriority(data.data);
+    } catch (error) {
+      console.error('Error fetching priority:', error);
+    }
+  };
 
   const fetchBillData = async () => {
     try {
@@ -98,22 +122,106 @@ const GenerateBill = () => {
               farmer_id: farmerId,
               name: farmer.farmer_name || `Farmer ${farmerId}`,
               milk_total: farmer.milk_total || 0,
-              advance_total: farmer.deductions?.advance || 0,
-              cattlefeed_total: farmer.deductions?.cattle_feed || 0,
-              other1_total: farmer.deductions?.other1 || 0,
-              other2_total: farmer.deductions?.other2 || 0,
+              advance: farmer.deductions?.advance || 0,
+              advanceDeduction: farmer.deductions?.advance || 0,
+              cattleFeedAmount: farmer.deductions?.cattle_feed || 0,
+              cattleFeedDeduction: farmer.deductions?.cattle_feed || 0,
+              other1Amount: farmer.deductions?.other1 || 0,
+              other1Deduction: farmer.deductions?.other1 || 0,
+              other2Amount: farmer.deductions?.other2 || 0,
+              other2Deduction: farmer.deductions?.other2 || 0,
               received_total: farmer.total_received || 0,
               net_payable: farmer.net_payable || 0,
-              advance_remaining: 0,
-              cattlefeed_remaining: 0,
-              other1_remaining: 0,
-              other2_remaining: 0,
+              hasBill: false,
             });
           }
         });
       });
       
-      setFarmersData(Array.from(farmerMap.values()));
+      const processedData = Array.from(farmerMap.values());
+
+      // Fetch bill details like FarmerDeduction page
+      if (processedData.length > 0) {
+        const farmerIds = processedData.map(f => f.farmer_id);
+        const billDetailsResponse = await deductionApi.getBillDetailsByFarmers(
+          selectedDairy,
+          farmerIds,
+          format(startDate, "yyyy-MM-dd"),
+          format(endDate, "yyyy-MM-dd")
+        );
+
+        console.log('Bill Details Response:', billDetailsResponse.data);
+
+        const billDetailsMap = new Map(
+          (billDetailsResponse.data.data || []).map((detail: any) => [
+            detail.farmer_id,
+            detail
+          ])
+        );
+
+        processedData.forEach(farmer => {
+          const billDetail = billDetailsMap.get(farmer.farmer_id);
+          if (billDetail) {
+            const advTotal = parseFloat(billDetail.advance_total || 0);
+            const advRemaining = parseFloat(billDetail.advance_remaining || 0);
+            const cfTotal = parseFloat(billDetail.cattlefeed_total || 0);
+            const cfRemaining = parseFloat(billDetail.cattlefeed_remaining || 0);
+            const o1Total = parseFloat(billDetail.other1_total || 0);
+            const o1Remaining = parseFloat(billDetail.other1_remaining || 0);
+            const o2Total = parseFloat(billDetail.other2_total || 0);
+            const o2Remaining = parseFloat(billDetail.other2_remaining || 0);
+
+            const hasData = advTotal > 0 || advRemaining > 0 || cfTotal > 0 || cfRemaining > 0 || 
+                           o1Total > 0 || o1Remaining > 0 || o2Total > 0 || o2Remaining > 0;
+
+            if (hasData) {
+              farmer.advance = advTotal + advRemaining;
+              farmer.advanceDeduction = advTotal;
+              farmer.cattleFeedAmount = cfTotal + cfRemaining;
+              farmer.cattleFeedDeduction = cfTotal;
+              farmer.other1Amount = o1Total + o1Remaining;
+              farmer.other1Deduction = o1Total;
+              farmer.other2Amount = o2Total + o2Remaining;
+              farmer.other2Deduction = o2Total;
+              farmer.hasBill = true;
+            }
+          }
+        });
+      }
+
+      // Apply priority distribution to farmers with negative balance
+      const adjustedData = processedData.map(farmer => {
+        const netPayable = farmer.hasBill 
+          ? farmer.milk_total - farmer.advanceDeduction - farmer.cattleFeedDeduction - farmer.other1Deduction - farmer.other2Deduction + farmer.received_total
+          : farmer.milk_total - farmer.advance - farmer.cattleFeedAmount - farmer.other1Amount - farmer.other2Amount + farmer.received_total;
+
+        if (netPayable >= 0) return farmer;
+
+        let remaining = Math.abs(netPayable);
+        const fieldMap: any = {
+          advance: { deduction: 'advanceDeduction', amount: 'advance' },
+          cattleFeed: { deduction: 'cattleFeedDeduction', amount: 'cattleFeedAmount' },
+          other1: { deduction: 'other1Deduction', amount: 'other1Amount' },
+          other2: { deduction: 'other2Deduction', amount: 'other2Amount' }
+        };
+
+        const updated = { ...farmer };
+
+        for (const key of priority) {
+          const field = fieldMap[key];
+          const currentDeduction = updated[field.deduction];
+          
+          if (currentDeduction > 0 && remaining > 0) {
+            const deduct = Math.min(currentDeduction, remaining);
+            updated[field.deduction] -= deduct;
+            remaining -= deduct;
+          }
+        }
+
+        return updated;
+      });
+
+      setFarmersData(adjustedData);
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to fetch bill data");
     }
@@ -323,19 +431,22 @@ const GenerateBill = () => {
                         ₹{(farmer.milk_total).toFixed(1)}
                       </td>
                       <td className="px-3 py-2 text-xs text-red-600">
-                        ₹{farmer.advance_total.toFixed(0)}
+                        ₹{(farmer.advanceDeduction || 0).toFixed(1)}
                       </td>
                       <td className="px-3 py-2 text-xs text-red-600">
-                        ₹{farmer.cattlefeed_total.toFixed(0)}
+                        ₹{(farmer.cattleFeedDeduction || 0).toFixed(1)}
                       </td>
                       <td className="px-3 py-2 text-xs text-red-600">
-                        ₹{farmer.other1_total.toFixed(0)}
+                        ₹{(farmer.other1Deduction || 0).toFixed(1)}
                       </td>
                       <td className="px-3 py-2 text-xs text-red-600">
-                        ₹{farmer.other2_total.toFixed(0)}
+                        ₹{(farmer.other2Deduction || 0).toFixed(1)}
                       </td>
                       <td className="px-3 py-2 text-xs font-medium text-green-600">
-                        ₹{farmer.net_payable.toFixed(0)}
+                        ₹{(farmer.hasBill 
+                          ? farmer.milk_total - farmer.advanceDeduction - farmer.cattleFeedDeduction - farmer.other1Deduction - farmer.other2Deduction + (farmer.received_total || 0)
+                          : farmer.milk_total - farmer.advance - farmer.cattleFeedAmount - farmer.other1Amount - farmer.other2Amount + (farmer.received_total || 0)
+                        ).toFixed(0)}
                       </td>
                     </tr>
                   ))}

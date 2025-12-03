@@ -14,7 +14,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Filter, Search, CalendarIcon } from "lucide-react";
+import { Filter, Search, CalendarIcon, Settings, ArrowUp, ArrowDown, GripVertical } from "lucide-react";
 import { format, getDaysInMonth } from "date-fns";
 import { cn } from "@/lib/utils";
 import SummaryCards from "@/components/SummaryCards";
@@ -28,7 +28,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { deductionApi } from "@/services/deductionApi";
+import { webUserApi } from "@/services/webUserApi";
 import { useAppSelector } from "@/redux/store";
 import { toast } from "react-toastify";
 
@@ -105,12 +107,24 @@ const FarmerDeduction = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [farmerData, setFarmerData] = useState<any[]>([]);
+  const { userData } = useAppSelector((state) => state.authData);
+  const [priorityOpen, setPriorityOpen] = useState(false);
+  const [priority, setPriority] = useState<string[]>(['advance', 'cattleFeed', 'other1', 'other2']);
 
   useEffect(() => {
-    if (startDate && endDate && vlcName) {
-      fetchDeductions();
+    if (userData?.id) {
+      fetchPriority();
     }
-  }, []);
+  }, [userData?.id]);
+
+  const fetchPriority = async () => {
+    try {
+      const { data } = await webUserApi.getPriority(parseInt(userData.id!));
+      setPriority(data.data);
+    } catch (error) {
+      console.error('Error fetching priority:', error);
+    }
+  };
 
   const fetchDeductions = async () => {
     if (!startDate || !endDate || !vlcName) {
@@ -160,6 +174,7 @@ const FarmerDeduction = () => {
               receivedAmount: farmer.total_received || 0,
               finalAmount: farmer.net_payable || 0,
               previousRemaining: 0,
+              hasBill: false,
             });
           }
         });
@@ -209,12 +224,51 @@ const FarmerDeduction = () => {
               farmer.other1Deduction = o1Total;
               farmer.other2Amount = o2Total + o2Remaining;
               farmer.other2Deduction = o2Total;
+              farmer.hasBill = true;
             }
           }
         });
       }
 
-      setFarmerData(processedData);
+      // Apply priority distribution to farmers with negative balance
+      const adjustedData = processedData.map(farmer => {
+        const finalAmount = farmer.hasBill 
+          ? farmer.billAmount - farmer.advanceDeduction - farmer.cattleFeedDeduction - farmer.other1Deduction - farmer.other2Deduction + farmer.receivedAmount
+          : farmer.billAmount - farmer.advance - farmer.cattleFeedAmount - farmer.other1Amount - farmer.other2Amount + farmer.receivedAmount;
+
+        if (finalAmount >= 0) return farmer;
+
+        let remaining = Math.abs(finalAmount);
+        const fieldMap: any = {
+          advance: { deduction: 'advanceDeduction', amount: 'advance' },
+          cattleFeed: { deduction: 'cattleFeedDeduction', amount: 'cattleFeedAmount' },
+          other1: { deduction: 'other1Deduction', amount: 'other1Amount' },
+          other2: { deduction: 'other2Deduction', amount: 'other2Amount' }
+        };
+
+        const updated = { ...farmer };
+        let wasAdjusted = false;
+
+        for (const key of priority) {
+          const field = fieldMap[key];
+          const currentDeduction = updated[field.deduction];
+          
+          if (currentDeduction > 0 && remaining > 0) {
+            const deduct = Math.min(currentDeduction, remaining);
+            updated[field.deduction] -= deduct;
+            remaining -= deduct;
+            wasAdjusted = true;
+          }
+        }
+
+        if (wasAdjusted) {
+          updated.modified = true;
+        }
+
+        return updated;
+      });
+
+      setFarmerData(adjustedData);
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to fetch deductions");
     }
@@ -229,6 +283,49 @@ const FarmerDeduction = () => {
         ? { ...farmer, [field]: numValue, modified: true }
         : farmer
     ));
+  };
+
+  const movePriority = async (index: number, direction: 'up' | 'down') => {
+    const newPriority = [...priority];
+    const swapIndex = direction === 'up' ? index - 1 : index + 1;
+    [newPriority[index], newPriority[swapIndex]] = [newPriority[swapIndex], newPriority[index]];
+    setPriority(newPriority);
+    
+    try {
+      await webUserApi.updatePriority(parseInt(userData.id!), newPriority);
+      toast.success('Priority updated');
+    } catch (error) {
+      toast.error('Failed to update priority');
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index.toString());
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = async (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    const dragIndex = parseInt(e.dataTransfer.getData('text/plain'));
+    
+    if (dragIndex === dropIndex) return;
+    
+    const newPriority = [...priority];
+    const [removed] = newPriority.splice(dragIndex, 1);
+    newPriority.splice(dropIndex, 0, removed);
+    setPriority(newPriority);
+    
+    try {
+      await webUserApi.updatePriority(parseInt(userData.id!), newPriority);
+      toast.success('Priority updated');
+    } catch (error) {
+      toast.error('Failed to update priority');
+    }
   };
 
   const handleSave = async () => {
@@ -320,6 +417,54 @@ const FarmerDeduction = () => {
                 <Filter className="h-4 w-4" />
                 Filter
               </Button>
+              <Dialog open={priorityOpen} onOpenChange={setPriorityOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <Settings className="h-4 w-4" />
+                    Priority
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-white">
+                  <DialogHeader>
+                    <DialogTitle>Set Deduction Priority</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-2 mt-4">
+                    {priority.map((item, index) => (
+                      <div 
+                        key={item} 
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, index)}
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDrop(e, index)}
+                        className="flex items-center justify-between p-3 bg-gray-50 rounded cursor-move hover:bg-gray-100 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <GripVertical className="h-4 w-4 text-gray-400" />
+                          <span className="capitalize">{item === 'cattleFeed' ? 'Cattle Feed' : item}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={index === 0}
+                            onClick={() => movePriority(index, 'up')}
+                          >
+                            <ArrowUp className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={index === priority.length - 1}
+                            onClick={() => movePriority(index, 'down')}
+                          >
+                            <ArrowDown className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
           {/* Filters */}
@@ -512,7 +657,7 @@ const FarmerDeduction = () => {
                       ₹{farmer.receivedAmount.toFixed(2)}
                     </TableCell>
                     <TableCell className="text-green-600 font-semibold">
-                      ₹{farmer.finalAmount.toFixed(2)}
+                      ₹{(farmer.billAmount - farmer.advanceDeduction - farmer.cattleFeedDeduction - farmer.other1Deduction - farmer.other2Deduction + farmer.receivedAmount).toFixed(2)}
                     </TableCell>
                   </TableRow>
                 ))}
