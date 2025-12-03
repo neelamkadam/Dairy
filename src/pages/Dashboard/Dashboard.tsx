@@ -25,8 +25,8 @@ const Dashboard = () => {
   });
   const [selectedShift, setSelectedShift] = useState(getDefaultShift());
   const dispatch = useAppDispatch();
-  const { branches } = useAppSelector(state => state.branch);
-  const { collections, graph, loading } = useAppSelector(state => state.dashboard);
+  const { branches = [] } = useAppSelector((state: any) => state.branch);
+  const { collections = [], graph = [], loading } = useAppSelector((state: any) => state.dashboard);
 
   const fetchDashboardData = () => {
     if (branches.length > 0) {
@@ -70,7 +70,7 @@ const Dashboard = () => {
 
   // Calculate KPI data from collections
   const calculateKPIs = () => {
-    if (!collections.length) return {
+    if (!collections?.length) return {
       totalQuantity: 0,
       avgFat: 0,
       avgSnf: 0,
@@ -93,7 +93,7 @@ const Dashboard = () => {
   };
 
   const kpis = calculateKPIs();
-  const activeCenters = collections.filter(c => c.quantity > 0).length;
+  const activeCenters = (collections || []).filter(c => c.quantity > 0).length;
   const kpiData = [
     {
       title: t('vlcc_center'),

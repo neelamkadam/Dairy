@@ -38,7 +38,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const ShiftReports:React.FC = () => {
-  const { branches } = useAppSelector((state) => state.branch);
+  const { branches = [] } = useAppSelector((state: any) => state.branch);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [reportData, setReportData] = useState<any>(null);
@@ -126,7 +126,7 @@ const ShiftReports:React.FC = () => {
     totalAmount: farmerData.reduce((sum: number, record: any) => sum + parseFloat(record.amount || 0), 0).toFixed(2),
   };
 
-  const totalPages = Math.ceil(farmerData.length / itemsPerPage);
+  const totalPages = Math.ceil(farmerData.length / itemsPerPage) || 1;
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedData = farmerData.slice(startIndex, endIndex);
@@ -157,9 +157,9 @@ const ShiftReports:React.FC = () => {
                 <SelectValue placeholder="Select VLC" />
               </SelectTrigger>
               <SelectContent className="bg-white">
-                {branches.map((branch) => (
+                {(branches || []).map((branch) => (
                   <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
-                    {branch.username}
+                    {branch.username} - {branch.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -191,7 +191,7 @@ const ShiftReports:React.FC = () => {
                   variant="outline"
                   className={cn(
                     "w-full bg-white justify-between font-normal border-gray-200 ",
-                    !formData.effectiveDate && "text-muted-foreground"
+                    !formData.date && "text-muted-foreground"
                   )}
                 >
                   {formData.date
@@ -338,7 +338,7 @@ const ShiftReports:React.FC = () => {
               <ChevronLeft className="h-4 w-4" />
             </Button>
 
-            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+            {totalPages > 0 && Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
               const page = i + 1;
               return (
                 <Button
