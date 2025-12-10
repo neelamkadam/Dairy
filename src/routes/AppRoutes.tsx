@@ -43,6 +43,7 @@ import TotalCollectionReport from "@/pages/Reports/TotalCollectionReport";
 import VlcCommissionReport from "@/pages/Reports/VlcCommissionReport";
 import VlcDifferenceReport from "@/pages/Reports/VlcDifferenceReport";
 import GeneralSettings from "@/pages/Settings/GeneralSettings";
+import CattleFeedStockSettings from "@/pages/Settings/CattleFeedStock";
 import Profile from "@/pages/Profile/Profile";
 import AvatarSelector from "@/pages/Profile/AvatarSelector";
 import { createBrowserRouter } from "react-router-dom";
@@ -187,6 +188,10 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "general-settings",
         element: <GeneralSettings />,
+      },
+      {
+        path: "cattle-feed-stock",
+        element: <CattleFeedStockSettings />,
       },
       {
         path: "profile",

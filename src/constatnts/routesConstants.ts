@@ -43,6 +43,7 @@ export const ROUTES = {
   },
   SETTINGS:{
     GENERAL_SETTINGS:`/dashboard/general-settings`,
+    CATTLE_FEED_STOCK:`/dashboard/cattle-feed-stock`,
   },
   PROFILE:`/dashboard/profile`,
   AVATAR_SELECTOR:`/dashboard/avatar-selector`,

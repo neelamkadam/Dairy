@@ -24,6 +24,7 @@ import { normalizeFarmerId, formatFarmerIdForDisplay } from "@/utils/farmerIdUti
 import { toast } from "react-toastify";
 import { useAppSelector } from "@/redux/store";
 import { userApi } from "@/services/userApi";
+import { cattleFeedApi, CattleFeedStock } from "@/services/cattleFeedApi";
 
 const PaymentAndReceipt: React.FC = () => {
   const { branches } = useAppSelector((state) => state.branch);
@@ -41,12 +42,26 @@ const PaymentAndReceipt: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [perPage, setPerPage] = useState(100);
+  const [cattleFeedStocks, setCattleFeedStocks] = useState<CattleFeedStock[]>([]);
+  const [selectedStock, setSelectedStock] = useState<CattleFeedStock | null>(null);
+  const [stockQuantity, setStockQuantity] = useState("");
 
   useEffect(() => {
     if (formData.vlcName && formData.fromDate) {
       fetchPayments();
+      fetchCattleFeedStocks();
     }
   }, [formData.vlcName, formData.fromDate]);
+
+  const fetchCattleFeedStocks = async () => {
+    if (!formData.vlcName) return;
+    try {
+      const { data } = await cattleFeedApi.getStock(formData.vlcName);
+      setCattleFeedStocks(data || []);
+    } catch (error) {
+      console.error("Failed to fetch cattle feed stocks", error);
+    }
+  };
 
   const fetchPayments = async () => {
     if (!formData.vlcName) {
@@ -139,6 +154,19 @@ const PaymentAndReceipt: React.FC = () => {
       return;
     }
 
+    if (formData.paymentType === "Cattle Feed" && (!selectedStock || !stockQuantity)) {
+      toast.error("Please select stock and enter quantity");
+      return;
+    }
+
+    if (formData.paymentType === "Cattle Feed" && selectedStock) {
+      const qty = parseFloat(stockQuantity);
+      if (qty > selectedStock.stock) {
+        toast.error(`Only ${selectedStock.stock} units available`);
+        return;
+      }
+    }
+
     setLoading(true);
     const payload = {
       date: format(formData.fromDate, "yyyy-MM-dd"),
@@ -152,9 +180,27 @@ const PaymentAndReceipt: React.FC = () => {
     console.log('💰 Creating payment:', payload);
     try {
       await paymentApi.create(payload);
+      
+      if (formData.paymentType === "Cattle Feed" && selectedStock && stockQuantity) {
+        const stockToReduce = parseFloat(stockQuantity);
+        const remainingStock = Math.max(0, selectedStock.stock - stockToReduce);
+        
+        await cattleFeedApi.updateStock(selectedStock.id, {
+          stock_name: selectedStock.stock_name,
+          amount: parseFloat(selectedStock.amount),
+          stock: remainingStock
+        });
+        
+        setCattleFeedStocks(prev => prev.map(s => 
+          s.id === selectedStock.id ? { ...s, stock: remainingStock } : s
+        ));
+      }
+      
       console.log('✅ Payment created successfully');
       toast.success("Payment recorded successfully");
       setFarmerIdInput("");
+      setSelectedStock(null);
+      setStockQuantity("");
       setFormData({
         ...formData,
         farmerCode: "",
@@ -164,6 +210,7 @@ const PaymentAndReceipt: React.FC = () => {
         receivedAmount: "",
       });
       fetchPayments();
+      fetchCattleFeedStocks();
     } catch (error) {
       console.error('❌ Failed to create payment:', error);
       toast.error("Failed to save payment record. Please try again.");
@@ -275,9 +322,11 @@ const PaymentAndReceipt: React.FC = () => {
                 </Label>
                 <Select
                   value={formData.paymentType}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, paymentType: value })
-                  }
+                  onValueChange={(value) => {
+                    setFormData({ ...formData, paymentType: value });
+                    setSelectedStock(null);
+                    setStockQuantity("");
+                  }}
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select Type" />
@@ -290,6 +339,55 @@ const PaymentAndReceipt: React.FC = () => {
                   </SelectContent>
                 </Select>
               </div>
+
+              {formData.paymentType === "Cattle Feed" && (
+                <>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                      Select Stock
+                    </Label>
+                    <Select
+                      value={selectedStock?.id.toString() || ""}
+                      onValueChange={(value) => {
+                        const stock = cattleFeedStocks.find(s => s.id.toString() === value);
+                        setSelectedStock(stock || null);
+                        setStockQuantity("");
+                        setFormData({ ...formData, amountTaken: "", receivedAmount: "" });
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select Stock" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white">
+                        {cattleFeedStocks.map((stock) => (
+                          <SelectItem key={stock.id} value={stock.id.toString()}>
+                            {stock.stock_name} ({stock.stock} units)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                      Quantity
+                    </Label>
+                    <Input
+                      type="number"
+                      placeholder="Enter quantity"
+                      value={stockQuantity}
+                      onChange={(e) => {
+                        const qty = e.target.value;
+                        setStockQuantity(qty);
+                        if (selectedStock && qty) {
+                          const amount = (parseFloat(qty) * parseFloat(selectedStock.amount)).toFixed(2);
+                          setFormData({ ...formData, amountTaken: amount, receivedAmount: "" });
+                        }
+                      }}
+                    />
+                  </div>
+                </>
+              )}
 
               <div>
                 <Label htmlFor="amountTaken" className="text-sm font-medium text-gray-700 mb-2 block">
@@ -308,6 +406,7 @@ const PaymentAndReceipt: React.FC = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, amountTaken: e.target.value })
                     }
+                    readOnly={formData.paymentType === "Cattle Feed"}
                   />
                 </div>
               </div>
@@ -332,6 +431,7 @@ const PaymentAndReceipt: React.FC = () => {
                         receivedAmount: e.target.value,
                       })
                     }
+                    disabled={formData.paymentType === "Cattle Feed"}
                   />
                 </div>
               </div>
@@ -419,10 +519,10 @@ const PaymentAndReceipt: React.FC = () => {
                         </td>
                         <td className="py-3 px-4">{payment.farmer_name}</td>
                         <td className="py-3 px-4 text-right">
-                          {payment.payment_type === 'advance' ? (payment.amount_taken !== '0.00' ? payment.amount_taken : payment.received) : '-'}
+                          {payment.payment_type?.toLowerCase() === 'advance' ? (payment.amount_taken !== '0.00' ? payment.amount_taken : payment.received) : '-'}
                         </td>
                         <td className="py-3 px-4 text-right">
-                          {payment.payment_type === 'Cattle Feed' ? (payment.amount_taken !== '0.00' ? payment.amount_taken : payment.received) : '-'}
+                          {payment.payment_type?.toLowerCase() === 'cattle feed' ? (payment.amount_taken !== '0.00' ? payment.amount_taken : payment.received) : '-'}
                         </td>
                         <td className="py-3 px-4 text-right">
                           {payment.payment_type === 'Other1' ? (payment.amount_taken !== '0.00' ? payment.amount_taken : payment.received) : '-'}
