@@ -40,6 +40,7 @@ export const ROUTES = {
     TOTAL_COLLECTION_REPORT:`/dashboard/total-collection-report`,
     VLC_COMMISSION_REPORT:`/dashboard/vlc-commission-report`,
     VLC_DIFFERENCE_REPORT: `/dashboard/vlc-diffrerence-report`,
+    BANK_SUMMARY:`/dashboard/bank-summary`,
   },
   SETTINGS:{
     GENERAL_SETTINGS:`/dashboard/general-settings`,

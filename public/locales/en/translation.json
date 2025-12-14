@@ -1,5 +1,5 @@
 {
-  "welcome_back": "Welcome back to DairyTrade",
+  "welcome_back": "Welcome back to NeoDairy Sales and Services",
   "business_solution": "Your all-in-one business solution",
   "sign_in": "Sign in to your account",
   "enter_credentials": "Enter your credentials to access your account",
@@ -45,6 +45,7 @@
   "settings": "Settings",
   "general_settings": "General Settings",
   "cattle_feed_stock": "Cattle Feed Stock",
+  "bank_summary": "Bank Summary",
   "profile": "Profile",
   "sign_out": "Sign out",
   "dashboard_overview": "Dashboard",

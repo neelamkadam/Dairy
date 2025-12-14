@@ -73,7 +73,8 @@ const getMenuItems = (t: any): MenuItem[] => [
       { title: t('remaining_balance_report'), icon: "", href: ROUTES.REPORTS.REMAINING_BALANCE },
       { title: t('farmer_passbook'), icon: "", href: ROUTES.REPORTS.FARMER_PASSBOOK},
       { title: t('vlc_commission_report'), icon: "", href: ROUTES.REPORTS.VLC_COMMISSION_REPORT },
-      { title: t('pl_statement'), icon: "", href: ROUTES.REPORTS.PL_STATEMENT }
+      { title: t('pl_statement'), icon: "", href: ROUTES.REPORTS.PL_STATEMENT },
+      { title: t('bank_summary'), icon: "", href: ROUTES.REPORTS.BANK_SUMMARY }
     ]
   },
   {
