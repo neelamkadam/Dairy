@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/redux/store";
 import { bankSummaryApi, BankSummaryData } from "@/services/bankSummaryApi";
 import { toast } from "react-toastify";
+import { useTranslation } from "react-i18next";
 
 const calculateDateRange = (date: Date) => {
   const day = date.getDate();
@@ -33,7 +34,10 @@ const calculateDateRange = (date: Date) => {
 };
 
 const BankSummary: React.FC = () => {
+  const { t } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
+  const authState = useAppSelector((state) => state.authData);
+  const userData = authState?.userData;
   const [dairyId, setDairyId] = useState("");
   const [startDate, setStartDate] = useState<Date>(new Date());
   const [endDate, setEndDate] = useState<Date>(new Date());
@@ -55,7 +59,7 @@ const BankSummary: React.FC = () => {
 
   const fetchData = async () => {
     if (!dairyId) {
-      toast.error("Please select VLC");
+      toast.error(t('please_select_vlc'));
       return;
     }
 
@@ -67,31 +71,83 @@ const BankSummary: React.FC = () => {
         end_date: format(endDate, "yyyy-MM-dd"),
       });
       setData(response.data || []);
-      toast.success("Data fetched successfully");
+      toast.success(t('data_fetched_successfully'));
     } catch (error) {
-      toast.error("Failed to fetch data");
+      toast.error(t('failed_to_fetch_data'));
     } finally {
       setLoading(false);
     }
   };
 
   const exportToExcel = () => {
-    const exportData = data.map(row => ({
-      "Farmer ID": row.farmer_id,
-      "Name": row.fullName,
-      "Mobile": row.mobile_number,
-      "Email": row.email || "-",
-      "Milk Total": parseFloat(row.milk_total || 0).toFixed(2),
-      "Bank Name": row.bankName || "-",
-      "Account Number": row.accountNumber || "-",
-      "IFSC Code": row.ifscCode || "-"
-    }));
+    console.log('Full Auth State:', authState);
+    console.log('User Data:', userData);
+    
+    const userIdStr = userData?.id?.toString();
+    const userId = userIdStr ? parseInt(userIdStr) : null;
+    const currentDate = format(new Date(), "dd-MM-yyyy");
+    
+    // PEF format for user IDs 2 and 4
+    if (userId === 2 || userId === 4 || userIdStr === '2' || userIdStr === '4') {
+      const sortedData = [...data].sort((a, b) => {
+        const idA = typeof a.farmer_id === 'string' ? parseInt(a.farmer_id) : a.farmer_id;
+        const idB = typeof b.farmer_id === 'string' ? parseInt(b.farmer_id) : b.farmer_id;
+        return idA - idB;
+      });
 
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Bank Summary");
-    XLSX.writeFile(wb, `Bank_Summary_${format(startDate, "dd-MM-yyyy")}_to_${format(endDate, "dd-MM-yyyy")}.xlsx`);
-    toast.success("Excel file downloaded");
+      const exportData = sortedData.map(row => ({
+        "PYMT_PROD_TYPE_CODE": "PAB_VENDOR",
+        "PYMT_MODE": "NEFT",
+        "DEBIT_ACC_NO": "",
+        "BNF_NAME": row.fullName,
+        "BENE_ACC_NO": row.accountNumber || "",
+        "BENE_IFSC": row.ifscCode || "",
+        "AMOUNT": parseFloat(row.milk_total || 0).toFixed(2),
+        "DEBIT_NARR": "",
+        "CREDIT_NARR": "",
+        "MOBILE_NUM": row.mobile_number || "",
+        "EMAIL_ID": row.email || "",
+        "REMARK": "",
+        "PYMT_DATE": currentDate
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      
+      // Apply red color to specific column headers
+      const redColumns = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'M'];
+      redColumns.forEach(col => {
+        const cellRef = `${col}1`;
+        if (ws[cellRef]) {
+          ws[cellRef].s = {
+            font: { color: { rgb: "FF0000" }, bold: true },
+            fill: { fgColor: { rgb: "FFFFFF" } }
+          };
+        }
+      });
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "PEF Export");
+      XLSX.writeFile(wb, `PEF_Export_${format(startDate, "dd-MM-yyyy")}_to_${format(endDate, "dd-MM-yyyy")}.xlsx`, { cellStyles: true });
+    } else {
+      // Original Bank Summary format for other users
+      const exportData = data.map(row => ({
+        "Farmer ID": row.farmer_id,
+        "Name": row.fullName,
+        "Mobile": row.mobile_number,
+        "Email": row.email || "-",
+        "Milk Total": parseFloat(row.milk_total || 0).toFixed(2),
+        "Bank Name": row.bankName || "-",
+        "Account Number": row.accountNumber || "-",
+        "IFSC Code": row.ifscCode || "-"
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Bank Summary");
+      XLSX.writeFile(wb, `Bank_Summary_${format(startDate, "dd-MM-yyyy")}_to_${format(endDate, "dd-MM-yyyy")}.xlsx`);
+    }
+    
+    toast.success(t('excel_file_downloaded'));
   };
 
   return (
@@ -100,12 +156,12 @@ const BankSummary: React.FC = () => {
         <Card className="shadow-sm border-none">
           <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
             <CardTitle className="text-2xl font-bold text-gray-800">🏦 Payment Bank Summary</CardTitle>
-            <p className="text-sm text-gray-600 mt-1">View farmer bank details and payment summary</p>
+            <p className="text-sm text-gray-600 mt-1">{t('bank_summary_description')}</p>
           </CardHeader>
           <CardContent className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div>
-                <Label className="text-sm font-medium text-gray-700 mb-2 block">VLC Name</Label>
+                <Label className="text-sm font-medium text-gray-700 mb-2">VLC Name</Label>
                 <Select value={dairyId} onValueChange={setDairyId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select VLC" />
@@ -113,7 +169,7 @@ const BankSummary: React.FC = () => {
                   <SelectContent className="bg-white">
                     {branches.map((branch) => (
                       <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
-                        {branch.username} - {branch.name}
+                        {branch.username} - {branch.name} - {branch.branchName || ''}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -121,7 +177,7 @@ const BankSummary: React.FC = () => {
               </div>
 
               <div>
-                <Label className="text-sm font-medium text-gray-700 mb-2 block">Select Date</Label>
+                <Label className="text-sm font-medium text-gray-700 mb-2">Select Date</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className={cn("w-full justify-start text-left font-normal")}>
@@ -149,7 +205,7 @@ const BankSummary: React.FC = () => {
 
               <div className="flex items-end">
                 <Button onClick={fetchData} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700">
-                  {loading ? "Loading..." : "Fetch Data"}
+                  {loading ? t('loading') : t('fetch_data')}
                 </Button>
               </div>
             </div>
@@ -161,7 +217,7 @@ const BankSummary: React.FC = () => {
                 </p>
                 <Button onClick={exportToExcel} className="bg-green-600 hover:bg-green-700 text-white">
                   <Download className="h-4 w-4 mr-2" />
-                  Export Excel
+                  {t('export_excel')}
                 </Button>
               </div>
             )}
@@ -184,7 +240,7 @@ const BankSummary: React.FC = () => {
                   {data.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="text-center py-8 text-gray-500">
-                        No data available. Select filters and click Fetch Data.
+                        {t('no_data_available')}. {t('select_filters_fetch_data')}.
                       </td>
                     </tr>
                   ) : (

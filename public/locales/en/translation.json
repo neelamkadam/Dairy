@@ -201,5 +201,16 @@
   "preview_first_5_rows": "Preview (First 5 rows)",
   "download_sample_file": "Download Sample File",
   "uploading": "Uploading...",
-  "upload_rate_chart": "Upload Rate Chart"
+  "upload_rate_chart": "Upload Rate Chart",
+  "bank_summary_description": "View farmer bank details and payment summary",
+  "fetch_data": "Fetch Data",
+  "data_fetched_successfully": "Data fetched successfully",
+  "failed_to_fetch_data": "Failed to fetch data",
+  "excel_file_downloaded": "Excel file downloaded",
+  "for_period": "for period",
+  "export_excel": "Export Excel",
+  "mobile": "Mobile",
+  "milk_total": "Milk Total",
+  "no_data_available": "No data available",
+  "select_filters_fetch_data": "Select filters and click Fetch Data to view results"
 }

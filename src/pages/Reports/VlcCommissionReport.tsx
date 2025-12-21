@@ -130,7 +130,7 @@ const VlcCommissionReport = () => {
               <SelectItem value="all">All</SelectItem>
               {branches?.map((branch) => (
                 <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
-                  {branch.username} - {branch.name}
+                  {branch.username} - {branch.name} - {branch.branchName || ''}
                 </SelectItem>
               ))}
             </SelectContent>

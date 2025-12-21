@@ -163,7 +163,7 @@ const VlcDifferenceReport = () => {
             <SelectContent className="bg-white">
               {branches?.map((branch) => (
                 <SelectItem key={branch.username} value={branch.username}>
-                  {branch.username} - {branch.name}
+                  {branch.username} - {branch.name} - {branch.branchName || ''}
                 </SelectItem>
               ))}
             </SelectContent>

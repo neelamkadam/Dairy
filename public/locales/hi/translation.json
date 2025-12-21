@@ -199,5 +199,18 @@
   "preview_first_5_rows": "पूर्वावलोकन (पहली 5 पंक्तियाँ)",
   "download_sample_file": "नमूना फ़ाइल डाउनलोड करें",
   "uploading": "अपलोड हो रहा है...",
-  "upload_rate_chart": "दर चार्ट अपलोड करें"
+  "upload_rate_chart": "दर चार्ट अपलोड करें",
+  "cattle_feed_stock": "पशु चारा स्टॉक",
+  "bank_summary": "बैंक सारांश",
+  "bank_summary_description": "किसान बैंक विवरण और भुगतान सारांश देखें",
+  "fetch_data": "डेटा प्राप्त करें",
+  "data_fetched_successfully": "डेटा सफलतापूर्वक प्राप्त किया गया",
+  "failed_to_fetch_data": "डेटा प्राप्त करने में विफल",
+  "excel_file_downloaded": "एक्सेल फ़ाइल डाउनलोड की गई",
+  "for_period": "अवधि के लिए",
+  "export_excel": "एक्सेल निर्यात",
+  "mobile": "मोबाइल",
+  "milk_total": "कुल दूध",
+  "no_data_available": "कोई डेटा उपलब्ध नहीं",
+  "select_filters_fetch_data": "परिणाम देखने के लिए फ़िल्टर चुनें और डेटा प्राप्त करें पर क्लिक करें"
 }

@@ -353,7 +353,7 @@ export const AddFarmer: React.FC = () => {
                     <SelectContent className='bg-white'>
                       {branches?.map((branch) => (
                         <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
-                          {branch.username} - {branch.name}
+                          {branch.username} - {branch.name} - {branch.branchName || ''}
                         </SelectItem>
                       ))}
                     </SelectContent>

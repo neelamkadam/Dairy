@@ -354,7 +354,7 @@ const VLCCllection = () => {
                           onClick={(e) => e.stopPropagation()}
                           className="h-4 w-4"
                         />
-                        <span className="text-sm">{branch.username} - {branch.name}</span>
+                        <span className="text-sm">{branch.username} - {branch.name} - {branch.branchName}</span>
                       </div>
                     ))}
                   </div>

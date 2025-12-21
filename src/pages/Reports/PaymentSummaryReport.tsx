@@ -254,7 +254,7 @@ const PaymentSummaryReport = () => {
                   <option value="">Select VLC</option>
                   {branches.map((branch) => (
                     <option key={branch.branch_id} value={branch.branch_id}>
-                      {branch.username} - {branch.name}
+                      {branch.username} - {branch.name} - {branch.branchName || ''}
                     </option>
                   ))}
                 </select>

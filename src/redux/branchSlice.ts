@@ -5,6 +5,7 @@ interface Branch {
   branch_id: number;
   username: string;
   name: string;
+  branchName: string;
 }
 
 export interface BranchState {

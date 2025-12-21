@@ -199,5 +199,18 @@
   "preview_first_5_rows": "पूर्वावलोकन (पहिल्या 5 ओळी)",
   "download_sample_file": "नमुना फाइल डाउनलोड करा",
   "uploading": "अपलोड होत आहे...",
-  "upload_rate_chart": "दर पत्रक अपलोड करा"
+  "upload_rate_chart": "दर पत्रक अपलोड करा",
+  "cattle_feed_stock": "पशु खाद्य साठा",
+  "bank_summary": "बॅंक सारांश",
+  "bank_summary_description": "शेतकरी बॅंक तपशील आणि पेमेंट सारांश पहा",
+  "fetch_data": "डेटा मिळवा",
+  "data_fetched_successfully": "डेटा यशस्वीरित्या मिळवला",
+  "failed_to_fetch_data": "डेटा मिळवण्यात अयशस्वी",
+  "excel_file_downloaded": "एक्सेल फाइल डाउनलोड झाली",
+  "for_period": "कालावधीसाठी",
+  "export_excel": "एक्सेल निर्यात",
+  "mobile": "मोबाइल",
+  "milk_total": "एकूण दूध",
+  "no_data_available": "कोणताही डेटा उपलब्ध नाही",
+  "select_filters_fetch_data": "परिणाम पाहण्यासाठी फिल्टर निवडा आणि डेटा मिळवा वर क्लिक करा"
 }
