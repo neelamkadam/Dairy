@@ -39,6 +39,8 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
+    "html2canvas": "^1.4.1",
+    "html2pdf.js": "^0.12.1",
     "i18next": "^25.1.2",
     "i18next-browser-languagedetector": "^8.1.0",
     "i18next-http-backend": "^3.0.2",

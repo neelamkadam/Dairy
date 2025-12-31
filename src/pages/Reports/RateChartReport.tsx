@@ -12,7 +12,8 @@ const RateChartReport = () => {
   const { branches } = useAppSelector((state) => state.branch);
   const [vlcId, setVlcId] = useState("");
   const [milkType, setMilkType] = useState("Cow");
-  const [rateChartName] = useState("Rate Chart 1");
+  const [rateChartName, setRateChartName] = useState("Rate Chart 1");
+  const [shift, setShift] = useState("morning");
   const [loading, setLoading] = useState(false);
   const [rateMatrix, setRateMatrix] = useState<any[][]>([]);
 
@@ -24,17 +25,33 @@ const RateChartReport = () => {
 
     setLoading(true);
     try {
+      console.log('Requesting rate matrix with params:', {
+        organisation_id: vlcId,
+        type: milkType.toLowerCase(),
+        name: rateChartName,
+        shift: shift
+      });
+      
       const data = await reportsApi.previewRateMatrix({
         organisation_id: vlcId,
         type: milkType.toLowerCase(),
-        name: rateChartName
+        name: rateChartName,
+        shift: shift
       });
+      
+      console.log('Rate matrix response:', data);
       
       if (data.success && data.matrix) {
         setRateMatrix(data.matrix);
+        toast.success('Rate chart loaded successfully');
+      } else {
+        toast.error(data.message || 'No rate chart data found');
+        setRateMatrix([]);
       }
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to fetch rate chart");
+      console.error('Rate chart error:', error);
+      console.error('Error response:', error?.response);
+      toast.error(error?.response?.data?.message || error?.message || "Failed to fetch rate chart");
       setRateMatrix([]);
     } finally {
       setLoading(false);
@@ -51,33 +68,7 @@ const RateChartReport = () => {
     generateRateChartReportExcel(vlcName, milkType, rateMatrix);
     toast.success("Excel exported successfully");
   };
-
-  const fatSnfRows = [
-    { fat: "3.0", values: [30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45] },
-    { fat: "3.1", values: [31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46] },
-    { fat: "3.2", values: [32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47] },
-    { fat: "3.3", values: [33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48] },
-    { fat: "3.4", values: [34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49] },
-    { fat: "3.5", values: [35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50] },
-    { fat: "3.6", values: [36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51] },
-    { fat: "3.7", values: [37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52] },
-    { fat: "3.8", values: [38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53] },
-    { fat: "3.9", values: [39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54] },
-    { fat: "4.0", values: [40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55] },
-    { fat: "4.1", values: [41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56] },
-    { fat: "4.2", values: [42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57] },
-    { fat: "4.3", values: [43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58] },
-    { fat: "4.4", values: [44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59] },
-    { fat: "4.5", values: [45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60] },
-    { fat: "4.6", values: [46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61] },
-    { fat: "4.7", values: [47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62] },
-    { fat: "4.8", values: [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63] },
-    { fat: "4.9", values: [49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64] },
-    { fat: "5.0", values: [50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65] }
-  ];
-
-  const snfColumns = ["7.0", "7.1", "7.2", "7.3", "7.4", "7.5", "7.6", "7.7", "7.8", "7.9", "8.0", "8.1", "8.2", "8.3", "8.4", "8.5"];
-
+  
   return (
     <div className="w-full h-screen bg-white">
     <h1 className="p-4 text-left font-bold bg-gray-100">VLCC Rate Chart</h1>
@@ -107,6 +98,31 @@ const RateChartReport = () => {
               <SelectContent className="bg-white">
                 <SelectItem value="Cow">Cow</SelectItem>
                 <SelectItem value="Buffalo">Buffalo</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="mb-1">Rate Chart</Label>
+            <Select value={rateChartName} onValueChange={setRateChartName}>
+              <SelectTrigger className="w-48 border-gray-200">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-white">
+                <SelectItem value="Rate Chart 1">Rate Chart 1</SelectItem>
+                <SelectItem value="Rate Chart 2">Rate Chart 2</SelectItem>
+                <SelectItem value="Rate Chart 3">Rate Chart 3</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="mb-1">Shift</Label>
+            <Select value={shift} onValueChange={setShift}>
+              <SelectTrigger className="w-48 border-gray-200">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-white">
+                <SelectItem value="morning">Morning</SelectItem>
+                <SelectItem value="evening">Evening</SelectItem>
               </SelectContent>
             </Select>
           </div>

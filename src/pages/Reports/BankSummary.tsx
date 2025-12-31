@@ -164,7 +164,16 @@ const BankSummary: React.FC = () => {
                 <Label className="text-sm font-medium text-gray-700 mb-2">VLC Name</Label>
                 <Select value={dairyId} onValueChange={setDairyId}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select VLC" />
+                    <SelectValue placeholder="Select VLC">
+                      {dairyId && (() => {
+                        const selected = branches.find(b => b.branch_id.toString() === dairyId);
+                        if (selected) {
+                          const text = `${selected.username} - ${selected.name} - ${selected.branchName || ''}`;
+                          return text.length > 30 ? text.substring(0, 30) + '...' : text;
+                        }
+                        return 'Select VLC';
+                      })()}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent className="bg-white">
                     {branches.map((branch) => (

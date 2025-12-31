@@ -5,6 +5,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { generateShiftReportPDF } from "@/templates/ShiftReportTemplate";
 import { generateShiftReportExcel } from "@/templates/ShiftReportExcelTemplate";
+import PdfLoader from "@/components/PdfLoader";
 import {
   Select,
   SelectContent,
@@ -43,6 +44,7 @@ const ShiftReports:React.FC = () => {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [reportData, setReportData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const getDefaultShift = () => {
     const hour = new Date().getHours();
@@ -92,12 +94,17 @@ const ShiftReports:React.FC = () => {
       toast.error("No data to export");
       return;
     }
-    const selectedBranch = branches?.find(b => b.branch_id.toString() === formData.selectedDairy);
-    const vlcName = selectedBranch ? selectedBranch.name : "";
-    const Dairyname = selectedBranch ? selectedBranch.username : "";
-    const dateStr = formData.date ? format(formData.date, "yyyy-MM-dd") : "";
-    generateShiftReportPDF(farmerData, vlcName, Dairyname, dateStr, formData.shift, formData.milkType, totals);
-    toast.success("PDF exported successfully");
+    setPdfLoading(true);
+    try {
+      const selectedBranch = branches?.find(b => b.branch_id.toString() === formData.selectedDairy);
+      const vlcName = selectedBranch ? selectedBranch.name : "";
+      const Dairyname = selectedBranch ? selectedBranch.username : "";
+      const dateStr = formData.date ? format(formData.date, "yyyy-MM-dd") : "";
+      generateShiftReportPDF(farmerData, vlcName, Dairyname, dateStr, formData.shift, formData.milkType, totals);
+      toast.success("PDF exported successfully");
+    } finally {
+      setPdfLoading(false);
+    }
   };
 
   const handleExportExcel = () => {
@@ -118,8 +125,13 @@ const ShiftReports:React.FC = () => {
     ? allRecords.filter((record: any) => record.type.toLowerCase() === formData.milkType.toLowerCase())
     : allRecords;
 
-  // Calculate totals for filtered data
-  const totals = {
+  // Use API summary for mixed, calculate for filtered data
+  const totals = formData.milkType === "mixed" && reportData?.summary ? {
+    quantity: reportData.summary.total_quantity,
+    avgFat: reportData.summary.avg_fat,
+    avgSnf: reportData.summary.avg_snf,
+    totalAmount: parseFloat(reportData.summary.total_amount).toFixed(2),
+  } : {
     quantity: farmerData.reduce((sum: number, record: any) => sum + parseFloat(record.quantity || 0), 0).toFixed(2),
     avgFat: farmerData.length > 0 ? (farmerData.reduce((sum: number, record: any) => sum + parseFloat(record.fat || 0), 0) / farmerData.length).toFixed(2) : "0.00",
     avgSnf: farmerData.length > 0 ? (farmerData.reduce((sum: number, record: any) => sum + parseFloat(record.snf || 0), 0) / farmerData.length).toFixed(2) : "0.00",
@@ -133,6 +145,7 @@ const ShiftReports:React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <PdfLoader isLoading={pdfLoading} />
       {/* Header */}
       <header className="bg-slate-700 text-white p-4 shadow-lg">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -154,7 +167,16 @@ const ShiftReports:React.FC = () => {
             </label>
             <Select value={formData.selectedDairy} onValueChange={(value) => setFormData({...formData, selectedDairy: value})}>
               <SelectTrigger className=" w-full bg-white border-gray-200">
-                <SelectValue placeholder="Select VLC" />
+                <SelectValue placeholder="Select VLC">
+                  {formData.selectedDairy && (() => {
+                    const selected = branches.find(b => b.branch_id.toString() === formData.selectedDairy);
+                    if (selected) {
+                      const text = `${selected.username} - ${selected.name} - ${selected.branchName || ''}`;
+                      return text.length > 30 ? text.substring(0, 30) + '...' : text;
+                    }
+                    return 'Select VLC';
+                  })()}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent className="bg-white">
                 {(branches || []).map((branch) => (

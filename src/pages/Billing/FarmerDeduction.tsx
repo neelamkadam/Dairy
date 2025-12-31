@@ -39,69 +39,37 @@ const FarmerDeduction = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [vlcName, setVlcName] = useState("");
   
-  const calculateEndDate = (start: Date) => {
-    const day = start.getDate();
-    const month = start.getMonth();
-    const year = start.getFullYear();
+  const calculateDateRange = (dateStr: string) => {
+    const [year, month, day] = dateStr.split('-').map(Number);
     
-    let endDay;
-    if (day === 1) {
-      endDay = 10;
-    } else if (day === 11) {
-      endDay = 20;
-    } else if (day === 21) {
-      endDay = getDaysInMonth(start);
-    } else {
-      endDay = getDaysInMonth(start);
-    }
-    
-    return new Date(year, month, endDay);
-  };
-  
-  const getCurrentPeriod = () => {
-    const today = new Date();
-    const day = today.getDate();
-    const month = today.getMonth();
-    const year = today.getFullYear();
-    
-    let startDay;
-    if (day <= 10) {
+    let startDay: number, endDay: number;
+    if (day >= 1 && day <= 10) {
       startDay = 1;
-    } else if (day <= 20) {
+      endDay = 10;
+    } else if (day >= 11 && day <= 20) {
       startDay = 11;
-    } else {
+      endDay = 20;
+    } else if (day >= 21) {
       startDay = 21;
-    }
+      endDay = new Date(year, month, 0).getDate();
+    } else return { from: dateStr, to: dateStr };
     
-    const start = new Date(year, month, startDay);
     return {
-      start,
-      end: calculateEndDate(start)
+      from: new Date(year, month - 1, startDay),
+      to: new Date(year, month - 1, endDay)
     };
   };
-  
-  const currentPeriod = getCurrentPeriod();
-  const [startDate, setStartDate] = useState<Date | undefined>(currentPeriod.start);
-  const [endDate, setEndDate] = useState<Date | undefined>(currentPeriod.end);
+
+  const todayDates = calculateDateRange(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState<Date | undefined>(todayDates.from);
+  const [endDate, setEndDate] = useState<Date | undefined>(todayDates.to);
   
   const handleStartDateChange = (date: Date | undefined) => {
     if (date) {
-      const day = date.getDate();
-      const month = date.getMonth();
-      const year = date.getFullYear();
-      
-      let correctedDay;
-      if (day <= 10) {
-        correctedDay = 1;
-      } else if (day <= 20) {
-        correctedDay = 11;
-      } else {
-        correctedDay = 21;
-      }
-      
-      const correctedDate = new Date(year, month, correctedDay);
-      setStartDate(correctedDate);
-      setEndDate(calculateEndDate(correctedDate));
+      const dateStr = format(date, 'yyyy-MM-dd');
+      const dates = calculateDateRange(dateStr);
+      setStartDate(dates.from);
+      setEndDate(dates.to);
     }
   };
   const [currentPage, setCurrentPage] = useState(1);
@@ -480,7 +448,7 @@ const FarmerDeduction = () => {
               <SelectContent className="bg-white border border-gray-300 shadow-lg">
                 {branches.map((branch) => (
                   <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
-                    {branch.username}
+                    {branch.username} - {branch.name}
                   </SelectItem>
                 ))}
               </SelectContent>

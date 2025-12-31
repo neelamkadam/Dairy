@@ -6,6 +6,7 @@ import { api } from "@/services/config";
 import { toast } from "react-toastify";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import PdfLoader from "@/components/PdfLoader";
 
 interface FarmerDetail {
   farmer_id: string;
@@ -38,9 +39,38 @@ interface PaymentSummaryData {
 }
 
 const PaymentSummaryReport = () => {
-  const [dateFrom, setDateFrom] = useState(new Date().toISOString().split('T')[0]);
-  const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
+  const calculateEndDate = (startDate: string) => {
+    const [year, month, day] = startDate.split('-').map(Number);
+    
+    let startDay: number, endDay: number;
+    if (day >= 1 && day <= 10) {
+      startDay = 1;
+      endDay = 10;
+    } else if (day >= 11 && day <= 20) {
+      startDay = 11;
+      endDay = 20;
+    } else if (day >= 21) {
+      startDay = 21;
+      endDay = new Date(year, month, 0).getDate();
+    } else return { from: startDate, to: startDate };
+    
+    return {
+      from: `${year}-${String(month).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`,
+      to: `${year}-${String(month).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`
+    };
+  };
+
+  const todayDates = calculateEndDate(new Date().toISOString().split('T')[0]);
+  const [dateFrom, setDateFrom] = useState(todayDates.from);
+  const [dateTo, setDateTo] = useState(todayDates.to);
+
+  const handleDateFromChange = (newDate: string) => {
+    const dates = calculateEndDate(newDate);
+    setDateFrom(dates.from);
+    setDateTo(dates.to);
+  };
   const [loading, setLoading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const [data, setData] = useState<PaymentSummaryData | null>(null);
   const [selectedBranch, setSelectedBranch] = useState<number | null>(null);
   const { branches } = useAppSelector(state => state.branch);
@@ -181,63 +211,69 @@ const PaymentSummaryReport = () => {
   const exportToPDF = () => {
     if (!data) return;
 
-    const doc = new jsPDF('l', 'mm', 'a4');
-    const farmers = getAggregatedFarmers();
-    const totals = calculateTotals();
-    const branch = branches.find(b => b.branch_id === selectedBranch);
-    
-    doc.setFontSize(16);
-    doc.text('Payment Summary Report', 148, 15, { align: 'center' });
-    
-    doc.setFontSize(10);
-    doc.text(`Branch: ${branch?.name || 'N/A'}`, 148, 22, { align: 'center' });
-    doc.text(`Period: ${dateFrom} to ${dateTo}`, 148, 28, { align: 'center' });
-    
-    const tableData = farmers.map(f => [
-      f.farmer_username,
-      f.farmer_name,
-      f.milk_total.toFixed(2),
-      f.previous_balance.toFixed(2),
-      f.advance.toFixed(2),
-      f.cattle_feed.toFixed(2),
-      f.other1.toFixed(2),
-      f.other2.toFixed(2),
-      f.received.toFixed(2),
-      f.total_deduction.toFixed(2),
-      Math.max(0, f.net_payable).toFixed(2),
-      f.remaining_balance.toFixed(2)
-    ]);
+    setPdfLoading(true);
+    try {
+      const doc = new jsPDF('l', 'mm', 'a4');
+      const farmers = getAggregatedFarmers();
+      const totals = calculateTotals();
+      const branch = branches.find(b => b.branch_id === selectedBranch);
+      
+      doc.setFontSize(16);
+      doc.text('Payment Summary Report', 148, 15, { align: 'center' });
+      
+      doc.setFontSize(10);
+      doc.text(`Branch: ${branch?.name || 'N/A'}`, 148, 22, { align: 'center' });
+      doc.text(`Period: ${dateFrom} to ${dateTo}`, 148, 28, { align: 'center' });
+      
+      const tableData = farmers.map(f => [
+        f.farmer_username,
+        f.farmer_name,
+        f.milk_total.toFixed(2),
+        f.previous_balance.toFixed(2),
+        f.advance.toFixed(2),
+        f.cattle_feed.toFixed(2),
+        f.other1.toFixed(2),
+        f.other2.toFixed(2),
+        f.received.toFixed(2),
+        f.total_deduction.toFixed(2),
+        Math.max(0, f.net_payable).toFixed(2),
+        f.remaining_balance.toFixed(2)
+      ]);
 
-    autoTable(doc, {
-      startY: 35,
-      head: [['ID', 'Name', 'Milk', 'Prev Bal', 'Adv', 'Cattle', 'Oth1', 'Oth2', 'Recieved', 'Deduction', 'Net', 'Remaning']],
-      body: tableData,
-      foot: [[
-        'Total',
-        '',
-        totals.totalMilk.toFixed(2),
-        '',
-        totals.totalAdvance.toFixed(2),
-        totals.totalFeed.toFixed(2),
-        totals.totalOther1.toFixed(2),
-        totals.totalOther2.toFixed(2),
-        totals.totalReceived.toFixed(2),
-        totals.totalDeduction.toFixed(2),
-        Math.max(0, totals.totalNet).toFixed(2),
-        totals.totalRemaining.toFixed(2)
-      ]],
-      theme: 'grid',
-      styles: { fontSize: 7 },
-      headStyles: { fillColor: [66, 139, 202] },
-      footStyles: { fillColor: [200, 200, 200], fontStyle: 'bold' }
-    });
+      autoTable(doc, {
+        startY: 35,
+        head: [['ID', 'Name', 'Milk', 'Prev Bal', 'Adv', 'Cattle', 'Oth1', 'Oth2', 'Recieved', 'Deduction', 'Net', 'Remaning']],
+        body: tableData,
+        foot: [[
+          'Total',
+          '',
+          totals.totalMilk.toFixed(2),
+          '',
+          totals.totalAdvance.toFixed(2),
+          totals.totalFeed.toFixed(2),
+          totals.totalOther1.toFixed(2),
+          totals.totalOther2.toFixed(2),
+          totals.totalReceived.toFixed(2),
+          totals.totalDeduction.toFixed(2),
+          Math.max(0, totals.totalNet).toFixed(2),
+          totals.totalRemaining.toFixed(2)
+        ]],
+        theme: 'grid',
+        styles: { fontSize: 7 },
+        headStyles: { fillColor: [66, 139, 202] },
+        footStyles: { fillColor: [200, 200, 200], fontStyle: 'bold' }
+      });
 
-    doc.save(`PaymentSummary_${dateFrom}_${dateTo}.pdf`);
-    toast.success('PDF exported successfully');
+      doc.save(`PaymentSummary_${dateFrom}_${dateTo}.pdf`);
+      toast.success('PDF exported successfully');
+    } finally {
+      setPdfLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
+      <PdfLoader isLoading={pdfLoading} />
       <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-900 mb-6">Payment Summary Report</h1>
         
@@ -252,11 +288,15 @@ const PaymentSummaryReport = () => {
                   className="w-full border rounded px-3 py-2"
                 >
                   <option value="">Select VLC</option>
-                  {branches.map((branch) => (
-                    <option key={branch.branch_id} value={branch.branch_id}>
-                      {branch.username} - {branch.name} - {branch.branchName || ''}
-                    </option>
-                  ))}
+                  {branches.map((branch) => {
+                    const text = `${branch.username} - ${branch.name} - ${branch.branchName || ''}`;
+                    const displayText = selectedBranch === branch.branch_id && text.length > 30 ? text.substring(0, 30) + '...' : text;
+                    return (
+                      <option key={branch.branch_id} value={branch.branch_id}>
+                        {displayText}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
               
@@ -265,7 +305,7 @@ const PaymentSummaryReport = () => {
                 <input
                   type="date"
                   value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
+                  onChange={(e) => handleDateFromChange(e.target.value)}
                   className="w-full border rounded px-3 py-2"
                 />
               </div>
@@ -275,8 +315,8 @@ const PaymentSummaryReport = () => {
                 <input
                   type="date"
                   value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  className="w-full border rounded px-3 py-2"
+                  disabled
+                  className="w-full border rounded px-3 py-2 bg-gray-100 cursor-not-allowed"
                 />
               </div>
               

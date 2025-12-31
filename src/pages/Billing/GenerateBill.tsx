@@ -23,34 +23,36 @@ import { useAppSelector } from "@/redux/store";
 const GenerateBill = () => {
   const { branches } = useAppSelector((state) => state.branch);
   
-  const getCurrentPeriod = () => {
-    const today = new Date();
-    const day = today.getDate();
-    const month = today.getMonth();
-    const year = today.getFullYear();
+  const calculateDateRange = (dateStr: string) => {
+    const [year, month, day] = dateStr.split('-').map(Number);
     
-    let startDay, endDay;
-    
-    if (day <= 10) {
+    let startDay: number, endDay: number;
+    if (day >= 1 && day <= 10) {
       startDay = 1;
       endDay = 10;
-    } else if (day <= 20) {
+    } else if (day >= 11 && day <= 20) {
       startDay = 11;
       endDay = 20;
-    } else {
+    } else if (day >= 21) {
       startDay = 21;
-      endDay = getDaysInMonth(today);
-    }
+      endDay = new Date(year, month, 0).getDate();
+    } else return { from: dateStr, to: dateStr };
     
     return {
-      start: new Date(year, month, startDay),
-      end: new Date(year, month, endDay)
+      from: new Date(year, month - 1, startDay),
+      to: new Date(year, month - 1, endDay)
     };
   };
-  
-  const currentPeriod = getCurrentPeriod();
-  const [startDate, setStartDate] = useState<Date>(currentPeriod.start);
-  const [endDate, setEndDate] = useState<Date>(currentPeriod.end);
+
+  const todayDates = calculateDateRange(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState<Date>(todayDates.from);
+  const [endDate, setEndDate] = useState<Date>(todayDates.to);
+
+  const handleStartDateChange = (newDate: string) => {
+    const dates = calculateDateRange(newDate);
+    setStartDate(dates.from);
+    setEndDate(dates.to);
+  };
   const { userData } = useAppSelector((state) => state.authData);
   const [selectedDairy, setSelectedDairy] = useState<number>(0);
   const [loading, setLoading] = useState(false);
@@ -348,7 +350,7 @@ const GenerateBill = () => {
                   <SelectContent className="bg-white border border-gray-300 shadow-lg">
                     {branches.map((branch) => (
                       <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
-                        {branch.username}
+                        {branch.username} - {branch.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -359,7 +361,7 @@ const GenerateBill = () => {
                 <Input
                   type="date"
                   value={format(startDate, "yyyy-MM-dd")}
-                  onChange={(e) => setStartDate(new Date(e.target.value))}
+                  onChange={(e) => handleStartDateChange(e.target.value)}
                   className="border-gray-300"
                 />
               </div>
@@ -368,8 +370,8 @@ const GenerateBill = () => {
                 <Input
                   type="date"
                   value={format(endDate, "yyyy-MM-dd")}
-                  onChange={(e) => setEndDate(new Date(e.target.value))}
-                  className="border-gray-300"
+                  disabled
+                  className="border-gray-300 bg-gray-100 cursor-not-allowed"
                 />
               </div>
               <Button 

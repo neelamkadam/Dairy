@@ -4,12 +4,16 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { api } from '@/services/config';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/redux/store';
 import { toast } from 'react-toastify';
+import { generateTemplate2, FarmerBillData, BankDetails } from '@/templates/FarmerBillInvoiceTemplate';
+import { bankSummaryApi } from '@/services/bankSummaryApi';
+import { format } from 'date-fns';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import PdfLoader from '@/components/PdfLoader';
 
 interface CollectionRecord {
   date: string;
@@ -52,36 +56,45 @@ interface FarmerPayment {
 const FarmerBillInvoiceReport = () => {
   const branches = useSelector((state: RootState) => state.branch.branches);
   const [selectedVLC, setSelectedVLC] = useState<string>('');
-  const [fromDate, setFromDate] = useState<string>('');
-  const [toDate, setToDate] = useState<string>('');
+  
+  const calculateDateRange = (dateStr: string) => {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    
+    let startDay: number, endDay: number;
+    if (day >= 1 && day <= 10) {
+      startDay = 1;
+      endDay = 10;
+    } else if (day >= 11 && day <= 20) {
+      startDay = 11;
+      endDay = 20;
+    } else if (day >= 21) {
+      startDay = 21;
+      endDay = new Date(year, month, 0).getDate();
+    } else return { from: dateStr, to: dateStr };
+    
+    return {
+      from: `${year}-${String(month).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`,
+      to: `${year}-${String(month).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`
+    };
+  };
+
+  const todayDates = calculateDateRange(new Date().toISOString().split('T')[0]);
+  const [fromDate, setFromDate] = useState<string>(todayDates.from);
+  const [toDate, setToDate] = useState<string>(todayDates.to);
+  
+  const handleFromDateChange = (newDate: string) => {
+    const dates = calculateDateRange(newDate);
+    setFromDate(dates.from);
+    setToDate(dates.to);
+  };
   const [farmerCode, setFarmerCode] = useState<string>('');
   const [collectionData, setCollectionData] = useState<CollectionRecord[]>([]);
   const [farmerBills, setFarmerBills] = useState<FarmerBill[]>([]);
   const [farmerPayments, setFarmerPayments] = useState<FarmerPayment[]>([]);
+  const [bankDetailsMap, setBankDetailsMap] = useState<Map<string, BankDetails>>(new Map());
   const [loading, setLoading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
-
-  useEffect(() => {
-    const today = new Date();
-    const day = today.getDate();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-
-    let startDay, endDay;
-    if (day <= 10) {
-      startDay = 1;
-      endDay = 10;
-    } else if (day <= 20) {
-      startDay = 11;
-      endDay = 20;
-    } else {
-      startDay = 21;
-      endDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-    }
-
-    setFromDate(`${year}-${month}-${String(startDay).padStart(2, '0')}`);
-    setToDate(`${year}-${month}-${String(endDay).padStart(2, '0')}`);
-  }, []);
 
   const handleShow = async () => {
     if (!selectedVLC || !fromDate || !toDate) {
@@ -92,15 +105,6 @@ const FarmerBillInvoiceReport = () => {
     setLoading(true);
     try {
       const selectedBranch = branches.find(b => b.branch_id.toString() === selectedVLC);
-      console.log('Selected Branch:', selectedBranch);
-      console.log('API Params:', {
-        dairyid: selectedBranch?.branch_id,
-        startDate: fromDate,
-        startShift: 'Morning',
-        endDate: toDate,
-        endShift: 'Evening',
-        milkType: 'All'
-      });
 
       const apiUrl = '/report/shift-collection-report';
       const params = {
@@ -111,32 +115,45 @@ const FarmerBillInvoiceReport = () => {
         endShift: 'Evening',
         milkType: 'All'
       };
-      
-      const queryString = new URLSearchParams(params).toString();
-      const fullUrl = `${api.defaults.baseURL}${apiUrl}?${queryString}`;
-      console.log('Full API URL:', fullUrl);
 
       const collectionResponse = await api.get(apiUrl, { params });
-
-      console.log('API Response:', collectionResponse.data);
-      console.log('Response Status:', collectionResponse.status);
 
       let filteredData = collectionResponse.data.report || [];
 
       if (farmerCode.trim()) {
         const paddedCode = farmerCode.padStart(4, '0');
         filteredData = filteredData.filter((item: CollectionRecord) => item.farmer_id === paddedCode);
-        console.log('Filtered by Farmer Code:', filteredData);
       }
 
       setCollectionData(filteredData);
       setFarmerBills(collectionResponse.data.farmerwise_bills || []);
       setFarmerPayments(collectionResponse.data.farmer_payments || []);
+      
+      // Fetch bank details
+      try {
+        const bankResponse = await bankSummaryApi.getBankSummary({
+          dairy_id: selectedVLC,
+          start_date: format(new Date(fromDate), 'yyyy-MM-dd'),
+          end_date: format(new Date(toDate), 'yyyy-MM-dd')
+        });
+        
+        const bankMap = new Map<string, BankDetails>();
+        (bankResponse.data || []).forEach((farmer: any) => {
+          bankMap.set(farmer.farmer_id, {
+            accountNumber: farmer.accountNumber,
+            ifscCode: farmer.ifscCode,
+            bankName: farmer.bankName,
+            branchName: farmer.branchName
+          });
+        });
+        setBankDetailsMap(bankMap);
+      } catch (error) {
+        console.error('Failed to fetch bank details:', error);
+      }
+      
       setCurrentPage(0);
     } catch (error: any) {
       console.error('Error fetching data:', error);
-      console.error('Error response:', error.response?.data);
-      console.error('Error status:', error.response?.status);
       toast.error(`Failed to fetch data: ${error.response?.data?.message || error.message}`);
     } finally {
       setLoading(false);
@@ -196,101 +213,89 @@ const FarmerBillInvoiceReport = () => {
     return grouped;
   };
 
-  const exportToPDF = () => {
-    const doc = new jsPDF('landscape');
-    const vlcName = branches.find(v => v.branch_id.toString() === selectedVLC)?.name || 'VLC Center';
-    const grouped = groupByFarmer();
-    let startY = 38;
+  const exportToPDF = async () => {
+    setPdfLoading(true);
+    try {
+      const grouped = groupByFarmer();
+      const selectedBranch = branches.find(v => v.branch_id.toString() === selectedVLC);
+      const vlcName = selectedBranch?.name || 'VLC Center';
+      const dairyName = selectedBranch?.username || 'Dairy';
 
-    Object.keys(grouped).forEach((farmerId, index) => {
-      if (index > 0) doc.addPage();
-      
-      const farmerData = grouped[farmerId];
-      const farmerName = farmerData[0].farmer_name;
-      const bill = farmerBills.find(b => b.farmer_id === farmerId);
-      const payments = farmerPayments.filter(p => p.farmer_id === farmerId);
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const farmerIds = Object.keys(grouped);
 
-      doc.setFontSize(16);
-      doc.text('Farmer Bill Invoice Report', 14, 15);
-      doc.setFontSize(10);
-      doc.text(`VLC Center: ${vlcName}`, 14, 22);
-      doc.text(`Period: ${fromDate} to ${toDate}`, 14, 28);
-      doc.text(`Farmer: ${farmerId} - ${farmerName}`, 14, 34);
-
-      const tableData = farmerData.map(item => [
-        formatDate(item.date),
-        item.shift,
-        item.type,
-        parseFloat(item.liters).toFixed(2),
-        parseFloat(item.fat).toFixed(1),
-        parseFloat(item.snf).toFixed(1),
-        parseFloat(item.clr).toFixed(1),
-        parseFloat(item.rate).toFixed(2),
-        parseFloat(item.amount).toFixed(2)
-      ]);
-
-      const farmerTotal = farmerData.reduce((sum, item) => sum + parseFloat(item.amount), 0);
-      const farmerLiters = farmerData.reduce((sum, item) => sum + parseFloat(item.liters), 0);
-
-      autoTable(doc, {
-        startY: 38,
-        head: [['Date', 'Shift', 'Type', 'Liters', 'FAT%', 'SNF%', 'CLR', 'Rate', 'Amount']],
-        body: tableData,
-        foot: [['Total', '', '', farmerLiters.toFixed(2), '', '', '', '', farmerTotal.toFixed(2)]],
-        theme: 'grid',
-        styles: { fontSize: 8 },
-        headStyles: { fillColor: [66, 139, 202] }
-      });
-
-      let finalY = (doc as any).lastAutoTable.finalY + 10;
-
-      if (payments.length > 0) {
-        doc.setFontSize(12);
-        doc.text('Payments/Deductions', 14, finalY);
+      for (let i = 0; i < farmerIds.length; i++) {
+        const farmerId = farmerIds[i];
+        const farmerData = grouped[farmerId];
+        const farmerName = farmerData[0].farmer_name;
         
-        const paymentData = payments.map(p => [
-          formatDate(p.date),
-          p.payment_type,
-          `₹${parseFloat(p.amount_taken).toFixed(2)}`
-        ]);
+        const templateData: FarmerBillData[] = farmerData.map(item => ({
+          date: item.date,
+          shift: item.shift,
+          type: item.type,
+          liters: parseFloat(item.liters),
+          fat: parseFloat(item.fat),
+          snf: parseFloat(item.snf),
+          clr: parseFloat(item.clr),
+          rate: parseFloat(item.rate),
+          amount: parseFloat(item.amount),
+          farmer_id: item.farmer_id,
+          farmer_name: item.farmer_name
+        }));
 
-        autoTable(doc, {
-          startY: finalY + 5,
-          head: [['Date', 'Type', 'Amount']],
-          body: paymentData,
-          theme: 'grid',
-          styles: { fontSize: 9 }
+        const htmlContent = generateTemplate2({
+          dairyName: dairyName,
+          branchName: vlcName,
+          farmerCode: farmerId,
+          farmerName: farmerName,
+          fromDate: fromDate,
+          toDate: toDate,
+          milkType: 'All',
+          data: templateData,
+          farmerBill: { farmerwise_bills: farmerBills },
+          paymentSummary: null,
+          bankDetails: bankDetailsMap.get(farmerId)
         });
 
-        finalY = (doc as any).lastAutoTable.finalY + 10;
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = htmlContent;
+        tempDiv.style.position = 'absolute';
+        tempDiv.style.left = '-9999px';
+        tempDiv.style.width = '210mm';
+        document.body.appendChild(tempDiv);
+
+        try {
+          const canvas = await html2canvas(tempDiv, { 
+            scale: 1.5,
+            useCORS: true,
+            logging: false,
+            windowWidth: 794
+          });
+          const imgData = canvas.toDataURL('image/png');
+          const imgWidth = 210;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+          if (i > 0) pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+        } finally {
+          document.body.removeChild(tempDiv);
+        }
       }
 
-      if (bill) {
-        doc.setFontSize(12);
-        doc.text('Bill Summary', 14, finalY);
-        
-        autoTable(doc, {
-          startY: finalY + 5,
-          body: [
-            ['Total Milk Amount', `₹${bill.milk_total.toFixed(2)}`],
-            ['Advance', `₹${bill.deductions.advance.toFixed(2)}`],
-            ['Cattle Feed', `₹${bill.deductions.cattle_feed.toFixed(2)}`],
-            ['Other Deductions', `₹${(bill.deductions.other1 + bill.deductions.other2).toFixed(2)}`],
-            ['Net Payable', `₹${Math.max(0, bill.net_payable).toFixed(2)}`]
-          ],
-          theme: 'plain',
-          styles: { fontSize: 10 }
-        });
-      }
-    });
-
-    doc.save(`FarmerBillInvoice_${fromDate}_to_${toDate}.pdf`);
+      pdf.save(`Farmer_Bill_${fromDate}_to_${toDate}.pdf`);
+      toast.success('PDF downloaded successfully');
+    } catch (error) {
+      toast.error('Failed to generate PDF');
+    } finally {
+      setPdfLoading(false);
+    }
   };
 
   const totals = calculateTotals();
 
   return (
     <div className="p-6 space-y-6">
+      <PdfLoader isLoading={pdfLoading} />
       <h1 className="text-2xl font-bold">Farmer Bill Invoice Report</h1>
 
       <Card>
@@ -300,7 +305,16 @@ const FarmerBillInvoiceReport = () => {
               <Label>VLC Center</Label>
               <Select value={selectedVLC} onValueChange={setSelectedVLC}>
                 <SelectTrigger className="bg-white">
-                  <SelectValue placeholder="Select VLC Center" />
+                  <SelectValue placeholder="Select VLC Center">
+                    {selectedVLC && (() => {
+                      const selected = branches.find(b => b.branch_id.toString() === selectedVLC);
+                      if (selected) {
+                        const text = `${selected.username} - ${selected.name}`;
+                        return text.length > 25 ? text.substring(0, 25) + '...' : text;
+                      }
+                      return 'Select VLC Center';
+                    })()}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent className="bg-white">
                   {branches.map(vlc => (
@@ -314,12 +328,12 @@ const FarmerBillInvoiceReport = () => {
 
             <div className="flex-1 min-w-[150px]">
               <Label>From Date</Label>
-              <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+              <Input type="date" value={fromDate} onChange={(e) => handleFromDateChange(e.target.value)} />
             </div>
 
             <div className="flex-1 min-w-[150px]">
               <Label>To Date</Label>
-              <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+              <Input type="date" value={toDate} disabled className="bg-gray-100 cursor-not-allowed" />
             </div>
 
             <div className="flex-1 min-w-[150px]">
@@ -328,10 +342,10 @@ const FarmerBillInvoiceReport = () => {
             </div>
 
             <div className="flex gap-2">
-              <Button onClick={handleShow} disabled={loading}>
+              <Button className=' bg-blue-600 text-white' onClick={handleShow} disabled={loading}>
                 {loading ? 'Loading...' : 'Show'}
               </Button>
-              <Button onClick={exportToPDF} disabled={collectionData.length === 0} variant="outline">
+              <Button className='bg-red-600 text-white' onClick={exportToPDF} disabled={collectionData.length === 0 || pdfLoading} variant="outline">
                 Export PDF
               </Button>
             </div>

@@ -54,6 +54,7 @@ export const reportsApi = {
     organisation_id: string;
     type: string;
     name: string;
+    shift: string;
   }) => {
     const queryString = new URLSearchParams(params as any).toString();
     console.log('📡 Full API URL:', `${api.defaults.baseURL}/conf/previewRateMatrix?${queryString}`);
