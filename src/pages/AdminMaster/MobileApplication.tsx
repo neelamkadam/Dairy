@@ -35,20 +35,27 @@ export const MobileApplication: React.FC = () => {
   const fetchManagers = async () => {
     try {
       const { data } = await adminApi.getAllUsers();
+      console.log('API Response:', data);
       if (data.success) {
         const managerData = data.data.dairyManagers || [];
         const adminData = data.data.dairyAdmins || [];
+        console.log('Dairy Managers:', managerData);
+        console.log('Dairy Admins:', adminData);
         setDairyAdmins(adminData);
         setManagers(managerData);
         setFilteredManagers(managerData);
       }
     } catch (error) {
+      console.error('Error fetching managers:', error);
       toast.error('Failed to fetch managers');
     }
   };
 
   const getAdminMobile = (createdBy: string) => {
     const admin = dairyAdmins.find((a) => a.id.toString() === createdBy);
+    if (!admin) {
+      console.log(`No admin found for createdBy: ${createdBy}`);
+    }
     return admin?.mobile_number || '-';
   };
 

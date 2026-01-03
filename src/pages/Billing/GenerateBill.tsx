@@ -58,6 +58,7 @@ const GenerateBill = () => {
   const [loading, setLoading] = useState(false);
   const [farmersData, setFarmersData] = useState<any[]>([]);
   const [priority, setPriority] = useState<string[]>(['advance', 'cattleFeed', 'other1', 'other2']);
+  const [isBillFinalized, setIsBillFinalized] = useState(false);
 
   const totals = farmersData.reduce(
     (acc, farmer) => {
@@ -102,7 +103,11 @@ const GenerateBill = () => {
         format(startDate, "yyyy-MM-dd"),
         format(endDate, "yyyy-MM-dd")
       );
-      console.log(data);
+      // Check if bills are finalized by checking first farmer's from_bills status
+      const firstDateEntry = data.data?.[0];
+      const firstFarmer = firstDateEntry?.farmers?.[0];
+      const isFinalized = firstFarmer?.from_bills?.is_finalized === 1 && firstFarmer?.from_bills?.status === 'paid';
+      setIsBillFinalized(isFinalized);
 
       // Process the nested data structure
       const farmerMap = new Map();
@@ -229,23 +234,74 @@ const GenerateBill = () => {
     }
   };
 
+  const calculatePreviousBillCycle = (currentStartDate: Date) => {
+    const [year, month, day] = format(currentStartDate, 'yyyy-MM-dd').split('-').map(Number);
+    
+    let prevStartDay: number, prevEndDay: number;
+    if (day === 1) {
+      // If current cycle starts on 1st, previous is 21st to last day of previous month
+      const prevMonth = month === 1 ? 12 : month - 1;
+      const prevYear = month === 1 ? year - 1 : year;
+      prevStartDay = 21;
+      prevEndDay = new Date(prevYear, prevMonth, 0).getDate();
+      return {
+        from: new Date(prevYear, prevMonth - 1, prevStartDay),
+        to: new Date(prevYear, prevMonth - 1, prevEndDay)
+      };
+    } else if (day === 11) {
+      // If current cycle starts on 11th, previous is 1st to 10th
+      prevStartDay = 1;
+      prevEndDay = 10;
+    } else if (day === 21) {
+      // If current cycle starts on 21st, previous is 11th to 20th
+      prevStartDay = 11;
+      prevEndDay = 20;
+    } else {
+      return null;
+    }
+    
+    return {
+      from: new Date(year, month - 1, prevStartDay),
+      to: new Date(year, month - 1, prevEndDay)
+    };
+  };
+
   const checkPreviousBillCycle = async () => {
-    const prevEndDate = new Date(startDate);
-    prevEndDate.setDate(prevEndDate.getDate() - 1);
-    const prevStartDate = new Date(prevEndDate);
-    prevStartDate.setDate(prevStartDate.getDate() - (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    const previousCycle = calculatePreviousBillCycle(startDate);
+    if (!previousCycle) return true;
 
     try {
-      const { data } = await deductionApi.checkPreviousBillCycle(
+      const { data } = await deductionApi.getAllFarmersBalance(
         selectedDairy,
-        format(prevStartDate, "yyyy-MM-dd"),
-        format(prevEndDate, "yyyy-MM-dd")
+        format(previousCycle.from, "yyyy-MM-dd"),
+        format(previousCycle.to, "yyyy-MM-dd")
       );
 
-      const hasUnfinalized = (data.farmers || []).some((f: any) => !f.is_finalized);
-      return !hasUnfinalized;
-    } catch {
+      // Check if any farmer has bills with status not paid
+      const hasUnpaidBills = data.data?.some((dateEntry: any) => 
+        dateEntry.farmers?.some((farmer: any) => 
+          farmer.from_bills && 
+          farmer.from_bills.status !== 'paid' && 
+          farmer.from_bills.is_finalized === 0
+        )
+      );
+
+      // If no data or no bills exist, allow generation (new customer)
+      if (!data.data || data.data.length === 0) return true;
+      
+      // Check if bills exist but are not finalized
+      const hasBills = data.data?.some((dateEntry: any) => 
+        dateEntry.farmers?.some((farmer: any) => farmer.from_bills)
+      );
+
+      if (hasBills && hasUnpaidBills) {
+        return false;
+      }
+
       return true;
+    } catch (error) {
+      console.error('Error checking previous bill cycle:', error);
+      return true; // Allow generation if check fails
     }
   };
 
@@ -254,7 +310,12 @@ const GenerateBill = () => {
     try {
       const canGenerate = await checkPreviousBillCycle();
       if (!canGenerate) {
-        toast.error("Previous bill cycle has unfinalized bills. Please finalize them first.");
+        const previousCycle = calculatePreviousBillCycle(startDate);
+        if (previousCycle) {
+          toast.error(
+            `Please generate and finalize bills for previous cycle (${format(previousCycle.from, 'dd-MM-yyyy')} to ${format(previousCycle.to, 'dd-MM-yyyy')}) first.`
+          );
+        }
         setLoading(false);
         return;
       }
@@ -320,13 +381,9 @@ const GenerateBill = () => {
           <div className="flex items-center justify-between py-2">
             <div className="flex items-center space-x-4">
               <div>
-                <ChevronLeft size={20} strokeWidth={1.25} />
-              </div>
-              <div>
                 <h1 className="text-2xl text-left font-bold text-gray-900">
                   Generate Bill
                 </h1>
-                <p className="text-gray-600">Dashboard / Generate Bill</p>
               </div>
             </div>
           </div>
@@ -350,7 +407,7 @@ const GenerateBill = () => {
                   <SelectContent className="bg-white border border-gray-300 shadow-lg">
                     {branches.map((branch) => (
                       <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
-                        {branch.username} - {branch.name}
+                        {branch.username} - {branch.name} - {branch.branchName}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -381,6 +438,15 @@ const GenerateBill = () => {
               >
                 {loading ? "Loading..." : "Show"}
               </Button>
+              {farmersData.length > 0 && (
+                <div className={`px-4 py-2 rounded-md font-semibold ${
+                  isBillFinalized 
+                    ? 'bg-green-100 text-green-700' 
+                    : 'bg-yellow-100 text-yellow-700'
+                }`}>
+                  {isBillFinalized ? 'Bill Finalized' : 'Not Finalized'}
+                </div>
+              )}
             </div>
           </CardContent>
           <CardContent className="p-2">
@@ -478,8 +544,8 @@ const GenerateBill = () => {
             <div className="w-full text-center">
               <Button
                 onClick={handleGenerateBill}
-                disabled={loading}
-                className="bg-blue-600 hover:bg-blue-700 text-white w-[17%]"
+                disabled={loading || isBillFinalized}
+                className="bg-blue-600 hover:bg-blue-700 text-white w-[17%] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? "Generating..." : "Generate Bill"}
               </Button>

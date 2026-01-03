@@ -65,14 +65,46 @@ const BankSummary: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await bankSummaryApi.getBankSummary({
-        dairy_id: dairyId,
-        start_date: format(startDate, "yyyy-MM-dd"),
-        end_date: format(endDate, "yyyy-MM-dd"),
+      const [bankResponse, paymentResponse] = await Promise.all([
+        bankSummaryApi.getBankSummary({
+          dairy_id: dairyId,
+          start_date: format(startDate, "yyyy-MM-dd"),
+          end_date: format(endDate, "yyyy-MM-dd"),
+        }),
+        bankSummaryApi.getPaymentSummary({
+          dairyid: dairyId,
+          datefrom: format(startDate, "yyyy-MM-dd"),
+          dateto: format(endDate, "yyyy-MM-dd"),
+        })
+      ]);
+      
+      const paymentMap = new Map<string, number>();
+      
+      if (paymentResponse?.data && Array.isArray(paymentResponse.data)) {
+        paymentResponse.data.forEach((dateData: any) => {
+          dateData.farmers?.forEach((farmer: any) => {
+            const farmerId = farmer.farmer_id;
+            const netPayable = farmer.from_bills?.net_payable || 0;
+            paymentMap.set(farmerId, (paymentMap.get(farmerId) || 0) + netPayable);
+          });
+        });
+      }
+      
+      const updatedData = (bankResponse.data || []).map((farmer: BankSummaryData) => ({
+        ...farmer,
+        milk_total: paymentMap.get(farmer.farmer_id) || farmer.milk_total
+      }));
+      
+      updatedData.sort((a, b) => {
+        const idA = typeof a.farmer_id === 'string' ? parseInt(a.farmer_id) : a.farmer_id;
+        const idB = typeof b.farmer_id === 'string' ? parseInt(b.farmer_id) : b.farmer_id;
+        return idA - idB;
       });
-      setData(response.data || []);
+      
+      setData(updatedData);
       toast.success(t('data_fetched_successfully'));
     } catch (error) {
+      console.log('API Error:', error);
       toast.error(t('failed_to_fetch_data'));
     } finally {
       setLoading(false);

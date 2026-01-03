@@ -24,8 +24,10 @@ import {
   Scale,
   Layers,
   Printer,
+  Lock,
 } from "lucide-react";
 import { settingsApi } from "@/services/settingsApi";
+import { passwordApiService } from "@/services/passwordApiService";
 import { toast } from "react-toastify";
 
 const GeneralSettings = () => {
@@ -42,10 +44,13 @@ const GeneralSettings = () => {
   const [printer, setPrinter] = useState(0);
   const [language, setLanguage] = useState("English");
   const [reportLanguage, setReportLanguage] = useState("English");
+  const [password, setPassword] = useState("");
+  const [hasPassword, setHasPassword] = useState(false);
 
   useEffect(() => {
     if (selectedVlc) {
       fetchSettings();
+      checkPassword();
     }
   }, [selectedVlc]);
 
@@ -68,6 +73,44 @@ const GeneralSettings = () => {
       }
     } catch (error) {
       toast.error("Failed to fetch settings");
+    }
+  };
+
+  const checkPassword = async () => {
+    try {
+      const result = await passwordApiService.checkPassword(selectedVlc);
+      if (result.success) {
+        setHasPassword(result.hasPassword);
+        setPassword("");
+      }
+    } catch (error) {
+      console.error("Failed to check password");
+    }
+  };
+
+  const handlePasswordSave = async () => {
+    if (!selectedVlc) {
+      toast.error("Please select a VLC");
+      return;
+    }
+    if (!password.trim()) {
+      toast.error("Please enter a password");
+      return;
+    }
+    try {
+      const result = hasPassword
+        ? await passwordApiService.updatePassword(selectedVlc, password)
+        : await passwordApiService.createPassword(selectedVlc, password);
+      
+      if (result.success) {
+        toast.success(result.message || `Password ${hasPassword ? 'updated' : 'created'} successfully`);
+        setHasPassword(true);
+        setPassword("");
+      } else {
+        toast.error(result.message || "Failed to save password");
+      }
+    } catch (error) {
+      toast.error("Failed to save password");
     }
   };
 
@@ -400,6 +443,40 @@ const GeneralSettings = () => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <Lock className="h-5 w-5 text-blue-600" />
+            <h2 className="text-lg font-semibold text-gray-900">
+              Password Management
+            </h2>
+          </div>
+          <div className="max-w-md">
+            <label className="text-sm font-medium text-gray-700 mb-2 block">
+              {hasPassword ? "Update Password" : "Create Password"}
+            </label>
+            <div className="flex gap-3">
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter password"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <Button
+                onClick={handlePasswordSave}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+              >
+                {hasPassword ? "Update" : "Create"}
+              </Button>
+            </div>
+            {hasPassword && (
+              <p className="text-xs text-gray-500 mt-2">
+                Password already exists. Enter a new password to update.
+              </p>
+            )}
           </div>
         </div>
 

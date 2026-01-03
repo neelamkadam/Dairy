@@ -34,6 +34,11 @@ export const authApi = {
     return response.data;
   },
 
+  bulkRegisterFarmers: async (data: { farmers: RegisterFarmerPayload[] }) => {
+    const response = await api.post('/auth/registerfarmer/bulk', data);
+    return response.data;
+  },
+
   updateUser: async (data: UpdateUserPayload) => {
     const response = await api.post('/auth/updateuser', data);
     return response.data;

@@ -185,10 +185,10 @@ const VLCCllection = () => {
   const uniqueVLCCs = new Set(farmerData.map(f => f.dairy_id)).size;
   const totalMilk = farmerData.reduce((sum, f) => sum + (parseFloat(f.quantity) || 0), 0);
   const avgFat = farmerData.length > 0 
-    ? (farmerData.reduce((sum, f) => sum + (parseFloat(f.fat) || 0), 0) / farmerData.length).toFixed(1)
+    ? (farmerData.reduce((sum, f) => sum + (parseFloat(f.fat) || 0), 0) / farmerData.length).toFixed(2)
     : "0.0";
   const avgSNF = farmerData.length > 0
-    ? (farmerData.reduce((sum, f) => sum + (parseFloat(f.snf) || 0), 0) / farmerData.length).toFixed(1)
+    ? (farmerData.reduce((sum, f) => sum + (parseFloat(f.snf) || 0), 0) / farmerData.length).toFixed(2)
     : "0.0";
   const totalPayments = farmerData.reduce((sum, f) => sum + (parseFloat(f.amount) || 0), 0);
 

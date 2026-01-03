@@ -29,4 +29,8 @@ export const bankSummaryApi = {
     const res = await api.get("/web/billing/payment-bank-summary", { params });
     return res.data;
   },
+  getPaymentSummary: async (params: { dairyid: string; datefrom: string; dateto: string }) => {
+    const res = await api.get("/payments/getdairybillsummary", { params });
+    return res.data;
+  },
 };

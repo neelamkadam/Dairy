@@ -119,6 +119,7 @@ const FarmerBillInvoiceReport = () => {
       const collectionResponse = await api.get(apiUrl, { params });
 
       let filteredData = collectionResponse.data.report || [];
+      console.log('Collection data sample:', filteredData.slice(0, 2));
 
       if (farmerCode.trim()) {
         const paddedCode = farmerCode.padStart(4, '0');
@@ -163,7 +164,10 @@ const FarmerBillInvoiceReport = () => {
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '';
     const date = new Date(dateStr);
-    return date.toISOString().split('T')[0];
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
   };
 
   const calculateTotals = () => {

@@ -83,6 +83,7 @@ const getMenuItems = (t: any): MenuItem[] => [
     children: [
       { title: t('general_settings'), icon: "", href: ROUTES.SETTINGS.GENERAL_SETTINGS },
       { title: t('cattle_feed_stock'), icon: "", href: ROUTES.SETTINGS.CATTLE_FEED_STOCK },
+      { title: t('password_manager'), icon: "", href: ROUTES.SETTINGS.PASSWORD_MANAGER },
     ]
   }
 ];

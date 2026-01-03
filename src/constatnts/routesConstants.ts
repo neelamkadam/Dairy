@@ -45,6 +45,7 @@ export const ROUTES = {
   SETTINGS:{
     GENERAL_SETTINGS:`/dashboard/general-settings`,
     CATTLE_FEED_STOCK:`/dashboard/cattle-feed-stock`,
+    PASSWORD_MANAGER:`/dashboard/password-manager`,
   },
   PROFILE:`/dashboard/profile`,
   AVATAR_SELECTOR:`/dashboard/avatar-selector`,

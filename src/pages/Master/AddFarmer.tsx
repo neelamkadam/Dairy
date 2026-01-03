@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Upload, Download } from 'lucide-react';
 import { useAppSelector } from '@/redux/store';
 import { useNavigate, useParams } from 'react-router-dom';
 import { authApi } from '@/services/authApi';
@@ -16,6 +16,7 @@ import { rateChartApi } from '@/services/rateChartApi';
 import { normalizeFarmerId, formatFarmerIdForDisplay } from '@/utils/farmerIdUtils';
 import { Validator } from '@/utils/validation';
 import { toast } from 'react-toastify';
+import * as XLSX from 'xlsx';
 
 export const AddFarmer: React.FC = () => {
   const { t } = useTranslation();
@@ -46,18 +47,150 @@ export const AddFarmer: React.FC = () => {
   const [cowRateNames, setCowRateNames] = useState<string[]>([]);
   const [buffaloRateNames, setBuffaloRateNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [bulkUploading, setBulkUploading] = useState(false);
+
+  const downloadTemplate = () => {
+    const template = [
+      {
+        "Farmer ID": "F001",
+        "Full Name": "John Doe",
+        "Mobile Number": "9876543210",
+        "Email": "john@example.com",
+        "Address": "123 Farm Street, Village",
+        "Milk Type": "cow",
+        "Rate Chart": "Rate Chart 1",
+        "PAN Card": "ABCDE1234F",
+        "Aadhaar Card": "123456789012",
+        "Bank Name": "State Bank",
+        "Account Number": "1234567890",
+        "IFSC Code": "SBIN0001234",
+        "VLC ID": "1"
+      }
+    ];
+    
+    const ws = XLSX.utils.json_to_sheet(template);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Farmers Template");
+    XLSX.writeFile(wb, "Farmers_Bulk_Upload_Template.xlsx");
+    toast.success("Template downloaded successfully");
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setBulkUploading(true);
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+      const farmers = jsonData.map((row: any) => ({
+        username: row["Farmer ID"] || row["username"],
+        fullName: row["Full Name"] || row["fullName"],
+        mobile_number: row["Mobile Number"] || row["mobile_number"],
+        email: row["Email"] || row["email"] || "",
+        address: row["Address"] || row["address"],
+        milkType: (row["Milk Type"] || row["milkType"])?.toLowerCase(),
+        rateChart: row["Rate Chart"] || row["rateChart"],
+        panCard: row["PAN Card"] || row["panCard"] || "",
+        aadhaarCard: row["Aadhaar Card"] || row["aadhaarCard"] || "",
+        bankName: row["Bank Name"] || row["bankName"] || "",
+        accountNumber: row["Account Number"] || row["accountNumber"] || "",
+        ifscCode: row["IFSC Code"] || row["ifscCode"] || "",
+        role: "farmer",
+        dairy_id: parseInt(row["VLC ID"] || row["dairy_id"])
+      }));
+
+      const response = await authApi.bulkRegisterFarmers({ farmers });
+
+      if (response.success) {
+        toast.success(`${response.message}. ${response.successful} successful, ${response.failed} failed.`);
+        if (response.errors && response.errors.length > 0) {
+          console.error("Bulk upload errors:", response.errors);
+          toast.warning(`Some farmers failed to upload. Check console for details.`);
+        }
+      } else {
+        toast.error(response.message || "Bulk upload failed");
+      }
+    } catch (error: any) {
+      console.error("Bulk upload error:", error);
+      toast.error(error?.response?.data?.message || "Failed to upload farmers");
+    } finally {
+      setBulkUploading(false);
+      e.target.value = "";
+    }
+  };
 
   useEffect(() => {
     if (routeFarmerId && formData.VLC) {
       loadExistingFarmerData(routeFarmerId);
     }
   }, [routeFarmerId, formData.VLC]);
+  useEffect(() => {
+    if (formData.VLC && formData.farmerId && formData.farmerId.length >= 3) {
+      const timer = setTimeout(() => {
+        checkExistingFarmer();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [formData.VLC, formData.farmerId]);
 
   useEffect(() => {
     if (formData.VLC && formData.milkType) {
       loadRateChartNames();
     }
   }, [formData.VLC, formData.milkType]);
+
+  const checkExistingFarmer = async () => {
+    try {
+      const normalized = normalizeFarmerId(formData.farmerId);
+      const dairyId = parseInt(formData.VLC);
+      
+      const farmer = await userApi.getById(normalized, dairyId);
+      
+      if (farmer) {
+        setIsEditMode(true);
+        setExistingFarmerData(farmer);
+        
+        let cowRate = '';
+        let buffaloRate = '';
+        if (farmer.milkType === 'Both' && farmer.rateChart) {
+          const match = farmer.rateChart.match(/Cow:\s*([^,]+),\s*Buffalo:\s*(.+)/);
+          if (match) {
+            cowRate = match[1].trim();
+            buffaloRate = match[2].trim();
+          }
+        }
+        
+        setFormData(prev => ({
+          ...prev,
+          fullName: farmer.fullName || '',
+          phoneNumber: farmer.mobile_number || '',
+          email: farmer.email || '',
+          address: farmer.address || '',
+          milkType: farmer.milkType || '',
+          rateChart: farmer.milkType === 'Both' ? '' : (farmer.rateChart || ''),
+          cowRateChart: cowRate,
+          buffaloRateChart: buffaloRate,
+          panCard: farmer.panCard || '',
+          aadhaarCard: farmer.aadhaarCard || '',
+          bankName: farmer.bankName || '',
+          accountNumber: farmer.accountNumber || '',
+          ifscCode: farmer.ifscCode || '',
+        }));
+        
+        toast.info('Farmer found! Data loaded for editing.');
+      } else {
+        setIsEditMode(false);
+        setExistingFarmerData(null);
+      }
+    } catch (error) {
+      setIsEditMode(false);
+      setExistingFarmerData(null);
+    }
+  };
 
   const loadExistingFarmerData = async (farmerId: string) => {
     try {
@@ -220,10 +353,15 @@ export const AddFarmer: React.FC = () => {
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
+    console.log('handleSubmit called', { isEditMode, existingFarmerData });
     if (e) e.preventDefault();
     
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      console.log('Validation failed');
+      return;
+    }
     
+    console.log('Validation passed, proceeding...');
     setLoading(true);
     
     try {
@@ -263,11 +401,32 @@ export const AddFarmer: React.FC = () => {
           createby: existingFarmerData.createby || 'admin'
         };
         
+        console.log('Update Data:', updateData);
         const response = await authApi.updateUser(updateData);
+        console.log('Update Response:', response);
         
         if (response.success) {
           toast.success('Farmer updated successfully');
-          navigate(-1);
+          // Reset form and reload
+          setIsEditMode(false);
+          setExistingFarmerData(null);
+          setFormData({
+            VLC: '',
+            farmerId: '',
+            fullName: '',
+            phoneNumber: '',
+            email: '',
+            address: '',
+            milkType: '',
+            rateChart: '',
+            cowRateChart: '',
+            buffaloRateChart: '',
+            panCard: '',
+            aadhaarCard: '',
+            bankName: '',
+            accountNumber: '',
+            ifscCode: '',
+          });
         } else {
           toast.error(response.message || 'Failed to update farmer');
         }
@@ -326,16 +485,38 @@ export const AddFarmer: React.FC = () => {
     <div className="w-full px-4 md:max-w-2xl mx-auto space-y-4 md:space-y-6">
       <div className="flex justify-between items-center gap-2 mt-3 mb-2">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+          <ChevronLeft className="h-4 w-4" />
         </Button>
         <span className="font-semibold">{isEditMode ? t('edit_farmer') : t('add_farmer')}</span>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="text-blue-600" 
-          onClick={() => handleSubmit()}
-          disabled={loading}
-        >
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={downloadTemplate}
+            className="text-blue-600 border-blue-600 flex items-center gap-1"
+          >
+            <Download className="h-4 w-4" />
+            Template
+          </Button>
+          <input
+            type="file"
+            accept=".xlsx,.xls"
+            onChange={handleFileUpload}
+            style={{ display: 'none' }}
+            id="excel-upload"
+            disabled={bulkUploading}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => document.getElementById('excel-upload')?.click()}
+            className="text-green-600 border-green-600 flex items-center gap-1"
+            disabled={bulkUploading}
+          >
+            <Upload className="h-4 w-4" />
+            {bulkUploading ? 'Uploading...' : 'Bulk Upload'}
+          </Button>
+        </div>
       </div>
 
       <Card className='bg-white border-none'>

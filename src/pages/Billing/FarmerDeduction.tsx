@@ -448,7 +448,7 @@ const FarmerDeduction = () => {
               <SelectContent className="bg-white border border-gray-300 shadow-lg">
                 {branches.map((branch) => (
                   <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
-                    {branch.username} - {branch.name}
+                    {branch.username} - {branch.name} - {branch.branchName}
                   </SelectItem>
                 ))}
               </SelectContent>
