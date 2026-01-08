@@ -252,15 +252,37 @@ const BankSummary: React.FC = () => {
             </div>
 
             {data.length > 0 && (
-              <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200 flex items-center justify-between">
-                <p className="text-sm font-medium text-blue-900">
-                  Showing {data.length} farmer{data.length !== 1 ? 's' : ''} for period: {format(startDate, "dd MMM yyyy")} to {format(endDate, "dd MMM yyyy")}
-                </p>
-                <Button onClick={exportToExcel} className="bg-green-600 hover:bg-green-700 text-white">
-                  <Download className="h-4 w-4 mr-2" />
-                  {t('export_excel')}
-                </Button>
-              </div>
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+                    <CardContent className="p-4">
+                      <p className="text-sm text-blue-600 font-medium">Total Farmers</p>
+                      <p className="text-2xl font-bold text-blue-900">{data.length}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+                    <CardContent className="p-4">
+                      <p className="text-sm text-green-600 font-medium">Total Banks</p>
+                      <p className="text-2xl font-bold text-green-900">{new Set(data.map(d => d.bankName).filter(Boolean)).size}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+                    <CardContent className="p-4">
+                      <p className="text-sm text-purple-600 font-medium">Total Amount</p>
+                      <p className="text-2xl font-bold text-purple-900">₹{data.reduce((sum, row) => sum + parseFloat(row.milk_total || 0), 0).toFixed(2)}</p>
+                    </CardContent>
+                  </Card>
+                </div>
+                <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200 flex items-center justify-between">
+                  <p className="text-sm font-medium text-blue-900">
+                    Period: {format(startDate, "dd MMM yyyy")} to {format(endDate, "dd MMM yyyy")}
+                  </p>
+                  <Button onClick={exportToExcel} className="bg-green-600 hover:bg-green-700 text-white">
+                    <Download className="h-4 w-4 mr-2" />
+                    {t('export_excel')}
+                  </Button>
+                </div>
+              </>
             )}
 
             <div className="overflow-x-auto rounded-lg border shadow-sm">
@@ -271,7 +293,7 @@ const BankSummary: React.FC = () => {
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Name</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Mobile</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Email</th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-700">Milk Total</th>
+                    <th className="text-right py-3 px-4 font-medium text-gray-700">Amount</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Bank Name</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Account Number</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700">IFSC Code</th>

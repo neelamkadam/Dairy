@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Calendar, Download, Loader2 } from "lucide-react";
+import { Calendar, Download, Loader2, FileSpreadsheet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAppSelector } from "@/redux/store";
 import { api } from "@/services/config";
@@ -7,6 +7,8 @@ import { toast } from "react-toastify";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import PdfLoader from "@/components/PdfLoader";
+import * as XLSX from "xlsx";
+import { bankSummaryApi } from "@/services/bankSummaryApi";
 
 interface FarmerDetail {
   farmer_id: string;
@@ -74,6 +76,8 @@ const PaymentSummaryReport = () => {
   const [data, setData] = useState<PaymentSummaryData | null>(null);
   const [selectedBranch, setSelectedBranch] = useState<number | null>(null);
   const { branches } = useAppSelector(state => state.branch);
+  const authState = useAppSelector((state) => state.authData);
+  const userData = authState?.userData;
 
   useEffect(() => {
     if (branches.length > 0 && !selectedBranch) {
@@ -179,7 +183,14 @@ const PaymentSummaryReport = () => {
       });
     });
     
-    return Array.from(farmerMap.values());
+    const sorted = Array.from(farmerMap.values()).sort((a, b) => {
+      const numA = parseInt(a.farmer_username) || 0;
+      const numB = parseInt(b.farmer_username) || 0;
+      console.log(`Comparing ${a.farmer_username} (${numA}) with ${b.farmer_username} (${numB})`);
+      return numA - numB;
+    });
+    console.log('Sorted farmers:', sorted.map(f => f.farmer_username));
+    return sorted;
   };
 
   const calculateTotals = () => {
@@ -193,7 +204,7 @@ const PaymentSummaryReport = () => {
       totalOther2: acc.totalOther2 + farmer.other2,
       totalReceived: acc.totalReceived + farmer.received,
       totalDeduction: acc.totalDeduction + farmer.total_deduction,
-      totalNet: acc.totalNet + farmer.net_payable,
+      totalNet: acc.totalNet + Math.max(0, farmer.net_payable),
       totalRemaining: acc.totalRemaining + farmer.remaining_balance
     }), {
       totalMilk: 0,
@@ -206,6 +217,86 @@ const PaymentSummaryReport = () => {
       totalNet: 0,
       totalRemaining: 0
     });
+  };
+
+  const exportToExcel = async () => {
+    if (!data || !selectedBranch) return;
+
+    try {
+      const bankResponse = await bankSummaryApi.getBankSummary({
+        dairy_id: selectedBranch.toString(),
+        start_date: dateFrom,
+        end_date: dateTo,
+      });
+
+      const farmers = getAggregatedFarmers();
+      const farmerMap = new Map(farmers.map(f => [f.farmer_id, f]));
+      const userIdStr = userData?.id?.toString();
+      const userId = userIdStr ? parseInt(userIdStr) : null;
+      const currentDate = new Date().toLocaleDateString('en-GB').split('/').reverse().join('-');
+
+      const bankData = (bankResponse.data || []).map((farmer: any) => {
+        const paymentData = farmerMap.get(farmer.farmer_id);
+        return {
+          ...farmer,
+          milk_total: paymentData?.net_payable || 0
+        };
+      }).sort((a, b) => parseInt(a.farmer_id) - parseInt(b.farmer_id));
+
+      if (userId === 2 || userId === 4 || userIdStr === '2' || userIdStr === '4') {
+        const exportData = bankData.map(row => ({
+          "PYMT_PROD_TYPE_CODE": "PAB_VENDOR",
+          "PYMT_MODE": "NEFT",
+          "DEBIT_ACC_NO": "",
+          "BNF_NAME": row.fullName,
+          "BENE_ACC_NO": row.accountNumber || "",
+          "BENE_IFSC": row.ifscCode || "",
+          "AMOUNT": Math.max(0, parseFloat(row.milk_total || 0)).toFixed(2),
+          "DEBIT_NARR": "",
+          "CREDIT_NARR": "",
+          "MOBILE_NUM": row.mobile_number || "",
+          "EMAIL_ID": row.email || "",
+          "REMARK": "",
+          "PYMT_DATE": currentDate
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        const redColumns = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'M'];
+        redColumns.forEach(col => {
+          const cellRef = `${col}1`;
+          if (ws[cellRef]) {
+            ws[cellRef].s = {
+              font: { color: { rgb: "FF0000" }, bold: true },
+              fill: { fgColor: { rgb: "FFFFFF" } }
+            };
+          }
+        });
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "PEF Export");
+        XLSX.writeFile(wb, `PEF_Export_${dateFrom}_to_${dateTo}.xlsx`, { cellStyles: true });
+      } else {
+        const exportData = bankData.map(row => ({
+          "Farmer ID": row.farmer_id,
+          "Name": row.fullName,
+          "Mobile": row.mobile_number,
+          "Email": row.email || "-",
+          "Amount": Math.max(0, parseFloat(row.milk_total || 0)).toFixed(2),
+          "Bank Name": row.bankName || "-",
+          "Account Number": row.accountNumber || "-",
+          "IFSC Code": row.ifscCode || "-"
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Payment Summary");
+        XLSX.writeFile(wb, `Payment_Summary_${dateFrom}_to_${dateTo}.xlsx`);
+      }
+      toast.success('Excel file downloaded successfully');
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export Excel');
+    }
   };
 
   const exportToPDF = () => {
@@ -330,6 +421,14 @@ const PaymentSummaryReport = () => {
                   Show
                 </button>
                 <button
+                  onClick={exportToExcel}
+                  disabled={!data || loading}
+                  className="flex items-center gap-2 bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 disabled:opacity-50"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  Bank Summary
+                </button>
+                <button
                   onClick={exportToPDF}
                   disabled={!data || loading}
                   className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
@@ -345,7 +444,7 @@ const PaymentSummaryReport = () => {
         {(() => {
           const totals = calculateTotals();
           return (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-gray-600">Total Milk</CardTitle>
@@ -376,6 +475,14 @@ const PaymentSummaryReport = () => {
                 </CardHeader>
                 <CardContent>
                   <p className="text-2xl font-bold text-green-600">₹{totals.totalNet.toFixed(2)}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-600">Remaining Balance</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold text-orange-600">₹{totals.totalRemaining.toFixed(2)}</p>
                 </CardContent>
               </Card>
             </div>

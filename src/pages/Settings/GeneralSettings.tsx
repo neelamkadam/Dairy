@@ -46,6 +46,7 @@ const GeneralSettings = () => {
   const [reportLanguage, setReportLanguage] = useState("English");
   const [password, setPassword] = useState("");
   const [hasPassword, setHasPassword] = useState(false);
+  const [showWater, setShowWater] = useState(0);
 
   useEffect(() => {
     if (selectedVlc) {
@@ -70,6 +71,7 @@ const GeneralSettings = () => {
         setPrinter(settings.printer ?? 0);
         setLanguage(settings.language || "English");
         setReportLanguage(settings.report_language || "English");
+        setShowWater(settings.show_water ?? 0);
       }
     } catch (error) {
       toast.error("Failed to fetch settings");
@@ -133,6 +135,7 @@ const GeneralSettings = () => {
         printer: printer,
         language: language,
         report_language: reportLanguage,
+        show_water: showWater,
       });
       if (data.success) {
         toast.success("Settings updated successfully");
@@ -140,6 +143,14 @@ const GeneralSettings = () => {
     } catch (error) {
       toast.error("Failed to update settings");
     }
+  };
+
+  const handleShowWaterChange = (checked: boolean) => {
+    if (!selectedVlc) {
+      toast.error("Please select a VLC first");
+      return;
+    }
+    setShowWater(checked ? 1 : 0);
   };
 
   return (
@@ -453,30 +464,44 @@ const GeneralSettings = () => {
               Password Management
             </h2>
           </div>
-          <div className="max-w-md">
-            <label className="text-sm font-medium text-gray-700 mb-2 block">
-              {hasPassword ? "Update Password" : "Create Password"}
-            </label>
-            <div className="flex gap-3">
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <Button
-                onClick={handlePasswordSave}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
-              >
-                {hasPassword ? "Update" : "Create"}
-              </Button>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">
+                {hasPassword ? "Update Password" : "Create Password"}
+              </label>
+              <div className="flex gap-3">
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter password"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <Button
+                  onClick={handlePasswordSave}
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+                >
+                  {hasPassword ? "Update" : "Create"}
+                </Button>
+              </div>
+              {hasPassword && (
+                <p className="text-xs text-gray-500 mt-2">
+                  Password already exists. Enter a new password to update.
+                </p>
+              )}
             </div>
-            {hasPassword && (
-              <p className="text-xs text-gray-500 mt-2">
-                Password already exists. Enter a new password to update.
-              </p>
-            )}
+            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+              <div>
+                <h3 className="text-sm font-medium text-gray-900">Show Water</h3>
+                <p className="text-xs text-gray-500">Display water information</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch checked={showWater === 1} onCheckedChange={handleShowWaterChange} />
+                <span className="text-xs text-gray-700 font-medium">
+                  {showWater === 1 ? "ON" : "OFF"}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 

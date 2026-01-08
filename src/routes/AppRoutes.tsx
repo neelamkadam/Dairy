@@ -46,6 +46,7 @@ import BankSummary from "@/pages/Reports/BankSummary";
 import GeneralSettings from "@/pages/Settings/GeneralSettings";
 import CattleFeedStockSettings from "@/pages/Settings/CattleFeedStock";
 import PasswordManager from "@/pages/Settings/PasswordManager";
+import ShubhamMilkProduct from "@/pages/ShubhamMilkProduct/ShubhamMilkProduct";
 import Profile from "@/pages/Profile/Profile";
 import AvatarSelector from "@/pages/Profile/AvatarSelector";
 import { createBrowserRouter } from "react-router-dom";
@@ -202,6 +203,10 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "password-manager",
         element: <PasswordManager />,
+      },
+      {
+        path: "shubham-milk-product",
+        element: <ShubhamMilkProduct />,
       },
       {
         path: "profile",

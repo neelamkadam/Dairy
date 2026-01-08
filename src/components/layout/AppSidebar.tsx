@@ -9,6 +9,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import NeoDairyLogo from "@/assets/NeoDairy_Logo.png";
 import { useAppSelector } from "@/redux/store";
 import { useTranslation } from "react-i18next";
+import { api } from "@/services/config";
 
 interface MenuItem {
   title: string;
@@ -17,7 +18,8 @@ interface MenuItem {
   children?: MenuItem[];
 }
 
-const getMenuItems = (t: any): MenuItem[] => [
+const getMenuItems = (t: any, userId?: number): MenuItem[] => {
+  const items: MenuItem[] = [
   {
     title: t('dashboard'),
     icon: "📊",
@@ -74,7 +76,6 @@ const getMenuItems = (t: any): MenuItem[] => [
       { title: t('farmer_passbook'), icon: "", href: ROUTES.REPORTS.FARMER_PASSBOOK},
       { title: t('vlc_commission_report'), icon: "", href: ROUTES.REPORTS.VLC_COMMISSION_REPORT },
       { title: t('pl_statement'), icon: "", href: ROUTES.REPORTS.PL_STATEMENT },
-      { title: t('bank_summary'), icon: "", href: ROUTES.REPORTS.BANK_SUMMARY }
     ]
   },
   {
@@ -88,6 +89,17 @@ const getMenuItems = (t: any): MenuItem[] => [
   }
 ];
 
+  if (userId === 7 || userId === 2) {
+    items.push({
+      title: "Shubham Milk Product",
+      icon: "🥛",
+      href: ROUTES.SHUBHAM_MILK_PRODUCT,
+    });
+  }
+
+  return items;
+};
+
 interface SidebarProps {
   isOpen: boolean;
   onToggle: () => void;
@@ -99,7 +111,11 @@ const AppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
   const userData = authState?.userData;
   const [showCompany, setShowCompany] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
-  const menuItems = getMenuItems(t);
+  
+  const userId = userData?.id ? Number(userData.id) : null;
+  console.log('Sidebar userId:', userId, 'userData.id:', userData?.id);
+  
+  const menuItems = getMenuItems(t, userId);
   
   useEffect(() => {
     if (!isOpen) return;

@@ -47,6 +47,7 @@ export const ROUTES = {
     CATTLE_FEED_STOCK:`/dashboard/cattle-feed-stock`,
     PASSWORD_MANAGER:`/dashboard/password-manager`,
   },
+  SHUBHAM_MILK_PRODUCT:`/dashboard/shubham-milk-product`,
   PROFILE:`/dashboard/profile`,
   AVATAR_SELECTOR:`/dashboard/avatar-selector`,
   ADMIN_DASHBOARD:`/admin/admin-dashboard`,

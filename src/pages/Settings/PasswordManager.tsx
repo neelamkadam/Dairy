@@ -35,26 +35,25 @@ const PasswordManager = () => {
       return;
     }
 
-    console.log("Resetting password for VLC ID:", vlcId);
     setLoading(true);
     try {
-      const response = await api.post("/auth/reset-password-username", {
-        dairy_id: vlcId,
-        new_password: password,
+      const selectedBranch = branches.find(b => b.branch_id.toString() === vlcId);
+      const response = await api.post("/auth/update-password", {
+        username: selectedBranch?.username,
+        password: password,
+        confirm_password: confirmPassword,
       });
-      console.log("API Response:", response.data);
 
       if (response.data.success) {
-        toast.success("Password reset successfully!");
+        toast.success(response.data.message);
         setVlcId("");
         setPassword("");
         setConfirmPassword("");
       } else {
-        toast.error(response.data.message || "Failed to reset password");
+        toast.error(response.data.message || "Failed to update password");
       }
     } catch (error: any) {
-      console.error("Password reset error:", error);
-      toast.error(error?.response?.data?.message || "Failed to reset password");
+      toast.error(error?.response?.data?.message || "Failed to update password");
     } finally {
       setLoading(false);
     }
@@ -157,7 +156,7 @@ const PasswordManager = () => {
                   disabled={loading}
                   className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
                 >
-                  {loading ? "Resetting..." : "Reset Password"}
+                  {loading ? "Updating..." : "Update Password"}
                 </Button>
               </div>
             </div>

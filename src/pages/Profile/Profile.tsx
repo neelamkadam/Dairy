@@ -10,6 +10,9 @@ const Profile = () => {
   const navigate = useNavigate();
   const [avatar, setAvatar] = useState('https://api.dicebear.com/7.x/avataaars/svg?seed=default');
 
+  console.log('Profile userData:', userData);
+  console.log('Profile branches:', branches);
+
   useEffect(() => {
     const savedAvatar = localStorage.getItem('userAvatar');
     if (savedAvatar) setAvatar(savedAvatar);

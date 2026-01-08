@@ -12,6 +12,7 @@ export interface SettingsData {
   weight: number;
   printer: number;
   language: string;
+  show_water: number;
   report_language: string;
 }
 
