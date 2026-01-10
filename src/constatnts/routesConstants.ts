@@ -46,6 +46,7 @@ export const ROUTES = {
     GENERAL_SETTINGS:`/dashboard/general-settings`,
     CATTLE_FEED_STOCK:`/dashboard/cattle-feed-stock`,
     PASSWORD_MANAGER:`/dashboard/password-manager`,
+    SIDEBAR_ACCESS:`/dashboard/sidebar-access`,
   },
   SHUBHAM_MILK_PRODUCT:`/dashboard/shubham-milk-product`,
   PROFILE:`/dashboard/profile`,
@@ -58,6 +59,7 @@ export const ROUTES = {
     FARMER_APPLICATION:`/admin/farmer-application`,
     ADD_BRANCH:`/admin/add-branch`,
     UPLOAD_RATE_CHART:`/admin/upload-rate-chart`,
+    SIDEBAR_ACCESS:`/admin/sidebar-access`,
   },
   ACTIVATION:{
     ACTIVATION:`/admin/activation`,

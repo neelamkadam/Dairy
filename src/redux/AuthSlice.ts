@@ -28,9 +28,15 @@ export const authSlice = createSlice({
       state.userData = action.payload;
     },
     setAuthentication: (state, action) => {
+      console.log('AuthSlice - setAuthentication called with:', action.payload);
       state.isAuthenticated = action.payload.isAuthenticated;
       state.userRole = action.payload.userRole;
       state.userData = action.payload.userData;
+      console.log('AuthSlice - Updated state:', {
+        isAuthenticated: state.isAuthenticated,
+        userRole: state.userRole,
+        userData: state.userData
+      });
     },
     setTempUserData: (state, action) => {
       state.tempUserData = action.payload;

@@ -10,6 +10,7 @@ import { WebApplication } from "@/pages/AdminMaster/WebApplication";
 import CreateUser from "@/pages/AdminMaster/CreateUser";
 import AddBranch from "@/pages/AdminMaster/AddBranch";
 import UploadRateChart from "@/pages/AdminMaster/UploadRateChart";
+import SidebarAccessManagement from "@/pages/AdminMaster/SidebarAccessManagement";
 import Login from "@/pages/Auth/LogIn";
 import ResetPassword from "@/pages/Auth/ResetPassword";
 import SignUp from "@/pages/Auth/SignUp";
@@ -205,6 +206,10 @@ export const AppRoutes = createBrowserRouter([
         element: <PasswordManager />,
       },
       {
+        path: "sidebar-access",
+        element: <SidebarAccessManagement />,
+      },
+      {
         path: "shubham-milk-product",
         element: <ShubhamMilkProduct />,
       },
@@ -253,6 +258,10 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "upload-rate-chart",
         element: <UploadRateChart />,
+      },
+      {
+        path: "sidebar-access",
+        element: <SidebarAccessManagement />,
       },
       {
         path: "activation",

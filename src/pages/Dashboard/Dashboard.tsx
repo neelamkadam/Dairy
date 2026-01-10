@@ -77,6 +77,7 @@ const Dashboard = () => {
       avgSnf: 0,
       totalAmount: 0,
       totalFarmers: 0,
+      totalRegisteredFarmers: 0,
       avgRate: 0,
       avgQuantity: 0
     };
@@ -84,13 +85,14 @@ const Dashboard = () => {
     const totalQuantity = collections.reduce((sum, item) => sum + item.quantity, 0);
     const totalAmount = collections.reduce((sum, item) => sum + item.amount, 0);
     const totalFarmers = collections.reduce((sum, item) => sum + item.farmers, 0);
+    const totalRegisteredFarmers = collections.reduce((sum, item) => sum + (item.registered_farmers || 0), 0);
     const avgFat = totalQuantity > 0 ? collections.reduce((sum, item) => sum + (item.fat * item.quantity), 0) / totalQuantity : 0;
     const avgSnf = totalQuantity > 0 ? collections.reduce((sum, item) => sum + (item.snf * item.quantity), 0) / totalQuantity : 0;
     const avgRate = totalQuantity > 0 ? totalAmount / totalQuantity : 0;
     const activeCollections = collections.filter(c => c.quantity > 0).length;
     const avgQuantity = activeCollections > 0 ? totalQuantity / activeCollections : 0;
 
-    return { totalQuantity, avgFat, avgSnf, totalAmount, totalFarmers, avgRate, avgQuantity };
+    return { totalQuantity, avgFat, avgSnf, totalAmount, totalFarmers, totalRegisteredFarmers, avgRate, avgQuantity };
   };
 
   const kpis = calculateKPIs();
@@ -107,7 +109,7 @@ const Dashboard = () => {
     },
     {
       title: t('total_active_farmers'),
-      value: kpis.totalFarmers.toString(),
+      value: `${kpis.totalFarmers} (${kpis.totalRegisteredFarmers})`,
       change: "",
       icon: Users,
       gradient: "bg-gradient-to-br from-green-400 to-green-600"

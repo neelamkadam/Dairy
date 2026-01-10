@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +25,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import FileCopyIcon from "@mui/icons-material/FileCopy";
+import { reportsApi } from "@/services/reportsApi";
 
 const VlcCCommissionEntry: React.FC = () => {
   const { branches } = useAppSelector((state) => state.branch);
@@ -32,11 +33,12 @@ const VlcCCommissionEntry: React.FC = () => {
     vlcc: "",
     commissionType: "per-liter",
     commissionAmount: "",
-    effectiveDate: undefined as Date | undefined,
+    effectiveDate: new Date() as Date | undefined,
   });
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [loading, setLoading] = useState(false);
+  const [commissionData, setCommissionData] = useState<any>(null);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(inputValue).then(
@@ -48,6 +50,39 @@ const VlcCCommissionEntry: React.FC = () => {
       }
     );
   };
+
+  const fetchCommissionData = async () => {
+    if (!formData.vlcc) return;
+    const dateToUse = formData.effectiveDate || new Date();
+    try {
+      const data = await reportsApi.getVlcCommissionReport({
+        vlc_id: formData.vlcc,
+        start_date: format(dateToUse, 'yyyy-MM-dd'),
+        end_date: format(dateToUse, 'yyyy-MM-dd')
+      });
+      if (data.success && data.data?.length > 0) {
+        setCommissionData(data.data[0]);
+        
+        // Auto-fill latest commission data
+        if (data.data[0].commissions?.length > 0) {
+          const latestCommission = data.data[0].commissions[0];
+          setFormData(prev => ({
+            ...prev,
+            commissionType: latestCommission.type === 'Commission' ? 'per-liter' : 'fixed',
+            commissionAmount: latestCommission.amount
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch commission data:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (formData.vlcc) {
+      fetchCommissionData();
+    }
+  }, [formData.vlcc]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,6 +103,7 @@ const VlcCCommissionEntry: React.FC = () => {
         toast.success(response.data.message);
         setInputValue(`VLC-${response.data.id}-${Date.now()}`);
         setIsSubmitted(true);
+        fetchCommissionData();
         setTimeout(() => setIsSubmitted(false), 3000);
       }
     } catch (error: any) {
@@ -79,7 +115,8 @@ const VlcCCommissionEntry: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="lg:col-span-2">
       <Card className="shadow-lg border-0">
         <CardHeader className="border-b bg-gradient-to-r from-blue-50 to-indigo-50">
           <CardTitle className="text-2xl font-bold text-gray-800">
@@ -237,6 +274,43 @@ const VlcCCommissionEntry: React.FC = () => {
           )}
         </CardContent>
       </Card>
+      </div>
+
+      <div>
+        {commissionData && commissionData.commissions?.length > 0 ? (
+          <div>
+            <h3 className="text-sm font-semibold text-gray-800 mb-2">Commission History</h3>
+            <div className="space-y-2 max-h-[calc(100vh-200px)] overflow-y-auto pr-2">
+              {commissionData.commissions.map((comm: any, idx: number) => (
+                <Card key={idx} className="border border-purple-200 shadow-sm">
+                  <CardContent className="p-2">
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-medium text-gray-600">Type</span>
+                        <span className="text-xs font-semibold text-gray-900">
+                          {comm.type === 'Commission' ? 'Per Liter Commision' : 'Fixed Payment'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-medium text-gray-600">Amount</span>
+                        <span className="text-xs font-bold text-purple-600">₹{parseFloat(comm.amount).toFixed(2)}</span>
+                      </div>
+                      <div className="pt-1.5 border-t border-gray-200">
+                        <span className="text-xs text-gray-500">Effective From</span>
+                        <p className="text-xs font-medium text-gray-700">{format(new Date(comm.effective_from), 'dd-MM-yyyy')}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-12 text-gray-500">
+            <p className="text-sm">Select VLC to view commission history</p>
+          </div>
+        )}
+      </div>
       </div>
     </div>
   );

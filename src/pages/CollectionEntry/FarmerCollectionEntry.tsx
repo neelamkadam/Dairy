@@ -156,9 +156,11 @@ const FarmerCollectionEntry = () => {
     const normalized = normalizeFarmerId(farmerIdInput);
     const displayId = formatFarmerIdForDisplay(farmerIdInput);
     
+    console.log('🔍 Farmer Search:', { selectedBranch, farmerIdInput, normalized, displayId });
 
     try {
       const farmer = await userApi.getById(normalized, selectedBranch);
+      console.log('👤 Farmer API Response:', farmer);
       
       if (!farmer) {
         toast.error(t('farmer_not_found'));
@@ -180,6 +182,7 @@ const FarmerCollectionEntry = () => {
         : [farmer.milkType] as ('Cow' | 'Buffalo')[];
       setAvailableMilkTypes(types);
       setMilkType(types[0]);
+      console.log('🥛 Milk Types:', { farmerMilkType: farmer.milkType, availableTypes: types });
 
       // Fetch existing collections
       const dateStr = format(date, 'yyyy-MM-dd');
@@ -188,11 +191,13 @@ const FarmerCollectionEntry = () => {
         normalized,
         dateStr
       );
+      console.log('📦 Existing Collections Response:', response);
 
       const collections = response?.data || response?.collections || [];
       const shiftCollections = collections.filter(
         (c: Collection) => c.shift === shift
       );
+      console.log('🔄 Shift Collections:', { shift, count: shiftCollections.length, collections: shiftCollections });
 
       if (shiftCollections.length > 0) {
         setExistingCollections(shiftCollections);
@@ -200,44 +205,54 @@ const FarmerCollectionEntry = () => {
         // If farmer has Both milk types
         if (farmer.milkType === 'Both') {
           const existingTypes = shiftCollections.map(c => c.type || c.milkType);
+          console.log('🔍 Existing Types:', existingTypes);
           
           // Check if Cow exists
           const hasCow = existingTypes.includes('Cow');
           // Check if Buffalo exists
           const hasBuffalo = existingTypes.includes('Buffalo');
           
+          console.log('✅ Type Check:', { hasCow, hasBuffalo });
+          
           if (hasCow && !hasBuffalo) {
             // Cow exists, Buffalo doesn't - proceed with Buffalo
+            console.log('➡️ Cow exists, proceeding with Buffalo');
             setMilkType('Buffalo');
             quantityRef.current?.focus();
             return;
           } else if (hasBuffalo && !hasCow) {
             // Buffalo exists, Cow doesn't - proceed with Cow
+            console.log('➡️ Buffalo exists, proceeding with Cow');
             setMilkType('Cow');
             quantityRef.current?.focus();
             return;
           } else {
             // Both exist - show modal for the first type
+            console.log('⚠️ Both types exist, showing modal');
             setMilkType(types[0]);
             setShowModal(true);
             return;
           }
         } else {
           // Single milk type farmer - show modal
+          console.log('⚠️ Single milk type farmer with existing collection, showing modal');
           setShowModal(true);
           return;
         }
       }
 
+      console.log('✅ No existing collections, focusing quantity input');
       quantityRef.current?.focus();
     } catch (error) {
-      console.error('Error searching farmer:', error);
+      console.error('❌ Error searching farmer:', error);
       toast.error(t('error_searching_farmer'));
     }
   };
 
   const handleSubmit = async () => {
+    console.log('💾 Submit clicked');
     if (!selectedBranch || !farmerId || !quantity || !fat || !snf || !clr || !rate) {
+      console.log('❌ Validation failed:', { selectedBranch, farmerId, quantity, fat, snf, clr, rate });
       toast.error(t('please_fill_required_fields'));
       return;
     }
@@ -248,9 +263,12 @@ const FarmerCollectionEntry = () => {
       
       let payload: CollectionPayload;
       
+      console.log('📝 Preparing payload:', { isMultipleMode, editingId, existingCollections: existingCollections.length });
+      
       if (isMultipleMode && existingCollections.length > 0) {
         // Multiple collection: merge with existing using weighted average
         const existing = existingCollections.find(c => (c.type || c.milkType) === milkType);
+        console.log('🔄 Multiple mode - existing:', existing);
         if (existing) {
           const existingQty = parseFloat(existing.quantity?.toString() || existing.qty?.toString() || '0');
           const newQty = parseFloat(quantity);

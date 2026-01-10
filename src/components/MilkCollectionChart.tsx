@@ -1,4 +1,4 @@
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import { GraphData } from "@/redux/dashboardSlice";
 
 interface MilkCollectionChartProps {
@@ -34,7 +34,13 @@ const MilkCollectionChart = ({ graph }: MilkCollectionChartProps) => {
     <div className="h-full flex items-center justify-center">
       {data.length > 0 ? (
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <AreaChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <defs>
+              <linearGradient id="colorQuantity" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.4}/>
+                <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+              </linearGradient>
+            </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
             <XAxis 
               dataKey="date" 
@@ -50,15 +56,16 @@ const MilkCollectionChart = ({ graph }: MilkCollectionChartProps) => {
               label={{ value: 'Quantity (L)', angle: -90, position: 'insideLeft', style: { fontSize: 12, fill: '#6B7280' } }}
             />
             <Tooltip formatter={(value) => `${value}L`} />
-            <Line 
+            <Area
               type="monotone"
-              dataKey="quantity" 
+              dataKey="quantity"
               stroke="#3B82F6"
               strokeWidth={2}
+              fill="url(#colorQuantity)"
               dot={{ fill: '#3B82F6', r: 4 }}
               activeDot={{ r: 6 }}
             />
-          </LineChart>
+          </AreaChart>
         </ResponsiveContainer>
       ) : (
         <p className="text-gray-500">No data available</p>

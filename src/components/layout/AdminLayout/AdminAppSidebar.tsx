@@ -26,7 +26,8 @@ const menuItems: MenuItem[] = [
     children: [
       { title: "Create User", icon: "👤", href: ROUTES.ADMIN_CREATE_USER},
       { title: "Add Branch", icon: "🏢", href: ROUTES.ADMIN_MASTER.ADD_BRANCH},
-      { title: "Upload Rate Chart", icon: "📊", href: ROUTES.ADMIN_MASTER.UPLOAD_RATE_CHART}
+      { title: "Upload Rate Chart", icon: "📊", href: ROUTES.ADMIN_MASTER.UPLOAD_RATE_CHART},
+      { title: "Sidebar Access", icon: "🔐", href: ROUTES.ADMIN_MASTER.SIDEBAR_ACCESS}
     ]
   },
 

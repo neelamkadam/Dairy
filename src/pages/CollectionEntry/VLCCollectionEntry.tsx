@@ -13,19 +13,26 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, HelpCircle } from "lucide-react";
+import { Calendar as CalendarIcon, HelpCircle, Upload, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import LastEntryDetails from "@/components/LastEntryDetails";
 import { Input } from "@/components/ui/input";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { usePostApi } from "@/services/use-api";
 import { toast } from "react-toastify";
 import { useAppSelector } from "@/redux/store";
 import { rateChartApi } from "@/services/rateChartApi";
 import { calculateCLRFromFatAndSNF, calculateSNFFromFatAndCLR } from "@/utils/milkCalculations";
 import { useTranslation } from "react-i18next";
+import * as XLSX from 'xlsx';
 
 
 interface FormData {
@@ -51,14 +58,26 @@ const VLCCollectionEntry = () => {
   const { postData: fetchEntries } = usePostApi({
     path: "/web/collection/vlc-entries"
   });
+  const { postData: bulkPostData, isLoading: isBulkLoading } = usePostApi({
+    path: "/web/collection/bulk-vlc-entries"
+  });
   const { branches } = useAppSelector((state) => state.branch);
   const [lastEntries, setLastEntries] = useState([]);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const getDefaultShift = () => {
     const hour = new Date().getHours();
     return hour >= 16 ? "evening" : "morning";
   };
+
+  const [bulkFormData, setBulkFormData] = useState({
+    date: new Date(),
+    shift: getDefaultShift(),
+    vlcId: '',
+    vlcName: ''
+  });
 
   const [formData, setFormData] = useState<FormData>({
     date: new Date(),
@@ -177,6 +196,140 @@ const VLCCollectionEntry = () => {
     return lastEntries;
   };
 
+  const downloadTemplate = () => {
+    const headers = ['weight', 'fat', 'snf', 'clr', 'rate', 'amount'];
+    const sampleData = [
+      ['100', '4.5', '8.5', '28', '45', '4500']
+    ];
+    
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleData]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'VLC Template');
+    XLSX.writeFile(wb, 'vlc_bulk_import_template.xlsx');
+  };
+
+  const handleBulkVLCIdChange = (username: string) => {
+    const selectedBranch = branches?.find(branch => branch.username === username);
+    setBulkFormData(prev => ({
+      ...prev,
+      vlcId: username,
+      vlcName: selectedBranch?.name || ''
+    }));
+  };
+
+  const handleBulkImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!bulkFormData.date || !bulkFormData.shift || !bulkFormData.vlcId || !bulkFormData.vlcName) {
+      toast.error('Please fill all fields before uploading file');
+      return;
+    }
+
+    const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        let entries = [];
+
+        if (isExcel) {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+
+          if (jsonData.length < 2) {
+            toast.error('Excel file is empty or invalid');
+            return;
+          }
+
+          const headers = jsonData[0].map((h: any) => h.toString().trim().toLowerCase());
+          
+          for (let i = 1; i < jsonData.length; i++) {
+            const row = jsonData[i];
+            if (!row || row.length === 0) continue;
+            
+            const entry: any = {};
+            headers.forEach((header, index) => {
+              entry[header] = row[index];
+            });
+
+            entries.push({
+              date: format(bulkFormData.date, 'yyyy-MM-dd'),
+              shift: bulkFormData.shift.charAt(0).toUpperCase() + bulkFormData.shift.slice(1),
+              vlc_id: bulkFormData.vlcId,
+              vlc_name: bulkFormData.vlcName,
+              weight: parseFloat(entry.weight),
+              fat: parseFloat(entry.fat),
+              snf: parseFloat(entry.snf),
+              clr: parseFloat(entry.clr),
+              rate: parseFloat(entry.rate),
+              amount: parseFloat(entry.amount)
+            });
+          }
+        } else {
+          const text = e.target?.result as string;
+          const lines = text.split('\n').filter(line => line.trim());
+          
+          if (lines.length < 2) {
+            toast.error('CSV file is empty or invalid');
+            return;
+          }
+
+          const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+
+          for (let i = 1; i < lines.length; i++) {
+            const values = lines[i].split(',').map(v => v.trim());
+            const entry: any = {};
+            
+            headers.forEach((header, index) => {
+              entry[header] = values[index];
+            });
+
+            entries.push({
+              date: format(bulkFormData.date, 'yyyy-MM-dd'),
+              shift: bulkFormData.shift.charAt(0).toUpperCase() + bulkFormData.shift.slice(1),
+              vlc_id: bulkFormData.vlcId,
+              vlc_name: bulkFormData.vlcName,
+              weight: parseFloat(entry.weight),
+              fat: parseFloat(entry.fat),
+              snf: parseFloat(entry.snf),
+              clr: parseFloat(entry.clr),
+              rate: parseFloat(entry.rate),
+              amount: parseFloat(entry.amount)
+            });
+          }
+        }
+
+        const response = await bulkPostData({ entries });
+        
+        if (response?.data?.success) {
+          toast.success(`${response.data.message}`);
+          setIsBulkDialogOpen(false);
+          setBulkFormData({
+            date: new Date(),
+            shift: getDefaultShift(),
+            vlcId: '',
+            vlcName: ''
+          });
+          fetchLastEntries();
+        }
+      } catch (error: any) {
+        toast.error(error?.response?.data?.message || 'Failed to import bulk entries');
+      }
+    };
+    
+    if (isExcel) {
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.readAsText(file);
+    }
+    
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleSubmit = async () => {
     // Validation
     if (!formData.date || !formData.shift || !formData.userId || !formData.vlcName || 
@@ -236,7 +389,35 @@ const VLCCollectionEntry = () => {
             <CardTitle className="text-xl font-semibold text-gray-800">
               {t('vlc_collection_entry')}
             </CardTitle>
-            <HelpCircle className="h-5 w-5 text-gray-400" />
+            <div className="flex items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.xlsx,.xls"
+                onChange={handleBulkImport}
+                className="hidden"
+              />
+              <Button
+                onClick={downloadTemplate}
+                variant="outline"
+                size="sm"
+                className="text-green-600 border-green-600 hover:bg-green-50"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Template
+              </Button>
+              <Button
+                onClick={() => setIsBulkDialogOpen(true)}
+                disabled={isBulkLoading}
+                variant="outline"
+                size="sm"
+                className="text-blue-600 border-blue-600 hover:bg-blue-50"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                {isBulkLoading ? 'Importing...' : 'Bulk Import'}
+              </Button>
+              <HelpCircle className="h-5 w-5 text-gray-400" />
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -459,6 +640,96 @@ const VLCCollectionEntry = () => {
       <div className="w-full lg:w-[35%]">
         <LastEntryDetails entries={getFilteredEntries()} />
       </div>
+
+      <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
+        <DialogContent className="sm:max-w-[550px] bg-white">
+          <DialogHeader className="border-b pb-4">
+            <DialogTitle className="text-xl font-semibold text-gray-800">Bulk Import VLC Entries</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-5 py-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start bg-gray-50 border-gray-200 hover:bg-gray-100">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {bulkFormData.date ? format(bulkFormData.date, "dd-MM-yyyy") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-white z-50" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={bulkFormData.date}
+                      onSelect={(date) => date && setBulkFormData(prev => ({ ...prev, date }))}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">Shift</Label>
+                <Select value={bulkFormData.shift} onValueChange={(value) => setBulkFormData(prev => ({ ...prev, shift: value }))}>
+                  <SelectTrigger className="bg-gray-50 border-gray-200 hover:bg-gray-100">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="morning">Morning</SelectItem>
+                    <SelectItem value="evening">Evening</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">VLC ID</Label>
+                <Select value={bulkFormData.vlcId} onValueChange={handleBulkVLCIdChange}>
+                  <SelectTrigger className="bg-gray-50 border-gray-200 hover:bg-gray-100">
+                    <SelectValue placeholder="Select VLC ID" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    {branches?.map((branch) => branch?.username && (
+                      <SelectItem key={branch.username} value={branch.username}>
+                        {branch.username}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">VLC Name</Label>
+                <Input value={bulkFormData.vlcName} readOnly className="bg-gray-100 border-gray-200 text-gray-700" placeholder="Auto-filled" />
+              </div>
+            </div>
+
+            <div className="border-t pt-5">
+              <div className="space-y-3">
+                <Label className="text-sm font-medium text-gray-700">Upload Excel/CSV File</Label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  onChange={handleBulkImport}
+                  className="hidden"
+                />
+                <Button
+                  onClick={() => fileInputRef.current?.click()}
+                  variant="outline"
+                  className="w-full h-24 border-2 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <Upload className="h-8 w-8 text-gray-400" />
+                    <span className="text-sm font-medium text-gray-600">Click to choose file</span>
+                    <span className="text-xs text-gray-400">Supports .csv, .xlsx, .xls</span>
+                  </div>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

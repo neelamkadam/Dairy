@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { CalendarIcon, Upload, FileSpreadsheet, Download, CheckCircle2, Plus, Trash2, Eye } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -18,7 +19,7 @@ const AddRateChart = () => {
   const { t } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
   const [formData, setFormData] = useState({
-    vlcc: "",
+    vlcc: [] as string[],
     rateChart: "",
     rateChartName: "",
     effectiveDate: undefined as Date | undefined,
@@ -97,39 +98,53 @@ const AddRateChart = () => {
   };
 
   const handleSubmit = async () => {
-    if (!formData.vlcc || !formData.rateChart || !formData.rateChartName || !formData.effectiveDate || !csvFile) {
+    if (formData.vlcc.length === 0 || !formData.rateChart || !formData.rateChartName || !formData.effectiveDate || !csvFile) {
       toast.error("Please fill all fields and upload a file");
       return;
     }
 
     setLoading(true);
+    let successCount = 0;
+    let failCount = 0;
+
     try {
-      const formDataToSend = new FormData();
-      formDataToSend.append("csv", csvFile);
-      formDataToSend.append("organisation_id", formData.vlcc);
-      formDataToSend.append("type", formData.rateChart);
-      formDataToSend.append("name", formData.rateChartName);
-      formDataToSend.append("effective_date", format(formData.effectiveDate, "yyyy-MM-dd"));
-      
-      // Only include shift if shift-wise is enabled
-      if (isShiftWise) {
-        formDataToSend.append("shift", selectedShift);
+      for (const vlccId of formData.vlcc) {
+        try {
+          const formDataToSend = new FormData();
+          formDataToSend.append("csv", csvFile);
+          formDataToSend.append("organisation_id", vlccId);
+          formDataToSend.append("type", formData.rateChart);
+          formDataToSend.append("name", formData.rateChartName);
+          formDataToSend.append("effective_date", format(formData.effectiveDate, "yyyy-MM-dd"));
+          
+          if (isShiftWise) {
+            formDataToSend.append("shift", selectedShift);
+          }
+
+          await api.post("/conf/createrate", formDataToSend, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+          successCount++;
+        } catch (error) {
+          failCount++;
+          console.error(`Failed for VLC ID ${vlccId}:`, error);
+        }
       }
 
-      await api.post("/conf/createrate", formDataToSend, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      if (successCount > 0) {
+        toast.success(`Rate chart uploaded successfully for ${successCount} VLC(s)`);
+      }
+      if (failCount > 0) {
+        toast.error(`Failed to upload for ${failCount} VLC(s)`);
+      }
 
-      toast.success("Rate chart uploaded successfully!");
-      setFormData({ vlcc: "", rateChart: "", rateChartName: "", effectiveDate: undefined });
+      setFormData({ vlcc: [], rateChart: "", rateChartName: "", effectiveDate: undefined });
       setCsvFile(null);
       setPreviewData(null);
       setIsShiftWise(false);
       setSelectedShift("Morning");
       const fileInput = document.getElementById('excel-upload') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to upload rate chart");
     } finally {
       setLoading(false);
     }
@@ -239,18 +254,48 @@ const AddRateChart = () => {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6">
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700 text-left">{t('select_vlcc')}</label>
-                <Select value={formData.vlcc} onValueChange={(value) => setFormData({ ...formData, vlcc: value })}>
-                  <SelectTrigger className="bg-gray-50 h-10">
-                    <SelectValue placeholder={t('select_vlcc')} />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    {branches.map((branch) => (
-                      <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
-                        {branch.username} - {branch.name} - {branch.branchName || ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full h-auto min-h-10 justify-start text-left bg-gray-50">
+                      {formData.vlcc.length === 0 ? (
+                        <span className="text-muted-foreground">{t('select_vlcc')}</span>
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {formData.vlcc.map((id) => {
+                            const branch = branches.find(b => b.branch_id.toString() === id);
+                            return (
+                              <Badge key={id} variant="secondary" className="text-xs">
+                                {branch?.username}
+                              </Badge>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-3 bg-white" align="start">
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {branches.map((branch) => (
+                        <div key={branch.branch_id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`vlc-${branch.branch_id}`}
+                            checked={formData.vlcc.includes(branch.branch_id.toString())}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setFormData({ ...formData, vlcc: [...formData.vlcc, branch.branch_id.toString()] });
+                              } else {
+                                setFormData({ ...formData, vlcc: formData.vlcc.filter(id => id !== branch.branch_id.toString()) });
+                              }
+                            }}
+                          />
+                          <label htmlFor={`vlc-${branch.branch_id}`} className="text-sm cursor-pointer flex-1">
+                            {branch.username} - {branch.name}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-2">
@@ -404,7 +449,7 @@ const AddRateChart = () => {
                   <Download className="w-4 h-4 mr-2" />
                   {t('download_sample_file')}
                 </Button>
-                <Button onClick={handleSubmit} disabled={loading || !csvFile || !formData.vlcc || !formData.rateChart || !formData.rateChartName || !formData.effectiveDate} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-8">
+                <Button onClick={handleSubmit} disabled={loading || !csvFile || formData.vlcc.length === 0 || !formData.rateChart || !formData.rateChartName || !formData.effectiveDate} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-8">
                   {loading ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />

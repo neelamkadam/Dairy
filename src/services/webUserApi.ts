@@ -7,5 +7,9 @@ export const webUserApi = {
 
   updatePriority: async (userId: number, priority: string[]) => {
     return AxiosClient.put('/web-users/priority', { userId, priority });
+  },
+
+  getAllWebUsers: async () => {
+    return AxiosClient.get('/web-users');
   }
 };

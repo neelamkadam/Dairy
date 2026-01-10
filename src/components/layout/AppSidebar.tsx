@@ -9,7 +9,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import NeoDairyLogo from "@/assets/NeoDairy_Logo.png";
 import { useAppSelector } from "@/redux/store";
 import { useTranslation } from "react-i18next";
-import { api } from "@/services/config";
+import { getSidebarAccess } from "@/services/sidebarAccessApi";
 
 interface MenuItem {
   title: string;
@@ -18,78 +18,104 @@ interface MenuItem {
   children?: MenuItem[];
 }
 
-const getMenuItems = (t: any, userId?: number): MenuItem[] => {
-  const items: MenuItem[] = [
-  {
-    title: t('dashboard'),
-    icon: "📊",
-    href: ROUTES.DASHBOARD,
-  },
-  {
-    title: t('collection_entry'),
-    icon: "💧",
-    children: [
-      { title: t('vlc_collection_entry'), icon: "", href:ROUTES.COLLECTIONENTRY.VLC_COLLECTION_ENTRY },
-      { title: t('farmer_collection_entry'), icon: "", href: ROUTES.COLLECTIONENTRY.FARMER_COLLECTION_ENTRY },
-      { title: t('tanker_dispatch'), icon: "", href:ROUTES.COLLECTIONENTRY.DISPATCH_ENTRY }
-    ]
-  },
-  {
-    title: t('collection'),
-    icon: "🗂️",
-    children: [
-      { title: t('vlc_collection'), icon: "", href: ROUTES.COLLECTION.VLC_COLLECTION },
-    ]
-  },
-  {
-    title: t('master'),
-    icon: "⚙️",
-    children: [
-      { title: t('add_farmer'), icon: "", href:ROUTES.MASTER.ADD_FARMER },
-      { title: t('add_rate_chart'), icon: "", href: ROUTES.MASTER.ADD_RATECHART }
-    ]
-  },
-  {
-    title: t('billing'),
-    icon: "💳",
-    children: [
-      { title: t('payment_receipt'), icon: "", href:ROUTES.BILLING.PAYMENTANDRECEIPT },
-      { title: t('farmer_deduction'), icon: "", href:ROUTES.BILLING.FARMER_DEDUCTION },
-      { title: t('generate_bill'), icon: "", href:ROUTES.BILLING.GENERATE_BILL},
-      { title: t('vlc_commission_entry'), icon: "", href: ROUTES.BILLING.VLC_COMMISSION_ENTRY},
-      { title: t('vlc_ts_entry'), icon: "", href: ROUTES.BILLING.VLC_TS_ENTRY }
-    ]
-  },
-  {
-    title: t('reports'),
-    icon: "📈",
-    children: [
-      { title: t('shift_report'), icon: "", href: ROUTES.REPORTS.SHIFT_REPORTS},
-      { title: t('farmer_collection'), icon: "", href: ROUTES.REPORTS.FARMER_COLLECTION},
-      { title: t('total_collection_report'), icon: "", href: ROUTES.REPORTS.TOTAL_COLLECTION_REPORT},
-      { title: t('payment_summary_report'), icon: "", href: ROUTES.REPORTS.PAYMENT_SUMMARY},
-      { title: t('rate_chart_report'), icon: "", href:ROUTES.REPORTS.RATECHART_REPORT},
-      { title: t('farmer_bill_invoice_report'), icon: "", href: ROUTES.REPORTS.FARMER_BILL_INVOICE_REPORT },
-      { title: t('farmer_list'), icon: "", href: ROUTES.REPORTS.FARMER_LIST},
-      { title: t('vlc_difference_report'), icon: "", href:ROUTES.REPORTS.VLC_DIFFERENCE_REPORT },
-      { title: t('remaining_balance_report'), icon: "", href: ROUTES.REPORTS.REMAINING_BALANCE },
-      { title: t('farmer_passbook'), icon: "", href: ROUTES.REPORTS.FARMER_PASSBOOK},
-      { title: t('vlc_commission_report'), icon: "", href: ROUTES.REPORTS.VLC_COMMISSION_REPORT },
-      { title: t('pl_statement'), icon: "", href: ROUTES.REPORTS.PL_STATEMENT },
-    ]
-  },
-  {
-    title: t('settings'),
-    icon: "⚙️",
-    children: [
+const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
+  const items: MenuItem[] = [];
+
+  if (access?.dashboard) {
+    items.push({
+      title: t('dashboard'),
+      icon: "📊",
+      href: ROUTES.DASHBOARD,
+    });
+  }
+
+  if (access?.collection_entry) {
+    items.push({
+      title: t('collection_entry'),
+      icon: "💧",
+      children: [
+        { title: t('vlc_collection_entry'), icon: "", href:ROUTES.COLLECTIONENTRY.VLC_COLLECTION_ENTRY },
+        { title: t('farmer_collection_entry'), icon: "", href: ROUTES.COLLECTIONENTRY.FARMER_COLLECTION_ENTRY },
+        { title: t('tanker_dispatch'), icon: "", href:ROUTES.COLLECTIONENTRY.DISPATCH_ENTRY }
+      ]
+    });
+  }
+
+  if (access?.collection) {
+    items.push({
+      title: t('collection'),
+      icon: "🗂️",
+      children: [
+        { title: t('vlc_collection'), icon: "", href: ROUTES.COLLECTION.VLC_COLLECTION },
+      ]
+    });
+  }
+
+  if (access?.master) {
+    items.push({
+      title: t('master'),
+      icon: "⚙️",
+      children: [
+        { title: t('add_farmer'), icon: "", href:ROUTES.MASTER.ADD_FARMER },
+        { title: t('add_rate_chart'), icon: "", href: ROUTES.MASTER.ADD_RATECHART }
+      ]
+    });
+  }
+
+  if (access?.billing) {
+    items.push({
+      title: t('billing'),
+      icon: "💳",
+      children: [
+        { title: t('payment_receipt'), icon: "", href:ROUTES.BILLING.PAYMENTANDRECEIPT },
+        { title: t('farmer_deduction'), icon: "", href:ROUTES.BILLING.FARMER_DEDUCTION },
+        { title: t('generate_bill'), icon: "", href:ROUTES.BILLING.GENERATE_BILL},
+        { title: t('vlc_commission_entry'), icon: "", href: ROUTES.BILLING.VLC_COMMISSION_ENTRY},
+        { title: t('vlc_ts_entry'), icon: "", href: ROUTES.BILLING.VLC_TS_ENTRY }
+      ]
+    });
+  }
+
+  if (access?.reports) {
+    items.push({
+      title: t('reports'),
+      icon: "📈",
+      children: [
+        { title: t('shift_report'), icon: "", href: ROUTES.REPORTS.SHIFT_REPORTS},
+        { title: t('farmer_collection'), icon: "", href: ROUTES.REPORTS.FARMER_COLLECTION},
+        { title: t('total_collection_report'), icon: "", href: ROUTES.REPORTS.TOTAL_COLLECTION_REPORT},
+        { title: t('payment_summary_report'), icon: "", href: ROUTES.REPORTS.PAYMENT_SUMMARY},
+        { title: t('rate_chart_report'), icon: "", href:ROUTES.REPORTS.RATECHART_REPORT},
+        { title: t('farmer_bill_invoice_report'), icon: "", href: ROUTES.REPORTS.FARMER_BILL_INVOICE_REPORT },
+        { title: t('farmer_list'), icon: "", href: ROUTES.REPORTS.FARMER_LIST},
+        { title: t('vlc_difference_report'), icon: "", href:ROUTES.REPORTS.VLC_DIFFERENCE_REPORT },
+        { title: t('remaining_balance_report'), icon: "", href: ROUTES.REPORTS.REMAINING_BALANCE },
+        { title: t('farmer_passbook'), icon: "", href: ROUTES.REPORTS.FARMER_PASSBOOK},
+        { title: t('vlc_commission_report'), icon: "", href: ROUTES.REPORTS.VLC_COMMISSION_REPORT },
+        { title: t('pl_statement'), icon: "", href: ROUTES.REPORTS.PL_STATEMENT },
+      ]
+    });
+  }
+
+  if (access?.settings) {
+    const settingsChildren: MenuItem[] = [
       { title: t('general_settings'), icon: "", href: ROUTES.SETTINGS.GENERAL_SETTINGS },
       { title: t('cattle_feed_stock'), icon: "", href: ROUTES.SETTINGS.CATTLE_FEED_STOCK },
       { title: t('password_manager'), icon: "", href: ROUTES.SETTINGS.PASSWORD_MANAGER },
-    ]
+    ];
+    
+    if (isAdmin) {
+      settingsChildren.push({ title: "Sidebar Access", icon: "", href: ROUTES.SETTINGS.SIDEBAR_ACCESS });
+    }
+    
+    items.push({
+      title: t('settings'),
+      icon: "⚙️",
+      children: settingsChildren
+    });
   }
-];
 
-  if (userId === 7 || userId === 2) {
+  if (access?.shubham_milk_product) {
     items.push({
       title: "Shubham Milk Product",
       icon: "🥛",
@@ -111,10 +137,29 @@ const AppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
   const userData = authState?.userData;
   const [showCompany, setShowCompany] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
+  const [sidebarAccess, setSidebarAccess] = useState<any>(null);
   
   const userId = userData?.id ? Number(userData.id) : null;
+  const isAdmin = userData?.is_admin === true || userData?.is_admin === 1;
+
+  useEffect(() => {
+    if (userId) {
+      getSidebarAccess(userId)
+        .then(response => {
+          if (response.success) {
+            setSidebarAccess(response.data);
+          }
+        })
+        .catch((error) => {
+          console.error('AppSidebar - getSidebarAccess error:', error);
+          setSidebarAccess({});
+        });
+    }
+  }, [userId]);
   
-  const menuItems = getMenuItems(t, userId);
+  
+  const menuItems = getMenuItems(t, sidebarAccess, isAdmin);
+  
   
   useEffect(() => {
     if (!isOpen) return;

@@ -62,6 +62,7 @@ const Login: React.FC = () => {
         });
 
         if (result.success) {
+          console.log('Login API Response:', result);
           if (result.requirePasswordChange === true) {
             // First time login - show set password screen (don't authenticate yet)
             dispatch(setTempUserData({

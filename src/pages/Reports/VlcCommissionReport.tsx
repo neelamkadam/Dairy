@@ -45,6 +45,10 @@ const VlcCommissionReport = () => {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedData = reportData.slice(startIndex, endIndex);
+  
+  console.log('Report Data:', reportData);
+  console.log('Paginated Data:', paginatedData);
+  console.log('Branches:', branches);
 
   const handleShowReport = async () => {
     if (!vlcId) {
@@ -59,11 +63,15 @@ const VlcCommissionReport = () => {
     setLoading(true);
     try {
       const vlcIds = vlcId === 'all' ? branches.map(b => b.branch_id).join(',') : vlcId;
+      console.log('Request params:', { vlc_id: vlcIds, start_date: format(fromDate, 'yyyy-MM-dd'), end_date: format(toDate, 'yyyy-MM-dd') });
+      
       const data = await reportsApi.getVlcCommissionReport({
         vlc_id: vlcIds,
         start_date: format(fromDate, 'yyyy-MM-dd'),
         end_date: format(toDate, 'yyyy-MM-dd')
       });
+      
+      console.log('API Response:', data);
       
       if (data.success && Array.isArray(data.data)) {
         const flatData = data.data.flatMap((vlc: any) => {
@@ -82,12 +90,15 @@ const VlcCommissionReport = () => {
             rate: comm.amount
           }));
         });
+        console.log('Flattened Report Data:', flatData);
         setReportData(flatData);
         setCurrentPage(1);
       } else {
+        console.log('No data or unsuccessful response');
         setReportData([]);
       }
     } catch (error: any) {
+      console.error('Error fetching report:', error);
       toast.error(error?.response?.data?.message || "Failed to fetch commission report");
       setReportData([]);
     } finally {

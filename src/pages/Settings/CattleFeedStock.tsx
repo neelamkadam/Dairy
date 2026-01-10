@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cattleFeedApi, CattleFeedStock } from "@/services/cattleFeedApi";
 import { toast } from "react-toastify";
 import { useAppSelector } from "@/redux/store";
+import { format } from "date-fns";
 
 const CattleFeedStockSettings: React.FC = () => {
   const { branches } = useAppSelector((state) => state.branch);
@@ -19,19 +20,48 @@ const CattleFeedStockSettings: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
   const [existingStock, setExistingStock] = useState<CattleFeedStock | null>(null);
+  const [allStocks, setAllStocks] = useState<CattleFeedStock[]>([]);
+
+  const fetchAllStocks = async (dairy_id: string) => {
+    try {
+      console.log('📋 Fetching all stocks for dairy:', dairy_id);
+      const response = await cattleFeedApi.getStock(dairy_id);
+      console.log('📋 All Stocks Response:', response);
+      if (response.success && Array.isArray(response.data)) {
+        setAllStocks(response.data);
+      }
+    } catch (error) {
+      console.error('❌ Failed to fetch all stocks:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (dairyId) {
+      fetchAllStocks(dairyId);
+    } else {
+      setAllStocks([]);
+    }
+  }, [dairyId]);
 
   const fetchStockByName = async (name: string) => {
     if (!dairyId) return;
     try {
       console.log('🔍 Fetching stocks for dairy:', dairyId);
+      console.log('🔍 Search query:', name);
       const response = await cattleFeedApi.getStock(dairyId);
-      console.log('📦 API Response:', response);
+      console.log('📦 Full API Response:', response);
+      console.log('📦 Response Status:', response.status);
+      console.log('📦 Response Data:', response.data);
+      
       const stockData = Array.isArray(response.data) ? response.data : (response.data?.data || []);
-      console.log('📊 Stock Data:', stockData);
+      console.log('📊 Parsed Stock Data:', stockData);
+      console.log('📊 Stock Data Length:', stockData.length);
       
       const matchedStocks = stockData.filter(
         (item) => item.stock_name.toLowerCase().startsWith(name.toLowerCase())
       );
+      console.log('🎯 Matched Stocks:', matchedStocks);
+      console.log('🎯 Matched Count:', matchedStocks.length);
       
       if (matchedStocks.length > 0) {
         const totalStock = matchedStocks.reduce((sum, item) => sum + item.stock, 0);
@@ -41,14 +71,17 @@ const CattleFeedStockSettings: React.FC = () => {
           _allIds: matchedStocks.map(s => s.id)
         };
         console.log('✅ Combined Stock:', combinedStock);
+        console.log('✅ Total Stock Quantity:', totalStock);
         setSuggestions([combinedStock]);
         setExistingStock(combinedStock as any);
       } else {
+        console.log('⚠️ No matching stocks found');
         setSuggestions([]);
         setExistingStock(null);
       }
     } catch (error) {
       console.error("❌ Failed to fetch stock", error);
+      console.error("❌ Error details:", JSON.stringify(error, null, 2));
     }
   };
 
@@ -91,13 +124,26 @@ const CattleFeedStockSettings: React.FC = () => {
 
     setLoading(true);
     try {
+      console.log('💾 Submitting stock - Fetching existing data');
+      console.log('💾 Dairy ID:', dairyId);
+      console.log('💾 Stock Name:', stockName);
+      console.log('💾 New Stock Quantity:', stock);
+      console.log('💾 Amount:', amount);
+      console.log('💾 Is Lump Sum:', isLumpSum);
+      
       const response = await cattleFeedApi.getStock(dairyId);
+      console.log('📦 GET Stock Response:', response);
+      
       const stockData = Array.isArray(response.data) ? response.data : [];
+      console.log('📊 All Stock Data:', stockData);
+      
       const matchingStocks = stockData.filter(
         (item) => item.stock_name.toLowerCase() === stockName.trim().toLowerCase()
       );
+      console.log('🎯 Matching Stocks for Update:', matchingStocks);
       
       const totalExistingStock = matchingStocks.reduce((sum, item) => sum + item.stock, 0);
+      console.log('📊 Total Existing Stock:', totalExistingStock);
 
       if (matchingStocks.length > 0) {
         const updatePayload = {
@@ -105,6 +151,7 @@ const CattleFeedStockSettings: React.FC = () => {
           stock: parseFloat(stock) + totalExistingStock,
           amount: isLumpSum ? 0 : parseFloat(amount),
         };
+        console.log('🔄 Updating existing stock with payload:', updatePayload);
         await cattleFeedApi.updateStock(matchingStocks[0].id, updatePayload);
         toast.success("Stock updated successfully");
       } else {
@@ -114,6 +161,7 @@ const CattleFeedStockSettings: React.FC = () => {
           stock: parseFloat(stock),
           amount: isLumpSum ? 0 : parseFloat(amount),
         };
+        console.log('➕ Creating new stock with payload:', createPayload);
         await cattleFeedApi.createStock(createPayload);
         toast.success("Stock created successfully");
       }
@@ -123,7 +171,11 @@ const CattleFeedStockSettings: React.FC = () => {
       setAmount("");
       setIsLumpSum(false);
       setSuggestions([]);
+      if (dairyId) {
+        fetchAllStocks(dairyId);
+      }
     } catch (error) {
+      console.error("❌ Failed to save stock:", error);
       toast.error("Failed to save stock");
     } finally {
       setLoading(false);
@@ -132,7 +184,8 @@ const CattleFeedStockSettings: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
         <Card className="shadow-sm border-none">
           <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
             <CardTitle className="text-2xl font-bold text-gray-800">🐄 Cattle Feed Stock Management</CardTitle>
@@ -250,6 +303,45 @@ const CattleFeedStockSettings: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+        </div>
+
+        <div>
+          {allStocks.length > 0 ? (
+            <div>
+              <h3 className="text-sm font-semibold text-gray-800 mb-2">Current Stock</h3>
+              <div className="space-y-2 max-h-[calc(100vh-200px)] overflow-y-auto pr-2">
+                {allStocks.map((stock) => (
+                  <Card key={stock.id} className="border border-blue-200 shadow-sm">
+                    <CardContent className="p-3">
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-medium text-gray-600">Name</span>
+                          <span className="text-xs font-semibold text-gray-900">{stock.stock_name}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-medium text-gray-600">Stock</span>
+                          <span className="text-xs font-bold text-blue-600">{stock.stock} units</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-medium text-gray-600">Amount</span>
+                          <span className="text-xs font-bold text-green-600">₹{parseFloat(stock.amount).toFixed(2)}</span>
+                        </div>
+                        <div className="pt-1.5 border-t border-gray-200">
+                          <span className="text-xs text-gray-500">Date</span>
+                          <p className="text-xs font-medium text-gray-700">{format(new Date(stock.date), 'dd-MM-yyyy')}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-12 text-gray-500">
+              <p className="text-sm">Select VLC to view stocks</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

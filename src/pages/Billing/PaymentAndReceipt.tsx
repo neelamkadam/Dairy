@@ -77,19 +77,19 @@ const PaymentAndReceipt: React.FC = () => {
       console.log('⏭️ Skipping fetch - no VLC selected');
       return;
     }
-    console.log('📋 Fetching payments:', {
+    const queryParams = {
       dairyid: formData.vlcName,
       datefrom: format(formData.fromDate, "yyyy-MM-dd"),
-    });
+    };
+    console.log('📋 GET Query Parameters:', queryParams);
     try {
-      const { data } = await paymentApi.getPayments({
-        dairyid: formData.vlcName,
-        datefrom: format(formData.fromDate, "yyyy-MM-dd"),
-      });
+      const { data } = await paymentApi.getPayments(queryParams);
+      console.log('✅ API Response:', data);
       const selectedDate = format(formData.fromDate, "yyyy-MM-dd");
       const filtered = (data.data || []).filter((payment: any) => 
         format(new Date(payment.date), "yyyy-MM-dd") === selectedDate
       );
+      console.log('🔍 Filtered Data:', filtered);
       setPaymentData(filtered);
     } catch (error) {
       console.error("❌ Failed to fetch payments", error);
@@ -511,6 +511,9 @@ const PaymentAndReceipt: React.FC = () => {
                       <th className="text-right py-3 px-4 font-medium text-gray-700">
                         Other 2
                       </th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">
+                        Received
+                      </th>
                       <th className="text-center py-3 px-4 font-medium text-gray-700">
                         Action
                       </th>
@@ -538,6 +541,9 @@ const PaymentAndReceipt: React.FC = () => {
                         </td>
                         <td className="py-3 px-4 text-right">
                           {payment.payment_type === 'Other2' ? (payment.amount_taken !== '0.00' ? payment.amount_taken : payment.received) : '-'}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          {payment.received !== '0.00' ? payment.received : '-'}
                         </td>
                         <td className="py-3 px-4 text-center">
                           <Button

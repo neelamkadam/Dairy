@@ -34,12 +34,15 @@ export const WebApplication: React.FC = () => {
   const fetchWebUsers = async () => {
     try {
       const { data } = await adminApi.getAllUsers();
+      console.log('WebApplication API Response:', data);
       if (data.success) {
         const userData = data.data.webUsers || [];
+        console.log('Web Users Data:', userData);
         setWebUsers(userData);
         setFilteredUsers(userData);
       }
     } catch (error) {
+      console.error('Error fetching web users:', error);
       toast.error('Failed to fetch web users');
     }
   };
