@@ -76,6 +76,7 @@ const ShiftReports:React.FC = () => {
           }
         }
       );
+      console.log(response);
       if (response.data.success && response.data.data.records.length > 0) {
         setReportData(response.data.data);
       } else {
@@ -130,11 +131,13 @@ const ShiftReports:React.FC = () => {
     quantity: reportData.summary.total_quantity,
     avgFat: reportData.summary.avg_fat,
     avgSnf: reportData.summary.avg_snf,
+    avgWater: reportData.summary.avg_water,
     totalAmount: parseFloat(reportData.summary.total_amount).toFixed(2),
   } : {
     quantity: farmerData.reduce((sum: number, record: any) => sum + parseFloat(record.quantity || 0), 0).toFixed(2),
     avgFat: farmerData.length > 0 ? (farmerData.reduce((sum: number, record: any) => sum + parseFloat(record.fat || 0), 0) / farmerData.length).toFixed(2) : "0.00",
     avgSnf: farmerData.length > 0 ? (farmerData.reduce((sum: number, record: any) => sum + parseFloat(record.snf || 0), 0) / farmerData.length).toFixed(2) : "0.00",
+    avgWater: farmerData.length > 0 ? (farmerData.reduce((sum: number, record: any) => sum + parseFloat(record.water || 0), 0) / farmerData.length).toFixed(2) : "0.00",
     totalAmount: farmerData.reduce((sum: number, record: any) => sum + parseFloat(record.amount || 0), 0).toFixed(2),
   };
 
@@ -288,6 +291,9 @@ const ShiftReports:React.FC = () => {
                 Farmer ID
               </TableHead>
               <TableHead className="font-semibold text-center border border-gray-100">
+                Milk Type
+              </TableHead>
+              <TableHead className="font-semibold text-center border border-gray-100">
                 Quantity
               </TableHead>
               <TableHead className="font-semibold text-center border border-gray-100">
@@ -297,7 +303,7 @@ const ShiftReports:React.FC = () => {
                 SNF
               </TableHead>
               <TableHead className="font-semibold text-center border border-gray-100">
-                Milk Type
+                Water
               </TableHead>
               <TableHead className="font-semibold text-center border border-gray-100">
                 Rate
@@ -314,16 +320,17 @@ const ShiftReports:React.FC = () => {
                 className="hover:bg-gray-50 bg-white border-gray-100 "
               >
                 <TableCell className="font-medium border border-gray-100">{record.code}</TableCell>
+                <TableCell className="font-medium border border-gray-100">{record.type}</TableCell>
                 <TableCell className="font-medium border border-gray-100">{record.quantity}</TableCell>
                 <TableCell className="font-medium border border-gray-100">{record.fat}</TableCell>
                 <TableCell className="font-medium border border-gray-100">{record.snf}</TableCell>
-                <TableCell className="font-medium border border-gray-100">{record.type}</TableCell>
+                <TableCell className="font-medium border border-gray-100">{record.water}</TableCell>
                 <TableCell className="font-medium border border-gray-100">{record.rate}</TableCell>
                 <TableCell className="font-medium border border-gray-100">₹{record.amount}</TableCell>
               </TableRow>
             )) : (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                <TableCell colSpan={8} className="text-center py-8 text-gray-500">
                   No data available. Please select criteria and click Show.
                 </TableCell>
               </TableRow>
@@ -410,6 +417,9 @@ const ShiftReports:React.FC = () => {
                   Average SNF (%)
                 </TableHead>
                 <TableHead className="text-center font-semibold border border-gray-100">
+                  Average Water (%)
+                </TableHead>
+                <TableHead className="text-center font-semibold border border-gray-100">
                   Total Amount (₹)
                 </TableHead>
               </TableRow>
@@ -419,6 +429,7 @@ const ShiftReports:React.FC = () => {
                 <TableCell>{totals.quantity}</TableCell>
                 <TableCell>{totals.avgFat}</TableCell>
                 <TableCell>{totals.avgSnf}</TableCell>
+                <TableCell>{totals.avgWater}</TableCell>
                 <TableCell>{totals.totalAmount}</TableCell>
               </TableRow>
             </TableBody>

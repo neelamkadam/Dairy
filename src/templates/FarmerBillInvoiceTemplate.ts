@@ -6,6 +6,7 @@ export interface FarmerBillData {
   fat: number;
   snf: number;
   clr: number;
+  water: number | null;
   rate: number;
   amount: number;
   farmer_id?: string;
@@ -40,6 +41,7 @@ export interface Template2Data {
   farmerBill?: any;
   paymentSummary?: any;
   bankDetails?: BankDetails;
+  hideRateAmount?: boolean;
 }
 
 export const generateTemplate2 = (templateData: Template2Data): string => {
@@ -125,7 +127,7 @@ export const generateTemplate2 = (templateData: Template2Data): string => {
   let cowLiters = 0, cowAmount = 0;
   let buffaloLiters = 0, buffaloAmount = 0;
   let totalLiters = 0, totalAmount = 0;
-  let totalFat = 0, totalSnf = 0, totalClr = 0, recordCount = 0;
+  let totalFat = 0, totalSnf = 0, totalClr = 0, totalWater = 0, recordCount = 0, waterCount = 0;
 
   templateData.data.forEach((item) => {
     const milkType = (item.type || '').toString().toLowerCase().trim();
@@ -142,12 +144,17 @@ export const generateTemplate2 = (templateData: Template2Data): string => {
     totalFat += item.fat;
     totalSnf += item.snf;
     totalClr += item.clr;
+    if (item.water !== null && item.water !== undefined) {
+      totalWater += item.water;
+      waterCount++;
+    }
     recordCount++;
   });
 
   const avgFat = recordCount > 0 ? (totalFat / recordCount).toFixed(1) : "0.0";
   const avgSnf = recordCount > 0 ? (totalSnf / recordCount).toFixed(1) : "0.0";
   const avgClr = recordCount > 0 ? (totalClr / recordCount).toFixed(1) : "0.0";
+  const avgWater = waterCount > 0 ? (totalWater / waterCount).toFixed(1) : "-";
 
   const generateTableForType = (dataMap: Map<string, FarmerBillData>) => {
     let rows = "";
@@ -160,9 +167,15 @@ export const generateTemplate2 = (templateData: Template2Data): string => {
       const morningData = dataMap.get(morningKey);
       rows += `<tr><td>${displayDate}</td><td>Morning</td>`;
       if (morningData) {
-        rows += `<td>${morningData.liters.toFixed(1)}</td><td>${morningData.fat.toFixed(1)}</td><td>${morningData.snf.toFixed(1)}</td><td>${morningData.clr.toFixed(1)}</td><td>${morningData.rate.toFixed(1)}</td><td>${morningData.amount.toFixed(1)}</td>`;
+        rows += `<td>${morningData.liters.toFixed(1)}</td><td>${morningData.fat.toFixed(1)}</td><td>${morningData.snf.toFixed(1)}</td><td>${morningData.clr.toFixed(1)}</td><td>${morningData.water !== null && morningData.water !== undefined ? morningData.water.toFixed(1) : '-'}</td>`;
+        if (!templateData.hideRateAmount) {
+          rows += `<td>${morningData.rate.toFixed(1)}</td><td>${morningData.amount.toFixed(1)}</td>`;
+        }
       } else {
-        rows += `<td></td><td></td><td></td><td></td><td></td><td></td>`;
+        rows += `<td></td><td></td><td></td><td></td><td></td>`;
+        if (!templateData.hideRateAmount) {
+          rows += `<td></td><td></td>`;
+        }
       }
       rows += `</tr>`;
 
@@ -170,9 +183,15 @@ export const generateTemplate2 = (templateData: Template2Data): string => {
       const eveningData = dataMap.get(eveningKey);
       rows += `<tr><td></td><td>Evening</td>`;
       if (eveningData) {
-        rows += `<td>${eveningData.liters.toFixed(1)}</td><td>${eveningData.fat.toFixed(1)}</td><td>${eveningData.snf.toFixed(1)}</td><td>${eveningData.clr.toFixed(1)}</td><td>${eveningData.rate.toFixed(1)}</td><td>${eveningData.amount.toFixed(1)}</td>`;
+        rows += `<td>${eveningData.liters.toFixed(1)}</td><td>${eveningData.fat.toFixed(1)}</td><td>${eveningData.snf.toFixed(1)}</td><td>${eveningData.clr.toFixed(1)}</td><td>${eveningData.water !== null && eveningData.water !== undefined ? eveningData.water.toFixed(1) : '-'}</td>`;
+        if (!templateData.hideRateAmount) {
+          rows += `<td>${eveningData.rate.toFixed(1)}</td><td>${eveningData.amount.toFixed(1)}</td>`;
+        }
       } else {
-        rows += `<td></td><td></td><td></td><td></td><td></td><td></td>`;
+        rows += `<td></td><td></td><td></td><td></td><td></td>`;
+        if (!templateData.hideRateAmount) {
+          rows += `<td></td><td></td>`;
+        }
       }
       rows += `</tr>`;
 
@@ -190,7 +209,7 @@ export const generateTemplate2 = (templateData: Template2Data): string => {
   if (hasBothTypes) {
     tableRows += '<div class="milk-type-label">Cow Milk</div>';
     tableRows += generateTableForType(cowData);
-    tableRows += `</tbody></table><div style="page-break-before: always;"></div><div class="milk-type-label">Buffalo Milk</div><table class="main-table"><thead><tr><th>Date</th><th>Shift</th><th>Liter</th><th>Fat</th><th>SNF</th><th>CLR</th><th>Rate</th><th>Amount</th></tr></thead><tbody>`;
+    tableRows += `</tbody></table><div style="page-break-before: always;"></div><div class="milk-type-label">Buffalo Milk</div><table class="main-table"><thead><tr><th>Date</th><th>Shift</th><th>Liter</th><th>Fat</th><th>SNF</th><th>CLR</th><th>Water</th>${!templateData.hideRateAmount ? '<th>Rate</th><th>Amount</th>' : ''}</tr></thead><tbody>`;
     tableRows += generateTableForType(buffaloData);
   } else {
     const dataToUse = hasCowData ? cowData : (hasBuffaloData ? buffaloData : groupedData);
@@ -312,8 +331,8 @@ export const generateTemplate2 = (templateData: Template2Data): string => {
         <th>Fat</th>
         <th>SNF</th>
         <th>CLR</th>
-        <th>Rate</th>
-        <th>Amount</th>
+        <th>Water</th>
+        ${!templateData.hideRateAmount ? '<th>Rate</th><th>Amount</th>' : ''}
       </tr>
     </thead>
     <tbody>
@@ -324,8 +343,8 @@ export const generateTemplate2 = (templateData: Template2Data): string => {
         <td>${avgFat}</td>
         <td>${avgSnf}</td>
         <td>${avgClr}</td>
-        <td>${totalLiters > 0 ? (totalAmount / totalLiters).toFixed(1) : "0.0"}</td>
-        <td>${totalAmount.toFixed(1)}</td>
+        <td>${avgWater}</td>
+        ${!templateData.hideRateAmount ? `<td>${totalLiters > 0 ? (totalAmount / totalLiters).toFixed(1) : "0.0"}</td><td>${totalAmount.toFixed(1)}</td>` : ''}
       </tr>
     </tbody>
   </table>
@@ -346,6 +365,7 @@ export const generateTemplate2 = (templateData: Template2Data): string => {
         <td class="summary-right">
           <div class="payment-details" style="display: flex; justify-content: space-between;">
             <div>
+              ${templateData.hideRateAmount ? `<strong>Per Liter Rate:</strong> ${totalLiters > 0 ? (totalAmount / totalLiters).toFixed(2) : "0.00"}<br>` : ''}
               <strong>Total Amount:</strong> ${milkTotal.toFixed(2)}<br>
               <strong>Cow Milk:</strong> ${cowLiters.toFixed(2)}<br>
               <strong>Buffalo Milk:</strong> ${buffaloLiters.toFixed(2)}<br>

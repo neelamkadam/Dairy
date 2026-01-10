@@ -160,6 +160,8 @@ const FarmerDeduction = () => {
           format(endDate, "yyyy-MM-dd")
         );
 
+        console.log('Bill Details Response:', billDetailsResponse.data);
+
         // Merge bill details with processed data
         const billDetailsMap = new Map(
           (billDetailsResponse.data.data || []).map((detail: any) => [

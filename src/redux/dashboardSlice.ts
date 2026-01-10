@@ -8,6 +8,8 @@ export interface CollectionData {
   snf: number;
   amount: number;
   farmers: number;
+  registered_farmers: number;
+  inactive_farmers: number;
 }
 
 export interface GraphData {

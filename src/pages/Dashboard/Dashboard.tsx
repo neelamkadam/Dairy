@@ -3,6 +3,7 @@ import { Users, Droplets, TrendingUp, Activity, Calendar, Clock, Sun, Moon, Indi
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import KPICard from "@/components/KPICard";
+import FatSnfCard from "@/components/FatSnfCard";
 import MilkCollectionChart from "@/components/MilkCollectionChart";
 import FarmersChart from "@/components/FarmersCharts";
 import { useAppSelector, useAppDispatch } from "@/redux/store";
@@ -94,6 +95,8 @@ const Dashboard = () => {
 
   const kpis = calculateKPIs();
   const activeCenters = (collections || []).filter(c => c.quantity > 0).length;
+  const avgPerFarmer = kpis.totalFarmers > 0 ? kpis.totalQuantity / kpis.totalFarmers : 0;
+  
   const kpiData = [
     {
       title: t('vlcc_center'),
@@ -124,25 +127,18 @@ const Dashboard = () => {
       gradient: "bg-gradient-to-br from-purple-400 to-purple-600"
     },
     {
-      title: t('average_fat'),
-      value: kpis.avgFat.toFixed(2),
+      title: "Average per Farmer",
+      value: `${avgPerFarmer.toFixed(2)}L`,
       change: "",
-      icon: TrendingUp,
-      gradient: "bg-gradient-to-br from-teal-400 to-teal-600"
-    },
-    {
-      title: t('average_snf'),
-      value: kpis.avgSnf.toFixed(2),
-      change: "",
-      icon: TrendingUp,
-      gradient: "bg-gradient-to-br from-cyan-500 to-cyan-700"
+      icon: Users,
+      gradient: "bg-gradient-to-br from-pink-400 to-pink-600"
     },
     {
       title: t('average_quantity'),
       value: `${kpis.avgQuantity.toFixed(2)}L`,
       change: "",
       icon: Droplets,
-      gradient: "bg-gradient-to-br from-pink-400 to-pink-600"
+      gradient: "bg-gradient-to-br from-indigo-400 to-indigo-600"
     },
     {
       title: t('average_rate'),
@@ -217,9 +213,20 @@ const Dashboard = () => {
         
         {/* KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          {kpiData.map((kpi, index) => (
+          {kpiData.slice(0, 4).map((kpi, index) => (
             <KPICard
               key={index}
+              title={kpi.title}
+              value={kpi.value}
+              change={kpi.change}
+              icon={kpi.icon}
+              gradient={kpi.gradient}
+            />
+          ))}
+          <FatSnfCard fat={kpis.avgFat} snf={kpis.avgSnf} />
+          {kpiData.slice(4).map((kpi, index) => (
+            <KPICard
+              key={index + 4}
               title={kpi.title}
               value={kpi.value}
               change={kpi.change}
@@ -234,7 +241,7 @@ const Dashboard = () => {
           {/* Pie Chart */}
           <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle className="text-base md:text-lg font-semibold">{t('milk_collection_by_branch')}</CardTitle>
+              <CardTitle className="text-base md:text-lg font-semibold">Farmer Status Overview</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-64 md:h-80 w-full overflow-hidden">

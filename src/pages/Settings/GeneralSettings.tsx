@@ -47,6 +47,10 @@ const GeneralSettings = () => {
   const [password, setPassword] = useState("");
   const [hasPassword, setHasPassword] = useState(false);
   const [showWater, setShowWater] = useState(0);
+  const [cattleFeedLumpSum, setCattleFeedLumpSum] = useState(() => {
+    const saved = localStorage.getItem('cattleFeedLumpSum');
+    return saved ? parseInt(saved) : 0;
+  });
 
   useEffect(() => {
     if (selectedVlc) {
@@ -499,6 +503,25 @@ const GeneralSettings = () => {
                 <Switch checked={showWater === 1} onCheckedChange={handleShowWaterChange} />
                 <span className="text-xs text-gray-700 font-medium">
                   {showWater === 1 ? "ON" : "OFF"}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+              <div>
+                <h3 className="text-sm font-medium text-gray-900">Cattle Feed Lump Sum</h3>
+                <p className="text-xs text-gray-500">Simple input for cattle feed payments</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch 
+                  checked={cattleFeedLumpSum === 1} 
+                  onCheckedChange={(checked) => {
+                    const value = checked ? 1 : 0;
+                    setCattleFeedLumpSum(value);
+                    localStorage.setItem('cattleFeedLumpSum', value.toString());
+                  }} 
+                />
+                <span className="text-xs text-gray-700 font-medium">
+                  {cattleFeedLumpSum === 1 ? "ON" : "OFF"}
                 </span>
               </div>
             </div>

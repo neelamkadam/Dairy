@@ -25,6 +25,7 @@ interface CollectionRecord {
   fat: string;
   snf: string;
   clr: string;
+  water: string;
   rate: string;
   amount: string;
 }
@@ -55,6 +56,8 @@ interface FarmerPayment {
 
 const FarmerBillInvoiceReport = () => {
   const branches = useSelector((state: RootState) => state.branch.branches);
+  const userId = useSelector((state: RootState) => state.authData?.userData?.id);
+  const hideRateAmount = userId === '7';
   const [selectedVLC, setSelectedVLC] = useState<string>('');
   
   const calculateDateRange = (dateStr: string) => {
@@ -241,6 +244,7 @@ const FarmerBillInvoiceReport = () => {
           fat: parseFloat(item.fat),
           snf: parseFloat(item.snf),
           clr: parseFloat(item.clr),
+          water: item.water ? parseFloat(item.water) : null,
           rate: parseFloat(item.rate),
           amount: parseFloat(item.amount),
           farmer_id: item.farmer_id,
@@ -258,7 +262,8 @@ const FarmerBillInvoiceReport = () => {
           data: templateData,
           farmerBill: { farmerwise_bills: farmerBills },
           paymentSummary: null,
-          bankDetails: bankDetailsMap.get(farmerId)
+          bankDetails: bankDetailsMap.get(farmerId),
+          hideRateAmount: hideRateAmount
         });
 
         const tempDiv = document.createElement('div');
@@ -323,7 +328,7 @@ const FarmerBillInvoiceReport = () => {
                 <SelectContent className="bg-white">
                   {branches.map(vlc => (
                     <SelectItem key={vlc.branch_id} value={vlc.branch_id.toString()}>
-                      {vlc.username} - {vlc.name}
+                      {vlc.username} - {vlc.name} - {vlc.branchName}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -417,8 +422,9 @@ const FarmerBillInvoiceReport = () => {
                         <th className="border p-2">FAT%</th>
                         <th className="border p-2">SNF%</th>
                         <th className="border p-2">CLR</th>
-                        <th className="border p-2">Rate</th>
-                        <th className="border p-2">Amount</th>
+                        <th className="border p-2">Water</th>
+                        {!hideRateAmount && <th className="border p-2">Rate</th>}
+                        {!hideRateAmount && <th className="border p-2">Amount</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -431,8 +437,9 @@ const FarmerBillInvoiceReport = () => {
                           <td className="border p-2 text-right">{parseFloat(item.fat).toFixed(1)}</td>
                           <td className="border p-2 text-right">{parseFloat(item.snf).toFixed(1)}</td>
                           <td className="border p-2 text-right">{parseFloat(item.clr).toFixed(1)}</td>
-                          <td className="border p-2 text-right">{parseFloat(item.rate).toFixed(2)}</td>
-                          <td className="border p-2 text-right">{parseFloat(item.amount).toFixed(2)}</td>
+                          <td className="border p-2 text-right">{item.water ? parseFloat(item.water).toFixed(1) : '-'}</td>
+                          {!hideRateAmount && <td className="border p-2 text-right">{parseFloat(item.rate).toFixed(2)}</td>}
+                          {!hideRateAmount && <td className="border p-2 text-right">{parseFloat(item.amount).toFixed(2)}</td>}
                         </tr>
                       ))}
                       <tr className="bg-blue-50 font-bold">
@@ -442,7 +449,8 @@ const FarmerBillInvoiceReport = () => {
                         <td className="border p-2"></td>
                         <td className="border p-2"></td>
                         <td className="border p-2"></td>
-                        <td className="border p-2 text-right">{farmerTotal.toFixed(2)}</td>
+                        {!hideRateAmount && <td className="border p-2"></td>}
+                        {!hideRateAmount && <td className="border p-2 text-right">{farmerTotal.toFixed(2)}</td>}
                       </tr>
                     </tbody>
                   </table>

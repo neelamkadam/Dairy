@@ -2,17 +2,30 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Calendar as CalendarIcon, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Calendar as CalendarIcon, Loader2, Search, ChevronLeft, ChevronRight, Save, FileDown } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useAppSelector } from "@/redux/store";
+import { useAppSelector, RootState } from "@/redux/store";
+import { useSelector } from "react-redux";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { api } from "@/services/config";
 import { toast } from "react-toastify";
+import { useTranslation } from "react-i18next";
+import { deductionApi } from "@/services/deductionApi";
+import { api } from "@/services/config";
+import { bankSummaryApi } from "@/services/bankSummaryApi";
+import { paymentApi } from "@/services/paymentApi";
+import { generateTemplate4, FarmerBillData, BankDetails } from "@/templates/ShiftCollectionTemplate";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+import PdfLoader from "@/components/PdfLoader";
 
 const ShubhamMilkProduct = () => {
+  const { t } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
+  const userId = useSelector((state: RootState) => state.authData?.userData?.id);
+  const hideRateAmount = userId === '7';
   const [vlcId, setVlcId] = useState("");
   
   useEffect(() => {
@@ -34,7 +47,7 @@ const ShubhamMilkProduct = () => {
     } else if (day >= 21) {
       startDay = 21;
       endDay = new Date(year, month, 0).getDate();
-    } else return { from: dateStr, to: dateStr };
+    } else return { from: new Date(dateStr), to: new Date(dateStr) };
     
     return {
       from: new Date(year, month - 1, startDay),
@@ -56,112 +69,1078 @@ const ShubhamMilkProduct = () => {
   };
   
   const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [data, setData] = useState<any[]>([]);
-  const [globalRate, setGlobalRate] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [farmersData, setFarmersData] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedFarmerIndex, setSelectedFarmerIndex] = useState(0);
 
   const handleShow = async () => {
     if (!vlcId) {
-      toast.error("Please select VLC");
+      toast.error(t("please_select_vlc"));
       return;
     }
     if (!startDate || !endDate) {
-      toast.error("Please select date range");
+      toast.error(t("please_select_date_range"));
       return;
     }
 
     setLoading(true);
     try {
-      const response = await api.get("/collections/by-dairy-date-range", {
-        params: {
-          dairy_id: vlcId,
-          start_date: format(startDate, "yyyy-MM-dd"),
-          end_date: format(endDate, "yyyy-MM-dd"),
-        },
+      const { data } = await deductionApi.getAllFarmersBalance(
+        parseInt(vlcId),
+        format(startDate, "yyyy-MM-dd"),
+        format(endDate, "yyyy-MM-dd")
+      );
+
+      console.log("getAllFarmersBalance response:", data);
+
+      // Fetch collection data with avg_fat, avg_snf, avg_water from new API - store separately for Cow and Buffalo
+      interface TypeData {
+        avg_fat: number;
+        avg_snf: number;
+        avg_water: number;
+        avg_rate: number;
+        avg_amount: number;
+        total_quantity: number;
+        collection_ids: string;
+      }
+      interface FarmerCollectionData {
+        cow?: TypeData;
+        buffalo?: TypeData;
+        hasBothTypes: boolean;
+      }
+      let collectionDataMap = new Map<string, FarmerCollectionData>();
+      
+      try {
+        const collectionResponse = await api.get('/collections/by-dairy-date-range', {
+          params: {
+            dairy_id: vlcId,
+            start_date: format(startDate, "yyyy-MM-dd"),
+            end_date: format(endDate, "yyyy-MM-dd")
+          }
+        });
+        
+        console.log("Collections by dairy date range response:", collectionResponse.data);
+        
+        // Store data separately for Cow and Buffalo per farmer
+        (collectionResponse.data.data || []).forEach((item: any) => {
+          const farmerId = item.farmer_id;
+          const type = item.type?.toLowerCase(); // 'cow' or 'buffalo'
+          
+          const typeData: TypeData = {
+            avg_fat: parseFloat(item.avg_fat) || 0,
+            avg_snf: parseFloat(item.avg_snf) || 0,
+            avg_water: parseFloat(item.avg_water) || 0,
+            avg_rate: parseFloat(item.avg_rate) || 0,
+            avg_amount: parseFloat(item.avg_amount) || 0,
+            total_quantity: parseFloat(item.total_quantity) || 0,
+            collection_ids: item.collection_ids || ''
+          };
+          
+          if (!collectionDataMap.has(farmerId)) {
+            collectionDataMap.set(farmerId, { hasBothTypes: false });
+          }
+          
+          const farmerData = collectionDataMap.get(farmerId)!;
+          if (type === 'cow') {
+            farmerData.cow = typeData;
+          } else if (type === 'buffalo') {
+            farmerData.buffalo = typeData;
+          }
+          
+          // Check if farmer has both types
+          farmerData.hasBothTypes = !!(farmerData.cow && farmerData.buffalo);
+        });
+      } catch (error) {
+        console.error('Failed to fetch collection data:', error);
+      }
+
+      // Process the nested data structure - aggregate by farmer_id
+      const farmerMap = new Map();
+      
+      (data.data || []).forEach((dateEntry: any) => {
+        dateEntry.farmers.forEach((farmer: any) => {
+          const farmerId = farmer.farmer_id;
+          const qty = farmer.quantity || 0;
+          
+          if (farmerMap.has(farmerId)) {
+            const existing = farmerMap.get(farmerId);
+            existing.milk_total += farmer.milk_total || 0;
+            existing.quantity += qty;
+            existing.advance += farmer.deductions?.advance || 0;
+            existing.cattleFeedAmount += farmer.deductions?.cattle_feed || 0;
+            existing.other1Amount += farmer.deductions?.other1 || 0;
+            existing.other2Amount += farmer.deductions?.other2 || 0;
+            existing.received_total += farmer.total_received || 0;
+          } else {
+            farmerMap.set(farmerId, {
+              farmer_id: farmerId,
+              name: farmer.farmer_name || `Farmer ${farmerId}`,
+              milk_total: farmer.milk_total || 0,
+              quantity: qty,
+              advance: farmer.deductions?.advance || 0,
+              advanceDeduction: farmer.deductions?.advance || 0,
+              cattleFeedAmount: farmer.deductions?.cattle_feed || 0,
+              cattleFeedDeduction: farmer.deductions?.cattle_feed || 0,
+              other1Amount: farmer.deductions?.other1 || 0,
+              other1Deduction: farmer.deductions?.other1 || 0,
+              other2Amount: farmer.deductions?.other2 || 0,
+              other2Deduction: farmer.deductions?.other2 || 0,
+              received_total: farmer.total_received || 0,
+              advance_remaining: 0,
+              cattlefeed_remaining: 0,
+              other1_remaining: 0,
+              other2_remaining: 0,
+              hasBill: false,
+              modified: false,
+              paymentAdvance: "",
+              paymentCattleFeed: "",
+              paymentOther1: "",
+              paymentOther2: ""
+            });
+          }
+        });
       });
-      console.log("Collections Response:", response.data);
-      const processedData = (response.data.data || []).map((item: any) => ({
-        ...item,
-        ids: item.collection_ids ? item.collection_ids.split(',').map((id: string) => Number(id.trim())) : []
-      }));
-      setData(processedData);
-      setGlobalRate("");
-      toast.success(response.data.message);
+      
+      // Map type-specific data from the collections API
+      const processedData = Array.from(farmerMap.values()).map(farmer => {
+        const collectionData = collectionDataMap.get(farmer.farmer_id);
+        
+        // Calculate combined averages (weighted by quantity)
+        let avg_fat = 0, avg_snf = 0, avg_water = 0, collection_ids = '';
+        if (collectionData) {
+          const cowQty = collectionData.cow?.total_quantity || 0;
+          const buffaloQty = collectionData.buffalo?.total_quantity || 0;
+          const totalQty = cowQty + buffaloQty;
+          
+          if (totalQty > 0) {
+            avg_fat = ((collectionData.cow?.avg_fat || 0) * cowQty + (collectionData.buffalo?.avg_fat || 0) * buffaloQty) / totalQty;
+            avg_snf = ((collectionData.cow?.avg_snf || 0) * cowQty + (collectionData.buffalo?.avg_snf || 0) * buffaloQty) / totalQty;
+            avg_water = ((collectionData.cow?.avg_water || 0) * cowQty + (collectionData.buffalo?.avg_water || 0) * buffaloQty) / totalQty;
+          }
+          
+          // For single type farmers, store collection_ids
+          if (!collectionData.hasBothTypes) {
+            collection_ids = collectionData.cow?.collection_ids || collectionData.buffalo?.collection_ids || '';
+          }
+        }
+        
+        return {
+          ...farmer,
+          avg_fat,
+          avg_snf,
+          avg_water,
+          collection_ids,
+          cow_data: collectionData?.cow || null,
+          buffalo_data: collectionData?.buffalo || null,
+          hasBothTypes: collectionData?.hasBothTypes || false,
+          paymentAdvance: "",
+          paymentCattleFeed: "",
+          paymentOther1: "",
+          paymentOther2: ""
+        };
+      });
+
+      // Fetch bill details for deduction fields
+      if (processedData.length > 0) {
+        const farmerIds = processedData.map(f => f.farmer_id);
+        const billDetailsResponse = await deductionApi.getBillDetailsByFarmers(
+          parseInt(vlcId),
+          farmerIds,
+          format(startDate, "yyyy-MM-dd"),
+          format(endDate, "yyyy-MM-dd")
+        );
+
+        console.log('Bill Details Response:', billDetailsResponse.data);
+
+        const billDetailsMap = new Map(
+          (billDetailsResponse.data.data || []).map((detail: any) => [
+            detail.farmer_id,
+            detail
+          ])
+        );
+
+        processedData.forEach(farmer => {
+          const billDetail: any = billDetailsMap.get(farmer.farmer_id);
+          if (billDetail) {
+            const advTotal = parseFloat(billDetail.advance_total || 0);
+            const advRemaining = parseFloat(billDetail.advance_remaining || 0);
+            const cfTotal = parseFloat(billDetail.cattlefeed_total || 0);
+            const cfRemaining = parseFloat(billDetail.cattlefeed_remaining || 0);
+            const o1Total = parseFloat(billDetail.other1_total || 0);
+            const o1Remaining = parseFloat(billDetail.other1_remaining || 0);
+            const o2Total = parseFloat(billDetail.other2_total || 0);
+            const o2Remaining = parseFloat(billDetail.other2_remaining || 0);
+
+            farmer.advance_remaining = advRemaining;
+            farmer.cattlefeed_remaining = cfRemaining;
+            farmer.other1_remaining = o1Remaining;
+            farmer.other2_remaining = o2Remaining;
+
+            const hasData = advTotal > 0 || advRemaining > 0 || cfTotal > 0 || cfRemaining > 0 || 
+                           o1Total > 0 || o1Remaining > 0 || o2Total > 0 || o2Remaining > 0;
+
+            if (hasData) {
+              farmer.advance = advTotal + advRemaining;
+              farmer.advanceDeduction = 0;
+              farmer.cattleFeedAmount = cfTotal + cfRemaining;
+              farmer.cattleFeedDeduction = 0;
+              farmer.other1Amount = o1Total + o1Remaining;
+              farmer.other1Deduction = 0;
+              farmer.other2Amount = o2Total + o2Remaining;
+              farmer.other2Deduction = 0;
+              farmer.hasBill = true;
+            }
+          }
+        });
+      }
+
+      setFarmersData(processedData);
+      setSelectedFarmerIndex(0);
+      setSearchTerm("");
+      toast.success("Data fetched successfully");
     } catch (error: any) {
       console.error("API Error:", error);
-      toast.error(error?.response?.data?.message || "Failed to fetch collections");
+      toast.error(error?.response?.data?.message || t("failed_to_fetch_collections"));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGlobalRateChange = (value: string) => {
-    setGlobalRate(value);
-    if (value && !isNaN(Number(value))) {
-      const rate = Number(value);
-      setData(data.map(item => ({
-        ...item,
-        avg_rate: rate,
-        avg_amount: (rate * item.total_quantity).toFixed(2)
-      })));
-    }
-  };
+  const handlePaymentSubmit = async (paymentType: "Advance" | "Cattle Feed" | "Other1" | "Other2", amount: string) => {
+    if (!amount || parseFloat(amount) <= 0) return;
+    if (!startDate || !vlcId) return;
 
-  const handleRateChange = (index: number, value: string) => {
-    if (!isNaN(Number(value))) {
-      const rate = Number(value);
-      const updatedData = [...data];
-      updatedData[index] = {
-        ...updatedData[index],
-        avg_rate: rate,
-        avg_amount: (rate * updatedData[index].total_quantity).toFixed(2)
-      };
-      setData(updatedData);
-    }
-  };
+    const currentFarmer = filteredFarmers[selectedFarmerIndex];
+    if (!currentFarmer) return;
 
-  const handleSubmit = async () => {
-    const collections = data
-      .filter(item => item.ids && Array.isArray(item.ids) && item.ids.length > 0)
-      .map(item => ({
-        ids: item.ids,
-        rate: Number(item.avg_rate)
+    try {
+      const selectedBranch = branches.find(b => b.branch_id.toString() === vlcId);
+      await paymentApi.create({
+        date: format(startDate, "yyyy-MM-dd"),
+        dairy_id: selectedBranch?.dairy_id || vlcId,
+        farmer_id: currentFarmer.farmer_id,
+        farmer_name: currentFarmer.name,
+        payment_type: paymentType,
+        amount_taken: parseFloat(amount),
+        received: 0
+      });
+      toast.success(`${paymentType} payment recorded`);
+      
+      // Update local state immediately
+      const paymentAmount = parseFloat(amount);
+      setFarmersData(prev => prev.map((farmer) => {
+        if (farmer.farmer_id === currentFarmer.farmer_id) {
+          const updated = { ...farmer };
+          if (paymentType === "Advance") {
+            updated.advance = (farmer.advance || 0) + paymentAmount;
+            updated.paymentAdvance = "";
+          } else if (paymentType === "Cattle Feed") {
+            updated.cattleFeedAmount = (farmer.cattleFeedAmount || 0) + paymentAmount;
+            updated.paymentCattleFeed = "";
+          } else if (paymentType === "Other1") {
+            updated.other1Amount = (farmer.other1Amount || 0) + paymentAmount;
+            updated.paymentOther1 = "";
+          } else if (paymentType === "Other2") {
+            updated.other2Amount = (farmer.other2Amount || 0) + paymentAmount;
+            updated.paymentOther2 = "";
+          }
+          return updated;
+        }
+        return farmer;
       }));
+    } catch (error) {
+      toast.error(`Failed to record ${paymentType} payment`);
+    }
+  };
 
-    console.log('Submitting collections:', collections);
+  const refreshCurrentFarmer = async () => {
+    if (!startDate || !endDate || !vlcId) return;
+    
+    const currentFarmer = filteredFarmers[selectedFarmerIndex];
+    if (!currentFarmer) return;
 
-    if (collections.length === 0) {
-      toast.error('No valid collections to update');
+    try {
+      const billDetailsResponse = await deductionApi.getBillDetailsByFarmers(
+        parseInt(vlcId),
+        [currentFarmer.farmer_id],
+        format(startDate, "yyyy-MM-dd"),
+        format(endDate, "yyyy-MM-dd")
+      );
+
+      console.log('Refresh Bill Details Response:', billDetailsResponse.data);
+
+      const billDetail = billDetailsResponse.data.data?.[0];
+      if (billDetail) {
+        const advTotal = parseFloat(billDetail.advance_total || 0);
+        const advRemaining = parseFloat(billDetail.advance_remaining || 0);
+        const cfTotal = parseFloat(billDetail.cattlefeed_total || 0);
+        const cfRemaining = parseFloat(billDetail.cattlefeed_remaining || 0);
+        const o1Total = parseFloat(billDetail.other1_total || 0);
+        const o1Remaining = parseFloat(billDetail.other1_remaining || 0);
+        const o2Total = parseFloat(billDetail.other2_total || 0);
+        const o2Remaining = parseFloat(billDetail.other2_remaining || 0);
+
+        console.log('Parsed values:', {
+          advance: advTotal + advRemaining,
+          cattleFeed: cfTotal + cfRemaining,
+          other1: o1Total + o1Remaining,
+          other2: o2Total + o2Remaining
+        });
+
+        setFarmersData(prev => prev.map((farmer) => 
+          farmer.farmer_id === currentFarmer.farmer_id
+            ? {
+                ...farmer,
+                advance: advTotal + advRemaining,
+                advance_remaining: advRemaining,
+                advanceDeduction: farmer.advanceDeduction || 0,
+                cattleFeedAmount: cfTotal + cfRemaining,
+                cattlefeed_remaining: cfRemaining,
+                cattleFeedDeduction: farmer.cattleFeedDeduction || 0,
+                other1Amount: o1Total + o1Remaining,
+                other1_remaining: o1Remaining,
+                other1Deduction: farmer.other1Deduction || 0,
+                other2Amount: o2Total + o2Remaining,
+                other2_remaining: o2Remaining,
+                other2Deduction: farmer.other2Deduction || 0
+              }
+            : farmer
+        ));
+      } else {
+        console.log('No bill detail found in response');
+      }
+    } catch (error) {
+      console.error("Failed to refresh farmer data", error);
+    }
+  };
+
+  const handleDeductionChange = (field: string, value: string) => {
+    const currentFarmer = filteredFarmers[selectedFarmerIndex];
+    if (!currentFarmer) return;
+
+    let numValue = field.startsWith('payment') ? value : (parseFloat(value) || 0);
+    
+    // Validate deduction fields don't exceed available amounts
+    if (field === 'advanceDeduction' && typeof numValue === 'number') {
+      const maxValue = currentFarmer.advance;
+      if (numValue > maxValue) {
+        toast.warning(`Advance deduction cannot exceed ₹${maxValue.toFixed(2)}`);
+        numValue = maxValue;
+      }
+    } else if (field === 'cattleFeedDeduction' && typeof numValue === 'number') {
+      const maxValue = currentFarmer.cattleFeedAmount;
+      if (numValue > maxValue) {
+        toast.warning(`Cattle Feed deduction cannot exceed ₹${maxValue.toFixed(2)}`);
+        numValue = maxValue;
+      }
+    } else if (field === 'other1Deduction' && typeof numValue === 'number') {
+      const maxValue = currentFarmer.other1Amount;
+      if (numValue > maxValue) {
+        toast.warning(`Other 1 deduction cannot exceed ₹${maxValue.toFixed(2)}`);
+        numValue = maxValue;
+      }
+    } else if (field === 'other2Deduction' && typeof numValue === 'number') {
+      const maxValue = currentFarmer.other2Amount;
+      if (numValue > maxValue) {
+        toast.warning(`Other 2 deduction cannot exceed ₹${maxValue.toFixed(2)}`);
+        numValue = maxValue;
+      }
+    }
+
+    // Validate total deductions don't exceed net payable
+    if (typeof numValue === 'number' && field.includes('Deduction')) {
+      const tempFarmer = { ...currentFarmer, [field]: numValue };
+      const totalDeductions = tempFarmer.advanceDeduction + tempFarmer.cattleFeedDeduction + tempFarmer.other1Deduction + tempFarmer.other2Deduction;
+      const maxAllowed = tempFarmer.milk_total + tempFarmer.received_total;
+      
+      if (totalDeductions > maxAllowed) {
+        const currentDeductions = currentFarmer.advanceDeduction + currentFarmer.cattleFeedDeduction + currentFarmer.other1Deduction + currentFarmer.other2Deduction;
+        const fieldCurrentValue = currentFarmer[field] || 0;
+        const cappedValue = Math.max(0, maxAllowed - (currentDeductions - fieldCurrentValue));
+        toast.error(`Total deductions cannot exceed Net Payable (₹${maxAllowed.toFixed(2)}). Value capped to ₹${cappedValue.toFixed(2)}`);
+        numValue = cappedValue;
+      }
+    }
+
+    setFarmersData(prev => prev.map((farmer) => 
+      farmer.farmer_id === currentFarmer.farmer_id
+        ? { ...farmer, [field]: numValue, modified: true }
+        : farmer
+    ));
+  };
+
+  const handleRateChange = (value: string) => {
+    const currentFarmer = filteredFarmers[selectedFarmerIndex];
+    if (!currentFarmer) return;
+    
+    const rate = value === '' ? '' : (parseFloat(value) || 0);
+    setFarmersData(prev => prev.map((farmer) => {
+      if (farmer.farmer_id === currentFarmer.farmer_id) {
+        const numRate = typeof rate === 'number' ? rate : 0;
+        const newMilkTotal = farmer.quantity * numRate;
+        return { 
+          ...farmer, 
+          rate: rate,
+          milk_total: newMilkTotal,
+          modified: true 
+        };
+      }
+      return farmer;
+    }));
+  };
+
+  // Handle type-specific rate change (for Cow or Buffalo)
+  const handleTypeRateChange = (type: 'cow' | 'buffalo', value: string) => {
+    const currentFarmer = filteredFarmers[selectedFarmerIndex];
+    if (!currentFarmer) return;
+    
+    setFarmersData(prev => prev.map((farmer) => {
+      if (farmer.farmer_id === currentFarmer.farmer_id) {
+        const typeKey = type === 'cow' ? 'cow_data' : 'buffalo_data';
+        const parsedRate = value === '' ? 0 : parseFloat(value);
+        
+        // Update the specific type data with new rate, preserving the value as entered
+        const updatedTypeData = farmer[typeKey] ? { ...farmer[typeKey], avg_rate: value } : null;
+        
+        // Recalculate milk_total based on both types using parsed numeric values
+        const cowQty = farmer.cow_data?.total_quantity || 0;
+        const cowRate = type === 'cow' ? parsedRate : (parseFloat(String(farmer.cow_data?.avg_rate || 0)) || 0);
+        const buffaloQty = farmer.buffalo_data?.total_quantity || 0;
+        const buffaloRate = type === 'buffalo' ? parsedRate : (parseFloat(String(farmer.buffalo_data?.avg_rate || 0)) || 0);
+        
+        const newMilkTotal = (cowQty * cowRate) + (buffaloQty * buffaloRate);
+        
+        return { 
+          ...farmer,
+          [typeKey]: updatedTypeData,
+          milk_total: newMilkTotal,
+          modified: true 
+        };
+      }
+      return farmer;
+    }));
+  };
+
+  const updateRates = async () => {
+    const currentFarmer = farmersData[selectedFarmerIndex];
+    if (!currentFarmer) return;
+
+    const collections = [];
+    
+    // Handle multi-type farmers (cow and buffalo)
+    if (currentFarmer.cow_data?.collection_ids) {
+      const ids = currentFarmer.cow_data.collection_ids.split(',').map((id: string) => parseInt(id.trim()));
+      const rate = parseFloat(String(currentFarmer.cow_data.avg_rate || 0)) || 0;
+      collections.push({ ids, rate });
+    }
+    
+    if (currentFarmer.buffalo_data?.collection_ids) {
+      const ids = currentFarmer.buffalo_data.collection_ids.split(',').map((id: string) => parseInt(id.trim()));
+      const rate = parseFloat(String(currentFarmer.buffalo_data.avg_rate || 0)) || 0;
+      collections.push({ ids, rate });
+    }
+    
+    // Handle single-type farmers
+    if (!currentFarmer.hasBothTypes && currentFarmer.collection_ids) {
+      const ids = currentFarmer.collection_ids.split(',').map((id: string) => parseInt(id.trim()));
+      const rate = parseFloat(String(currentFarmer.rate || 0)) || 0;
+      collections.push({ ids, rate });
+    }
+    
+    if (collections.length > 0) {
+      await api.put('/collections/update-rates', { collections });
+      toast.success('Rates updated successfully');
+    }
+  };
+
+  const handleSave = async () => {
+    if (!startDate || !endDate || !vlcId) {
+      toast.error("Please select VLC and date range");
       return;
     }
 
-    setSubmitting(true);
+    const currentFarmer = filteredFarmers[selectedFarmerIndex];
+    if (!currentFarmer?.modified) {
+      toast.info("No changes to save");
+      return;
+    }
+
+    setSaving(true);
     try {
-      const response = await api.put("/collections/update-rates", { collections });
-      console.log("Update Response:", response.data);
-      toast.success(response.data.message);
+      // Create payments if any payment fields have values
+      const paymentPromises = [];
+      const dateStr = format(startDate, "yyyy-MM-dd");
+      const selectedBranch = branches.find(b => b.branch_id.toString() === vlcId);
+      
+      if (currentFarmer.paymentAdvance && parseFloat(currentFarmer.paymentAdvance) > 0) {
+        paymentPromises.push(
+          paymentApi.create({
+            date: dateStr,
+            dairy_id: selectedBranch?.dairy_id || vlcId,
+            farmer_id: currentFarmer.farmer_id,
+            farmer_name: currentFarmer.name,
+            payment_type: "Advance",
+            amount_taken: parseFloat(currentFarmer.paymentAdvance),
+            received: 0
+          })
+        );
+      }
+      
+      if (currentFarmer.paymentCattleFeed && parseFloat(currentFarmer.paymentCattleFeed) > 0) {
+        paymentPromises.push(
+          paymentApi.create({
+            date: dateStr,
+            dairy_id: selectedBranch?.dairy_id || vlcId,
+            farmer_id: currentFarmer.farmer_id,
+            farmer_name: currentFarmer.name,
+            payment_type: "Cattle Feed",
+            amount_taken: parseFloat(currentFarmer.paymentCattleFeed),
+            received: 0
+          })
+        );
+      }
+      
+      if (currentFarmer.paymentOther1 && parseFloat(currentFarmer.paymentOther1) > 0) {
+        paymentPromises.push(
+          paymentApi.create({
+            date: dateStr,
+            dairy_id: selectedBranch?.dairy_id || vlcId,
+            farmer_id: currentFarmer.farmer_id,
+            farmer_name: currentFarmer.name,
+            payment_type: "Other1",
+            amount_taken: parseFloat(currentFarmer.paymentOther1),
+            received: 0
+          })
+        );
+      }
+      
+      if (currentFarmer.paymentOther2 && parseFloat(currentFarmer.paymentOther2) > 0) {
+        paymentPromises.push(
+          paymentApi.create({
+            date: dateStr,
+            dairy_id: selectedBranch?.dairy_id || vlcId,
+            farmer_id: currentFarmer.farmer_id,
+            farmer_name: currentFarmer.name,
+            payment_type: "Other2",
+            amount_taken: parseFloat(currentFarmer.paymentOther2),
+            received: 0
+          })
+        );
+      }
+      
+      // Execute all payment creations
+      if (paymentPromises.length > 0) {
+        await Promise.all(paymentPromises);
+      }
+
+      // First, update rates if farmer has Cow/Buffalo types with collection IDs
+      if (currentFarmer.hasBothTypes || currentFarmer.cow_data || currentFarmer.buffalo_data) {
+        const collections = [];
+        
+        if (currentFarmer.cow_data && currentFarmer.cow_data.collection_ids) {
+          const ids = currentFarmer.cow_data.collection_ids.split(',').map((id: string) => parseInt(id.trim()));
+          const rate = parseFloat(String(currentFarmer.cow_data.avg_rate || 0)) || 0;
+          collections.push({ ids, rate });
+        }
+        
+        if (currentFarmer.buffalo_data && currentFarmer.buffalo_data.collection_ids) {
+          const ids = currentFarmer.buffalo_data.collection_ids.split(',').map((id: string) => parseInt(id.trim()));
+          const rate = parseFloat(String(currentFarmer.buffalo_data.avg_rate || 0)) || 0;
+          collections.push({ ids, rate });
+        }
+        
+        if (collections.length > 0) {
+          try {
+            await api.put('/collections/update-rates', { collections });
+            console.log('Rates updated successfully for collection IDs');
+          } catch (error) {
+            console.error('Failed to update rates:', error);
+            toast.error('Failed to update rates');
+            setSaving(false);
+            return;
+          }
+        }
+      }
+
+      // Then update the farmer bill
+      const billData = {
+        farmer_id: currentFarmer.farmer_id,
+        dairy_id: parseInt(vlcId),
+        period_start: format(startDate, "yyyy-MM-dd"),
+        period_end: format(endDate, "yyyy-MM-dd"),
+        milk_total: currentFarmer.milk_total,
+        advance_total: currentFarmer.advanceDeduction,
+        cattlefeed_total: currentFarmer.cattleFeedDeduction,
+        other1_total: currentFarmer.other1Deduction,
+        other2_total: currentFarmer.other2Deduction,
+        received_total: currentFarmer.received_total,
+        net_payable: currentFarmer.milk_total - (currentFarmer.advanceDeduction + currentFarmer.cattleFeedDeduction + currentFarmer.other1Deduction + currentFarmer.other2Deduction),
+        advance_remaining: currentFarmer.advance - currentFarmer.advanceDeduction,
+        cattlefeed_remaining: currentFarmer.cattleFeedAmount - currentFarmer.cattleFeedDeduction,
+        other1_remaining: currentFarmer.other1Amount - currentFarmer.other1Deduction,
+        other2_remaining: currentFarmer.other2Amount - currentFarmer.other2Deduction
+      };
+
+      await deductionApi.updateFarmerBillWeb(billData);
+      
+      // Update local state to mark as saved and clear payment fields
+      // Preserve cow_data and buffalo_data with their collection_ids and rates
+      setFarmersData(prev => prev.map((farmer) => 
+        farmer.farmer_id === currentFarmer.farmer_id
+          ? { 
+              ...farmer,
+              cow_data: farmer.cow_data ? { ...farmer.cow_data } : null,
+              buffalo_data: farmer.buffalo_data ? { ...farmer.buffalo_data } : null,
+              modified: false,
+              paymentAdvance: "",
+              paymentCattleFeed: "",
+              paymentOther1: "",
+              paymentOther2: ""
+            }
+          : farmer
+      ));
+      
+      toast.success("Farmer bill updated successfully");
     } catch (error: any) {
-      console.error("Update Error:", error);
-      toast.error(error?.response?.data?.message || "Failed to update rates");
+      console.error("Save Error:", error);
+      toast.error(error?.response?.data?.message || "Failed to save changes");
     } finally {
-      setSubmitting(false);
+      setSaving(false);
+    }
+  };
+
+  // Filter farmers based on search term
+  const filteredFarmers = farmersData.filter(farmer =>
+    farmer.farmer_id.toString().includes(searchTerm) ||
+    farmer.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Get currently selected farmer from filtered list
+  const currentFarmer = filteredFarmers[selectedFarmerIndex] || null;
+
+  const goToPrevious = () => {
+    if (selectedFarmerIndex > 0) {
+      setSelectedFarmerIndex(selectedFarmerIndex - 1);
+    }
+  };
+
+  const goToNext = () => {
+    if (selectedFarmerIndex < filteredFarmers.length - 1) {
+      setSelectedFarmerIndex(selectedFarmerIndex + 1);
+    }
+  };
+
+  const selectFarmerFromSearch = (farmerId: string) => {
+    const index = filteredFarmers.findIndex(f => f.farmer_id === farmerId);
+    if (index !== -1) {
+      setSelectedFarmerIndex(index);
+    }
+  };
+
+  const calculateNetPayable = (farmer: any) => {
+    if (!farmer) return 0;
+    return farmer.milk_total - farmer.advanceDeduction - farmer.cattleFeedDeduction - farmer.other1Deduction - farmer.other2Deduction + farmer.received_total;
+  };
+
+  const exportToPDF = async () => {
+    if (!vlcId || !startDate || !endDate) {
+      toast.error("Please select VLC and date range first");
+      return;
+    }
+
+    setPdfLoading(true);
+    try {
+      const selectedBranch = branches.find(b => b.branch_id.toString() === vlcId);
+      const vlcName = selectedBranch?.name || 'VLC Center';
+      const dairyName = selectedBranch?.username || 'Dairy';
+      const fromDate = format(startDate, 'yyyy-MM-dd');
+      const toDate = format(endDate, 'yyyy-MM-dd');
+
+      // Fetch collection data from the same API as FarmerBillInvoiceReport
+      const apiUrl = '/report/shift-collection-report';
+      const params = {
+        dairyid: selectedBranch?.branch_id,
+        startDate: fromDate,
+        startShift: 'Morning',
+        endDate: toDate,
+        endShift: 'Evening',
+        milkType: 'All'
+      };
+
+      const collectionResponse = await api.get(apiUrl, { params });
+      const collectionData = collectionResponse.data.report || [];
+      const farmerBills = collectionResponse.data.farmerwise_bills || [];
+      const farmerPayments = collectionResponse.data.farmer_payments || [];
+
+      if (collectionData.length === 0) {
+        toast.error("No collection data found for the selected period");
+        setPdfLoading(false);
+        return;
+      }
+
+      // Remove separate payment fetching - use API response
+      // Fetch bank details
+      let bankDetailsMap = new Map<string, BankDetails>();
+      try {
+        const bankResponse = await bankSummaryApi.getBankSummary({
+          dairy_id: vlcId,
+          start_date: fromDate,
+          end_date: toDate
+        });
+        
+        (bankResponse.data || []).forEach((farmer: any) => {
+          bankDetailsMap.set(farmer.farmer_id, {
+            accountNumber: farmer.accountNumber,
+            ifscCode: farmer.ifscCode,
+            bankName: farmer.bankName,
+            branchName: farmer.branchName
+          });
+        });
+      } catch (error) {
+        console.error('Failed to fetch bank details:', error);
+      }
+
+      // Group by farmer
+      const grouped: { [key: string]: any[] } = {};
+      collectionData.forEach((item: any) => {
+        if (!grouped[item.farmer_id]) grouped[item.farmer_id] = [];
+        grouped[item.farmer_id].push(item);
+      });
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const farmerIds = Object.keys(grouped);
+
+      for (let i = 0; i < farmerIds.length; i++) {
+        const farmerId = farmerIds[i];
+        const farmerData = grouped[farmerId];
+        const farmerName = farmerData[0].farmer_name;
+        
+        const farmerPaymentsFiltered = farmerPayments.filter((p: any) => p.farmer_id === farmerId);
+        
+        const templateData: FarmerBillData[] = farmerData.map((item: any) => ({
+          date: item.date,
+          shift: item.shift,
+          type: item.type,
+          liters: parseFloat(item.liters),
+          fat: parseFloat(item.fat),
+          snf: parseFloat(item.snf),
+          clr: parseFloat(item.clr),
+          water: item.water ? parseFloat(item.water) : null,
+          rate: parseFloat(item.rate),
+          amount: parseFloat(item.amount),
+          farmer_id: item.farmer_id,
+          farmer_name: item.farmer_name
+        }));
+
+        const htmlContent = generateTemplate4({
+          dairyName: dairyName,
+          branchName: vlcName,
+          farmerCode: farmerId,
+          farmerName: farmerName,
+          fromDate: fromDate,
+          toDate: toDate,
+          milkType: 'All',
+          data: templateData,
+          farmerBill: { farmerwise_bills: farmerBills },
+          paymentSummary: { farmer_payments: farmerPaymentsFiltered },
+          bankDetails: bankDetailsMap.get(farmerId),
+          hideRateAmount: hideRateAmount
+        });
+
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = htmlContent;
+        tempDiv.style.position = 'absolute';
+        tempDiv.style.left = '-9999px';
+        tempDiv.style.width = '210mm';
+        document.body.appendChild(tempDiv);
+
+        try {
+          // Check if both milk types exist by looking for page-break elements
+          const pageBreaks = tempDiv.querySelectorAll('.page-break');
+          
+          if (pageBreaks.length > 0) {
+            // Multi-page: capture each section separately
+            const bodyElement = tempDiv.querySelector('body');
+            if (!bodyElement) throw new Error('Body element not found');
+            
+            const sections = [];
+            let currentSection = document.createElement('div');
+            currentSection.style.width = '210mm';
+            
+            Array.from(bodyElement.children).forEach((child: any) => {
+              if (child.classList && child.classList.contains('page-break')) {
+                sections.push(currentSection);
+                currentSection = document.createElement('div');
+                currentSection.style.width = '210mm';
+              } else {
+                currentSection.appendChild(child.cloneNode(true));
+              }
+            });
+            sections.push(currentSection);
+            
+            for (let s = 0; s < sections.length; s++) {
+              const sectionDiv = document.createElement('div');
+              sectionDiv.style.position = 'absolute';
+              sectionDiv.style.left = '-9999px';
+              sectionDiv.style.width = '210mm';
+              sectionDiv.innerHTML = `<html><head>${tempDiv.querySelector('head')?.innerHTML || ''}</head><body></body></html>`;
+              sectionDiv.querySelector('body')?.appendChild(sections[s]);
+              document.body.appendChild(sectionDiv);
+              
+              const canvas = await html2canvas(sectionDiv, { 
+                scale: 1.5,
+                useCORS: true,
+                logging: false,
+                windowWidth: 794
+              });
+              const imgData = canvas.toDataURL('image/png');
+              const imgWidth = 210;
+              const imgHeight = (canvas.height * imgWidth) / canvas.width;
+              
+              if (i > 0 || s > 0) pdf.addPage();
+              pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+              
+              document.body.removeChild(sectionDiv);
+            }
+          } else {
+            // Single page
+            const canvas = await html2canvas(tempDiv, { 
+              scale: 1.5,
+              useCORS: true,
+              logging: false,
+              windowWidth: 794
+            });
+            const imgData = canvas.toDataURL('image/png');
+            const imgWidth = 210;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+            if (i > 0) pdf.addPage();
+            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+          }
+        } finally {
+          document.body.removeChild(tempDiv);
+        }
+      }
+
+      pdf.save(`Farmer_Bill_${fromDate}_to_${toDate}.pdf`);
+      toast.success('PDF downloaded successfully');
+    } catch (error: any) {
+      console.error('PDF Error:', error);
+      toast.error(error?.response?.data?.message || 'Failed to generate PDF');
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  // Export PDF for single farmer (currently displayed)
+  const exportSingleFarmerPDF = async () => {
+    if (!vlcId || !startDate || !endDate || !currentFarmer) {
+      toast.error("Please select VLC, date range and ensure farmer is loaded");
+      return;
+    }
+
+    setPdfLoading(true);
+    try {
+      const selectedBranch = branches.find(b => b.branch_id.toString() === vlcId);
+      const vlcName = selectedBranch?.name || 'VLC Center';
+      const dairyName = selectedBranch?.username || 'Dairy';
+      const fromDate = format(startDate, 'yyyy-MM-dd');
+      const toDate = format(endDate, 'yyyy-MM-dd');
+
+      console.log('PDF Export - Request params:', {
+        dairyid: selectedBranch?.branch_id,
+        startDate: fromDate,
+        startShift: 'Morning',
+        endDate: toDate,
+        endShift: 'Evening',
+        milkType: 'All'
+      });
+
+      // Fetch collection data from the same API as FarmerBillInvoiceReport
+      const apiUrl = '/report/shift-collection-report';
+      const params = {
+        dairyid: selectedBranch?.branch_id,
+        startDate: fromDate,
+        startShift: 'Morning',
+        endDate: toDate,
+        endShift: 'Evening',
+        milkType: 'All'
+      };
+
+      const collectionResponse = await api.get(apiUrl, { params });
+      const allCollectionData = collectionResponse.data.report || [];
+      const farmerBills = collectionResponse.data.farmerwise_bills || [];
+      const allFarmerPayments = collectionResponse.data.farmer_payments || [];
+
+      console.log('PDF Export - Farmer Bills:', farmerBills);
+
+      // Filter to only current farmer's data
+      const farmerId = currentFarmer.farmer_id;
+      const farmerData = allCollectionData.filter((item: any) => item.farmer_id === farmerId);
+
+      console.log('PDF Export - Filtered Farmer Data:', farmerData);
+
+      if (farmerData.length === 0) {
+        toast.error("No collection data found for this farmer");
+        setPdfLoading(false);
+        return;
+      }
+
+      const farmerPaymentsFiltered = allFarmerPayments.filter((p: any) => p.farmer_id === farmerId);
+
+      // Fetch bank details for this farmer
+      let bankDetails: BankDetails | undefined;
+      try {
+        const bankResponse = await bankSummaryApi.getBankSummary({
+          dairy_id: vlcId,
+          start_date: fromDate,
+          end_date: toDate
+        });
+        
+        console.log('PDF Export - Bank Response:', bankResponse.data);
+        
+        const farmerBankData = (bankResponse.data || []).find((f: any) => f.farmer_id === farmerId);
+        if (farmerBankData) {
+          bankDetails = {
+            accountNumber: farmerBankData.accountNumber,
+            ifscCode: farmerBankData.ifscCode,
+            bankName: farmerBankData.bankName,
+            branchName: farmerBankData.branchName
+          };
+        }
+      } catch (error) {
+        console.error('Failed to fetch bank details:', error);
+      }
+
+      const farmerName = farmerData[0].farmer_name;
+      
+      const templateData: FarmerBillData[] = farmerData.map((item: any) => ({
+        date: item.date,
+        shift: item.shift,
+        type: item.type,
+        liters: parseFloat(item.liters),
+        fat: parseFloat(item.fat),
+        snf: parseFloat(item.snf),
+        clr: parseFloat(item.clr),
+        water: item.water ? parseFloat(item.water) : null,
+        rate: parseFloat(item.rate),
+        amount: parseFloat(item.amount),
+        farmer_id: item.farmer_id,
+        farmer_name: item.farmer_name
+      }));
+
+      console.log('PDF Export - Template Data:', templateData);
+
+      const htmlContent = generateTemplate4({
+        dairyName: dairyName,
+        branchName: vlcName,
+        farmerCode: farmerId,
+        farmerName: farmerName,
+        fromDate: fromDate,
+        toDate: toDate,
+        milkType: 'All',
+        data: templateData,
+        farmerBill: { farmerwise_bills: farmerBills },
+        paymentSummary: { farmer_payments: farmerPaymentsFiltered },
+        bankDetails: bankDetails,
+        hideRateAmount: hideRateAmount
+      });
+
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = htmlContent;
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.width = '210mm';
+      document.body.appendChild(tempDiv);
+
+      try {
+        const pageBreaks = tempDiv.querySelectorAll('.page-break');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        
+        if (pageBreaks.length > 0) {
+          const sections = [];
+          let currentSection = document.createElement('div');
+          currentSection.style.width = '210mm';
+          
+          Array.from(tempDiv.children).forEach((child: any) => {
+            if (child.classList && child.classList.contains('page-break')) {
+              sections.push(currentSection);
+              currentSection = document.createElement('div');
+              currentSection.style.width = '210mm';
+            } else {
+              currentSection.appendChild(child.cloneNode(true));
+            }
+          });
+          sections.push(currentSection);
+          
+          for (let s = 0; s < sections.length; s++) {
+            const sectionDiv = document.createElement('div');
+            sectionDiv.style.position = 'absolute';
+            sectionDiv.style.left = '-9999px';
+            sectionDiv.style.width = '210mm';
+            sectionDiv.appendChild(sections[s]);
+            document.body.appendChild(sectionDiv);
+            
+            const canvas = await html2canvas(sectionDiv, { 
+              scale: 1.5,
+              useCORS: true,
+              logging: false,
+              windowWidth: 794
+            });
+            const imgData = canvas.toDataURL('image/png');
+            const imgWidth = 210;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            
+            if (s > 0) pdf.addPage();
+            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+            
+            document.body.removeChild(sectionDiv);
+          }
+        } else {
+          const canvas = await html2canvas(tempDiv, { 
+            scale: 1.5,
+            useCORS: true,
+            logging: false,
+            windowWidth: 794
+          });
+          const imgData = canvas.toDataURL('image/png');
+          const imgWidth = 210;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+          pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+        }
+        
+        pdf.save(`Farmer_Bill_${farmerId}_${fromDate}_to_${toDate}.pdf`);
+        toast.success('PDF downloaded successfully');
+      } finally {
+        document.body.removeChild(tempDiv);
+      }
+    } catch (error: any) {
+      console.error('PDF Error:', error);
+      toast.error(error?.response?.data?.message || 'Failed to generate PDF');
+    } finally {
+      setPdfLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        <Card className="shadow-sm border-none">
-          <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
-            <CardTitle className="text-2xl font-bold text-gray-800">Shubham Milk Product</CardTitle>
+      <PdfLoader isLoading={pdfLoading} />
+      <div className="max-w-4xl mx-auto">
+        <Card className="shadow-lg border-none">
+          <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-lg">
+            <CardTitle className="text-2xl font-bold">{t("shubham_milk_product")}</CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            {/* Filters */}
+            <div className="space-y-4 mb-6">
+              {/* VLC Selection - Full Width */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">VLC ID</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t("vlc_id")}</label>
                 <Select value={vlcId} onValueChange={setVlcId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select VLC" />
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder={t("select_vlc")} />
                   </SelectTrigger>
                   <SelectContent className="bg-white">
                     {branches.map((branch) => (
@@ -173,110 +1152,472 @@ const ShubhamMilkProduct = () => {
                 </Select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal"
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {startDate ? format(startDate, "dd-MM-yyyy") : "Start date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-white" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={startDate}
-                      onSelect={handleStartDateChange}
-                      initialFocus
-                      className={cn("p-3 bg-white")}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
+              {/* Date Range and Show Button */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t("start_date")}</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {startDate ? format(startDate, "dd-MM-yyyy") : t("start_date")}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 bg-white" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={startDate}
+                        onSelect={handleStartDateChange}
+                        initialFocus
+                        className={cn("p-3 bg-white")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
-                <Button
-                  variant="outline"
-                  disabled
-                  className="w-full justify-start text-left font-normal bg-gray-100 cursor-not-allowed"
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {endDate ? format(endDate, "dd-MM-yyyy") : "End date"}
-                </Button>
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t("end_date")}</label>
+                  <Button
+                    variant="outline"
+                    disabled
+                    className="w-full justify-start text-left font-normal bg-gray-100 cursor-not-allowed"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {endDate ? format(endDate, "dd-MM-yyyy") : t("end_date")}
+                  </Button>
+                </div>
 
-              <div className="flex items-end">
-                <Button onClick={handleShow} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700">
-                  {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CalendarIcon className="w-4 h-4 mr-2" />}
-                  Show
-                </Button>
+                <div className="flex items-end gap-2">
+                  <Button onClick={handleShow} disabled={loading} className="flex-1 bg-blue-600 hover:bg-blue-700">
+                    {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CalendarIcon className="w-4 h-4 mr-2" />}
+                    {t("show")}
+                  </Button>
+                  <Button 
+                    onClick={exportToPDF} 
+                    disabled={pdfLoading || !vlcId} 
+                    className="flex-1 bg-red-600 hover:bg-red-700"
+                  >
+                    {pdfLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileDown className="w-4 h-4 mr-2" />}
+                    Export PDF
+                  </Button>
+                </div>
               </div>
             </div>
 
-            {data.length > 0 && (
-              <div className="mb-4 flex gap-4 items-end">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Apply Rate to All</label>
-                  <input
-                    type="number"
-                    value={globalRate}
-                    onChange={(e) => handleGlobalRateChange(e.target.value)}
-                    placeholder="Enter rate"
-                    className="w-full border rounded px-3 py-2"
+            {/* Search and Navigation */}
+            {farmersData.length > 0 && (
+              <div className="mb-6">
+                <div className="relative mb-4">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setSelectedFarmerIndex(0);
+                    }}
+                    placeholder={t("search_by_farmer")}
+                    className="pl-10"
                   />
                 </div>
-                <Button onClick={handleSubmit} disabled={submitting} className="bg-green-600 hover:bg-green-700">
-                  {submitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                  Submit
-                </Button>
+                
+                {/* Farmer dropdown list when searching */}
+                {searchTerm && filteredFarmers.length > 0 && (
+                  <div className="mb-4 max-h-48 overflow-y-auto border rounded-lg bg-white shadow-sm">
+                    {filteredFarmers.map((farmer) => (
+                      <div
+                        key={farmer.farmer_id}
+                        onClick={() => selectFarmerFromSearch(farmer.farmer_id)}
+                        className={`px-4 py-2 cursor-pointer hover:bg-blue-50 border-b last:border-b-0 ${
+                          currentFarmer?.farmer_id === farmer.farmer_id ? 'bg-blue-100' : ''
+                        }`}
+                      >
+                        <span className="font-medium">{farmer.farmer_id}</span> - {farmer.name}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Navigation */}
+                <div className="flex items-center justify-between mb-4">
+                  <Button
+                    variant="outline"
+                    onClick={goToPrevious}
+                    disabled={selectedFarmerIndex === 0}
+                    className="flex items-center gap-2"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  <span className="text-sm text-gray-600">
+                    {filteredFarmers.length > 0 
+                      ? `${selectedFarmerIndex + 1} of ${filteredFarmers.length} farmers`
+                      : 'No farmers found'
+                    }
+                  </span>
+                  <Button
+                    variant="outline"
+                    onClick={goToNext}
+                    disabled={selectedFarmerIndex >= filteredFarmers.length - 1}
+                    className="flex items-center gap-2"
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             )}
 
-            {data.length > 0 && (
-              <div className="mt-6">
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="bg-gray-100">
-                        <th className="border px-4 py-2 text-left">Farmer ID</th>
-                        <th className="border px-4 py-2 text-left">Farmer Name</th>
-                        <th className="border px-4 py-2 text-left">Type</th>
-                        <th className="border px-4 py-2 text-right">Total Quantity</th>
-                        <th className="border px-4 py-2 text-right">Avg Fat</th>
-                        <th className="border px-4 py-2 text-right">Avg SNF</th>
-                        <th className="border px-4 py-2 text-right">Avg Water</th>
-                        <th className="border px-4 py-2 text-right">Avg Rate</th>
-                        <th className="border px-4 py-2 text-right">Avg Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.map((item, index) => (
-                        <tr key={index} className="hover:bg-gray-50">
-                          <td className="border px-4 py-2">{item.farmer_id}</td>
-                          <td className="border px-4 py-2">{item.farmer_name}</td>
-                          <td className="border px-4 py-2">{item.type}</td>
-                          <td className="border px-4 py-2 text-right">{item.total_quantity}</td>
-                          <td className="border px-4 py-2 text-right">{item.avg_fat}</td>
-                          <td className="border px-4 py-2 text-right">{item.avg_snf}</td>
-                          <td className="border px-4 py-2 text-right">{item.avg_water}</td>
-                          <td className="border px-4 py-2">
-                            <input
-                              type="number"
-                              value={item.avg_rate}
-                              onChange={(e) => handleRateChange(index, e.target.value)}
-                              className="w-20 border rounded px-2 py-1 text-right"
-                            />
-                          </td>
-                          <td className="border px-4 py-2 text-right">₹{item.avg_amount}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+            {/* Farmer Card */}
+            {currentFarmer && (
+              <Card className={`border-2 ${currentFarmer.modified ? 'border-yellow-400' : 'border-gray-200'} shadow-md`}>
+                <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 py-3 px-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <CardTitle className="text-lg text-gray-800">
+                        {currentFarmer.farmer_id} - {currentFarmer.name}
+                      </CardTitle>
+                      <p className="text-xs text-gray-500">
+                        Period: {startDate ? format(startDate, "dd-MM-yyyy") : ""} to {endDate ? format(endDate, "dd-MM-yyyy") : ""}
+                      </p>
+                    </div>
+                    {currentFarmer.modified && (
+                      <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs font-medium rounded-full">
+                        Modified
+                      </span>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="p-4 space-y-3">
+                  {/* Summary Row */}
+                  <div className={`grid ${currentFarmer.hasBothTypes ? 'grid-cols-3' : 'grid-cols-4'} gap-2`}>
+                    <div className="bg-blue-50 p-2 rounded-lg text-center">
+                      <p className="text-xs text-gray-600">Quantity (L)</p>
+                      <p className="text-lg font-bold text-blue-600">{currentFarmer.quantity?.toFixed(1) || "0.0"}</p>
+                    </div>
+                    {/* Only show Rate field if farmer has single type */}
+                    {!currentFarmer.hasBothTypes && (
+                      <div className="bg-orange-50 p-2 rounded-lg text-center">
+                        <p className="text-xs text-gray-600">Rate (₹/L)</p>
+                        <Input
+                          type="number"
+                          value={currentFarmer.rate === '' ? '' : (currentFarmer.rate || (currentFarmer.quantity > 0 ? (currentFarmer.milk_total / currentFarmer.quantity).toFixed(2) : ''))}
+                          onChange={(e) => handleRateChange(e.target.value)}
+                          onKeyDown={async (e) => {
+                            if (e.key === 'Enter') {
+                              try {
+                                await updateRates();
+                              } catch (error) {
+                                toast.error('Failed to update rates');
+                              }
+                            }
+                          }}
+                          disabled={false}
+                          readOnly={false}
+                          className="h-7 text-center text-sm font-bold text-orange-600 bg-transparent border-orange-300"
+                        />
+                      </div>
+                    )}
+                    <div className="bg-green-50 p-2 rounded-lg text-center">
+                      <p className="text-xs text-gray-600">Bill Amount</p>
+                      <p className="text-lg font-bold text-green-600">₹{currentFarmer.milk_total?.toFixed(2) || "0.00"}</p>
+                    </div>
+                    <div className="bg-purple-50 p-2 rounded-lg text-center">
+                      <p className="text-xs text-gray-600">Received</p>
+                      <p className="text-lg font-bold text-purple-600">₹{currentFarmer.received_total?.toFixed(2) || "0.00"}</p>
+                    </div>
+                  </div>
+
+                  {/* Quality Metrics - Separate Cow/Buffalo if both exist */}
+                  {currentFarmer.hasBothTypes ? (
+                    <div className="space-y-2">
+                      {/* Cow Stats */}
+                      {currentFarmer.cow_data && (
+                        <div className="bg-amber-50 p-2 rounded-lg border border-amber-200">
+                          <p className="text-xs font-semibold text-amber-800 mb-1">🐄 Cow</p>
+                          <div className="grid grid-cols-5 gap-1 text-center">
+                            <div>
+                              <p className="text-xs text-gray-500">Qty</p>
+                              <p className="text-sm font-bold text-amber-700">{currentFarmer.cow_data.total_quantity?.toFixed(1)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">FAT%</p>
+                              <p className="text-sm font-bold text-amber-700">{currentFarmer.cow_data.avg_fat?.toFixed(1)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">SNF%</p>
+                              <p className="text-sm font-bold text-amber-700">{currentFarmer.cow_data.avg_snf?.toFixed(1)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">Water%</p>
+                              <p className="text-sm font-bold text-amber-700">{currentFarmer.cow_data.avg_water?.toFixed(1)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">Rate</p>
+                              <Input
+                                type="number"
+                                step="any"
+                                value={currentFarmer.cow_data.avg_rate || ''}
+                                onChange={(e) => handleTypeRateChange('cow', e.target.value)}
+                                onKeyDown={async (e) => {
+                                  if (e.key === 'Enter') {
+                                    try {
+                                      await updateRates();
+                                    } catch (error) {
+                                      toast.error('Failed to update rates');
+                                    }
+                                  }
+                                }}
+                                className="h-6 w-16 text-center text-xs font-bold text-amber-700 bg-white border-amber-300"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {/* Buffalo Stats */}
+                      {currentFarmer.buffalo_data && (
+                        <div className="bg-indigo-50 p-2 rounded-lg border border-indigo-200">
+                          <p className="text-xs font-semibold text-indigo-800 mb-1">🐃 Buffalo</p>
+                          <div className="grid grid-cols-5 gap-1 text-center">
+                            <div>
+                              <p className="text-xs text-gray-500">Qty</p>
+                              <p className="text-sm font-bold text-indigo-700">{currentFarmer.buffalo_data.total_quantity?.toFixed(1)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">FAT%</p>
+                              <p className="text-sm font-bold text-indigo-700">{currentFarmer.buffalo_data.avg_fat?.toFixed(1)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">SNF%</p>
+                              <p className="text-sm font-bold text-indigo-700">{currentFarmer.buffalo_data.avg_snf?.toFixed(1)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">Water%</p>
+                              <p className="text-sm font-bold text-indigo-700">{currentFarmer.buffalo_data.avg_water?.toFixed(1)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">Rate</p>
+                              <Input
+                                type="number"
+                                step="any"
+                                value={currentFarmer.buffalo_data.avg_rate || ''}
+                                onChange={(e) => handleTypeRateChange('buffalo', e.target.value)}
+                                onKeyDown={async (e) => {
+                                  if (e.key === 'Enter') {
+                                    try {
+                                      await updateRates();
+                                    } catch (error) {
+                                      toast.error('Failed to update rates');
+                                    }
+                                  }
+                                }}
+                                className="h-6 w-16 text-center text-xs font-bold text-indigo-700 bg-white border-indigo-300"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* Single type - show combined averages */
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="bg-yellow-50 p-2 rounded-lg text-center border border-yellow-200">
+                        <p className="text-xs text-gray-600">Avg FAT %</p>
+                        <p className="text-base font-bold text-yellow-700">{currentFarmer.avg_fat?.toFixed(1) || "0.0"}</p>
+                      </div>
+                      <div className="bg-cyan-50 p-2 rounded-lg text-center border border-cyan-200">
+                        <p className="text-xs text-gray-600">Avg SNF %</p>
+                        <p className="text-base font-bold text-cyan-700">{currentFarmer.avg_snf?.toFixed(1) || "0.0"}</p>
+                      </div>
+                      <div className="bg-teal-50 p-2 rounded-lg text-center border border-teal-200">
+                        <p className="text-xs text-gray-600">Avg Water %</p>
+                        <p className="text-base font-bold text-teal-700">{currentFarmer.avg_water?.toFixed(1) || "0.0"}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Payment and Deduction Fields - Combined in 3 Columns */}
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-3 gap-4 mb-2">
+                      <h3 className="text-sm font-semibold text-gray-700">Type / Amount</h3>
+                      <h3 className="text-sm font-semibold text-gray-700">Payments</h3>
+                      <h3 className="text-sm font-semibold text-gray-700">Deductions</h3>
+                    </div>
+                    
+                    {/* Advance Row */}
+                    <div className="grid grid-cols-3 gap-4 items-start">
+                      <div>
+                        <p className="text-xs font-medium text-gray-700">Advance:</p>
+                        <p className="text-sm font-bold text-gray-800">₹{currentFarmer.advance?.toFixed(2) || "0.00"}</p>
+                        {currentFarmer.advance_remaining > 0 && (
+                          <p className="text-xs text-red-500">Rem: ₹{currentFarmer.advance_remaining?.toFixed(2)}</p>
+                        )}
+                      </div>
+                      <Input
+                        type="number"
+                        placeholder="0.00"
+                        value={currentFarmer.paymentAdvance || ""}
+                        onChange={(e) => handleDeductionChange('paymentAdvance', e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handlePaymentSubmit('Advance', currentFarmer.paymentAdvance);
+                          }
+                        }}
+                        className="h-7 text-sm"
+                      />
+                      <div className="space-y-1">
+                        <Input
+                          type="number"
+                          placeholder="0.00"
+                          value={currentFarmer.advanceDeduction || ""}
+                          onChange={(e) => handleDeductionChange('advanceDeduction', e.target.value)}
+                          className="h-7 text-sm"
+                        />
+                        <p className="text-xs text-green-600">After: ₹{(currentFarmer.advance - currentFarmer.advanceDeduction).toFixed(2)}</p>
+                      </div>
+                    </div>
+
+                    {/* Cattle Feed Row */}
+                    <div className="grid grid-cols-3 gap-4 items-start">
+                      <div>
+                        <p className="text-xs font-medium text-gray-700">Cattle Feed:</p>
+                        <p className="text-sm font-bold text-gray-800">₹{currentFarmer.cattleFeedAmount?.toFixed(2) || "0.00"}</p>
+                        {currentFarmer.cattlefeed_remaining > 0 && (
+                          <p className="text-xs text-red-500">Rem: ₹{currentFarmer.cattlefeed_remaining?.toFixed(2)}</p>
+                        )}
+                      </div>
+                      <Input
+                        type="number"
+                        placeholder="0.00"
+                        value={currentFarmer.paymentCattleFeed || ""}
+                        onChange={(e) => handleDeductionChange('paymentCattleFeed', e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handlePaymentSubmit('Cattle Feed', currentFarmer.paymentCattleFeed);
+                          }
+                        }}
+                        className="h-7 text-sm"
+                      />
+                      <div className="space-y-1">
+                        <Input
+                          type="number"
+                          placeholder="0.00"
+                          value={currentFarmer.cattleFeedDeduction || ""}
+                          onChange={(e) => handleDeductionChange('cattleFeedDeduction', e.target.value)}
+                          className="h-7 text-sm"
+                        />
+                        <p className="text-xs text-green-600">After: ₹{(currentFarmer.cattleFeedAmount - currentFarmer.cattleFeedDeduction).toFixed(2)}</p>
+                      </div>
+                    </div>
+
+                    {/* Other1 Row */}
+                    <div className="grid grid-cols-3 gap-4 items-start">
+                      <div>
+                        <p className="text-xs font-medium text-gray-700">Other 1:</p>
+                        <p className="text-sm font-bold text-gray-800">₹{currentFarmer.other1Amount?.toFixed(2) || "0.00"}</p>
+                        {currentFarmer.other1_remaining > 0 && (
+                          <p className="text-xs text-red-500">Rem: ₹{currentFarmer.other1_remaining?.toFixed(2)}</p>
+                        )}
+                      </div>
+                      <Input
+                        type="number"
+                        placeholder="0.00"
+                        value={currentFarmer.paymentOther1 || ""}
+                        onChange={(e) => handleDeductionChange('paymentOther1', e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handlePaymentSubmit('Other1', currentFarmer.paymentOther1);
+                          }
+                        }}
+                        className="h-7 text-sm"
+                      />
+                      <div className="space-y-1">
+                        <Input
+                          type="number"
+                          placeholder="0.00"
+                          value={currentFarmer.other1Deduction || ""}
+                          onChange={(e) => handleDeductionChange('other1Deduction', e.target.value)}
+                          className="h-7 text-sm"
+                        />
+                        <p className="text-xs text-green-600">After: ₹{(currentFarmer.other1Amount - currentFarmer.other1Deduction).toFixed(2)}</p>
+                      </div>
+                    </div>
+
+                    {/* Other2 Row */}
+                    <div className="grid grid-cols-3 gap-4 items-start">
+                      <div>
+                        <p className="text-xs font-medium text-gray-700">Other 2:</p>
+                        <p className="text-sm font-bold text-gray-800">₹{currentFarmer.other2Amount?.toFixed(2) || "0.00"}</p>
+                        {currentFarmer.other2_remaining > 0 && (
+                          <p className="text-xs text-red-500">Rem: ₹{currentFarmer.other2_remaining?.toFixed(2)}</p>
+                        )}
+                      </div>
+                      <Input
+                        type="number"
+                        placeholder="0.00"
+                        value={currentFarmer.paymentOther2 || ""}
+                        onChange={(e) => handleDeductionChange('paymentOther2', e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handlePaymentSubmit('Other2', currentFarmer.paymentOther2);
+                          }
+                        }}
+                        className="h-7 text-sm"
+                      />
+                      <div className="space-y-1">
+                        <Input
+                          type="number"
+                          placeholder="0.00"
+                          value={currentFarmer.other2Deduction || ""}
+                          onChange={(e) => handleDeductionChange('other2Deduction', e.target.value)}
+                          className="h-7 text-sm"
+                        />
+                        <p className="text-xs text-green-600">After: ₹{(currentFarmer.other2Amount - currentFarmer.other2Deduction).toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Net Payable */}
+                  <div className="bg-gradient-to-r from-emerald-50 to-green-50 p-3 rounded-lg border border-green-200">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-xs text-gray-600">Net Payable</p>
+                        <p className={`text-xl font-bold ${calculateNetPayable(currentFarmer) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          ₹{calculateNetPayable(currentFarmer).toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button 
+                          onClick={handleSave} 
+                          disabled={saving || !currentFarmer.modified}
+                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 h-9"
+                        >
+                          {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                          Generate Bill
+                        </Button>
+                        <Button 
+                          onClick={exportSingleFarmerPDF} 
+                          disabled={pdfLoading}
+                          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 h-9"
+                        >
+                          {pdfLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileDown className="w-4 h-4 mr-2" />}
+                          Export PDF
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Empty State */}
+            {farmersData.length === 0 && !loading && (
+              <div className="text-center py-12 text-gray-500">
+                <p className="text-lg">No data to display</p>
+                <p className="text-sm">Select VLC and date range, then click Show</p>
               </div>
             )}
           </CardContent>

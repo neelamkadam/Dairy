@@ -31,7 +31,7 @@ const getMenuItems = (t: any, userId?: number): MenuItem[] => {
     children: [
       { title: t('vlc_collection_entry'), icon: "", href:ROUTES.COLLECTIONENTRY.VLC_COLLECTION_ENTRY },
       { title: t('farmer_collection_entry'), icon: "", href: ROUTES.COLLECTIONENTRY.FARMER_COLLECTION_ENTRY },
-      { title: t('dispatch_entry'), icon: "", href:ROUTES.COLLECTIONENTRY.DISPATCH_ENTRY }
+      { title: t('tanker_dispatch'), icon: "", href:ROUTES.COLLECTIONENTRY.DISPATCH_ENTRY }
     ]
   },
   {
@@ -113,7 +113,6 @@ const AppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
   const [isSpinning, setIsSpinning] = useState(false);
   
   const userId = userData?.id ? Number(userData.id) : null;
-  console.log('Sidebar userId:', userId, 'userData.id:', userData?.id);
   
   const menuItems = getMenuItems(t, userId);
   

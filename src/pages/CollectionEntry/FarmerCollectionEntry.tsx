@@ -77,6 +77,7 @@ const FarmerCollectionEntry = () => {
   const [fat, setFat] = useState("");
   const [snf, setSnf] = useState("");
   const [clr, setClr] = useState("");
+  const [water, setWater] = useState("");
   const [rate, setRate] = useState("");
   const [amount, setAmount] = useState(0);
   const [existingCollections, setExistingCollections] = useState<Collection[]>([]);
@@ -277,6 +278,7 @@ const FarmerCollectionEntry = () => {
             fat: parseFloat(weightedFat.toFixed(2)),
             snf: parseFloat(weightedSnf.toFixed(2)),
             clr: parseFloat(weightedClr),
+            water: water ? parseFloat(water) : undefined,
             rate: parseFloat(rate),
             amount: totalAmount,
             shift: shift,
@@ -296,6 +298,7 @@ const FarmerCollectionEntry = () => {
           fat: parseFloat(fat),
           snf: parseFloat(snf),
           clr: parseFloat(clr),
+          water: water ? parseFloat(water) : undefined,
           rate: parseFloat(rate),
           amount: amount,
           shift: shift,
@@ -331,6 +334,7 @@ const FarmerCollectionEntry = () => {
     setFat('');
     setSnf('');
     setClr('');
+    setWater('');
     setRate('');
     setAmount(0);
     setEditingId(null);
@@ -409,6 +413,7 @@ const FarmerCollectionEntry = () => {
     setFat('');
     setSnf('');
     setClr('');
+    setWater('');
     setRate('');
     setAmount(0);
     setEditingId(null);
@@ -662,6 +667,19 @@ const FarmerCollectionEntry = () => {
                       setClr(e.target.value);
                       if (e.target.value) setSnf('');
                     }}
+                    className="border-gray-200"
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                    {t('water')} (%)
+                  </Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    placeholder="0.0"
+                    value={water}
+                    onChange={(e) => setWater(e.target.value)}
                     className="border-gray-200"
                   />
                 </div>

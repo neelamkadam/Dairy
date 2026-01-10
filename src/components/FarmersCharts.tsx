@@ -7,22 +7,75 @@ interface FarmersChartProps {
   branches: Array<{ branch_id: number; name: string }>;
 }
 
-const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'];
+const COLORS = {
+  poured: '#10B981',      // Green - Active/Poured
+  notPoured: '#F59E0B',   // Orange - Not Poured
+  inactive: '#EF4444',    // Red - Inactive
+  registered: '#3B82F6'   // Blue - Registered
+};
 
-const FarmersChart = ({ collections, branches }: FarmersChartProps) => {
+const FarmersChart = ({ collections }: FarmersChartProps) => {
   const [hiddenItems, setHiddenItems] = useState<Set<string>>(new Set());
-  const allData = collections
-    .filter(item => item.quantity > 0)
-    .map((item, index) => {
-      const branch = branches.find(b => b.branch_id === item.dairy_id);
-      return {
-        name: branch?.name || `Dairy ${item.dairy_id}`,
-        value: item.quantity,
-        color: COLORS[index % COLORS.length]
-      };
-    });
 
-  const data = allData.filter(item => !hiddenItems.has(item.name));
+  // Calculate farmer statistics from collections
+  const calculateFarmerStats = () => {
+    if (!collections || collections.length === 0) {
+      return {
+        poured: 0,
+        notPoured: 0,
+        inactive: 0,
+        registered: 0
+      };
+    }
+
+    // Sum up all values across all collections
+    const totals = collections.reduce((acc, item) => ({
+      poured: acc.poured + (item.farmers || 0),
+      registered: acc.registered + (item.registered_farmers || 0),
+      inactive: acc.inactive + (item.inactive_farmers || 0)
+    }), { poured: 0, registered: 0, inactive: 0 });
+
+    // Calculate not poured: registered - poured
+    const notPoured = totals.registered - totals.poured;
+
+    return {
+      poured: totals.poured,
+      notPoured: Math.max(0, notPoured), // Ensure non-negative
+      inactive: totals.inactive,
+      registered: totals.registered
+    };
+  };
+
+  const stats = calculateFarmerStats();
+
+  const allData = [
+    {
+      name: 'Poured',
+      value: stats.poured,
+      color: COLORS.poured,
+      description: 'Active farmers who poured milk'
+    },
+    {
+      name: 'Not Poured',
+      value: stats.notPoured,
+      color: COLORS.notPoured,
+      description: 'Registered farmers who did not pour'
+    },
+    {
+      name: 'Inactive',
+      value: stats.inactive,
+      color: COLORS.inactive,
+      description: 'Inactive farmers'
+    },
+    {
+      name: 'Registered',
+      value: stats.registered,
+      color: COLORS.registered,
+      description: 'Total registered farmers'
+    }
+  ];
+
+  const data = allData.filter(item => !hiddenItems.has(item.name) && item.value > 0);
 
   const toggleItem = (name: string) => {
     setHiddenItems(prev => {
@@ -35,8 +88,6 @@ const FarmersChart = ({ collections, branches }: FarmersChartProps) => {
       return newSet;
     });
   };
-
-  const totalQuantity = data.reduce((sum, item) => sum + item.value, 0);
 
   return (
     <div className="h-full flex flex-col">
@@ -51,13 +102,18 @@ const FarmersChart = ({ collections, branches }: FarmersChartProps) => {
                 innerRadius="30%"
                 outerRadius="60%"
                 dataKey="value"
-                label={({ value }) => `${value}L`}
+                label={({ value }) => `${value}`}
               >
                 {data.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip formatter={(value) => `${value}L`} />
+              <Tooltip 
+                formatter={(value, name, props) => [
+                  `${value} farmers`,
+                  props.payload.description
+                ]} 
+              />
             </PieChart>
           </ResponsiveContainer>
         ) : (
@@ -82,7 +138,7 @@ const FarmersChart = ({ collections, branches }: FarmersChartProps) => {
               className="text-sm text-gray-600"
               style={{ opacity: hiddenItems.has(entry.name) ? 0.3 : 1 }}
             >
-              {entry.name}
+              {entry.name}: {entry.value}
             </span>
           </div>
         ))}

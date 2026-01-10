@@ -36,7 +36,7 @@ const GenerateBill = () => {
     } else if (day >= 21) {
       startDay = 21;
       endDay = new Date(year, month, 0).getDate();
-    } else return { from: dateStr, to: dateStr };
+    } else return { from: new Date(dateStr), to: new Date(dateStr) };
     
     return {
       from: new Date(year, month - 1, startDay),
@@ -103,6 +103,7 @@ const GenerateBill = () => {
         format(startDate, "yyyy-MM-dd"),
         format(endDate, "yyyy-MM-dd")
       );
+      console.log("getAllFarmersBalance response:", data);
       // Check if bills are finalized by checking first farmer's from_bills status
       const firstDateEntry = data.data?.[0];
       const firstFarmer = firstDateEntry?.farmers?.[0];
@@ -116,9 +117,10 @@ const GenerateBill = () => {
         dateEntry.farmers.forEach((farmer: any) => {
           const farmerId = farmer.farmer_id;
           
-          if (farmerMap.has(farmerId)) {
+            if (farmerMap.has(farmerId)) {
             const existing = farmerMap.get(farmerId);
             existing.milk_total += farmer.milk_total || 0;
+            existing.quantity += farmer.quantity || 0;
             existing.advance_total += farmer.deductions?.advance || 0;
             existing.cattlefeed_total += farmer.deductions?.cattle_feed || 0;
             existing.other1_total += farmer.deductions?.other1 || 0;
@@ -129,6 +131,7 @@ const GenerateBill = () => {
               farmer_id: farmerId,
               name: farmer.farmer_name || `Farmer ${farmerId}`,
               milk_total: farmer.milk_total || 0,
+              quantity: farmer.quantity || 0,
               advance: farmer.deductions?.advance || 0,
               advanceDeduction: farmer.deductions?.advance || 0,
               cattleFeedAmount: farmer.deductions?.cattle_feed || 0,
@@ -177,6 +180,13 @@ const GenerateBill = () => {
             const o1Remaining = parseFloat(billDetail.other1_remaining || 0);
             const o2Total = parseFloat(billDetail.other2_total || 0);
             const o2Remaining = parseFloat(billDetail.other2_remaining || 0);
+
+
+
+            farmer.advance_remaining = advRemaining;
+            farmer.cattlefeed_remaining = cfRemaining;
+            farmer.other1_remaining = o1Remaining;
+            farmer.other2_remaining = o2Remaining;
 
             const hasData = advTotal > 0 || advRemaining > 0 || cfTotal > 0 || cfRemaining > 0 || 
                            o1Total > 0 || o1Remaining > 0 || o2Total > 0 || o2Remaining > 0;
@@ -461,7 +471,7 @@ const GenerateBill = () => {
                       Name
                     </th>
                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                      Liter
+                      Quantity(L)
                     </th>
                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                       Amount
@@ -493,22 +503,42 @@ const GenerateBill = () => {
                         {farmer.name}
                       </td>
                       <td className="px-3 py-2 text-xs text-gray-900">
-                        {farmer.milk_total.toFixed(1)}L
+                        {farmer.quantity?.toFixed(1) || "0.0"}
                       </td>
                       <td className="px-3 py-2 text-xs text-gray-900">
                         ₹{(farmer.milk_total).toFixed(1)}
                       </td>
-                      <td className="px-3 py-2 text-xs text-red-600">
-                        ₹{(farmer.advanceDeduction || 0).toFixed(1)}
+                      <td className="px-3 py-2 text-xs text-green-600">
+                        <div>₹{(farmer.advanceDeduction || 0).toFixed(1)}</div>
+                        {(farmer.advance_remaining > 0) && (
+                           <div className="text-[10px] text-red-500">
+                            ₹ {(farmer.advance_remaining || 0).toFixed(1)}
+                           </div>
+                        )}
                       </td>
-                      <td className="px-3 py-2 text-xs text-red-600">
-                        ₹{(farmer.cattleFeedDeduction || 0).toFixed(1)}
+                      <td className="px-3 py-2 text-xs text-green-600">
+                        <div>₹{(farmer.cattleFeedDeduction || 0).toFixed(1)}</div>
+                        {(farmer.cattlefeed_remaining > 0) && (
+                          <div className="text-[10px] text-red-500">
+                           ₹ {(farmer.cattlefeed_remaining || 0).toFixed(1)}
+                          </div>
+                        )}
                       </td>
-                      <td className="px-3 py-2 text-xs text-red-600">
-                        ₹{(farmer.other1Deduction || 0).toFixed(1)}
+                      <td className="px-3 py-2 text-xs text-green-600">
+                        <div>₹{(farmer.other1Deduction || 0).toFixed(1)}</div>
+                        {(farmer.other1_remaining > 0) && (
+                          <div className="text-[10px] text-red-500">
+                           ₹ {(farmer.other1_remaining || 0).toFixed(1)}
+                          </div>
+                        )}
                       </td>
-                      <td className="px-3 py-2 text-xs text-red-600">
-                        ₹{(farmer.other2Deduction || 0).toFixed(1)}
+                      <td className="px-3 py-2 text-xs text-green-600">
+                        <div>₹{(farmer.other2Deduction || 0).toFixed(1)}</div>
+                        {(farmer.other2_remaining > 0) && (
+                          <div className="text-[10px] text-red-500">
+                           ₹ {(farmer.other2_remaining || 0).toFixed(1)}
+                          </div>
+                        )}
                       </td>
                       <td className="px-3 py-2 text-xs font-medium text-green-600">
                         ₹{(farmer.hasBill 

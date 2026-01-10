@@ -45,6 +45,10 @@ const PaymentAndReceipt: React.FC = () => {
   const [cattleFeedStocks, setCattleFeedStocks] = useState<CattleFeedStock[]>([]);
   const [selectedStock, setSelectedStock] = useState<CattleFeedStock | null>(null);
   const [stockQuantity, setStockQuantity] = useState("");
+  const [cattleFeedLumpSum, setCattleFeedLumpSum] = useState(() => {
+    const saved = localStorage.getItem('cattleFeedLumpSum');
+    return saved ? parseInt(saved) : 0;
+  });
 
   useEffect(() => {
     if (formData.vlcName && formData.fromDate) {
@@ -52,6 +56,11 @@ const PaymentAndReceipt: React.FC = () => {
       fetchCattleFeedStocks();
     }
   }, [formData.vlcName, formData.fromDate]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('cattleFeedLumpSum');
+    setCattleFeedLumpSum(saved ? parseInt(saved) : 0);
+  }, []);
 
   const fetchCattleFeedStocks = async () => {
     if (!formData.vlcName) return;
@@ -154,12 +163,12 @@ const PaymentAndReceipt: React.FC = () => {
       return;
     }
 
-    if (formData.paymentType === "Cattle Feed" && (!selectedStock || !stockQuantity)) {
+    if (formData.paymentType === "Cattle Feed" && cattleFeedLumpSum === 0 && (!selectedStock || !stockQuantity)) {
       toast.error("Please select stock and enter quantity");
       return;
     }
 
-    if (formData.paymentType === "Cattle Feed" && selectedStock) {
+    if (formData.paymentType === "Cattle Feed" && cattleFeedLumpSum === 0 && selectedStock) {
       const qty = parseFloat(stockQuantity);
       if (qty > selectedStock.stock) {
         toast.error(`Only ${selectedStock.stock} units available`);
@@ -181,7 +190,7 @@ const PaymentAndReceipt: React.FC = () => {
     try {
       await paymentApi.create(payload);
       
-      if (formData.paymentType === "Cattle Feed" && selectedStock && stockQuantity) {
+      if (formData.paymentType === "Cattle Feed" && cattleFeedLumpSum === 0 && selectedStock && stockQuantity) {
         const stockToReduce = parseFloat(stockQuantity);
         const remainingStock = Math.max(0, selectedStock.stock - stockToReduce);
         
@@ -340,7 +349,7 @@ const PaymentAndReceipt: React.FC = () => {
                 </Select>
               </div>
 
-              {formData.paymentType === "Cattle Feed" && (
+              {formData.paymentType === "Cattle Feed" && cattleFeedLumpSum === 0 && (
                 <>
                   <div>
                     <Label className="text-sm font-medium text-gray-700 mb-2 block">
@@ -406,7 +415,7 @@ const PaymentAndReceipt: React.FC = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, amountTaken: e.target.value })
                     }
-                    readOnly={formData.paymentType === "Cattle Feed"}
+                    readOnly={formData.paymentType === "Cattle Feed" && cattleFeedLumpSum === 0}
                   />
                 </div>
               </div>
@@ -431,7 +440,7 @@ const PaymentAndReceipt: React.FC = () => {
                         receivedAmount: e.target.value,
                       })
                     }
-                    disabled={formData.paymentType === "Cattle Feed"}
+                    disabled={formData.paymentType === "Cattle Feed" && cattleFeedLumpSum === 0}
                   />
                 </div>
               </div>

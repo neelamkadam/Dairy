@@ -105,7 +105,7 @@ const DispatchEntry = () => {
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <CardTitle className="text-xl font-semibold text-gray-800">
-              {t('dispatch_entry')}
+              {t('tanker_dispatch')}
             </CardTitle>
             <HelpCircle className="h-5 w-5 text-gray-400" />
           </div>
