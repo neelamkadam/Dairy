@@ -11,7 +11,7 @@ const extractRateName = (rateName: string, type: 'cow' | 'buffalo'): string => {
 };
 
 export const rateChartApi = {
-  getRate: async (fat: number, snf: number, orgId: number, rateName: string, type: 'Cow' | 'Buffalo', date?: string) => {
+  getRate: async (fat: number, snf: number, orgId: number, rateName: string, type: 'Cow' | 'Buffalo', date?: string, shift?: 'Morning' | 'Evening') => {
     const typeParam = type.toLowerCase() as 'cow' | 'buffalo';
     const specificRateName = extractRateName(rateName, typeParam);
     
@@ -24,11 +24,12 @@ export const rateChartApi = {
     });
     
     if (date) params.set('date', date);
+    if (shift) params.set('shift', shift);
     
     const url = `/conf/get-rate?${params.toString()}`;
     console.log('🔵 Rate API Request:', {
       url,
-      params: { fat, snf, orgId, rateName, specificRateName, type: typeParam, date }
+      params: { fat, snf, orgId, rateName, specificRateName, type: typeParam, date, shift }
     });
     
     const response = await AxiosClient.get(url);

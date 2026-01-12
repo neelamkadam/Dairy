@@ -26,6 +26,7 @@ export interface ResponseDataModel<T> {
     updatedAt?: string;
     organizationId?: string;
     permissions?: string[];
+    is_admin?: boolean | number;
   }
   
   export interface AuthResponseBodyDataModel {

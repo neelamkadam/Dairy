@@ -105,8 +105,12 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
     ];
     
     if (isAdmin) {
+      settingsChildren.push({ title: "Create User", icon: "", href: ROUTES.SETTINGS.CREATE_USER });
       settingsChildren.push({ title: "Sidebar Access", icon: "", href: ROUTES.SETTINGS.SIDEBAR_ACCESS });
+    } else {
+      console.log('❌ Not adding Sidebar Access - user is not admin');
     }
+    
     
     items.push({
       title: t('settings'),
@@ -141,6 +145,7 @@ const AppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
   
   const userId = userData?.id ? Number(userData.id) : null;
   const isAdmin = userData?.is_admin === true || userData?.is_admin === 1;
+  
 
   useEffect(() => {
     if (userId) {

@@ -127,7 +127,8 @@ const FarmerCollectionEntry = () => {
             selectedBranch,
             farmerData.rateChart,
             milkType,
-            dateStr
+            dateStr,
+            shift
           );
           console.log('✅ Rate fetched successfully:', response);
           if (response?.price) {

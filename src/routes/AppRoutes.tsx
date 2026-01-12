@@ -47,6 +47,7 @@ import BankSummary from "@/pages/Reports/BankSummary";
 import GeneralSettings from "@/pages/Settings/GeneralSettings";
 import CattleFeedStockSettings from "@/pages/Settings/CattleFeedStock";
 import PasswordManager from "@/pages/Settings/PasswordManager";
+import AdminCreateUser from "@/pages/Settings/AdminCreateUser";
 import ShubhamMilkProduct from "@/pages/ShubhamMilkProduct/ShubhamMilkProduct";
 import Profile from "@/pages/Profile/Profile";
 import AvatarSelector from "@/pages/Profile/AvatarSelector";
@@ -208,6 +209,10 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "sidebar-access",
         element: <SidebarAccessManagement />,
+      },
+      {
+        path: "create-user",
+        element: <AdminCreateUser />,
       },
       {
         path: "shubham-milk-product",

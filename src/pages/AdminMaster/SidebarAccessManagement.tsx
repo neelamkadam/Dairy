@@ -8,6 +8,7 @@ import { getSidebarAccess, createOrUpdateSidebarAccess } from "@/services/sideba
 import { adminApi } from "@/services/adminApi";
 import { toast } from "react-toastify";
 import { Input } from "@/components/ui/input";
+import { useAppSelector } from "@/redux/store";
 
 interface SidebarAccess {
   dashboard: number;
@@ -21,9 +22,11 @@ interface SidebarAccess {
 }
 
 const SidebarAccessManagement = () => {
+  const authState = useAppSelector((state) => state.authData);
+  const loggedInUserId = authState?.userData?.id;
+  
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [users, setUsers] = useState<any[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
   const [access, setAccess] = useState<SidebarAccess>({
     dashboard: 0,
     collection_entry: 0,
@@ -49,10 +52,18 @@ const SidebarAccessManagement = () => {
   const fetchUsers = async () => {
     try {
       const { data } = await adminApi.getAllUsers();
-      console.log('Web Users API Response:', data);
       if (data.success) {
-        const userData = data.data.webUsers || [];
-        console.log('Web Users Data:', userData);
+        let userData = data.data.webUsers || [];
+        
+        // Filter users by created_by field
+        if (loggedInUserId) {
+          userData = userData.filter((u: any) => {
+            const createdBy = u.created_by?.toString();
+            const loggedId = loggedInUserId.toString();
+            return createdBy === loggedId;
+          });
+        }
+        
         setUsers(userData);
       }
     } catch (error) {
@@ -111,9 +122,7 @@ const SidebarAccessManagement = () => {
     }
   };
 
-  const filteredUsers = users.filter((user) =>
-    user.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredUsers = users;
 
   const accessItems = [
     { key: "dashboard", label: "Dashboard" },
@@ -142,14 +151,6 @@ const SidebarAccessManagement = () => {
                 <SelectValue placeholder="Select a user" />
               </SelectTrigger>
               <SelectContent className="bg-white">
-                <div className="p-2">
-                  <Input
-                    placeholder="Search by email..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="mb-2"
-                  />
-                </div>
                 {filteredUsers.map((user) => (
                   <SelectItem key={user.id} value={user.id.toString()}>
                     {user.email} (ID: {user.id})

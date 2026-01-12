@@ -63,6 +63,8 @@ const Login: React.FC = () => {
 
         if (result.success) {
           console.log('Login API Response:', result);
+          console.log('is_admin from API:', result.is_admin);
+          
           if (result.requirePasswordChange === true) {
             // First time login - show set password screen (don't authenticate yet)
             dispatch(setTempUserData({
@@ -77,13 +79,15 @@ const Login: React.FC = () => {
               localStorage.setItem("token", result.token);
             }
             // Regular login - go to dashboard
+            console.log('Setting authentication with is_admin:', result.is_admin);
             dispatch(setAuthentication({
               isAuthenticated: true,
               userRole: "user",
               userData: {
                 id: result.userId.toString(),
                 name: result.name,
-                email: result.email
+                email: result.email,
+                is_admin: result.is_admin
               }
             }));
             
