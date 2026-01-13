@@ -104,12 +104,7 @@ const GenerateBill = () => {
         format(endDate, "yyyy-MM-dd")
       );
       console.log("getAllFarmersBalance response:", data);
-      // Check if bills are finalized by checking first farmer's from_bills status
-      const firstDateEntry = data.data?.[0];
-      const firstFarmer = firstDateEntry?.farmers?.[0];
-      const isFinalized = firstFarmer?.from_bills?.is_finalized === 1 && firstFarmer?.from_bills?.status === 'paid';
-      setIsBillFinalized(isFinalized);
-
+      
       // Process the nested data structure
       const farmerMap = new Map();
       
@@ -162,12 +157,16 @@ const GenerateBill = () => {
 
         console.log('Bill Details Response:', billDetailsResponse.data);
 
+        // Check if bills are finalized - only if ALL farmers have bill data
         const billDetailsMap = new Map(
           (billDetailsResponse.data.data || []).map((detail: any) => [
             detail.farmer_id,
             detail
           ])
         );
+        
+        const allFarmersHaveBills = processedData.every(farmer => billDetailsMap.has(farmer.farmer_id));
+        setIsBillFinalized(allFarmersHaveBills && billDetailsMap.size > 0);
 
         processedData.forEach(farmer => {
           const billDetail = billDetailsMap.get(farmer.farmer_id);
@@ -287,28 +286,33 @@ const GenerateBill = () => {
         format(previousCycle.to, "yyyy-MM-dd")
       );
 
-      // Check if any farmer has bills with status not paid
-      const hasUnpaidBills = data.data?.some((dateEntry: any) => 
-        dateEntry.farmers?.some((farmer: any) => 
-          farmer.from_bills && 
-          farmer.from_bills.status !== 'paid' && 
-          farmer.from_bills.is_finalized === 0
-        )
-      );
-
-      // If no data or no bills exist, allow generation (new customer)
+      // If no data or no farmers exist, allow generation (new customer)
       if (!data.data || data.data.length === 0) return true;
-      
-      // Check if bills exist but are not finalized
-      const hasBills = data.data?.some((dateEntry: any) => 
-        dateEntry.farmers?.some((farmer: any) => farmer.from_bills)
+
+      // Get all farmer IDs from previous cycle
+      const farmerIds: string[] = [];
+      data.data.forEach((dateEntry: any) => {
+        dateEntry.farmers?.forEach((farmer: any) => {
+          if (!farmerIds.includes(farmer.farmer_id)) {
+            farmerIds.push(farmer.farmer_id);
+          }
+        });
+      });
+
+      if (farmerIds.length === 0) return true;
+
+      // Check if bills exist for previous cycle using bill details API
+      const billDetailsResponse = await deductionApi.getBillDetailsByFarmers(
+        selectedDairy,
+        farmerIds,
+        format(previousCycle.from, "yyyy-MM-dd"),
+        format(previousCycle.to, "yyyy-MM-dd")
       );
 
-      if (hasBills && hasUnpaidBills) {
-        return false;
-      }
-
-      return true;
+      // If bill details exist, bills have been generated - allow next cycle
+      const hasBillData = billDetailsResponse.data.data && billDetailsResponse.data.data.length > 0;
+      
+      return hasBillData; // Return true if bills exist, false if not
     } catch (error) {
       console.error('Error checking previous bill cycle:', error);
       return true; // Allow generation if check fails
@@ -454,6 +458,7 @@ const GenerateBill = () => {
                     ? 'bg-green-100 text-green-700' 
                     : 'bg-yellow-100 text-yellow-700'
                 }`}>
+                  {console.log("🔍 isBillFinalized state:", isBillFinalized)}
                   {isBillFinalized ? 'Bill Finalized' : 'Not Finalized'}
                 </div>
               )}
@@ -541,7 +546,7 @@ const GenerateBill = () => {
                         )}
                       </td>
                       <td className="px-3 py-2 text-xs font-medium text-green-600">
-                        ₹{(farmer.hasBill 
+                        ₹{Math.max(0, farmer.hasBill 
                           ? farmer.milk_total - farmer.advanceDeduction - farmer.cattleFeedDeduction - farmer.other1Deduction - farmer.other2Deduction + (farmer.received_total || 0)
                           : farmer.milk_total - farmer.advance - farmer.cattleFeedAmount - farmer.other1Amount - farmer.other2Amount + (farmer.received_total || 0)
                         ).toFixed(0)}

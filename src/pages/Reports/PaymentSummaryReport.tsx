@@ -132,6 +132,10 @@ const PaymentSummaryReport = () => {
     
     data.data.forEach(dateData => {
       dateData.farmers.forEach(farmer => {
+        console.log('🔍 Processing farmer:', farmer);
+        console.log('🔍 farmer.net_payable:', farmer.net_payable);
+        console.log('🔍 farmer.from_bills:', farmer.from_bills);
+        
         const farmerId = farmer.farmer_id;
         
         if (!farmerMap.has(farmerId)) {
@@ -159,13 +163,22 @@ const PaymentSummaryReport = () => {
         aggregated.other1 += farmer.deductions.other1 || 0;
         aggregated.other2 += farmer.deductions.other2 || 0;
         aggregated.received += farmer.from_bills?.received_total || 0;
-        aggregated.net_payable += farmer.net_payable || 0;
         
         const totalDeduction = (farmer.from_bills?.advance_total || 0) + 
                               (farmer.from_bills?.cattlefeed_total || 0) + 
                               (farmer.from_bills?.other1_total || 0) + 
                               (farmer.from_bills?.other2_total || 0);
         aggregated.total_deduction += totalDeduction;
+        
+        // Calculate net_payable: milk_total - total_deduction + received
+        aggregated.net_payable = aggregated.milk_total - aggregated.total_deduction + aggregated.received;
+        
+        console.log('🔍 Calculated net_payable:', {
+          milk_total: aggregated.milk_total,
+          total_deduction: aggregated.total_deduction,
+          received: aggregated.received,
+          net_payable: aggregated.net_payable
+        });
         
         const totalRemaining = (farmer.from_bills?.advance_remaining || 0) + 
                               (farmer.from_bills?.cattlefeed_remaining || 0) + 
@@ -186,10 +199,10 @@ const PaymentSummaryReport = () => {
     const sorted = Array.from(farmerMap.values()).sort((a, b) => {
       const numA = parseInt(a.farmer_username) || 0;
       const numB = parseInt(b.farmer_username) || 0;
-      console.log(`Comparing ${a.farmer_username} (${numA}) with ${b.farmer_username} (${numB})`);
       return numA - numB;
     });
-    console.log('Sorted farmers:', sorted.map(f => f.farmer_username));
+    
+    console.log('🔍 Final aggregated farmers:', sorted);
     return sorted;
   };
 

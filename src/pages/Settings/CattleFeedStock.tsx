@@ -15,7 +15,6 @@ const CattleFeedStockSettings: React.FC = () => {
   const [stockName, setStockName] = useState("");
   const [stock, setStock] = useState("");
   const [amount, setAmount] = useState("");
-  const [isLumpSum, setIsLumpSum] = useState(false);
   const [suggestions, setSuggestions] = useState<CattleFeedStock[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
@@ -101,7 +100,6 @@ const CattleFeedStockSettings: React.FC = () => {
   const handleSuggestionClick = (suggestion: CattleFeedStock) => {
     setStockName(suggestion.stock_name);
     setAmount(suggestion.amount);
-    setIsLumpSum(parseFloat(suggestion.amount) === 0);
     setSuggestions([]);
     setExistingStock(suggestion);
   };
@@ -117,8 +115,8 @@ const CattleFeedStockSettings: React.FC = () => {
       return;
     }
 
-    if (!isLumpSum && !amount) {
-      toast.error("Please enter amount for fixed payment type");
+    if (!amount) {
+      toast.error("Please enter amount per unit");
       return;
     }
 
@@ -129,7 +127,6 @@ const CattleFeedStockSettings: React.FC = () => {
       console.log('💾 Stock Name:', stockName);
       console.log('💾 New Stock Quantity:', stock);
       console.log('💾 Amount:', amount);
-      console.log('💾 Is Lump Sum:', isLumpSum);
       
       const response = await cattleFeedApi.getStock(dairyId);
       console.log('📦 GET Stock Response:', response);
@@ -149,7 +146,7 @@ const CattleFeedStockSettings: React.FC = () => {
         const updatePayload = {
           stock_name: stockName.trim(),
           stock: parseFloat(stock) + totalExistingStock,
-          amount: isLumpSum ? 0 : parseFloat(amount),
+          amount: parseFloat(amount),
         };
         console.log('🔄 Updating existing stock with payload:', updatePayload);
         await cattleFeedApi.updateStock(matchingStocks[0].id, updatePayload);
@@ -159,7 +156,7 @@ const CattleFeedStockSettings: React.FC = () => {
           dairy_id: dairyId,
           stock_name: stockName.trim(),
           stock: parseFloat(stock),
-          amount: isLumpSum ? 0 : parseFloat(amount),
+          amount: parseFloat(amount),
         };
         console.log('➕ Creating new stock with payload:', createPayload);
         await cattleFeedApi.createStock(createPayload);
@@ -169,7 +166,6 @@ const CattleFeedStockSettings: React.FC = () => {
       setStockName("");
       setStock("");
       setAmount("");
-      setIsLumpSum(false);
       setSuggestions([]);
       if (dairyId) {
         fetchAllStocks(dairyId);
@@ -268,27 +264,8 @@ const CattleFeedStockSettings: React.FC = () => {
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="Enter amount"
-                  disabled={isLumpSum}
                   className="w-full"
                 />
-              </div>
-
-              <div className="md:col-span-2">
-                <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
-                  <input
-                    type="checkbox"
-                    id="lumpSum"
-                    checked={isLumpSum}
-                    onChange={(e) => {
-                      setIsLumpSum(e.target.checked);
-                      if (e.target.checked) setAmount("0");
-                    }}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                  />
-                  <Label htmlFor="lumpSum" className="text-sm font-medium text-gray-700 cursor-pointer">
-                    Lump Sum Payment (No fixed rate per unit)
-                  </Label>
-                </div>
               </div>
             </div>
 

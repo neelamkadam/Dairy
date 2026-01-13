@@ -45,10 +45,6 @@ const PaymentAndReceipt: React.FC = () => {
   const [cattleFeedStocks, setCattleFeedStocks] = useState<CattleFeedStock[]>([]);
   const [selectedStock, setSelectedStock] = useState<CattleFeedStock | null>(null);
   const [stockQuantity, setStockQuantity] = useState("");
-  const [cattleFeedLumpSum, setCattleFeedLumpSum] = useState(() => {
-    const saved = localStorage.getItem('cattleFeedLumpSum');
-    return saved ? parseInt(saved) : 0;
-  });
 
   useEffect(() => {
     if (formData.vlcName && formData.fromDate) {
@@ -56,11 +52,6 @@ const PaymentAndReceipt: React.FC = () => {
       fetchCattleFeedStocks();
     }
   }, [formData.vlcName, formData.fromDate]);
-
-  useEffect(() => {
-    const saved = localStorage.getItem('cattleFeedLumpSum');
-    setCattleFeedLumpSum(saved ? parseInt(saved) : 0);
-  }, []);
 
   const fetchCattleFeedStocks = async () => {
     if (!formData.vlcName) return;
@@ -85,6 +76,9 @@ const PaymentAndReceipt: React.FC = () => {
     try {
       const { data } = await paymentApi.getPayments(queryParams);
       console.log('✅ API Response:', data);
+      console.log('🔍 First payment record:', data.data?.[0]);
+      console.log('🔍 amount_taken type:', typeof data.data?.[0]?.amount_taken);
+      console.log('🔍 amount_taken value:', data.data?.[0]?.amount_taken);
       const selectedDate = format(formData.fromDate, "yyyy-MM-dd");
       const filtered = (data.data || []).filter((payment: any) => 
         format(new Date(payment.date), "yyyy-MM-dd") === selectedDate
@@ -163,12 +157,12 @@ const PaymentAndReceipt: React.FC = () => {
       return;
     }
 
-    if (formData.paymentType === "Cattle Feed" && cattleFeedLumpSum === 0 && (!selectedStock || !stockQuantity)) {
+    if (formData.paymentType === "Cattle Feed" && (!selectedStock || !stockQuantity)) {
       toast.error("Please select stock and enter quantity");
       return;
     }
 
-    if (formData.paymentType === "Cattle Feed" && cattleFeedLumpSum === 0 && selectedStock) {
+    if (formData.paymentType === "Cattle Feed" && selectedStock) {
       const qty = parseFloat(stockQuantity);
       if (qty > selectedStock.stock) {
         toast.error(`Only ${selectedStock.stock} units available`);
@@ -190,7 +184,7 @@ const PaymentAndReceipt: React.FC = () => {
     try {
       await paymentApi.create(payload);
       
-      if (formData.paymentType === "Cattle Feed" && cattleFeedLumpSum === 0 && selectedStock && stockQuantity) {
+      if (formData.paymentType === "Cattle Feed" && selectedStock && stockQuantity) {
         const stockToReduce = parseFloat(stockQuantity);
         const remainingStock = Math.max(0, selectedStock.stock - stockToReduce);
         
@@ -349,7 +343,7 @@ const PaymentAndReceipt: React.FC = () => {
                 </Select>
               </div>
 
-              {formData.paymentType === "Cattle Feed" && cattleFeedLumpSum === 0 && (
+              {formData.paymentType === "Cattle Feed" && (
                 <>
                   <div>
                     <Label className="text-sm font-medium text-gray-700 mb-2 block">
@@ -415,7 +409,6 @@ const PaymentAndReceipt: React.FC = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, amountTaken: e.target.value })
                     }
-                    readOnly={formData.paymentType === "Cattle Feed" && cattleFeedLumpSum === 0}
                   />
                 </div>
               </div>
@@ -440,7 +433,7 @@ const PaymentAndReceipt: React.FC = () => {
                         receivedAmount: e.target.value,
                       })
                     }
-                    disabled={formData.paymentType === "Cattle Feed" && cattleFeedLumpSum === 0}
+                    disabled={formData.paymentType === "Cattle Feed"}
                   />
                 </div>
               </div>

@@ -57,6 +57,7 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
       icon: "⚙️",
       children: [
         { title: t('add_farmer'), icon: "", href:ROUTES.MASTER.ADD_FARMER },
+        { title: t('cattle_feed_stock'), icon: "", href: ROUTES.SETTINGS.CATTLE_FEED_STOCK },
         { title: t('add_rate_chart'), icon: "", href: ROUTES.MASTER.ADD_RATECHART }
       ]
     });
@@ -100,7 +101,6 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
   if (access?.settings) {
     const settingsChildren: MenuItem[] = [
       { title: t('general_settings'), icon: "", href: ROUTES.SETTINGS.GENERAL_SETTINGS },
-      { title: t('cattle_feed_stock'), icon: "", href: ROUTES.SETTINGS.CATTLE_FEED_STOCK },
       { title: t('password_manager'), icon: "", href: ROUTES.SETTINGS.PASSWORD_MANAGER },
     ];
     
