@@ -7,7 +7,7 @@ import FatSnfCard from "@/components/FatSnfCard";
 import MilkCollectionChart from "@/components/MilkCollectionChart";
 import FarmersChart from "@/components/FarmersCharts";
 import { useAppSelector, useAppDispatch } from "@/redux/store";
-import { fetchCollectionsSummary } from "@/redux/dashboardSlice";
+import { fetchCollectionsSummary, fetchFarmersInfo } from "@/redux/dashboardSlice";
 import { useTranslation } from "react-i18next";
 
 const Dashboard = () => {
@@ -27,7 +27,7 @@ const Dashboard = () => {
   const [selectedShift, setSelectedShift] = useState(getDefaultShift());
   const dispatch = useAppDispatch();
   const { branches = [] } = useAppSelector((state: any) => state.branch);
-  const { collections = [], graph = [], loading } = useAppSelector((state: any) => state.dashboard);
+  const { collections = [], graph = [], farmersInfo = [], loading, farmersInfoLoading } = useAppSelector((state: any) => state.dashboard);
 
   const fetchDashboardData = () => {
     if (branches.length > 0) {
@@ -215,27 +215,38 @@ const Dashboard = () => {
         
         {/* KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          {kpiData.slice(0, 4).map((kpi, index) => (
-            <KPICard
-              key={index}
-              title={kpi.title}
-              value={kpi.value}
-              change={kpi.change}
-              icon={kpi.icon}
-              gradient={kpi.gradient}
-            />
-          ))}
-          <FatSnfCard fat={kpis.avgFat} snf={kpis.avgSnf} />
-          {kpiData.slice(4).map((kpi, index) => (
-            <KPICard
-              key={index + 4}
-              title={kpi.title}
-              value={kpi.value}
-              change={kpi.change}
-              icon={kpi.icon}
-              gradient={kpi.gradient}
-            />
-          ))}
+          {loading ? (
+            Array(7).fill(0).map((_, i) => (
+              <div key={i} className="bg-white rounded-lg shadow-sm p-4 animate-pulse">
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-3"></div>
+                <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+              </div>
+            ))
+          ) : (
+            <>
+              {kpiData.slice(0, 4).map((kpi, index) => (
+                <KPICard
+                  key={index}
+                  title={kpi.title}
+                  value={kpi.value}
+                  change={kpi.change}
+                  icon={kpi.icon}
+                  gradient={kpi.gradient}
+                />
+              ))}
+              <FatSnfCard fat={kpis.avgFat} snf={kpis.avgSnf} />
+              {kpiData.slice(4).map((kpi, index) => (
+                <KPICard
+                  key={index + 4}
+                  title={kpi.title}
+                  value={kpi.value}
+                  change={kpi.change}
+                  icon={kpi.icon}
+                  gradient={kpi.gradient}
+                />
+              ))}
+            </>
+          )}
         </div>
 
         {/* Charts Section */}
@@ -247,7 +258,21 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="h-64 md:h-80 w-full overflow-hidden">
-                <FarmersChart collections={collections} branches={branches} />
+                {loading ? (
+                  <div className="h-full flex items-center justify-center">
+                    <div className="w-48 h-48 rounded-full bg-gray-200 animate-pulse"></div>
+                  </div>
+                ) : (
+                  <FarmersChart 
+                    collections={collections} 
+                    branches={branches} 
+                    farmersInfo={farmersInfo}
+                    farmersInfoLoading={farmersInfoLoading}
+                    selectedDate={selectedDate}
+                    selectedShift={selectedShift === 'morning' ? 'Morning' : 'Evening'}
+                    onFetchFarmersInfo={(payload) => dispatch(fetchFarmersInfo(payload))}
+                  />
+                )}
               </div>
             </CardContent>
           </Card>
@@ -259,7 +284,15 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="h-64 md:h-80 w-full overflow-hidden">
-                <MilkCollectionChart graph={graph} />
+                {loading ? (
+                  <div className="h-full flex flex-col justify-end space-y-2 p-4">
+                    {Array(7).fill(0).map((_, i) => (
+                      <div key={i} className="bg-gray-200 rounded animate-pulse" style={{ height: `${Math.random() * 60 + 40}%` }}></div>
+                    ))}
+                  </div>
+                ) : (
+                  <MilkCollectionChart graph={graph} />
+                )}
               </div>
             </CardContent>
           </Card>
