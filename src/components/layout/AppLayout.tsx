@@ -3,6 +3,8 @@ import AppNavbar from "./AppNavbar";
 import AppSidebar from "./AppSidebar";
 import { Outlet } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import AccountStatusMonitor from "@/components/AccountStatusMonitor";
+import { useAppSelector } from "@/redux/store";
 
 
 const AppLayout = () => {
@@ -11,6 +13,8 @@ const AppLayout = () => {
     return saved !== null ? JSON.parse(saved) : true;
   });
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const auth = useAppSelector((state: any) => state.authData);
+  const userId = auth?.userData?.userId || auth?.userData?.id || auth?.tempUserData?.userId;
 
   useEffect(() => {
     localStorage.setItem('sidebarOpen', JSON.stringify(sidebarOpen));
@@ -57,6 +61,7 @@ const AppLayout = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {userId && <AccountStatusMonitor userId={userId} />}
       {/* Sidebar */}
       <AppSidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
       
