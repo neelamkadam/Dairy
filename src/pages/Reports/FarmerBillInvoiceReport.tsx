@@ -14,6 +14,7 @@ import { format } from 'date-fns';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import PdfLoader from '@/components/PdfLoader';
+import { useTranslation } from 'react-i18next';
 
 interface CollectionRecord {
   date: string;
@@ -55,10 +56,12 @@ interface FarmerPayment {
 }
 
 const FarmerBillInvoiceReport = () => {
+  const { i18n } = useTranslation();
   const branches = useSelector((state: RootState) => state.branch.branches);
   const userId = useSelector((state: RootState) => state.authData?.userData?.id);
   const hideRateAmount = userId === '7';
   const [selectedVLC, setSelectedVLC] = useState<string>('');
+  const [language, setLanguage] = useState<string>(i18n.language || 'en');
   
   const calculateDateRange = (dateStr: string) => {
     const [year, month, day] = dateStr.split('-').map(Number);
@@ -348,6 +351,20 @@ const FarmerBillInvoiceReport = () => {
             <div className="flex-1 min-w-[150px]">
               <Label>Farmer Code (Optional)</Label>
               <Input placeholder="Enter code" value={farmerCode} onChange={(e) => setFarmerCode(e.target.value)} />
+            </div>
+
+            <div className="flex-1 min-w-[150px]">
+              <Label>Language</Label>
+              <Select value={language} onValueChange={(val) => { setLanguage(val); i18n.changeLanguage(val); }}>
+                <SelectTrigger className="bg-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-white">
+                  <SelectItem value="en">English</SelectItem>
+                  <SelectItem value="hi">हिंदी</SelectItem>
+                  <SelectItem value="mr">मराठी</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="flex gap-2">

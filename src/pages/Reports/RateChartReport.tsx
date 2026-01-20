@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { useState, useEffect } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useState } from "react";
 import { useAppSelector } from "@/redux/store";
 import { reportsApi } from "@/services/reportsApi";
 import { toast } from "react-toastify";
@@ -11,9 +12,10 @@ import { Download } from "lucide-react";
 const RateChartReport = () => {
   const { branches } = useAppSelector((state) => state.branch);
   const [vlcId, setVlcId] = useState("");
-  const [milkType, setMilkType] = useState("Cow");
+  const [milkType, setMilkType] = useState("cow");
   const [rateChartName, setRateChartName] = useState("Rate Chart 1");
-  const [shift, setShift] = useState("morning");
+  const [useShift, setUseShift] = useState(false);
+  const [shift, setShift] = useState("Morning");
   const [loading, setLoading] = useState(false);
   const [rateMatrix, setRateMatrix] = useState<any[][]>([]);
 
@@ -25,21 +27,21 @@ const RateChartReport = () => {
 
     setLoading(true);
     try {
-      console.log('Requesting rate matrix with params:', {
+      const payload: any = {
         organisation_id: vlcId,
         type: milkType.toLowerCase(),
         name: rateChartName,
-        shift: shift
-      });
+      };
       
-      const data = await reportsApi.previewRateMatrix({
-        organisation_id: vlcId,
-        type: milkType.toLowerCase(),
-        name: rateChartName,
-        shift: shift
-      });
+      if (useShift) {
+        payload.shift = shift;
+      }
       
-      console.log('Rate matrix response:', data);
+      console.log('📤 Rate Chart Request Payload:', payload);
+      
+      const data = await reportsApi.previewRateMatrix(payload);
+      
+      console.log('📥 Rate Chart API Response:', data);
       
       if (data.success && data.matrix) {
         setRateMatrix(data.matrix);
@@ -49,8 +51,8 @@ const RateChartReport = () => {
         setRateMatrix([]);
       }
     } catch (error: any) {
-      console.error('Rate chart error:', error);
-      console.error('Error response:', error?.response);
+      console.error('❌ Rate Chart API Error:', error);
+      console.error('❌ Error Response:', error?.response?.data);
       toast.error(error?.response?.data?.message || error?.message || "Failed to fetch rate chart");
       setRateMatrix([]);
     } finally {
@@ -96,7 +98,7 @@ const RateChartReport = () => {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-white">
-                <SelectItem value="Cow">Cow</SelectItem>
+                <SelectItem value="cow">cow</SelectItem>
                 <SelectItem value="Buffalo">Buffalo</SelectItem>
               </SelectContent>
             </Select>
@@ -114,18 +116,24 @@ const RateChartReport = () => {
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <Label className="mb-1">Shift</Label>
-            <Select value={shift} onValueChange={setShift}>
-              <SelectTrigger className="w-48 border-gray-200">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-white">
-                <SelectItem value="morning">Morning</SelectItem>
-                <SelectItem value="evening">Evening</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex items-center gap-2">
+            <Checkbox id="useShift" checked={useShift} onCheckedChange={(checked) => setUseShift(checked as boolean)} />
+            <Label htmlFor="useShift" className="cursor-pointer">Use Shift</Label>
           </div>
+          {useShift && (
+            <div>
+              <Label className="mb-1">Shift</Label>
+              <Select value={shift} onValueChange={setShift}>
+                <SelectTrigger className="w-48 border-gray-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-white">
+                  <SelectItem value="Morning">Morning</SelectItem>
+                  <SelectItem value="Evening">Evening</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <Button onClick={handleShow} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white">
             {loading ? "Loading..." : "Show"}
           </Button>

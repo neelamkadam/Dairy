@@ -26,8 +26,10 @@ import { Label } from "@/components/ui/label";
 import { generateRemainingBalanceReportPDF } from "@/templates/RemainingBalanceReportTemplate";
 import { generateRemainingBalanceReportExcel } from "@/templates/RemainingBalanceReportExcelTemplate";
 import { cn } from "@/lib/utils";
+import { useTranslation } from 'react-i18next';
 
 const RemainingBalanceReport = () => {
+  const { i18n } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
   const [searchTerm, setSearchTerm] = useState("");
   const [vlcId, setVlcId] = useState("");
@@ -36,6 +38,7 @@ const RemainingBalanceReport = () => {
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [language, setLanguage] = useState<string>(i18n.language || 'en');
 
   const handleShowReport = async () => {
     if (!vlcId) {
@@ -146,6 +149,19 @@ const RemainingBalanceReport = () => {
         <div>
           <Label className="mb-1">Date</Label>
           <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="border-gray-300" />
+        </div>
+        <div>
+          <Label className="mb-1">Language</Label>
+          <Select value={language} onValueChange={(val) => { setLanguage(val); i18n.changeLanguage(val); }}>
+            <SelectTrigger className="w-48 border-gray-300">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-white">
+              <SelectItem value="en">English</SelectItem>
+              <SelectItem value="hi">हिंदी</SelectItem>
+              <SelectItem value="mr">मराठी</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <Button onClick={handleShowReport} disabled={loading} className="bg-blue-600 hover:bg-blue-700 mt-6 text-white">
           {loading ? "Loading..." : "Show Report"}

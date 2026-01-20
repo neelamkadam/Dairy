@@ -94,6 +94,7 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
         { title: t('farmer_passbook'), icon: "", href: ROUTES.REPORTS.FARMER_PASSBOOK},
         { title: t('vlc_commission_report'), icon: "", href: ROUTES.REPORTS.VLC_COMMISSION_REPORT },
         { title: t('pl_statement'), icon: "", href: ROUTES.REPORTS.PL_STATEMENT },
+        { title: t('cattle_feed_stock_report'), icon: "", href: ROUTES.REPORTS.CATTLE_FEED_STOCK_REPORT },
       ]
     });
   }

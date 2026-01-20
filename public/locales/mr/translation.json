@@ -239,5 +239,16 @@
   "before_edit": "संपादनापूर्वी",
   "after_edit": "संपादनानंतर",
   "period": "कालावधी",
-  "report_type": "अहवाल प्रकार"
+  "report_type": "अहवाल प्रकार",
+  "cattle_feed_stock_report": "पशु खाद्य साठा अहवाल",
+  "dairy": "डेअरी",
+  "select_dairy": "डेअरी निवडा",
+  "show_report": "अहवाल दाखवा",
+  "stock_name": "साठ्याचे नाव",
+  "stock": "साठा",
+  "farmer_payments": "शेतकरी पेमेंट",
+  "payment_type": "पेमेंट प्रकार",
+  "amount_taken": "घेतलेली रक्कम",
+  "received": "प्राप्त",
+  "description": "वर्णन"
 }

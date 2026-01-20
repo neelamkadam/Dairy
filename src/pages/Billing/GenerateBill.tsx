@@ -157,7 +157,7 @@ const GenerateBill = () => {
 
         console.log('Bill Details Response:', billDetailsResponse.data);
 
-        // Check if bills are finalized - only if ALL farmers have bill data
+        // Check if bills are finalized - only if ALL farmers have bill data AND all bills have is_finalized = 1
         const billDetailsMap = new Map(
           (billDetailsResponse.data.data || []).map((detail: any) => [
             detail.farmer_id,
@@ -166,7 +166,8 @@ const GenerateBill = () => {
         );
         
         const allFarmersHaveBills = processedData.every(farmer => billDetailsMap.has(farmer.farmer_id));
-        setIsBillFinalized(allFarmersHaveBills && billDetailsMap.size > 0);
+        const allBillsFinalized = (billDetailsResponse.data.data || []).every((detail: any) => detail.is_finalized === 1);
+        setIsBillFinalized(allFarmersHaveBills && billDetailsMap.size > 0 && allBillsFinalized);
 
         processedData.forEach(farmer => {
           const billDetail = billDetailsMap.get(farmer.farmer_id);

@@ -3,13 +3,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { Eye, EyeOff, Lock } from "lucide-react";
+import { Eye, EyeOff, Lock, Smartphone } from "lucide-react";
 import { toast } from "react-toastify";
 import { api } from "@/services/config";
 import { useAppSelector } from "@/redux/store";
 
 const PasswordManager = () => {
   const { branches } = useAppSelector((state) => state.branch);
+  const authState = useAppSelector((state) => state.authData);
+  const loggedInUserId = authState?.userData?.id;
+  const [activeTab, setActiveTab] = useState<"mobile" | "web">("mobile");
   const [vlcId, setVlcId] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -18,7 +21,7 @@ const PasswordManager = () => {
   const [loading, setLoading] = useState(false);
 
   const handleResetPassword = async () => {
-    if (!vlcId.trim()) {
+    if (activeTab === "mobile" && !vlcId.trim()) {
       toast.error("Please select VLC");
       return;
     }
@@ -37,20 +40,33 @@ const PasswordManager = () => {
 
     setLoading(true);
     try {
-      const selectedBranch = branches.find(b => b.branch_id.toString() === vlcId);
-      const response = await api.post("/auth/update-password", {
-        username: selectedBranch?.username,
-        password: password,
-        confirm_password: confirmPassword,
-      });
-
-      if (response.data.success) {
-        toast.success(response.data.message);
-        setVlcId("");
-        setPassword("");
-        setConfirmPassword("");
+      if (activeTab === "mobile") {
+        const selectedBranch = branches.find(b => b.branch_id.toString() === vlcId);
+        const response = await api.post("/auth/update-password", {
+          username: selectedBranch?.username,
+          password: password,
+          confirm_password: confirmPassword,
+        });
+        if (response.data.success) {
+          toast.success(response.data.message || "Password updated successfully");
+          setVlcId("");
+          setPassword("");
+          setConfirmPassword("");
+        } else {
+          toast.error(response.data.message || "Failed to update password");
+        }
       } else {
-        toast.error(response.data.message || "Failed to update password");
+        const response = await api.post("/web-users/set-password", {
+          userId: Number(loggedInUserId),
+          newPassword: password
+        });
+        if (response.data.success) {
+          toast.success(response.data.message || "Password updated successfully");
+          setPassword("");
+          setConfirmPassword("");
+        } else {
+          toast.error(response.data.message || "Failed to update password");
+        }
       }
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to update password");
@@ -63,6 +79,11 @@ const PasswordManager = () => {
     setVlcId("");
     setPassword("");
     setConfirmPassword("");
+  };
+
+  const handleTabChange = (tab: "mobile" | "web") => {
+    setActiveTab(tab);
+    handleReset();
   };
 
   return (
@@ -80,24 +101,52 @@ const PasswordManager = () => {
               <h2 className="text-lg font-semibold text-gray-900">Reset User Password</h2>
             </div>
 
+            {/* Tab Buttons */}
+            <div className="flex gap-2 mb-6">
+              <Button
+                onClick={() => handleTabChange("mobile")}
+                className={`flex-1 flex items-center justify-center gap-2 ${
+                  activeTab === "mobile"
+                    ? "bg-blue-600 text-white hover:bg-blue-700"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                <Smartphone className="h-4 w-4" />
+                Mobile Password
+              </Button>
+              <Button
+                onClick={() => handleTabChange("web")}
+                className={`flex-1 flex items-center justify-center gap-2 ${
+                  activeTab === "web"
+                    ? "bg-blue-600 text-white hover:bg-blue-700"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                <Lock className="h-4 w-4" />
+                Web Password
+              </Button>
+            </div>
+
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
-                  Select VLC
-                </label>
-                <Select value={vlcId} onValueChange={setVlcId}>
-                  <SelectTrigger className="w-full bg-gray-50">
-                    <SelectValue placeholder="Select VLC" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    {branches.map((branch) => (
-                      <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
-                        {branch.username} - {branch.name} - {branch.branchName || ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {activeTab === "mobile" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
+                    Select VLC
+                  </label>
+                  <Select value={vlcId} onValueChange={setVlcId}>
+                    <SelectTrigger className="w-full bg-gray-50">
+                      <SelectValue placeholder="Select VLC" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      {branches.map((branch) => (
+                        <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
+                          {branch.username} - {branch.name} - {branch.branchName || ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 text-left">

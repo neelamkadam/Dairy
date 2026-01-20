@@ -239,5 +239,16 @@
   "before_edit": "संपादन से पहले",
   "after_edit": "संपादन के बाद",
   "period": "अवधि",
-  "report_type": "रिपोर्ट प्रकार"
+  "report_type": "रिपोर्ट प्रकार",
+  "cattle_feed_stock_report": "पशु चारा स्टॉक रिपोर्ट",
+  "dairy": "डेयरी",
+  "select_dairy": "डेयरी चुनें",
+  "show_report": "रिपोर्ट दिखाएं",
+  "stock_name": "स्टॉक का नाम",
+  "stock": "स्टॉक",
+  "farmer_payments": "किसान भुगतान",
+  "payment_type": "भुगतान प्रकार",
+  "amount_taken": "ली गई राशि",
+  "received": "प्राप्त",
+  "description": "विवरण"
 }

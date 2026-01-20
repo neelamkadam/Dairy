@@ -25,8 +25,10 @@ import { format } from "date-fns";
 import { generateVLCDifferenceReportPDF } from "@/templates/VLCdifferanceReportTemplate";
 import { FileDown, FileSpreadsheet } from "lucide-react";
 import * as XLSX from 'xlsx';
+import { useTranslation } from 'react-i18next';
 
 const VlcDifferenceReport = () => {
+  const { i18n } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
   const [vlcId, setVlcId] = useState("");
   const [fromDate, setFromDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -40,6 +42,7 @@ const VlcDifferenceReport = () => {
   const [shift, setShift] = useState(getDefaultShift());
   const [reportData, setReportData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [language, setLanguage] = useState<string>(i18n.language || 'en');
 
   const handleShow = async () => {
     if (!vlcId) {
@@ -197,6 +200,19 @@ const VlcDifferenceReport = () => {
               <SelectItem value="All">All</SelectItem>
               <SelectItem value="Morning">Morning</SelectItem>
               <SelectItem value="Evening">Evening</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="mb-1">Language</Label>
+          <Select value={language} onValueChange={(val) => { setLanguage(val); i18n.changeLanguage(val); }}>
+            <SelectTrigger className="w-full border-gray-200">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-white">
+              <SelectItem value="en">English</SelectItem>
+              <SelectItem value="hi">हिंदी</SelectItem>
+              <SelectItem value="mr">मराठी</SelectItem>
             </SelectContent>
           </Select>
         </div>

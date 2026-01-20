@@ -19,8 +19,8 @@ const FarmerInfoModal = ({ isOpen, onClose, farmers, title, branches, loading }:
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-20" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md" onClick={onClose}>
+      <div className="bg-white bg-opacity-95 rounded-lg shadow-xl w-full max-w-4xl max-h-[80vh] flex flex-col border-2 border-blue-200" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-xl font-semibold">{title} ({farmers.length})</h2>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">

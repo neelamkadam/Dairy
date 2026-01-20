@@ -6,4 +6,6 @@ export const adminApi = {
     api.put("/web-users/toggle-status", { userId, isActive }),
   toggleDairyStatus: (username: string, isActive: boolean) => 
     api.put("/auth/toggle-dairy-status", { username, isActive }),
+  setPassword: (userId: number, newPassword: string) => 
+    api.post("/web-users/set-password", { userId, newPassword }),
 };

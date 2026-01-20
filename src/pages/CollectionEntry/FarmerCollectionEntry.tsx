@@ -39,6 +39,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { settingsApi } from "@/services/settingsApi";
 
 interface Collection {
   id: number;
@@ -87,6 +88,23 @@ const FarmerCollectionEntry = () => {
   const [loading, setLoading] = useState(false);
   const [recentCollections, setRecentCollections] = useState<Collection[]>([]);
   const quantityRef = useRef<HTMLInputElement>(null);
+  const [showWater, setShowWater] = useState(false);
+
+  useEffect(() => {
+    if (selectedBranch) {
+      fetchSettings();
+    }
+  }, [selectedBranch]);
+
+  const fetchSettings = async () => {
+    if (!selectedBranch) return;
+    try {
+      const { data } = await settingsApi.get(selectedBranch.toString());
+      setShowWater(data.data?.show_water === 1);
+    } catch (error) {
+      console.error('Failed to fetch settings:', error);
+    }
+  };
 
   useEffect(() => {
     if (quantity && rate) {
@@ -689,19 +707,21 @@ const FarmerCollectionEntry = () => {
                     className="border-gray-200"
                   />
                 </div>
-                <div>
-                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                    {t('water')} (%)
-                  </Label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    placeholder="0.0"
-                    value={water}
-                    onChange={(e) => setWater(e.target.value)}
-                    className="border-gray-200"
-                  />
-                </div>
+                {showWater && (
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                      {t('water')} (%)
+                    </Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="0.0"
+                      value={water}
+                      onChange={(e) => setWater(e.target.value)}
+                      className="border-gray-200"
+                    />
+                  </div>
+                )}
                 <div>
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">
                     {t('rate_per_liter')}

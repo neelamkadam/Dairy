@@ -41,6 +41,7 @@ export const ROUTES = {
     VLC_COMMISSION_REPORT:`/dashboard/vlc-commission-report`,
     VLC_DIFFERENCE_REPORT: `/dashboard/vlc-diffrerence-report`,
     BANK_SUMMARY:`/dashboard/bank-summary`,
+    CATTLE_FEED_STOCK_REPORT:`/dashboard/cattle-feed-stock-report`,
   },
   SETTINGS:{
     GENERAL_SETTINGS:`/dashboard/general-settings`,

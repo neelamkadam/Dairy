@@ -240,5 +240,16 @@
   "before_edit": "Before Edit",
   "after_edit": "After Edit",
   "period": "Period",
-  "report_type": "Report Type"
+  "report_type": "Report Type",
+  "cattle_feed_stock_report": "Cattle Feed Stock Report",
+  "dairy": "Dairy",
+  "select_dairy": "Select Dairy",
+  "show_report": "Show Report",
+  "stock_name": "Stock Name",
+  "stock": "Stock",
+  "farmer_payments": "Farmer Payments",
+  "payment_type": "Payment Type",
+  "amount_taken": "Amount Taken",
+  "received": "Received",
+  "description": "Description"
 }

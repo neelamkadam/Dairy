@@ -37,14 +37,17 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from 'react-i18next';
 
 const ShiftReports:React.FC = () => {
+  const { i18n } = useTranslation();
   const { branches = [] } = useAppSelector((state: any) => state.branch);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [reportData, setReportData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [language, setLanguage] = useState<string>(i18n.language || 'en');
 
   const getDefaultShift = () => {
     const hour = new Date().getHours();
@@ -239,7 +242,7 @@ const ShiftReports:React.FC = () => {
             </Popover>
           </div>
 
-          <div className="space-y-2 ml-5">
+          <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">
               Shift Type
             </label>
@@ -250,6 +253,19 @@ const ShiftReports:React.FC = () => {
               <SelectContent className="bg-white">
                 <SelectItem value="morning">Morning</SelectItem>
                 <SelectItem value="evening">Evening</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Language</label>
+            <Select value={language} onValueChange={(val) => { setLanguage(val); i18n.changeLanguage(val); }}>
+              <SelectTrigger className="w-full bg-white border-gray-200">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-white">
+                <SelectItem value="en">English</SelectItem>
+                <SelectItem value="hi">हिंदी</SelectItem>
+                <SelectItem value="mr">मराठी</SelectItem>
               </SelectContent>
             </Select>
           </div>

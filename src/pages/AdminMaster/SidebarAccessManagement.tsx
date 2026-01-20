@@ -9,6 +9,7 @@ import { adminApi } from "@/services/adminApi";
 import { toast } from "react-toastify";
 import { Input } from "@/components/ui/input";
 import { useAppSelector } from "@/redux/store";
+import { KeyRound, Eye, EyeOff } from "lucide-react";
 
 interface SidebarAccess {
   dashboard: number;
@@ -38,6 +39,11 @@ const SidebarAccessManagement = () => {
     shubham_milk_product: 0,
   });
   const [loading, setLoading] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -122,6 +128,33 @@ const SidebarAccessManagement = () => {
     }
   };
 
+  const handlePasswordReset = async () => {
+    if (!newPassword.trim()) {
+      toast.error("Please enter new password");
+      return;
+    }
+    if (newPassword.length < 4) {
+      toast.error("Password must be at least 4 characters");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
+    try {
+      const response = await adminApi.setPassword(selectedUserId!, newPassword);
+      if (response.data.success) {
+        toast.success("Password reset successfully");
+        setShowPasswordModal(false);
+        setNewPassword("");
+        setConfirmPassword("");
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to reset password");
+    }
+  };
+
   const filteredUsers = users;
 
   const accessItems = [
@@ -138,7 +171,20 @@ const SidebarAccessManagement = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="bg-white rounded-lg shadow-sm border p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-6">Sidebar Access Management</h2>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-gray-900">Sidebar Access Management</h2>
+          {selectedUserId && (
+            <Button
+              onClick={() => setShowPasswordModal(true)}
+              variant="outline"
+              size="icon"
+              className="hover:bg-blue-50"
+              title="Reset Password"
+            >
+              <KeyRound className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
         
         <div className="space-y-6">
           <div className="space-y-2">
@@ -191,6 +237,68 @@ const SidebarAccessManagement = () => {
           )}
         </div>
       </div>
+
+      {showPasswordModal && (
+        <div className="fixed inset-0 backdrop-blur-md flex items-center justify-center z-50">
+          <div className="bg-white bg-opacity-95 rounded-lg p-6 w-full max-w-md border-2 border-blue-200 shadow-xl">
+            <h3 className="text-lg font-semibold mb-4">Reset Password</h3>
+            <div className="space-y-4">
+              <div>
+                <Label>New Password</Label>
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <Label>Confirm Password</Label>
+                <div className="relative">
+                  <Input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2"
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowPasswordModal(false);
+                    setNewPassword("");
+                    setConfirmPassword("");
+                  }}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button onClick={handlePasswordReset} className="flex-1 bg-blue-600 hover:bg-blue-700">
+                  Reset Password
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

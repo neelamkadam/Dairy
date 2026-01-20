@@ -30,8 +30,10 @@ import { reportsApi } from "@/services/reportsApi";
 import { toast } from "react-toastify";
 import { generateVlcCommissionReportPDF } from "@/templates/VlcCommissionReportTemplate";
 import { generateVlcCommissionReportExcel } from "@/templates/VlcCommissionReportExcelTemplate";
+import { useTranslation } from 'react-i18next';
 
 const VlcCommissionReport = () => {
+  const { i18n } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -40,16 +42,13 @@ const VlcCommissionReport = () => {
   const [toDate, setToDate] = useState<Date | undefined>(new Date());
   const [reportData, setReportData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [language, setLanguage] = useState<string>(i18n.language || 'en');
 
   const totalPages = Math.ceil(reportData.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedData = reportData.slice(startIndex, endIndex);
   
-  console.log('Report Data:', reportData);
-  console.log('Paginated Data:', paginatedData);
-  console.log('Branches:', branches);
-
   const handleShowReport = async () => {
     if (!vlcId) {
       toast.error("Please select a VLC");
@@ -80,14 +79,16 @@ const VlcCommissionReport = () => {
               vlc_id: vlc.vlc_id,
               total_quantity: vlc.total_quantity,
               type: 'Commission',
-              rate: '0.00'
+              rate: '0.00',
+              date: format(fromDate, 'yyyy-MM-dd')
             }];
           }
           return vlc.commissions.map((comm: any) => ({
             vlc_id: vlc.vlc_id,
             total_quantity: vlc.total_quantity,
             type: comm.type,
-            rate: comm.amount
+            rate: comm.amount,
+            date: comm.effective_from ? format(new Date(comm.effective_from), 'dd-MM-yyyy') : format(fromDate, 'dd-MM-yyyy')
           }));
         });
         console.log('Flattened Report Data:', flatData);
@@ -199,6 +200,19 @@ const VlcCommissionReport = () => {
             </PopoverContent>
           </Popover>
         </div>
+        <div>
+          <Label>Language</Label>
+          <Select value={language} onValueChange={(val) => { setLanguage(val); i18n.changeLanguage(val); }}>
+            <SelectTrigger className="w-full border-gray-200 bg-white">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-white">
+              <SelectItem value="en">English</SelectItem>
+              <SelectItem value="hi">हिंदी</SelectItem>
+              <SelectItem value="mr">मराठी</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <Button onClick={handleShowReport} disabled={loading} className="text-white bg-blue-600 w-[90px] mt-4.5">
           {loading ? "Loading..." : "Show"}
         </Button>
@@ -225,7 +239,7 @@ const VlcCommissionReport = () => {
               <Table className="border border-gray-200 rounded-3xl">
                 <TableHeader className="bg-gray-50">
                   <TableRow>
-                    <TableHead className="border border-gray-50 text-gray-700">VLC ID</TableHead>
+                    <TableHead className="border border-gray-50 text-gray-700">DATE</TableHead>
                     <TableHead className="border border-gray-50 text-gray-700">TOTAL QUANTITY (L)</TableHead>
                     <TableHead className="border border-gray-50 text-gray-700">TYPE</TableHead>
                     <TableHead className="border border-gray-50 text-gray-700">RATE (₹)</TableHead>
@@ -240,7 +254,7 @@ const VlcCommissionReport = () => {
                       return (
                       <TableRow key={index} className="hover:bg-gray-50">
                         <TableCell className="font-medium text-left border border-gray-50">
-                          {branch?.username || row.vlc_id}
+                          {row.date}
                         </TableCell>
                         <TableCell className="font-medium text-left border border-gray-50">
                           {parseFloat(row.total_quantity).toFixed(2)}

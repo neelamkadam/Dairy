@@ -16,6 +16,14 @@ import { rateChartApi } from '@/services/rateChartApi';
 import { normalizeFarmerId, formatFarmerIdForDisplay } from '@/utils/farmerIdUtils';
 import { Validator } from '@/utils/validation';
 import { toast } from 'react-toastify';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { deleteFarmerApi } from '@/services/deleteFarmerApi';
 import * as XLSX from 'xlsx';
 
 export const AddFarmer: React.FC = () => {
@@ -48,23 +56,39 @@ export const AddFarmer: React.FC = () => {
   const [buffaloRateNames, setBuffaloRateNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [bulkUploading, setBulkUploading] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const downloadTemplate = () => {
     const template = [
       {
-        "Farmer ID": "F001",
+        "Farmer ID": "0001",
         "Full Name": "John Doe",
         "Mobile Number": "9876543210",
         "Email": "john@example.com",
         "Address": "123 Farm Street, Village",
-        "Milk Type": "cow",
+        "Milk Type": "Cow",
         "Rate Chart": "Rate Chart 1",
         "PAN Card": "ABCDE1234F",
         "Aadhaar Card": "123456789012",
         "Bank Name": "State Bank",
         "Account Number": "1234567890",
         "IFSC Code": "SBIN0001234",
-        "VLC ID": "1"
+        "VLC ID": branches?.[0]?.username || "500001"
+      },
+      {
+        "Farmer ID": "0002",
+        "Full Name": "Jane Smith",
+        "Mobile Number": "9876543211",
+        "Email": "jane@example.com",
+        "Address": "456 Farm Road, Village",
+        "Milk Type": "Both",
+        "Rate Chart": "Cow: Rate Chart 1, Buffalo: Rate Chart 2",
+        "PAN Card": "XYZAB5678C",
+        "Aadhaar Card": "987654321098",
+        "Bank Name": "HDFC Bank",
+        "Account Number": "9876543210",
+        "IFSC Code": "HDFC0001234",
+        "VLC ID": branches?.[0]?.username || "500001"
       }
     ];
     
@@ -86,22 +110,36 @@ export const AddFarmer: React.FC = () => {
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-      const farmers = jsonData.map((row: any) => ({
-        username: row["Farmer ID"] || row["username"],
-        fullName: row["Full Name"] || row["fullName"],
-        mobile_number: row["Mobile Number"] || row["mobile_number"],
-        email: row["Email"] || row["email"] || "",
-        address: row["Address"] || row["address"],
-        milkType: (row["Milk Type"] || row["milkType"])?.toLowerCase(),
-        rateChart: row["Rate Chart"] || row["rateChart"],
-        panCard: row["PAN Card"] || row["panCard"] || "",
-        aadhaarCard: row["Aadhaar Card"] || row["aadhaarCard"] || "",
-        bankName: row["Bank Name"] || row["bankName"] || "",
-        accountNumber: row["Account Number"] || row["accountNumber"] || "",
-        ifscCode: row["IFSC Code"] || row["ifscCode"] || "",
-        role: "farmer",
-        dairy_id: parseInt(row["VLC ID"] || row["dairy_id"])
-      }));
+      const farmers = jsonData.map((row: any) => {
+        const farmerId = String(row["Farmer ID"] || row["username"] || "").padStart(4, "0");
+        const milkTypeRaw = (row["Milk Type"] || row["milkType"] || "").toLowerCase();
+        const milkType = milkTypeRaw === "both" ? "Both" : milkTypeRaw.charAt(0).toUpperCase() + milkTypeRaw.slice(1);
+        
+        const vlcIdRaw = String(row["VLC ID"] || row["dairy_id"] || "");
+        const vlcIdNum = parseInt(vlcIdRaw);
+        const branch = branches?.find(b => b.username === vlcIdRaw || b.branch_id === vlcIdNum);
+        
+        if (!branch) {
+          throw new Error(`VLC ID ${vlcIdRaw} not found in your branches`);
+        }
+        
+        return {
+          username: farmerId,
+          fullName: row["Full Name"] || row["fullName"],
+          mobile_number: String(row["Mobile Number"] || row["mobile_number"] || ""),
+          email: row["Email"] || row["email"] || "",
+          address: row["Address"] || row["address"],
+          milkType: milkType,
+          rateChart: row["Rate Chart"] || row["rateChart"],
+          panCard: row["PAN Card"] || row["panCard"] || "",
+          aadhaarCard: String(row["Aadhaar Card"] || row["aadhaarCard"] || ""),
+          bankName: row["Bank Name"] || row["bankName"] || "",
+          accountNumber: String(row["Account Number"] || row["accountNumber"] || ""),
+          ifscCode: row["IFSC Code"] || row["ifscCode"] || "",
+          role: "farmer",
+          dairy_id: branch.branch_id
+        };
+      });
 
       const response = await authApi.bulkRegisterFarmers({ farmers });
 
@@ -350,6 +388,60 @@ export const AddFarmer: React.FC = () => {
     }
 
     return true;
+  };
+
+  const handleDeleteFarmer = async () => {
+    if (!isEditMode || !existingFarmerData) {
+      toast.error('No farmer selected for deletion');
+      return;
+    }
+
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteFarmer = async () => {
+    setLoading(true);
+    setShowDeleteModal(false);
+    try {
+      const normalizedFarmerId = normalizeFarmerId(formData.farmerId);
+      const dairyId = formData.VLC;
+
+      const response = await deleteFarmerApi.deleteFarmer(dairyId, normalizedFarmerId);
+
+      if (response.success) {
+        toast.success(response.message || 'Farmer deleted successfully');
+        if (response.deleted_collections) {
+          toast.info(`${response.deleted_collections} collection records were also deleted`);
+        }
+        setIsEditMode(false);
+        setExistingFarmerData(null);
+        setFormData({
+          VLC: '',
+          farmerId: '',
+          fullName: '',
+          phoneNumber: '',
+          email: '',
+          address: '',
+          milkType: '',
+          rateChart: '',
+          cowRateChart: '',
+          buffaloRateChart: '',
+          panCard: '',
+          aadhaarCard: '',
+          bankName: '',
+          accountNumber: '',
+          ifscCode: '',
+        });
+        navigate(-1);
+      } else {
+        toast.error(response.message || 'Failed to delete farmer');
+      }
+    } catch (error: any) {
+      console.error('Error deleting farmer:', error);
+      toast.error(error?.message || 'Failed to delete farmer');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -758,9 +850,44 @@ export const AddFarmer: React.FC = () => {
             >
               {loading ? t('saving') : (isEditMode ? t('update_farmer') : t('create_farmer'))}
             </Button>
+            
+            {isEditMode && (
+              <Button 
+                type="button"
+                onClick={handleDeleteFarmer}
+                className="w-full bg-red-600 hover:bg-red-700 text-white h-11 mt-2"
+                disabled={loading}
+              >
+                {loading ? t('deleting') : t('delete_farmer')}
+              </Button>
+            )}
           </form>
         </CardContent>
       </Card>
+
+      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <DialogContent className="bg-white">
+          <DialogHeader>
+            <DialogTitle>Delete Farmer</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-gray-600">
+              Are you sure you want to delete farmer <span className="font-semibold">{formData.fullName}</span> ({formData.farmerId})?
+            </p>
+            <p className="text-sm text-red-600 mt-2">
+              This action cannot be undone and will also delete all associated collection records.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button className="bg-red-600 hover:bg-red-700" onClick={confirmDeleteFarmer}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

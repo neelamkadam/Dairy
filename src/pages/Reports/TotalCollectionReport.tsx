@@ -17,8 +17,10 @@ import { toast } from "react-toastify";
 import { format } from "date-fns";
 import { generateTotalCollectionReportPDF } from "@/templates/TotalCollectionReportTemplate";
 import { generateTotalCollectionReportExcel } from "@/templates/TotalCollectionReportExcelTemplate";
+import { useTranslation } from 'react-i18next';
 
 const TotalCollectionReport = () => {
+  const { i18n } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
   const [dairyId, setDairyId] = useState("");
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -27,6 +29,7 @@ const TotalCollectionReport = () => {
   const [endShift, setEndShift] = useState("Evening");
   const [milkType, setMilkType] = useState("All");
   const [loading, setLoading] = useState(false);
+  const [language, setLanguage] = useState<string>(i18n.language || 'en');
   const [summary, setSummary] = useState({
     total_liters: "0",
     avg_fat: "0",
@@ -146,16 +149,30 @@ const TotalCollectionReport = () => {
           </div>
 
           <div className="flex justify-between items-center p-3">
-            <Select value={milkType} onValueChange={setMilkType}>
-              <SelectTrigger className="w-48 border-gray-200">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-white">
-                <SelectItem value="All">All</SelectItem>
-                <SelectItem value="Cow">Cow</SelectItem>
-                <SelectItem value="Buffalo">Buffalo</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex gap-4">
+              <Select value={milkType} onValueChange={setMilkType}>
+                <SelectTrigger className="w-48 border-gray-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-white">
+                  <SelectItem value="All">All</SelectItem>
+                  <SelectItem value="Cow">Cow</SelectItem>
+                  <SelectItem value="Buffalo">Buffalo</SelectItem>
+                </SelectContent>
+              </Select>
+              <div>
+                <Select value={language} onValueChange={(val) => { setLanguage(val); i18n.changeLanguage(val); }}>
+                  <SelectTrigger className="w-48 border-gray-200">
+                    <SelectValue placeholder="Language" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="en">English</SelectItem>
+                    <SelectItem value="hi">हिंदी</SelectItem>
+                    <SelectItem value="mr">मराठी</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <Button onClick={handleShowReport} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white">
               {loading ? "Loading..." : "Show Report"}
             </Button>

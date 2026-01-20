@@ -44,6 +44,7 @@ import TotalCollectionReport from "@/pages/Reports/TotalCollectionReport";
 import VlcCommissionReport from "@/pages/Reports/VlcCommissionReport";
 import VlcDifferenceReport from "@/pages/Reports/VlcDifferenceReport";
 import BankSummary from "@/pages/Reports/BankSummary";
+import CattleFeedStockReport from "@/pages/Reports/CattleFeedStockReport";
 import GeneralSettings from "@/pages/Settings/GeneralSettings";
 import CattleFeedStockSettings from "@/pages/Settings/CattleFeedStock";
 import PasswordManager from "@/pages/Settings/PasswordManager";
@@ -193,6 +194,10 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "bank-summary",
         element: <BankSummary />,
+      },
+      {
+        path: "cattle-feed-stock-report",
+        element: <CattleFeedStockReport />,
       },
       {
         path: "general-settings",
