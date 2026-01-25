@@ -51,6 +51,7 @@ const GeneralSettings = () => {
     const saved = localStorage.getItem('cattleFeedLumpSum');
     return saved ? parseInt(saved) : 0;
   });
+  const [multipleModal, setMultipleModal] = useState(0);
 
   useEffect(() => {
     if (selectedVlc) {
@@ -76,6 +77,7 @@ const GeneralSettings = () => {
         setLanguage(settings.language || "English");
         setReportLanguage(settings.report_language || "English");
         setShowWater(settings.show_water ?? 0);
+        setMultipleModal(settings.multiple_modal ?? 0);
       }
     } catch (error) {
       toast.error("Failed to fetch settings");
@@ -140,6 +142,7 @@ const GeneralSettings = () => {
         language: language,
         report_language: reportLanguage,
         show_water: showWater,
+        multiple_modal: multipleModal,
       });
       if (data.success) {
         toast.success("Settings updated successfully");
@@ -522,6 +525,21 @@ const GeneralSettings = () => {
                 />
                 <span className="text-xs text-gray-700 font-medium">
                   {cattleFeedLumpSum === 1 ? "ON" : "OFF"}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+              <div>
+                <h3 className="text-sm font-medium text-gray-900">Multiple Modal</h3>
+                <p className="text-xs text-gray-500">Enable multiple modal windows</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch 
+                  checked={multipleModal === 1} 
+                  onCheckedChange={(checked) => setMultipleModal(checked ? 1 : 0)} 
+                />
+                <span className="text-xs text-gray-700 font-medium">
+                  {multipleModal === 1 ? "ON" : "OFF"}
                 </span>
               </div>
             </div>

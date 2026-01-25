@@ -40,6 +40,7 @@ const VlcDifferenceReport = () => {
   };
   
   const [shift, setShift] = useState(getDefaultShift());
+  const [type, setType] = useState<'Cow' | 'Buffalo' | 'Both'>('Both');
   const [reportData, setReportData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [language, setLanguage] = useState<string>(i18n.language || 'en');
@@ -61,6 +62,7 @@ const VlcDifferenceReport = () => {
         from: fromDate,
         to: toDate,
         shift: shift,
+        type: type,
       };
       
       console.log('📤 VLC Difference Report API Request:', payload);
@@ -97,6 +99,7 @@ const VlcDifferenceReport = () => {
     const exportData = reportData.map((period: any) => ({
       'Period': period.period,
       'Shift': period.shift,
+      'Type': period.type,
       'VLC Weight': period.vlc.total_weight,
       'VLC Fat': period.vlc.avg_fat,
       'VLC SNF': period.vlc.avg_snf,
@@ -209,6 +212,19 @@ const VlcDifferenceReport = () => {
           </Select>
         </div>
         <div>
+          <Label className="mb-1">Type</Label>
+          <Select value={type} onValueChange={(val: 'Cow' | 'Buffalo' | 'Both') => setType(val)}>
+            <SelectTrigger className="w-full border-gray-200">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-white">
+              <SelectItem value="Cow">Cow</SelectItem>
+              <SelectItem value="Buffalo">Buffalo</SelectItem>
+              <SelectItem value="Both">Both</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
           <Label className="mb-1">Language</Label>
           <Select value={language} onValueChange={(val) => { setLanguage(val); i18n.changeLanguage(val); }}>
             <SelectTrigger className="w-full border-gray-200">
@@ -251,6 +267,7 @@ const VlcDifferenceReport = () => {
             <TableRow className="bg-gradient-to-r from-blue-50 to-blue-100">
               <TableHead rowSpan={2} className="text-center border border-gray-200 font-bold text-gray-900 py-3">Period</TableHead>
               <TableHead rowSpan={2} className="text-center border border-gray-200 font-bold text-gray-900 py-3">Shift</TableHead>
+              <TableHead rowSpan={2} className="text-center border border-gray-200 font-bold text-gray-900 py-3">Type</TableHead>
               <TableHead colSpan={4} className="text-center border border-gray-200 font-bold text-blue-900 py-3">
                 VLC Collection Data
               </TableHead>
@@ -282,6 +299,7 @@ const VlcDifferenceReport = () => {
                 <TableRow key={index} className="hover:bg-gray-50">
                   <TableCell className="border border-gray-200 text-center font-medium bg-gray-50">{period.period}</TableCell>
                   <TableCell className="border border-gray-200 text-center font-medium bg-gray-50">{period.shift}</TableCell>
+                  <TableCell className="border border-gray-200 text-center font-medium bg-gray-50">{period.type}</TableCell>
                   <TableCell className="border border-gray-200 text-center bg-blue-50/30">{period.vlc.total_weight}</TableCell>
                   <TableCell className="border border-gray-200 text-center bg-blue-50/30">{period.vlc.avg_fat}</TableCell>
                   <TableCell className="border border-gray-200 text-center bg-blue-50/30">{period.vlc.avg_snf}</TableCell>
@@ -306,7 +324,7 @@ const VlcDifferenceReport = () => {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={14} className="text-center py-10 text-gray-500 bg-gray-50">
+                <TableCell colSpan={15} className="text-center py-10 text-gray-500 bg-gray-50">
                   Select VLC and date range, then click Show to view the report
                 </TableCell>
               </TableRow>

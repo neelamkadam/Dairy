@@ -91,15 +91,29 @@ const BonusReport = () => {
 
     setLoading(true);
     try {
-      const response = await bonusApi.getBonusDeductions({
+      const requestPayload = {
         dairy_id: parseInt(selectedVLC),
         start_date: fromDate,
         end_date: toDate,
         farmer_id: farmerId || undefined,
-      });
+      };
+      console.log('Bonus Report API Request:', requestPayload);
+      
+      const response = await bonusApi.getBonusDeductions(requestPayload);
+      console.log('Bonus Report API Response:', response);
 
       if (response.data.success) {
-        setBonusData(response.data.data);
+        const mergedData = response.data.data.reduce((acc: any[], item: BonusDeduction) => {
+          const existing = acc.find(d => d.farmer_id === item.farmer_id);
+          if (existing) {
+            existing.bonus_deduction = (parseFloat(existing.bonus_deduction) + parseFloat(item.bonus_deduction)).toFixed(2);
+            existing.fixed_deduction = (parseFloat(existing.fixed_deduction) + parseFloat(item.fixed_deduction)).toFixed(2);
+          } else {
+            acc.push({ ...item });
+          }
+          return acc;
+        }, []);
+        setBonusData(mergedData);
       } else {
         toast.error("Failed to fetch bonus deductions");
       }
@@ -297,8 +311,8 @@ const BonusReport = () => {
                     <TableRow key={bonus.id} className="hover:bg-gray-50 transition-colors">
                       <TableCell>{bonus.created_at ? format(new Date(bonus.created_at), "dd-MM-yyyy") : "-"}</TableCell>
                       <TableCell className="font-medium text-blue-600">{bonus.farmer_id}</TableCell>
-                      <TableCell>{bonus.start_date}</TableCell>
-                      <TableCell>{bonus.end_date}</TableCell>
+                      <TableCell>{format(new Date(bonus.start_date), "dd-MM-yyyy")}</TableCell>
+                      <TableCell>{format(new Date(bonus.end_date), "dd-MM-yyyy")}</TableCell>
                       <TableCell className="text-right text-red-500 font-medium">₹{Number(bonus.bonus_deduction).toFixed(2)}</TableCell>
                       <TableCell className="text-right text-red-500 font-medium">₹{Number(bonus.fixed_deduction).toFixed(2)}</TableCell>
                       <TableCell className="text-right font-bold">₹{(Number(bonus.bonus_deduction) + Number(bonus.fixed_deduction)).toFixed(2)}</TableCell>

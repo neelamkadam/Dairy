@@ -12,6 +12,7 @@ interface Entry {
   fat: number;
   snf: number;
   clr: number;
+  type?: string;
 }
 
 interface LastEntryDetailsProps {
@@ -58,6 +59,12 @@ const LastEntryDetails = ({ entries = [] }: LastEntryDetailsProps) => {
                     <span className="text-sm text-gray-600">{t('clr')}:</span>
                     <span className="text-sm font-medium text-gray-800">{entry.clr}</span>
                   </div>
+                  {entry.type && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Type:</span>
+                      <span className="text-sm font-medium text-gray-800">{entry.type}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

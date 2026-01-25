@@ -252,5 +252,6 @@
   "amount_taken": "Amount Taken",
   "received": "Received",
   "description": "Description",
-  "bonus": "Bonus Deductions"
+  "bonus": "Bonus Deductions",
+  "bonus_report": "Bonus Report"
 }

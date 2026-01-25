@@ -57,8 +57,11 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
       icon: "⚙️",
       children: [
         { title: t('add_farmer'), icon: "", href:ROUTES.MASTER.ADD_FARMER },
+        { title: t('add_rate_chart'), icon: "", href: ROUTES.MASTER.ADD_RATECHART },
         { title: t('cattle_feed_stock'), icon: "", href: ROUTES.SETTINGS.CATTLE_FEED_STOCK },
-        { title: t('add_rate_chart'), icon: "", href: ROUTES.MASTER.ADD_RATECHART }
+        { title: t('bonus'), icon: "", href: ROUTES.MASTER.BONUS }
+        
+
       ]
     });
   }
@@ -95,7 +98,7 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
         { title: t('vlc_commission_report'), icon: "", href: ROUTES.REPORTS.VLC_COMMISSION_REPORT },
         { title: t('pl_statement'), icon: "", href: ROUTES.REPORTS.PL_STATEMENT },
         { title: t('cattle_feed_stock_report'), icon: "", href: ROUTES.REPORTS.CATTLE_FEED_STOCK_REPORT },
-        { title: t('Bonus Report'), icon: "", href: ROUTES.REPORTS.BONUS_REPORT },
+        { title: t('bonus_report'), icon: "", href: ROUTES.REPORTS.BONUS_REPORT },
       ]
     });
   }

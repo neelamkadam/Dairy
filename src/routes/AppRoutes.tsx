@@ -32,6 +32,7 @@ import AdminDashboard from "@/pages/Dashboard/AdminDashboard";
 import Dashboard from "@/pages/Dashboard/Dashboard";
 import { AddFarmer } from "@/pages/Master/AddFarmer";
 import AddRateChart from "@/pages/Master/AddRateChart";
+import Bonus from "@/pages/Master/Bonus";
 import FarmerBillInvoiceReport from "@/pages/Reports/FarmerBillInvoiceReport";
 import FarmerCollection from "@/pages/Reports/FarmerCollection";
 import FarmerList from "@/pages/Reports/FarmerList";
@@ -124,6 +125,10 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "add-rate-chart",
         element: <AddRateChart />,
+      },
+      {
+        path: "bonus",
+        element: <Bonus />,
       },
       {
         path: "farmer-deduction",

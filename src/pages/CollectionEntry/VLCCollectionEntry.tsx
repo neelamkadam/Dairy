@@ -48,6 +48,7 @@ interface FormData {
   clr: string;
   rate: string;
   amount: number;
+  type: 'Cow' | 'Buffalo' | 'Both';
 }
 
 const VLCCollectionEntry = () => {
@@ -76,7 +77,8 @@ const VLCCollectionEntry = () => {
     date: new Date(),
     shift: getDefaultShift(),
     vlcId: '',
-    vlcName: ''
+    vlcName: '',
+    type: 'Both' as 'Cow' | 'Buffalo' | 'Both'
   });
 
   const [formData, setFormData] = useState<FormData>({
@@ -92,6 +94,7 @@ const VLCCollectionEntry = () => {
     clr: "",
     rate: "",
     amount: 0,
+    type: 'Both',
   });
 
   const handleInputChange = (field: keyof FormData, value: string | Date | undefined) => {
@@ -197,9 +200,9 @@ const VLCCollectionEntry = () => {
   };
 
   const downloadTemplate = () => {
-    const headers = ['weight', 'fat', 'snf', 'clr', 'rate', 'amount'];
+    const headers = ['weight', 'fat', 'snf', 'clr', 'rate', 'amount', 'type'];
     const sampleData = [
-      ['100', '4.5', '8.5', '28', '45', '4500']
+      ['100', '4.5', '8.5', '28', '45', '4500', 'Cow']
     ];
     
     const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleData]);
@@ -266,7 +269,8 @@ const VLCCollectionEntry = () => {
               snf: parseFloat(entry.snf),
               clr: parseFloat(entry.clr),
               rate: parseFloat(entry.rate),
-              amount: parseFloat(entry.amount)
+              amount: parseFloat(entry.amount),
+              type: entry.type || bulkFormData.type
             });
           }
         } else {
@@ -298,7 +302,8 @@ const VLCCollectionEntry = () => {
               snf: parseFloat(entry.snf),
               clr: parseFloat(entry.clr),
               rate: parseFloat(entry.rate),
-              amount: parseFloat(entry.amount)
+              amount: parseFloat(entry.amount),
+              type: entry.type || bulkFormData.type
             });
           }
         }
@@ -312,7 +317,8 @@ const VLCCollectionEntry = () => {
             date: new Date(),
             shift: getDefaultShift(),
             vlcId: '',
-            vlcName: ''
+            vlcName: '',
+            type: 'Both'
           });
           fetchLastEntries();
         }
@@ -349,7 +355,8 @@ const VLCCollectionEntry = () => {
         snf: parseFloat(formData.snf),
         clr: parseFloat(formData.clr),
         rate: parseFloat(formData.rate),
-        amount: formData.amount
+        amount: formData.amount,
+        type: formData.type
       };
 
       console.log('📤 Submitting VLC entry:', payload);
@@ -372,6 +379,7 @@ const VLCCollectionEntry = () => {
           clr: "",
           rate: "",
           amount: 0,
+          type: 'Both',
         });
         fetchLastEntries();
       }
@@ -420,9 +428,9 @@ const VLCCollectionEntry = () => {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Date and Shift Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <CardContent className="space-y-4">
+          {/* Date, Shift, VLC ID in one row */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="date" className="text-sm font-medium text-gray-700">
                 {t('date')}
@@ -437,11 +445,7 @@ const VLCCollectionEntry = () => {
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.date ? (
-                      format(formData.date, "dd-MM-yyyy")
-                    ) : (
-                      <span>Pick a date</span>
-                    )}
+                    {formData.date ? format(formData.date, "dd-MM-yyyy") : <span>Pick a date</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 bg-white z-50" align="start" sideOffset={5}>
@@ -460,26 +464,21 @@ const VLCCollectionEntry = () => {
               </Popover>
             </div>
 
-            <div className="space-y-2 ">
+            <div className="space-y-2">
               <Label htmlFor="shift" className="text-sm font-medium text-gray-700">
                 {t('shift')}
               </Label>
-              <Select value={formData.shift} onValueChange={(value) => handleInputChange("shift", value)} >
+              <Select value={formData.shift} onValueChange={(value) => handleInputChange("shift", value)}>
                 <SelectTrigger className="bg-gray-50 border-gray-200 hover:bg-gray-100 w-full">
                   <SelectValue placeholder="Select shift" />
                 </SelectTrigger>
-                <SelectContent className="bg-white" >
+                <SelectContent className="bg-white">
                   <SelectItem value="morning">{t('morning')}</SelectItem>
                   <SelectItem value="evening">{t('evening')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-          </div>
 
-          <hr className="border-gray-300" />
-
-          {/* User ID and VLC Name Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="userId" className="text-sm font-medium text-gray-700">
                 {t('vlc_id')}
@@ -492,7 +491,7 @@ const VLCCollectionEntry = () => {
                   {branches?.length > 0 ? branches.map((branch) => 
                     branch?.username ? (
                       <SelectItem key={branch.username} value={branch.username}>
-                        {branch.username}
+                        {branch.username} - {branch.branchName}
                       </SelectItem>
                     ) : null
                   ) : (
@@ -503,7 +502,10 @@ const VLCCollectionEntry = () => {
                 </SelectContent>
               </Select>
             </div>
+          </div>
 
+          {/* VLC Name and Type in one row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="vlcName" className="text-sm font-medium text-gray-700">
                 {t('vlc_name')}
@@ -516,10 +518,26 @@ const VLCCollectionEntry = () => {
                 className="bg-gray-100 border-gray-200 text-gray-700"
               />
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="type" className="text-sm font-medium text-gray-700">
+                Type
+              </Label>
+              <Select value={formData.type} onValueChange={(value: 'Cow' | 'Buffalo' | 'Both') => handleInputChange("type", value)}>
+                <SelectTrigger className="bg-gray-50 border-gray-200 hover:bg-gray-100 w-full">
+                  <SelectValue placeholder="Select Type" />
+                </SelectTrigger>
+                <SelectContent className="bg-white">
+                  <SelectItem value="Cow">Cow</SelectItem>
+                  <SelectItem value="Buffalo">Buffalo</SelectItem>
+                  <SelectItem value="Both">Both</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          {/* Weight and Fat Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Weight, Fat, SNF in one row */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="weight" className="text-sm font-medium text-gray-700">
                 {t('weight')} (kg)
@@ -549,10 +567,7 @@ const VLCCollectionEntry = () => {
                 className="bg-gray-50 border-gray-200 focus:bg-white"
               />
             </div>
-          </div>
 
-          {/* SNF and CLR Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="snf" className="text-sm font-medium text-gray-700">
                 {t('snf')} (%)
@@ -570,7 +585,10 @@ const VLCCollectionEntry = () => {
                 className="bg-gray-50 border-gray-200 focus:bg-white"
               />
             </div>
+          </div>
 
+          {/* CLR, Rate, Amount in one row */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="clr" className="text-sm font-medium text-gray-700">
                 {t('clr')}
@@ -588,10 +606,7 @@ const VLCCollectionEntry = () => {
                 className="bg-gray-50 border-gray-200 focus:bg-white"
               />
             </div>
-          </div>
 
-          {/* Rate and Amount Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="rate" className="text-sm font-medium text-gray-700">
                 {t('rate_per_kg')}
@@ -702,6 +717,20 @@ const VLCCollectionEntry = () => {
                 <Label className="text-sm font-medium text-gray-700">VLC Name</Label>
                 <Input value={bulkFormData.vlcName} readOnly className="bg-gray-100 border-gray-200 text-gray-700" placeholder="Auto-filled" />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700">Type (Default)</Label>
+              <Select value={bulkFormData.type} onValueChange={(value: 'Cow' | 'Buffalo' | 'Both') => setBulkFormData(prev => ({ ...prev, type: value }))}>
+                <SelectTrigger className="bg-gray-50 border-gray-200 hover:bg-gray-100">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-white">
+                  <SelectItem value="Cow">Cow</SelectItem>
+                  <SelectItem value="Buffalo">Buffalo</SelectItem>
+                  <SelectItem value="Both">Both</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="border-t pt-5">

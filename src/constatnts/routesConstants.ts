@@ -21,6 +21,7 @@ export const ROUTES = {
   MASTER:{
     ADD_FARMER:`/dashboard/add-farmer`,
     ADD_RATECHART:`/dashboard/add-rate-chart`,
+    BONUS:`/dashboard/bonus`,
   },
   BILLING:{
     FARMER_DEDUCTION:`/dashboard/farmer-deduction`,
