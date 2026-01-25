@@ -27,6 +27,7 @@ export interface ResponseDataModel<T> {
     organizationId?: string;
     permissions?: string[];
     is_admin?: boolean | number;
+    role?: string;
   }
   
   export interface AuthResponseBodyDataModel {

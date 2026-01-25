@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, Label } from "recharts";
 import { CollectionData, FarmersInfoData } from "@/redux/dashboardSlice";
 import FarmerInfoModal from "./FarmerInfoModal";
 
@@ -148,6 +148,15 @@ const FarmersChart = ({ collections, branches, farmersInfo, farmersInfoLoading, 
                   {data.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
+                  <Label
+                    value={stats.registered}
+                    position="center"
+                    style={{
+                      fontSize: '24px',
+                      fontWeight: 'bold',
+                      fill: '#374151'
+                    }}
+                  />
                 </Pie>
                 <Tooltip 
                   formatter={(value, name, props) => [

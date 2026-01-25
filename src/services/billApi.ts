@@ -43,4 +43,7 @@ export const billApi = {
       params: { farmer_id: normalizeFarmerId(farmerId) },
       responseType: "blob"
     }),
+
+  getFarmerReport: (params: { dairy_id: number; start_date: string; end_date: string }) =>
+    api.get("/bill/farmer-report", { params }),
 };

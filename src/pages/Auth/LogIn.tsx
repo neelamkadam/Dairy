@@ -44,61 +44,52 @@ const Login: React.FC = () => {
 
   const onSubmit: SubmitHandler<LoginFormType> = async (data) => {
     try {
-      // Check for hardcoded admin credentials
-      if (data.userId === "admin@gmail.com" && data.password === "admin") {
-        // Store a dummy token for admin (or generate one if needed)
-        localStorage.setItem("token", "admin-token");
-        dispatch(setAuthentication({
-          isAuthenticated: true,
-          userRole: "admin",
-          userData: { email: data.userId, name: "Admin" }
-        }));
-        navigate(ROUTES.ADMIN_DASHBOARD);
-      } else {
-        // User login API call
-        const { data: result } = await api.post("/web-users/login", {
-          email: data.userId,
-          password: data.password
-        });
+      // User login API call
+      const { data: result } = await api.post("/web-users/login", {
+        email: data.userId,
+        password: data.password
+      });
 
-        if (result.success) {
-          console.log('Login API Response:', result);
-          console.log('is_admin from API:', result.is_admin);
-          
-          if (result.requirePasswordChange === true) {
-            // First time login - show set password screen (don't authenticate yet)
-            dispatch(setTempUserData({
-              userId: result.userId,
-              name: result.name,
-              email: result.email
-            }));
-            navigate(ROUTES.AUTH.SET_NEW_PASSWORD);
-          } else {
-            // Store token in localStorage if provided
-            if (result.token) {
-              localStorage.setItem("token", result.token);
-            }
-            // Regular login - go to dashboard
-            console.log('Setting authentication with is_admin:', result.is_admin);
-            dispatch(setAuthentication({
-              isAuthenticated: true,
-              userRole: "user",
-              userData: {
-                id: result.userId.toString(),
-                name: result.name,
-                email: result.email,
-                is_admin: result.is_admin
-              }
-            }));
-            
-            // Fetch user branches after successful login
-            dispatch(fetchUserBranches(result.email));
-            
-            navigate(ROUTES.DASHBOARD);
-          }
+      if (result.success) {
+        console.log('Login API Response:', result);
+        console.log('is_admin from API:', result.is_admin);
+        
+        if (result.requirePasswordChange === true) {
+          // First time login - show set password screen (don't authenticate yet)
+          dispatch(setTempUserData({
+            userId: result.userId,
+            name: result.name,
+            email: result.email
+          }));
+          navigate(ROUTES.AUTH.SET_NEW_PASSWORD);
         } else {
-          toast.error(result.message || "Invalid username or password");
+          // Store token in localStorage if provided
+          if (result.token) {
+            localStorage.setItem("token", result.token);
+          }
+          // Regular login - go to dashboard
+          console.log('Setting authentication with role:', result.role);
+          const userRole = result.role === "admin" ? "admin" : "user";
+          
+          dispatch(setAuthentication({
+            isAuthenticated: true,
+            userRole: userRole,
+            userData: {
+              id: result.userId.toString(),
+              name: result.name,
+              email: result.email,
+              is_admin: result.is_admin,
+              role: result.role
+            }
+          }));
+          
+          // Fetch user branches after successful login
+          dispatch(fetchUserBranches(result.email));
+          
+          navigate(userRole === "admin" ? ROUTES.ADMIN_DASHBOARD : ROUTES.DASHBOARD);
         }
+      } else {
+        toast.error(result.message || "Invalid username or password");
       }
     } catch (error) {
       toast.error("Invalid username or password");

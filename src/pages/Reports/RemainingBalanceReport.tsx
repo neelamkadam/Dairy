@@ -150,20 +150,8 @@ const RemainingBalanceReport = () => {
           <Label className="mb-1">Date</Label>
           <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="border-gray-300" />
         </div>
-        <div>
-          <Label className="mb-1">Language</Label>
-          <Select value={language} onValueChange={(val) => { setLanguage(val); i18n.changeLanguage(val); }}>
-            <SelectTrigger className="w-48 border-gray-300">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-white">
-              <SelectItem value="en">English</SelectItem>
-              <SelectItem value="hi">हिंदी</SelectItem>
-              <SelectItem value="mr">मराठी</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <Button onClick={handleShowReport} disabled={loading} className="bg-blue-600 hover:bg-blue-700 mt-6 text-white">
+        
+        <Button onClick={handleShowReport} disabled={loading} className="bg-blue-600 hover:bg-blue-700 mt-4 text-white">
           {loading ? "Loading..." : "Show Report"}
         </Button>
       </div>

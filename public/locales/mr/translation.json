@@ -250,5 +250,6 @@
   "payment_type": "पेमेंट प्रकार",
   "amount_taken": "घेतलेली रक्कम",
   "received": "प्राप्त",
-  "description": "वर्णन"
+  "description": "वर्णन",
+  "bonus": "बोनस कपात"
 }

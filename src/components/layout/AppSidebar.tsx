@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ROUTES } from "@/constatnts/routesConstants";
 import { useLocation, useNavigate } from "react-router-dom";
 import NeoDairyLogo from "@/assets/NeoDairy_Logo.png";
-import { useAppSelector } from "@/redux/store";
+import { RootState, useAppSelector } from "@/redux/store";
 import { useTranslation } from "react-i18next";
 import { getSidebarAccess } from "@/services/sidebarAccessApi";
 
@@ -95,6 +95,7 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
         { title: t('vlc_commission_report'), icon: "", href: ROUTES.REPORTS.VLC_COMMISSION_REPORT },
         { title: t('pl_statement'), icon: "", href: ROUTES.REPORTS.PL_STATEMENT },
         { title: t('cattle_feed_stock_report'), icon: "", href: ROUTES.REPORTS.CATTLE_FEED_STOCK_REPORT },
+        { title: t('Bonus Report'), icon: "", href: ROUTES.REPORTS.BONUS_REPORT },
       ]
     });
   }
@@ -138,7 +139,7 @@ interface SidebarProps {
 
 const AppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
   const { t } = useTranslation();
-  const authState = useAppSelector((state) => state.authData);
+  const authState = useAppSelector((state: RootState) => state.authData);
   const userData = authState?.userData;
   const [showCompany, setShowCompany] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);

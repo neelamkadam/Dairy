@@ -9,13 +9,16 @@ export const generateFarmerListExcel = (
     [`VLC: ${vlcName}`],
     [`Total Farmers: ${farmers.length}`],
     [],
-    ['Farmer ID', 'Name', 'Contact', 'Milk Type', 'Rate Chart'],
+    ['Farmer ID', 'Name', 'Contact', 'Milk Type', 'Rate Chart', 'Bank Name', 'Account Number', 'IFSC Code'],
     ...farmers.map(farmer => [
       farmer.username || '',
       farmer.fullName || '',
       farmer.mobile_number || '',
       farmer.milkType || '',
-      farmer.rateChart || ''
+      farmer.rateChart || '',
+      farmer.bankName || '-',
+      farmer.accountNumber || '-',
+      farmer.ifscCode || '-'
     ])
   ];
 

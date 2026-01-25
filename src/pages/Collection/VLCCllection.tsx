@@ -169,39 +169,44 @@ const VLCCllection = () => {
         to_date: formatDate(toDate, "yyyy-MM-dd")
       };
 
+      console.log('📤 VLC Collection API Request:', payload);
       const response = await postData(payload);
-      console.log('API Response:', response);
+      console.log('📥 VLC Collection API Response:', response);
       
       if (response?.data?.success) {
         setFarmerData(response.data.data || []);
         setCurrentPage(1);
       }
     } catch (error: any) {
+      console.error('❌ VLC Collection API Error:', error);
       toast.error(error?.response?.data?.message || "Failed to fetch data");
     }
   };
 
-  // Calculate stats from farmer data
+  // Calculate stats from farmer data with weighted averages
   const uniqueVLCCs = new Set(farmerData.map(f => f.dairy_id)).size;
   const totalMilk = farmerData.reduce((sum, f) => sum + (parseFloat(f.quantity) || 0), 0);
-  const avgFat = farmerData.length > 0 
-    ? (farmerData.reduce((sum, f) => sum + (parseFloat(f.fat) || 0), 0) / farmerData.length).toFixed(2)
-    : "0.0";
-  const avgSNF = farmerData.length > 0
-    ? (farmerData.reduce((sum, f) => sum + (parseFloat(f.snf) || 0), 0) / farmerData.length).toFixed(2)
-    : "0.0";
+  
+  const weightedFatSum = farmerData.reduce((sum, f) => sum + ((parseFloat(f.fat) || 0) * (parseFloat(f.quantity) || 0)), 0);
+  const avgFat = totalMilk > 0 ? (weightedFatSum / totalMilk).toFixed(2) : "0.0";
+  
+  const weightedSnfSum = farmerData.reduce((sum, f) => sum + ((parseFloat(f.snf) || 0) * (parseFloat(f.quantity) || 0)), 0);
+  const avgSNF = totalMilk > 0 ? (weightedSnfSum / totalMilk).toFixed(2) : "0.0";
+  
   const totalPayments = farmerData.reduce((sum, f) => sum + (parseFloat(f.amount) || 0), 0);
 
   const handleExportToExcel = () => {
     const exportData = vlcData.map((vlc) => {
       const branch = branches.find(b => b.branch_id === vlc.dairy_id);
       const vlcFarmers = farmerData.filter(f => f.dairy_id === vlc.dairy_id);
-      const avgFat = vlcFarmers.length > 0 
-        ? (vlcFarmers.reduce((sum, f) => sum + (parseFloat(f.fat) || 0), 0) / vlcFarmers.length).toFixed(2)
-        : '0.00';
-      const avgSNF = vlcFarmers.length > 0
-        ? (vlcFarmers.reduce((sum, f) => sum + (parseFloat(f.snf) || 0), 0) / vlcFarmers.length).toFixed(2)
-        : '0.00';
+      
+      const vlcTotalMilk = vlcFarmers.reduce((sum, f) => sum + (parseFloat(f.quantity) || 0), 0);
+      const weightedFatSum = vlcFarmers.reduce((sum, f) => sum + ((parseFloat(f.fat) || 0) * (parseFloat(f.quantity) || 0)), 0);
+      const avgFat = vlcTotalMilk > 0 ? (weightedFatSum / vlcTotalMilk).toFixed(2) : '0.00';
+      
+      const weightedSnfSum = vlcFarmers.reduce((sum, f) => sum + ((parseFloat(f.snf) || 0) * (parseFloat(f.quantity) || 0)), 0);
+      const avgSNF = vlcTotalMilk > 0 ? (weightedSnfSum / vlcTotalMilk).toFixed(2) : '0.00';
+      
       const totalAmount = vlcFarmers.reduce((sum, f) => sum + (parseFloat(f.amount) || 0), 0);
       const avgRate = vlc.totalMilkLtr > 0 ? (totalAmount / vlc.totalMilkLtr).toFixed(2) : '0.00';
       

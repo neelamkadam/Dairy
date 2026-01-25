@@ -15,7 +15,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Filter, Search, CalendarIcon, Settings, ArrowUp, ArrowDown, GripVertical } from "lucide-react";
-import { format, getDaysInMonth } from "date-fns";
+import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import SummaryCards from "@/components/SummaryCards";
 import Pagination from "@/components/Pagination";
@@ -87,10 +87,18 @@ const FarmerDeduction = () => {
 
   const fetchPriority = async () => {
     try {
+      console.log('🔵 [FARMER DEDUCTION] Fetching Priority - API Call');
+      console.log('Parameters:', { userId: parseInt(userData.id!) });
+      
       const { data } = await webUserApi.getPriority(parseInt(userData.id!));
+      
+      console.log('✅ [FARMER DEDUCTION] Priority Fetched Successfully');
+      console.log('Response:', data);
+      console.log('Priority Order:', data.data);
+      
       setPriority(data.data);
     } catch (error) {
-      console.error('Error fetching priority:', error);
+      console.error('❌ [FARMER DEDUCTION] Error fetching priority:', error);
     }
   };
 
@@ -101,13 +109,22 @@ const FarmerDeduction = () => {
     }
 
     try {
+      console.log('🔵 [FARMER DEDUCTION] Get All Farmers Balance - API Call');
+      console.log('Parameters:', {
+        vlcId: parseInt(vlcName),
+        startDate: format(startDate, "yyyy-MM-dd"),
+        endDate: format(endDate, "yyyy-MM-dd")
+      });
+      
       const { data } = await deductionApi.getAllFarmersBalance(
         parseInt(vlcName),
         format(startDate, "yyyy-MM-dd"),
         format(endDate, "yyyy-MM-dd")
       );
 
+      console.log('✅ [FARMER DEDUCTION] Farmers Balance Fetched Successfully');
       console.log('API Response:', data);
+      console.log('Total Date Entries:', data.data?.length || 0);
 
       // Flatten farmers from all dates and aggregate by farmer_id
       const farmerMap = new Map();
@@ -149,10 +166,24 @@ const FarmerDeduction = () => {
       });
       
       const processedData = Array.from(farmerMap.values());
+      
+      console.log('📊 [FARMER DEDUCTION] Farmer Data Aggregated');
+      console.log('Total Farmers:', processedData.length);
+      console.log('Processed Data Sample:', processedData.slice(0, 3));
 
       // Fetch bill details for deduction fields
       if (processedData.length > 0) {
         const farmerIds = processedData.map(f => f.farmer_id);
+        
+        console.log('🔵 [FARMER DEDUCTION] Get Bill Details By Farmers - API Call');
+        console.log('Parameters:', {
+          vlcId: parseInt(vlcName),
+          farmerIds: farmerIds,
+          farmerCount: farmerIds.length,
+          startDate: format(startDate, "yyyy-MM-dd"),
+          endDate: format(endDate, "yyyy-MM-dd")
+        });
+        
         const billDetailsResponse = await deductionApi.getBillDetailsByFarmers(
           parseInt(vlcName),
           farmerIds,
@@ -160,7 +191,9 @@ const FarmerDeduction = () => {
           format(endDate, "yyyy-MM-dd")
         );
 
+        console.log('✅ [FARMER DEDUCTION] Bill Details Fetched Successfully');
         console.log('Bill Details Response:', billDetailsResponse.data);
+        console.log('Bill Details Count:', billDetailsResponse.data.data?.length || 0);
 
         // Merge bill details with processed data
         const billDetailsMap = new Map(
@@ -198,17 +231,17 @@ const FarmerDeduction = () => {
             }
           }
         });
+        
+        console.log('🔀 [FARMER DEDUCTION] Bill Details Merged with Farmer Data');
+        console.log('Farmers with Bills:', processedData.filter(f => f.hasBill).length);
+        console.log('Farmers without Bills:', processedData.filter(f => !f.hasBill).length);
       }
 
-      // Apply priority distribution to farmers with negative balance
+      // Auto-deduct values according to priority
+      console.log('⚙️ [FARMER DEDUCTION] Auto-deducting values according to priority');
+      console.log('Current Priority Order:', priority);
+      
       const adjustedData = processedData.map(farmer => {
-        const finalAmount = farmer.hasBill 
-          ? farmer.billAmount - farmer.advanceDeduction - farmer.cattleFeedDeduction - farmer.other1Deduction - farmer.other2Deduction + farmer.receivedAmount
-          : farmer.billAmount - farmer.advance - farmer.cattleFeedAmount - farmer.other1Amount - farmer.other2Amount + farmer.receivedAmount;
-
-        if (finalAmount >= 0) return farmer;
-
-        let remaining = Math.abs(finalAmount);
         const fieldMap: any = {
           advance: { deduction: 'advanceDeduction', amount: 'advance' },
           cattleFeed: { deduction: 'cattleFeedDeduction', amount: 'cattleFeedAmount' },
@@ -216,30 +249,54 @@ const FarmerDeduction = () => {
           other2: { deduction: 'other2Deduction', amount: 'other2Amount' }
         };
 
-        const updated = { ...farmer };
-        let wasAdjusted = false;
+        // Skip if farmer already has bill data with deductions set
+        if (farmer.hasBill) {
+          console.log(`Farmer ${farmer.farmer_id} already has bill - using existing deductions`);
+          return farmer;
+        }
 
+        const updated = { ...farmer };
+        let remainingBillAmount = farmer.billAmount;
+
+        console.log(`Processing Farmer ${farmer.farmer_id}:`);
+        console.log('  Bill Amount:', remainingBillAmount);
+        console.log('  Available - Advance:', farmer.advance, 'Cattle Feed:', farmer.cattleFeedAmount, 'Other1:', farmer.other1Amount, 'Other2:', farmer.other2Amount);
+
+        // Auto-deduct according to priority
         for (const key of priority) {
           const field = fieldMap[key];
-          const currentDeduction = updated[field.deduction];
+          const availableAmount = updated[field.amount];
           
-          if (currentDeduction > 0 && remaining > 0) {
-            const deduct = Math.min(currentDeduction, remaining);
-            updated[field.deduction] -= deduct;
-            remaining -= deduct;
-            wasAdjusted = true;
+          if (availableAmount > 0 && remainingBillAmount > 0) {
+            // Deduct as much as possible: minimum of available amount and remaining bill amount
+            const deductAmount = Math.min(availableAmount, remainingBillAmount);
+            updated[field.deduction] = deductAmount;
+            remainingBillAmount -= deductAmount;
+            
+            console.log(`  ${key}: Deducted ${deductAmount} (Available: ${availableAmount}, Remaining Bill: ${remainingBillAmount})`);
+          } else {
+            updated[field.deduction] = 0;
           }
         }
 
-        if (wasAdjusted) {
-          updated.modified = true;
-        }
-
+        console.log(`  Final Amount after deductions: ${remainingBillAmount}`);
+        
+        // Mark as modified since auto-deductions were applied
+        updated.modified = true;
+        
         return updated;
       });
+      
+      console.log('✅ [FARMER DEDUCTION] Priority Distribution Applied');
+      console.log('Total Farmers:', adjustedData.length);
+      console.log('Farmers Adjusted:', adjustedData.filter(f => f.modified).length);
+      console.log('Final Adjusted Data Sample:', adjustedData.slice(0, 3));
 
       setFarmerData(adjustedData);
+      console.log('💾 [FARMER DEDUCTION] Farmer Data Set in State');
     } catch (error: any) {
+      console.error('❌ [FARMER DEDUCTION] Error in fetchDeductions:', error);
+      console.error('Error Details:', error?.response?.data);
       toast.error(error?.response?.data?.message || "Failed to fetch deductions");
     }
   };
@@ -247,12 +304,57 @@ const FarmerDeduction = () => {
 
 
   const handleDeductionChange = (farmerId: string, field: string, value: string) => {
-    const numValue = parseFloat(value) || 0;
-    setFarmerData(prev => prev.map(farmer => 
-      farmer.farmer_id === farmerId 
-        ? { ...farmer, [field]: numValue, modified: true }
-        : farmer
-    ));
+    let numValue = parseFloat(value) || 0;
+    
+    setFarmerData(prev => prev.map(farmer => {
+      if (farmer.farmer_id === farmerId) {
+        // Calculate other deductions (excluding the current field being changed)
+        const otherDeductions = 
+          (field !== 'advanceDeduction' ? farmer.advanceDeduction : 0) + 
+          (field !== 'cattleFeedDeduction' ? farmer.cattleFeedDeduction : 0) + 
+          (field !== 'other1Deduction' ? farmer.other1Deduction : 0) + 
+          (field !== 'other2Deduction' ? farmer.other2Deduction : 0);
+        
+        // Calculate maximum allowed for this field
+        const maxAllowed = farmer.billAmount - otherDeductions;
+        
+        // If entered value exceeds maximum, auto-correct it
+        if (numValue > maxAllowed) {
+          const correctedValue = Math.max(0, maxAllowed);
+          toast.warning(`Value auto-corrected to ${correctedValue.toFixed(2)}. Total deductions cannot exceed bill amount.`);
+          console.log('⚠️ [FARMER DEDUCTION] Deduction auto-corrected');
+          console.log('Farmer ID:', farmerId);
+          console.log('Field:', field);
+          console.log('Attempted Value:', numValue);
+          console.log('Corrected to:', correctedValue);
+          console.log('Bill Amount:', farmer.billAmount);
+          console.log('Other Deductions:', otherDeductions);
+          numValue = correctedValue;
+        }
+        
+        // Create updated farmer object
+        const updatedFarmer = { ...farmer, [field]: numValue };
+        
+        // Calculate total deductions
+        const totalDeductions = 
+          updatedFarmer.advanceDeduction + 
+          updatedFarmer.cattleFeedDeduction + 
+          updatedFarmer.other1Deduction + 
+          updatedFarmer.other2Deduction;
+        
+        const finalAmount = updatedFarmer.billAmount - totalDeductions;
+        
+        console.log('✅ [FARMER DEDUCTION] Deduction changed');
+        console.log('Farmer ID:', farmerId);
+        console.log('Field:', field);
+        console.log('New Value:', numValue);
+        console.log('Total Deductions:', totalDeductions);
+        console.log('Final Amount:', finalAmount);
+        
+        return { ...updatedFarmer, modified: true };
+      }
+      return farmer;
+    }));
   };
 
   const movePriority = async (index: number, direction: 'up' | 'down') => {
@@ -261,10 +363,20 @@ const FarmerDeduction = () => {
     [newPriority[index], newPriority[swapIndex]] = [newPriority[swapIndex], newPriority[index]];
     setPriority(newPriority);
     
+    console.log('🔵 [FARMER DEDUCTION] Update Priority (Move) - API Call');
+    console.log('Parameters:', {
+      userId: parseInt(userData.id!),
+      newPriority: newPriority,
+      movedFrom: index,
+      direction: direction
+    });
+    
     try {
       await webUserApi.updatePriority(parseInt(userData.id!), newPriority);
+      console.log('✅ [FARMER DEDUCTION] Priority Updated Successfully');
       toast.success('Priority updated');
     } catch (error) {
+      console.error('❌ [FARMER DEDUCTION] Failed to update priority:', error);
       toast.error('Failed to update priority');
     }
   };
@@ -290,10 +402,20 @@ const FarmerDeduction = () => {
     newPriority.splice(dropIndex, 0, removed);
     setPriority(newPriority);
     
+    console.log('🔵 [FARMER DEDUCTION] Update Priority (Drag & Drop) - API Call');
+    console.log('Parameters:', {
+      userId: parseInt(userData.id!),
+      newPriority: newPriority,
+      draggedFrom: dragIndex,
+      droppedAt: dropIndex
+    });
+    
     try {
       await webUserApi.updatePriority(parseInt(userData.id!), newPriority);
+      console.log('✅ [FARMER DEDUCTION] Priority Updated Successfully');
       toast.success('Priority updated');
     } catch (error) {
+      console.error('❌ [FARMER DEDUCTION] Failed to update priority:', error);
       toast.error('Failed to update priority');
     }
   };
@@ -304,10 +426,17 @@ const FarmerDeduction = () => {
       return;
     }
 
+    console.log('💾 [FARMER DEDUCTION] Starting Save Operation');
+    console.log('Total Farmers:', farmerData.length);
+
     try {
       const modifiedFarmers = farmerData.filter(f => f.modified);
       
+      console.log('Modified Farmers Count:', modifiedFarmers.length);
+      console.log('Modified Farmer IDs:', modifiedFarmers.map(f => f.farmer_id));
+      
       if (modifiedFarmers.length === 0) {
+        console.log('⚠️ [FARMER DEDUCTION] No changes to save');
         toast.info("No changes to save");
         return;
       }
@@ -317,6 +446,9 @@ const FarmerDeduction = () => {
 
       for (const farmer of modifiedFarmers) {
         try {
+          const totalDeductions = farmer.advanceDeduction + farmer.cattleFeedDeduction + farmer.other1Deduction + farmer.other2Deduction;
+          const netPayable = farmer.billAmount - totalDeductions;
+          
           const billData = {
             farmer_id: farmer.farmer_id,
             dairy_id: parseInt(vlcName),
@@ -328,29 +460,56 @@ const FarmerDeduction = () => {
             other1_total: farmer.other1Deduction,
             other2_total: farmer.other2Deduction,
             received_total: farmer.receivedAmount,
-            net_payable: farmer.billAmount - (farmer.advanceDeduction + farmer.cattleFeedDeduction + farmer.other1Deduction + farmer.other2Deduction),
+            net_payable: netPayable,
             advance_remaining: farmer.advance - farmer.advanceDeduction,
             cattlefeed_remaining: farmer.cattleFeedAmount - farmer.cattleFeedDeduction,
             other1_remaining: farmer.other1Amount - farmer.other1Deduction,
             other2_remaining: farmer.other2Amount - farmer.other2Deduction
           };
+          
+          console.log(`🔵 [FARMER DEDUCTION] Update Farmer Bill - API Call #${successCount + errorCount + 1}`);
+          console.log('Farmer ID:', farmer.farmer_id);
+          console.log('📋 Farmer State Values:');
+          console.log('  billAmount:', farmer.billAmount);
+          console.log('  advanceDeduction:', farmer.advanceDeduction);
+          console.log('  cattleFeedDeduction:', farmer.cattleFeedDeduction);
+          console.log('  other1Deduction:', farmer.other1Deduction);
+          console.log('  other2Deduction:', farmer.other2Deduction);
+          console.log('  receivedAmount:', farmer.receivedAmount);
+          console.log('  advance (available):', farmer.advance);
+          console.log('  cattleFeedAmount (available):', farmer.cattleFeedAmount);
+          console.log('  other1Amount (available):', farmer.other1Amount);
+          console.log('  other2Amount (available):', farmer.other2Amount);
+          console.log('📊 Calculation:');
+          console.log('  Total Deductions:', totalDeductions);
+          console.log('  Net Payable (billAmount - totalDeductions):', netPayable);
+          console.log('📤 Bill Data Being Sent to Backend:', JSON.stringify(billData, null, 2));
 
           await deductionApi.updateFarmerBillWeb(billData);
+          
+          console.log(`✅ [FARMER DEDUCTION] Farmer Bill Updated - ${farmer.farmer_id}`);
           successCount++;
         } catch (error) {
-          console.error('Error updating farmer:', farmer.farmer_id, error);
+          console.error(`❌ [FARMER DEDUCTION] Error updating farmer ${farmer.farmer_id}:`, error);
           errorCount++;
         }
       }
+      
+      console.log('📊 [FARMER DEDUCTION] Save Operation Complete');
+      console.log('Success Count:', successCount);
+      console.log('Error Count:', errorCount);
 
       if (successCount > 0) {
         toast.success(`Successfully updated ${successCount} farmer bill(s)`);
+        console.log('🔄 [FARMER DEDUCTION] Refetching deductions after save');
         fetchDeductions();
       }
       if (errorCount > 0) {
         toast.error(`Failed to update ${errorCount} farmer bill(s)`);
       }
     } catch (error: any) {
+      console.error('❌ [FARMER DEDUCTION] Error in handleSave:', error);
+      console.error('Error Details:', error?.response?.data);
       toast.error(error?.response?.data?.message || "Failed to update deductions");
     }
   };
@@ -506,7 +665,7 @@ const FarmerDeduction = () => {
           data={{
             totalBillAmount: farmerData.reduce((sum, farmer) => sum + farmer.billAmount, 0),
             totalDeductions: farmerData.reduce((sum, farmer) => sum + farmer.advance + farmer.cattleFeedAmount + farmer.other1Amount + farmer.other2Amount, 0),
-            totalFinalAmount: farmerData.reduce((sum, farmer) => sum + farmer.finalAmount, 0),
+            totalFinalAmount: Math.max(0, farmerData.reduce((sum, farmer) => sum + farmer.finalAmount, 0)),
             remainingBalance: farmerData.reduce((sum, farmer) => sum + farmer.previousRemaining, 0)
           }}
         />
@@ -627,7 +786,7 @@ const FarmerDeduction = () => {
                       ₹{farmer.receivedAmount.toFixed(2)}
                     </TableCell>
                     <TableCell className="text-green-600 font-semibold">
-                      ₹{(farmer.billAmount - farmer.advanceDeduction - farmer.cattleFeedDeduction - farmer.other1Deduction - farmer.other2Deduction + farmer.receivedAmount).toFixed(2)}
+                      ₹{(farmer.billAmount - farmer.advanceDeduction - farmer.cattleFeedDeduction - farmer.other1Deduction - farmer.other2Deduction).toFixed(2)}
                     </TableCell>
                   </TableRow>
                 ))}

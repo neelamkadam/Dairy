@@ -251,5 +251,6 @@
   "payment_type": "Payment Type",
   "amount_taken": "Amount Taken",
   "received": "Received",
-  "description": "Description"
+  "description": "Description",
+  "bonus": "Bonus Deductions"
 }

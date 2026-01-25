@@ -5,16 +5,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { api } from '@/services/config';
-import { useSelector } from 'react-redux';
-import { RootState } from '@/redux/store';
+import { useAppSelector } from '@/redux/store';
 import { toast } from 'react-toastify';
-import { generateTemplate2, FarmerBillData, BankDetails } from '@/templates/FarmerBillInvoiceTemplate';
+import { generateTemplate2, FarmerBillData, BankDetails, generateTemplate2perPage } from '@/templates/FarmerBillInvoiceTemplate';
 import { bankSummaryApi } from '@/services/bankSummaryApi';
 import { format } from 'date-fns';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import PdfLoader from '@/components/PdfLoader';
 import { useTranslation } from 'react-i18next';
+import { billApi } from '@/services/billApi';
+import { generateTemplate3Farmers, FarmerReportData } from '@/templates/FarmerBillInvoiceTemplate';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface CollectionRecord {
   date: string;
@@ -57,8 +67,8 @@ interface FarmerPayment {
 
 const FarmerBillInvoiceReport = () => {
   const { i18n } = useTranslation();
-  const branches = useSelector((state: RootState) => state.branch.branches);
-  const userId = useSelector((state: RootState) => state.authData?.userData?.id);
+  const branches = useAppSelector((state) => (state as any).branch.branches);
+  const userId = useAppSelector((state) => (state as any).authData?.userData?.id);
   const hideRateAmount = userId === '7';
   const [selectedVLC, setSelectedVLC] = useState<string>('');
   const [language, setLanguage] = useState<string>(i18n.language || 'en');
@@ -101,6 +111,8 @@ const FarmerBillInvoiceReport = () => {
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'1-per-page' | '2-per-page' | '3-per-page'>('1-per-page');
 
   const handleShow = async () => {
     if (!selectedVLC || !fromDate || !toDate) {
@@ -303,7 +315,113 @@ const FarmerBillInvoiceReport = () => {
     }
   };
 
-  const totals = calculateTotals();
+  const exportMultiPerPagePDF = async (chunkSize: number) => {
+    if (!selectedVLC || !fromDate || !toDate) {
+      toast.error('Please select VLC Center and date range');
+      return;
+    }
+
+    setPdfLoading(true);
+    try {
+      const selectedBranch = branches.find(v => v.branch_id.toString() === selectedVLC);
+      // @ts-ignore
+      const dairyId = selectedBranch?.branch_id || selectedBranch?.id;
+
+      const response = await billApi.getFarmerReport({
+        dairy_id: dairyId,
+        start_date: fromDate,
+        end_date: toDate
+      });
+
+      if (!response.data.success) {
+        toast.error('Failed to fetch farmer report data');
+        return;
+      }
+
+      const cowData: FarmerReportData[] = response.data.cow || [];
+      const buffaloData: FarmerReportData[] = response.data.buffalo || [];
+      const allData = [...cowData, ...buffaloData];
+
+      if (allData.length === 0) {
+        toast.info('No data found for the selected period');
+        return;
+      }
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      
+      for (let i = 0; i < allData.length; i += chunkSize) {
+        const chunk = allData.slice(i, i + chunkSize);
+        
+        let htmlContent = "";
+        if (chunkSize === 3) {
+          htmlContent = generateTemplate3Farmers({
+            dairyName: selectedBranch?.username || 'Dairy',
+            farmers: chunk,
+            fromDate: formatDate(fromDate),
+            toDate: formatDate(toDate),
+            hideRateAmount: hideRateAmount
+          });
+        } else {
+          htmlContent = generateTemplate2perPage({
+            dairyName: selectedBranch?.username || 'Dairy',
+            farmers: chunk,
+            fromDate: formatDate(fromDate),
+            toDate: formatDate(toDate),
+            hideRateAmount: hideRateAmount
+          });
+        }
+
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = htmlContent;
+        tempDiv.style.position = 'absolute';
+        tempDiv.style.left = '-9999px';
+        tempDiv.style.width = '210mm';
+        document.body.appendChild(tempDiv);
+
+        try {
+          const canvas = await html2canvas(tempDiv, {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            windowWidth: 794
+          });
+
+          const imgData = canvas.toDataURL('image/png');
+          const imgWidth = 210;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+          if (i > 0) pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+        } finally {
+          document.body.removeChild(tempDiv);
+        }
+      }
+
+      pdf.save(`Farmer_Bill_Report_${chunkSize}perPage_${fromDate}_to_${toDate}.pdf`);
+      toast.success('PDF downloaded successfully');
+
+    } catch (error: any) {
+      console.error('Export error:', error);
+      toast.error('Failed to generate PDF');
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const handleExport = () => {
+    if (exportFormat === '1-per-page' && collectionData.length === 0) {
+      toast.error('Please click "Show" first to load data for the detailed report.');
+      return;
+    }
+    setShowExportModal(false);
+    if (exportFormat === '1-per-page') {
+      exportToPDF();
+    } else if (exportFormat === '2-per-page') {
+      exportMultiPerPagePDF(2);
+    } else {
+      exportMultiPerPagePDF(3);
+    }
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -371,7 +489,12 @@ const FarmerBillInvoiceReport = () => {
               <Button className=' bg-blue-600 text-white' onClick={handleShow} disabled={loading}>
                 {loading ? 'Loading...' : 'Show'}
               </Button>
-              <Button className='bg-red-600 text-white' onClick={exportToPDF} disabled={collectionData.length === 0 || pdfLoading} variant="outline">
+              <Button 
+                className='bg-red-600 text-white' 
+                onClick={() => setShowExportModal(true)} 
+                disabled={!selectedVLC || pdfLoading} 
+                variant="outline"
+              >
                 Export PDF
               </Button>
             </div>
@@ -540,6 +663,41 @@ const FarmerBillInvoiceReport = () => {
           </>
         );
       })()}
+
+      <Dialog open={showExportModal} onOpenChange={setShowExportModal}>
+        <DialogContent className="sm:max-w-[425px] bg-white">
+          <DialogHeader>
+            <DialogTitle>Select Export Format</DialogTitle>
+            <DialogDescription>
+              Choose how many farmer bills you want to print per A4 sheet.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <RadioGroup 
+              value={exportFormat} 
+              onValueChange={(val) => setExportFormat(val as any)}
+              className="space-y-3"
+            >
+              <div className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExportFormat('1-per-page')}>
+                <RadioGroupItem value="1-per-page" id="1-per-page" />
+                <Label htmlFor="1-per-page" className="flex-1 font-semibold cursor-pointer">1 Farmer per Page (Full Details)</Label>
+              </div>
+              <div className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExportFormat('2-per-page')}>
+                <RadioGroupItem value="2-per-page" id="2-per-page" />
+                <Label htmlFor="2-per-page" className="flex-1 font-semibold cursor-pointer">2 Farmers per Page (Medium)</Label>
+              </div>
+              <div className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExportFormat('3-per-page')}>
+                <RadioGroupItem value="3-per-page" id="3-per-page" />
+                <Label htmlFor="3-per-page" className="flex-1 font-semibold cursor-pointer">3 Farmers per Page (Compact)</Label>
+              </div>
+            </RadioGroup>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowExportModal(false)}>Cancel</Button>
+            <Button onClick={handleExport} className="bg-blue-600 text-white hover:bg-blue-700">Download PDF</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

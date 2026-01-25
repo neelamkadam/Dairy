@@ -8,6 +8,7 @@ import { FarmerApplication } from "@/pages/AdminMaster/FarmerApplication";
 import { MobileApplication } from "@/pages/AdminMaster/MobileApplication";
 import { WebApplication } from "@/pages/AdminMaster/WebApplication";
 import CreateUser from "@/pages/AdminMaster/CreateUser";
+import CreateAdmin from "@/pages/AdminMaster/CreateAdmin";
 import AddBranch from "@/pages/AdminMaster/AddBranch";
 import UploadRateChart from "@/pages/AdminMaster/UploadRateChart";
 import SidebarAccessManagement from "@/pages/AdminMaster/SidebarAccessManagement";
@@ -45,6 +46,7 @@ import VlcCommissionReport from "@/pages/Reports/VlcCommissionReport";
 import VlcDifferenceReport from "@/pages/Reports/VlcDifferenceReport";
 import BankSummary from "@/pages/Reports/BankSummary";
 import CattleFeedStockReport from "@/pages/Reports/CattleFeedStockReport";
+import BonusReport from "@/pages/Reports/BonusReport";
 import GeneralSettings from "@/pages/Settings/GeneralSettings";
 import CattleFeedStockSettings from "@/pages/Settings/CattleFeedStock";
 import PasswordManager from "@/pages/Settings/PasswordManager";
@@ -200,6 +202,10 @@ export const AppRoutes = createBrowserRouter([
         element: <CattleFeedStockReport />,
       },
       {
+        path: "bonus-report",
+        element: <BonusReport />,
+      },
+      {
         path: "general-settings",
         element: <GeneralSettings />,
       },
@@ -248,6 +254,10 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "create-user",
         element: <CreateUser />,
+      },
+      {
+        path: "create-admin",
+        element: <CreateAdmin />,
       },
       {
         path: "mobile-application",

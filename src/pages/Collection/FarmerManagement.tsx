@@ -10,6 +10,9 @@ import { FileSpreadsheet, FileText, ChevronLeft, ChevronRight, Users, TrendingUp
 import { usePostApi } from "@/services/use-api";
 import { format as formatDate } from "date-fns";
 import { toast } from "react-toastify";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 
 
 interface FarmerData {
@@ -35,12 +38,30 @@ const FarmerManagement = () => {
   const { dairyId, fromDate, toDate, selectedType, selectedShift } = location.state || {};
   const { postData, isLoading } = usePostApi({ path: "/web/dashboard/farmer-collections" });
   const [farmerData, setFarmerData] = useState<any[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(100);
+  const [groupedByDate, setGroupedByDate] = useState<Record<string, any[]>>({});
 
   useEffect(() => {
     if (dairyId && fromDate && toDate) {
       fetchData();
     }
   }, [dairyId]);
+
+  useEffect(() => {
+    const grouped = farmerData.reduce((acc, item) => {
+      const date = formatDate(new Date(item.created_at), "yyyy-MM-dd");
+      if (!acc[date]) acc[date] = [];
+      acc[date].push(item);
+      return acc;
+    }, {} as Record<string, any[]>);
+    
+    Object.keys(grouped).forEach(date => {
+      grouped[date].sort((a, b) => a.farmer_id.localeCompare(b.farmer_id));
+    });
+    
+    setGroupedByDate(grouped);
+  }, [farmerData]);
 
   const fetchData = async () => {
     try {
@@ -59,6 +80,58 @@ const FarmerManagement = () => {
       toast.error(error?.response?.data?.message || "Failed to fetch data");
     }
   };
+
+  const handleExcelExport = () => {
+    const sortedData = [...farmerData].sort((a, b) => a.farmer_id.localeCompare(b.farmer_id));
+    const exportData = sortedData.map(f => ({
+      Date: formatDate(new Date(f.created_at), "dd-MM-yyyy"),
+      "Farmer ID": f.farmer_id,
+      Name: f.fullName,
+      Liter: f.quantity.toFixed(1),
+      Kg: (f.quantity * 1.03).toFixed(2),
+      Fat: f.fat.toFixed(1),
+      SNF: f.snf.toFixed(1),
+      CLR: f.clr.toFixed(1),
+      "Milk Type": f.type,
+      Shift: f.shift,
+      Rate: f.rate.toFixed(2),
+      Amount: f.amount.toFixed(2)
+    }));
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Farmers");
+    XLSX.writeFile(wb, `Farmers_${formatDate(new Date(), "dd-MM-yyyy")}.xlsx`);
+    toast.success("Excel exported successfully");
+  };
+
+  const handlePdfExport = () => {
+    const sortedData = [...farmerData].sort((a, b) => a.farmer_id.localeCompare(b.farmer_id));
+    const doc = new jsPDF();
+    doc.text("Farmer Collections Report", 14, 15);
+    (doc as any).autoTable({
+      head: [["Date", "Farmer ID", "Name", "Liter", "Fat", "SNF", "Type", "Shift", "Rate", "Amount"]],
+      body: sortedData.map(f => [
+        formatDate(new Date(f.created_at), "dd-MM-yyyy"),
+        f.farmer_id,
+        f.fullName,
+        f.quantity.toFixed(1),
+        f.fat.toFixed(1),
+        f.snf.toFixed(1),
+        f.type,
+        f.shift,
+        f.rate.toFixed(2),
+        f.amount.toFixed(2)
+      ]),
+      startY: 20
+    });
+    doc.save(`Farmers_${formatDate(new Date(), "dd-MM-yyyy")}.pdf`);
+    toast.success("PDF exported successfully");
+  };
+
+  const dates = Object.keys(groupedByDate).sort().reverse();
+  const totalPages = dates.length;
+  const currentDate = dates[currentPage - 1];
+  const currentData = currentDate ? groupedByDate[currentDate] : [];
 
   const uniqueFarmers = new Set(farmerData.map(f => f.farmer_id)).size;
   const activeFarmers = new Set(farmerData.filter(f => f.is_active === 1).map(f => f.farmer_id)).size;
@@ -98,27 +171,16 @@ const FarmerManagement = () => {
               <CardHeader className="border-b bg-gray-50/50">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-4">
-                    <span className="text-sm text-gray-600">{t('record_count')}: {farmerData.length} {t('records')}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-600">{t('result_per_page')}:</span>
-                      <Select defaultValue="100">
-                        <SelectTrigger className="w-20 h-8">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white">
-                          <SelectItem value="100">100</SelectItem>
-                          <SelectItem value="50">50</SelectItem>
-                          <SelectItem value="25">25</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    <span className="text-sm text-gray-600">{t('record_count')}: {currentData.length} {t('records')}</span>
+                    <span className="text-sm text-gray-600">Date: {currentDate ? formatDate(new Date(currentDate), "dd-MM-yyyy") : ""}</span>
+                    <span className="text-sm text-gray-600">Page {currentPage} of {totalPages}</span>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
+                    <Button size="sm" onClick={handleExcelExport} className="bg-blue-600 hover:bg-blue-700 text-white">
                       <FileSpreadsheet className="h-4 w-4 mr-2" />
                       {t('excel_export')}
                     </Button>
-                    <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white">
+                    <Button size="sm" onClick={handlePdfExport} className="bg-red-600 hover:bg-red-700 text-white">
                       <FileText className="h-4 w-4 mr-2" />
                       {t('pdf_export')}
                     </Button>
@@ -145,7 +207,7 @@ const FarmerManagement = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {farmerData.map((farmer, idx) => (
+                      {currentData.map((farmer, idx) => (
                         <tr key={idx} className="border-b hover:bg-gray-50 transition-colors">
                           <td className="p-4 text-gray-700">{formatDate(new Date(farmer.created_at), "dd-MM-yyyy")}</td>
                           <td className="p-4 text-gray-700">{farmer.farmer_id}</td>
@@ -169,10 +231,21 @@ const FarmerManagement = () => {
                   </table>
                 </div>
                 <div className="flex gap-1 justify-center p-4">
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  <Button variant="outline" size="sm">
+                  <span className="px-4 py-2 text-sm">{currentPage} / {totalPages}</span>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>

@@ -140,6 +140,9 @@ const FarmerList = () => {
               <TableHead>Contact</TableHead>
               <TableHead>Milk Type</TableHead>
               <TableHead>Rate Chart</TableHead>
+              <TableHead>Bank Name</TableHead>
+              <TableHead>Account Number</TableHead>
+              <TableHead>IFSC Code</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -151,11 +154,14 @@ const FarmerList = () => {
                   <TableCell className="border border-gray-300">{farmer.mobile_number}</TableCell>
                   <TableCell className="border border-gray-300">{farmer.milkType}</TableCell>
                   <TableCell className="border border-gray-300">{farmer.rateChart}</TableCell>
+                  <TableCell className="border border-gray-300">{farmer.bankName || '-'}</TableCell>
+                  <TableCell className="border border-gray-300">{farmer.accountNumber || '-'}</TableCell>
+                  <TableCell className="border border-gray-300">{farmer.ifscCode || '-'}</TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-10 text-gray-500">
+                <TableCell colSpan={8} className="text-center py-10 text-gray-500">
                   {loading ? "Loading..." : "Select VLC and click Show to view farmers"}
                 </TableCell>
               </TableRow>

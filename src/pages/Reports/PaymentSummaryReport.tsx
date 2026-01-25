@@ -171,7 +171,7 @@ const PaymentSummaryReport = () => {
         aggregated.total_deduction += totalDeduction;
         
         // Calculate net_payable: milk_total - total_deduction + received
-        aggregated.net_payable = aggregated.milk_total - aggregated.total_deduction + aggregated.received;
+        aggregated.net_payable = aggregated.milk_total - aggregated.total_deduction;
         
         console.log('🔍 Calculated net_payable:', {
           milk_total: aggregated.milk_total,

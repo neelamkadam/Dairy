@@ -250,5 +250,6 @@
   "payment_type": "भुगतान प्रकार",
   "amount_taken": "ली गई राशि",
   "received": "प्राप्त",
-  "description": "विवरण"
+  "description": "विवरण",
+  "bonus": "बोनस कटौती"
 }

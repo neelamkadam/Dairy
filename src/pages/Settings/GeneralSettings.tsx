@@ -465,7 +465,7 @@ const GeneralSettings = () => {
           <div className="flex items-center gap-3 mb-6">
             <Lock className="h-5 w-5 text-blue-600" />
             <h2 className="text-lg font-semibold text-gray-900">
-              Password Management
+              Settings Password Management
             </h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -8,4 +8,5 @@ export const adminApi = {
     api.put("/auth/toggle-dairy-status", { username, isActive }),
   setPassword: (userId: number, newPassword: string) => 
     api.post("/web-users/set-password", { userId, newPassword }),
+  createAdmin: (data: any) => api.post("/web/admin/create-admin", data),
 };

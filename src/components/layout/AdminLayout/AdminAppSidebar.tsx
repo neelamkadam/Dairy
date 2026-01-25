@@ -28,7 +28,7 @@ const menuItems: MenuItem[] = [
       { title: "Add Branch", icon: "🏢", href: ROUTES.ADMIN_MASTER.ADD_BRANCH},
       { title: "Upload Rate Chart", icon: "📊", href: ROUTES.ADMIN_MASTER.UPLOAD_RATE_CHART},
       { title: "Sidebar Access", icon: "🔐", href: ROUTES.ADMIN_MASTER.SIDEBAR_ACCESS}
-    ]
+    ] 
   },
 
   {
@@ -47,6 +47,14 @@ const menuItems: MenuItem[] = [
     children: [
       { title: "Activation", icon: "", href:ROUTES.ACTIVATION.ACTIVATION},
       { title: "Web Application Activation", icon: "", href: ROUTES.ACTIVATION.WEB_APPLICATION_ACTIVATION}
+    ]
+  },
+  
+  {
+    title: "Admin",
+    icon: "🛡️",
+    children: [
+      { title: "Create Admin", icon: "🛡️", href: ROUTES.ADMIN_CREATE_ADMIN},
     ]
   }
 ];

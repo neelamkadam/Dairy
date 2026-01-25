@@ -25,6 +25,9 @@ export const generateFarmerListPDF = (
       { text: "Contact", style: "tableHeader", alignment: "center" },
       { text: "Milk Type", style: "tableHeader", alignment: "center" },
       { text: "Rate Chart", style: "tableHeader", alignment: "center" },
+      { text: "Bank Name", style: "tableHeader", alignment: "center" },
+      { text: "Account Number", style: "tableHeader", alignment: "center" },
+      { text: "IFSC Code", style: "tableHeader", alignment: "center" },
     ],
     ...farmers.map((farmer) => [
       { text: farmer.username || '', alignment: "center", fontSize: 9 },
@@ -32,11 +35,14 @@ export const generateFarmerListPDF = (
       { text: farmer.mobile_number || '', alignment: "center", fontSize: 9 },
       { text: farmer.milkType || '', alignment: "center", fontSize: 9 },
       { text: farmer.rateChart || '', alignment: "center", fontSize: 9 },
+      { text: farmer.bankName || '-', alignment: "center", fontSize: 9 },
+      { text: farmer.accountNumber || '-', alignment: "center", fontSize: 9 },
+      { text: farmer.ifscCode || '-', alignment: "center", fontSize: 9 },
     ]),
   ];
 
   const docDefinition: any = {
-    pageOrientation: "portrait",
+    pageOrientation: "landscape",
     pageMargins: [40, 60, 40, 60],
     content: [
       {
@@ -58,7 +64,7 @@ export const generateFarmerListPDF = (
       {
         table: {
           headerRows: 1,
-          widths: ["*", "*", "*", "*", "*"],
+          widths: ["auto", "*", "auto", "auto", "*", "*", "auto", "auto"],
           body: tableBody,
         },
         layout: {

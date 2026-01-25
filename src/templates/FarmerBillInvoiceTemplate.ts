@@ -32,6 +32,7 @@ export interface BankDetails {
 export interface Template2Data {
   dairyName: string;
   branchName: string;
+  dairyCode?: string;
   farmerCode: string;
   farmerName: string;
   fromDate: string;
@@ -44,70 +45,106 @@ export interface Template2Data {
   hideRateAmount?: boolean;
 }
 
+export interface BillCollection {
+  id: number;
+  farmer_id: string;
+  dairy_id: number;
+  type: string;
+  quantity: number;
+  fat: number;
+  snf: number;
+  clr: number;
+  rate: number;
+  amount: number;
+  shift: string;
+  water: number;
+  created_at: string;
+}
+
+export interface BillCollectionsSummary {
+  total_quantity: number;
+  weighted_avg_fat: number;
+  weighted_avg_snf: number;
+  weighted_avg_clr: number;
+  weighted_avg_water: number;
+  avg_rate: number;
+  total_amount: number;
+}
+
+export interface BillPayment {
+  payment_type: string;
+  amount_taken: number;
+  received: number;
+}
+
+export interface BillDetail {
+  id: number;
+  farmer_id: string;
+  dairy_id: number;
+  period_start: string;
+  period_end: string;
+  milk_total: number;
+  advance_total: number;
+  received_total: number;
+  net_payable: number;
+  status: string;
+  is_finalized: number;
+  advance_remaining: number;
+  cattlefeed_remaining: number;
+  other1_remaining: number;
+  other2_remaining: number;
+  cattlefeed_total: number;
+  other1_total: number;
+  other2_total: number;
+  created_at: string;
+}
+
+export interface FarmerReportData {
+  farmer_id: string;
+  collections: BillCollection[];
+  collections_summary: BillCollectionsSummary;
+  farmer_details: {
+    fullName: string;
+    accountNumber: string;
+    ifscCode: string;
+    bankName: string;
+  } | null;
+  payments: BillPayment[];
+  current_bill: BillDetail | null;
+  previous_bill: BillDetail | null;
+}
+
+export interface Template3Data {
+  dairyName: string;
+  dairyCode?: string;
+  farmers: FarmerReportData[];
+  fromDate: string;
+  toDate: string;
+  hideRateAmount?: boolean;
+}
+
+// --- GENERATOR FUNCTIONS ---
+
 export const generateTemplate2 = (templateData: Template2Data): string => {
-  console.log("Template2 - Input data:", JSON.stringify(templateData, null, 2));
-
-  let farmerBillData = null;
-  console.log(`🔍 Template2 - Searching for farmer ${templateData.farmerCode}:`, {
-    farmerId: templateData.farmerCode,
-    farmerBillExists: !!templateData.farmerBill,
-    isArray: Array.isArray(templateData.farmerBill),
-  });
-
-  if (templateData.farmerBill?.farmerwise_bills) {
-    const farmerwiseBills = templateData.farmerBill.farmerwise_bills;
-    console.log(`🔍 Template2 - Available farmer IDs:`, farmerwiseBills.map((b: any) => b.farmer_id));
-
-    farmerBillData = farmerwiseBills.find((bill: any) => {
-      const billId = String(bill.farmer_id).trim();
-      const searchId = String(templateData.farmerCode).trim();
-      console.log(`🔍 Template2 - Comparing: "${billId}" vs "${searchId}"`);
-
-      if (billId === searchId) {
-        console.log(`✅ Template2 - Exact match found: ${billId}`);
-        return true;
-      }
-
-      const billIdPadded = billId.padStart(4, "0");
-      const searchIdPadded = searchId.padStart(4, "0");
-      if (billIdPadded === searchIdPadded) {
-        console.log(`✅ Template2 - Padded match found: ${billIdPadded}`);
-        return true;
-      }
-
-      const billIdNum = parseInt(billId);
-      const searchIdNum = parseInt(searchId);
-      if (!isNaN(billIdNum) && !isNaN(searchIdNum) && billIdNum === searchIdNum) {
-        console.log(`✅ Template2 - Numeric match found: ${billIdNum}`);
-        return true;
-      }
-
-      return false;
-    });
-
-    console.log(`🔍 Template2 - Final result for farmer ${templateData.farmerCode}:`, {
-      found: !!farmerBillData,
-      data: farmerBillData,
-    });
-  }
-
   const fromDateParts = templateData.fromDate.includes("/")
     ? templateData.fromDate.split("/")
     : templateData.fromDate.split("-");
-  const toDateParts = templateData.toDate.includes("/")
-    ? templateData.toDate.split("/")
-    : templateData.toDate.split("-");
-
+  
   const fromDate = templateData.fromDate.includes("/")
     ? new Date(parseInt(fromDateParts[2]), parseInt(fromDateParts[1]) - 1, parseInt(fromDateParts[0]))
     : new Date(templateData.fromDate);
+  
+  const toDateParts = templateData.toDate.includes("/")
+    ? templateData.toDate.split("/")
+    : templateData.toDate.split("-");
+    
   const toDate = templateData.toDate.includes("/")
     ? new Date(parseInt(toDateParts[2]), parseInt(toDateParts[1]) - 1, parseInt(toDateParts[0]))
     : new Date(templateData.toDate);
 
-  const groupedData = new Map<string, FarmerBillData>();
   const cowData = new Map<string, FarmerBillData>();
   const buffaloData = new Map<string, FarmerBillData>();
+  const groupedData = new Map<string, FarmerBillData>();
 
   for (const item of templateData.data) {
     const itemDate = new Date(item.date);
@@ -116,275 +153,272 @@ export const generateTemplate2 = (templateData: Template2Data): string => {
     const milkType = (item.type || '').toString().toLowerCase().trim();
     
     groupedData.set(key, item);
-    
-    if (milkType === "cow") {
-      cowData.set(key, item);
-    } else if (milkType === "buffalo") {
-      buffaloData.set(key, item);
-    }
+    if (milkType === "cow") cowData.set(key, item);
+    else if (milkType === "buffalo") buffaloData.set(key, item);
   }
-
-  let cowLiters = 0, cowAmount = 0;
-  let buffaloLiters = 0, buffaloAmount = 0;
-  let totalLiters = 0, totalAmount = 0;
-  let totalFat = 0, totalSnf = 0, totalClr = 0, totalWater = 0, recordCount = 0, waterCount = 0;
-
-  templateData.data.forEach((item) => {
-    const milkType = (item.type || '').toString().toLowerCase().trim();
-    
-    if (milkType === "cow") {
-      cowLiters += item.liters;
-      cowAmount += item.amount;
-    } else if (milkType === "buffalo") {
-      buffaloLiters += item.liters;
-      buffaloAmount += item.amount;
-    }
-    totalLiters += item.liters;
-    totalAmount += item.amount;
-    totalFat += item.fat;
-    totalSnf += item.snf;
-    totalClr += item.clr;
-    if (item.water !== null && item.water !== undefined) {
-      totalWater += item.water;
-      waterCount++;
-    }
-    recordCount++;
-  });
-
-  const avgFat = recordCount > 0 ? (totalFat / recordCount).toFixed(1) : "0.0";
-  const avgSnf = recordCount > 0 ? (totalSnf / recordCount).toFixed(1) : "0.0";
-  const avgClr = recordCount > 0 ? (totalClr / recordCount).toFixed(1) : "0.0";
-  const avgWater = waterCount > 0 ? (totalWater / waterCount).toFixed(1) : "-";
 
   const generateTableForType = (dataMap: Map<string, FarmerBillData>) => {
     let rows = "";
-    
     const currentDate = new Date(fromDate);
     while (currentDate <= toDate) {
       const displayDate = `${currentDate.getDate().toString().padStart(2, "0")}/${(currentDate.getMonth() + 1).toString().padStart(2, "0")}/${currentDate.getFullYear()}`;
-
+      
+      // Morning
       const morningKey = `${displayDate}_Morning`;
-      const morningData = dataMap.get(morningKey);
+      const m = dataMap.get(morningKey);
       rows += `<tr><td>${displayDate}</td><td>Morning</td>`;
-      if (morningData) {
-        rows += `<td>${morningData.liters.toFixed(1)}</td><td>${morningData.fat.toFixed(1)}</td><td>${morningData.snf.toFixed(1)}</td><td>${morningData.clr.toFixed(1)}</td><td>${morningData.water !== null && morningData.water !== undefined ? morningData.water.toFixed(1) : '-'}</td>`;
-        if (!templateData.hideRateAmount) {
-          rows += `<td>${morningData.rate.toFixed(1)}</td><td>${morningData.amount.toFixed(1)}</td>`;
-        }
+      if (m) {
+        rows += `<td>${Number(m.liters).toFixed(1)}</td><td>${Number(m.fat).toFixed(1)}</td><td>${Number(m.snf).toFixed(1)}</td><td>${Number(m.clr).toFixed(1)}</td><td>${m.water != null ? Number(m.water).toFixed(1) : '-'}</td>`;
+        if (!templateData.hideRateAmount) rows += `<td>${Number(m.rate).toFixed(1)}</td><td>${Number(m.amount).toFixed(1)}</td>`;
       } else {
-        rows += `<td></td><td></td><td></td><td></td><td></td>`;
-        if (!templateData.hideRateAmount) {
-          rows += `<td></td><td></td>`;
-        }
+        rows += `<td></td><td></td><td></td><td></td><td></td>${!templateData.hideRateAmount ? '<td></td><td></td>' : ''}`;
       }
       rows += `</tr>`;
 
+      // Evening
       const eveningKey = `${displayDate}_Evening`;
-      const eveningData = dataMap.get(eveningKey);
+      const e = dataMap.get(eveningKey);
       rows += `<tr><td></td><td>Evening</td>`;
-      if (eveningData) {
-        rows += `<td>${eveningData.liters.toFixed(1)}</td><td>${eveningData.fat.toFixed(1)}</td><td>${eveningData.snf.toFixed(1)}</td><td>${eveningData.clr.toFixed(1)}</td><td>${eveningData.water !== null && eveningData.water !== undefined ? eveningData.water.toFixed(1) : '-'}</td>`;
-        if (!templateData.hideRateAmount) {
-          rows += `<td>${eveningData.rate.toFixed(1)}</td><td>${eveningData.amount.toFixed(1)}</td>`;
-        }
+      if (e) {
+        rows += `<td>${Number(e.liters).toFixed(1)}</td><td>${Number(e.fat).toFixed(1)}</td><td>${Number(e.snf).toFixed(1)}</td><td>${Number(e.clr).toFixed(1)}</td><td>${e.water != null ? Number(e.water).toFixed(1) : '-'}</td>`;
+        if (!templateData.hideRateAmount) rows += `<td>${Number(e.rate).toFixed(1)}</td><td>${Number(e.amount).toFixed(1)}</td>`;
       } else {
-        rows += `<td></td><td></td><td></td><td></td><td></td>`;
-        if (!templateData.hideRateAmount) {
-          rows += `<td></td><td></td>`;
-        }
+        rows += `<td></td><td></td><td></td><td></td><td></td>${!templateData.hideRateAmount ? '<td></td><td></td>' : ''}`;
       }
       rows += `</tr>`;
-
+      
       currentDate.setDate(currentDate.getDate() + 1);
     }
     return rows;
   };
 
-  const hasCowData = cowLiters > 0;
-  const hasBuffaloData = buffaloLiters > 0;
-  const hasBothTypes = hasCowData && hasBuffaloData;
+  const hasCow = Array.from(templateData.data).some(d => d.type?.toLowerCase() === 'cow');
+  const hasBuffalo = Array.from(templateData.data).some(d => d.type?.toLowerCase() === 'buffalo');
   
   let tableRows = "";
-  
-  if (hasBothTypes) {
-    tableRows += '<div class="milk-type-label">Cow Milk</div>';
-    tableRows += generateTableForType(cowData);
-    tableRows += `</tbody></table><div style="page-break-before: always;"></div><div class="milk-type-label">Buffalo Milk</div><table class="main-table"><thead><tr><th>Date</th><th>Shift</th><th>Liter</th><th>Fat</th><th>SNF</th><th>CLR</th><th>Water</th>${!templateData.hideRateAmount ? '<th>Rate</th><th>Amount</th>' : ''}</tr></thead><tbody>`;
-    tableRows += generateTableForType(buffaloData);
+  if (hasCow && hasBuffalo) {
+    tableRows += '<tr><td colspan="9" style="background:#eee"><b>Cow Milk</b></td></tr>' + generateTableForType(cowData);
+    tableRows += '<tr><td colspan="9" style="background:#eee"><b>Buffalo Milk</b></td></tr>' + generateTableForType(buffaloData);
   } else {
-    const dataToUse = hasCowData ? cowData : (hasBuffaloData ? buffaloData : groupedData);
-    tableRows += generateTableForType(dataToUse);
+    tableRows += generateTableForType(hasCow ? cowData : (hasBuffalo ? buffaloData : groupedData));
   }
 
-  let paymentsAdvance = 0, paymentsCattleFeed = 0, paymentsOther1 = 0, paymentsOther2 = 0;
-  let deductionAdvance = 0, deductionCattleFeed = 0, deductionOther1 = 0, deductionOther2 = 0;
-  let previousAdvanceRemaining = 0, previousCattleFeedRemaining = 0, previousOther1Remaining = 0, previousOther2Remaining = 0;
-  let milkTotal = totalAmount;
-  let netPayable = totalAmount;
-  
-  if (templateData.paymentSummary?.data && Array.isArray(templateData.paymentSummary.data)) {
-    const dateWiseData = templateData.paymentSummary.data;
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body { font-family: Arial, sans-serif; font-size: 14px; margin: 0; padding: 10px; } .header-section { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid black; padding-bottom: 5px; margin-bottom: 10px; } .main-table { width: 100%; border-collapse: collapse; margin: 5px 0; border: 1px solid black; } .main-table th, .main-table td { padding: 3px; text-align: center; font-size: 12px; border: 1px solid black; }</style></head><body><div class="header-section"><div>Code: ${templateData.dairyCode || ''}</div><div style="font-size:22px; font-weight:bold;">${templateData.dairyName}</div><div>Branch: ${templateData.branchName}</div></div><div style="display:flex; justify-content:space-between; margin-bottom:10px;"><div><strong>Farmer:</strong> ${templateData.farmerCode} ${templateData.farmerName}</div><div><strong>Period:</strong> ${templateData.fromDate} to ${templateData.toDate}</div></div><table class="main-table"><thead><tr><th>Date</th><th>Shift</th><th>Liter</th><th>Fat</th><th>SNF</th><th>CLR</th><th>Water</th>${!templateData.hideRateAmount ? '<th>Rate</th><th>Amount</th>' : ''}</tr></thead><tbody>${tableRows}</tbody></table></body></html>`;
+};
+
+export const generateTemplate2perPage = (templateData: Template3Data): string => {
+  const getFarmerHtml = (farmer: FarmerReportData) => {
+    if (!farmer) return '<div class="invoice-container" style="visibility: hidden;"></div>';
+
+    let tableRows = '';
+    const sortedCollections = [...farmer.collections].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    const groupedByDate: { [key: string]: { Morning?: BillCollection, Evening?: BillCollection } } = {};
     
-    dateWiseData.forEach((dateGroup: any) => {
-      const farmersForDate = dateGroup.farmers || [];
-      const farmerData = farmersForDate.find((f: any) => String(f.farmer_id) === String(templateData.farmerCode));
-      
-      if (farmerData && farmerData.deductions) {
-        paymentsAdvance += farmerData.deductions.advance || 0;
-        paymentsCattleFeed += farmerData.deductions.cattle_feed || 0;
-        paymentsOther1 += farmerData.deductions.other1 || 0;
-        paymentsOther2 += farmerData.deductions.other2 || 0;
-      }
+    sortedCollections.forEach(c => {
+      const date = new Date(c.created_at).toLocaleDateString("en-GB");
+      if (!groupedByDate[date]) groupedByDate[date] = {};
+      if (c.shift === 'Morning') groupedByDate[date].Morning = c;
+      if (c.shift === 'Evening') groupedByDate[date].Evening = c;
     });
-    
-    const firstDateGroup = dateWiseData[0];
-    if (firstDateGroup && firstDateGroup.farmers) {
-      const farmerData = firstDateGroup.farmers.find((f: any) => String(f.farmer_id) === String(templateData.farmerCode));
-      
-      if (farmerData && farmerData.from_bills) {
-        deductionAdvance = farmerData.from_bills.advance_total || 0;
-        deductionCattleFeed = farmerData.from_bills.cattlefeed_total || 0;
-        deductionOther1 = farmerData.from_bills.other1_total || 0;
-        deductionOther2 = farmerData.from_bills.other2_total || 0;
+
+    const sortedDates = Object.keys(groupedByDate).sort((a, b) => {
+      const [dayA, monthA, yearA] = a.split('/').map(Number);
+      const [dayB, monthB, yearB] = b.split('/').map(Number);
+      return new Date(yearA, monthA - 1, dayA).getTime() - new Date(yearB, monthB - 1, dayB).getTime();
+    });
+
+    sortedDates.forEach(date => {
+      const dayData = groupedByDate[date];
+      tableRows += `<tr><td style="padding: 4px; border: 1px solid #000;">${date}</td><td style="padding: 4px; border: 1px solid #000; text-align: center;">M</td>`;
+      if (dayData.Morning) {
+        const m = dayData.Morning;
+        tableRows += `<td style="padding: 4px; border: 1px solid #000; text-align: center;">${m.type ? m.type[0] : '-'}</td><td style="padding: 4px; border: 1px solid #000; text-align: right;">${Number(m.quantity).toFixed(1)}</td><td style="padding: 4px; border: 1px solid #000; text-align: right;">${Number(m.fat).toFixed(1)}</td><td style="padding: 4px; border: 1px solid #000; text-align: right;">${Number(m.snf).toFixed(1)}</td>${!templateData.hideRateAmount ? `<td style="padding: 4px; border: 1px solid #000; text-align: right;">${Number(m.rate).toFixed(1)}</td><td style="padding: 4px; border: 1px solid #000; text-align: right;">${Number(m.amount).toFixed(0)}</td>` : ''}`;
+      } else {
+        tableRows += `<td colspan="${!templateData.hideRateAmount ? 6 : 4}" style="border: 1px solid #000;"></td>`;
       }
-      
-      if (farmerData && farmerData.previous_bill) {
-        previousAdvanceRemaining = farmerData.previous_bill.advance_remaining || 0;
-        previousCattleFeedRemaining = farmerData.previous_bill.cattlefeed_remaining || 0;
-        previousOther1Remaining = farmerData.previous_bill.other1_remaining || 0;
-        previousOther2Remaining = farmerData.previous_bill.other2_remaining || 0;
+      tableRows += `</tr><tr><td style="padding: 4px; border: 1px solid #000;"></td><td style="padding: 4px; border: 1px solid #000; text-align: center;">E</td>`;
+      if (dayData.Evening) {
+        const e = dayData.Evening;
+        tableRows += `<td style="padding: 4px; border: 1px solid #000; text-align: center;">${e.type ? e.type[0] : '-'}</td><td style="padding: 4px; border: 1px solid #000; text-align: right;">${Number(e.quantity).toFixed(1)}</td><td style="padding: 4px; border: 1px solid #000; text-align: right;">${Number(e.fat).toFixed(1)}</td><td style="padding: 4px; border: 1px solid #000; text-align: right;">${Number(e.snf).toFixed(1)}</td>${!templateData.hideRateAmount ? `<td style="padding: 4px; border: 1px solid #000; text-align: right;">${Number(e.rate).toFixed(1)}</td><td style="padding: 4px; border: 1px solid #000; text-align: right;">${Number(e.amount).toFixed(0)}</td>` : ''}`;
+      } else {
+        tableRows += `<td colspan="${!templateData.hideRateAmount ? 6 : 4}" style="border: 1px solid #000;"></td>`;
       }
-    }
-    
-    milkTotal = dateWiseData.reduce((total: number, dateGroup: any) => {
-      const farmersForDate = dateGroup.farmers || [];
-      const farmerData = farmersForDate.find((f: any) => String(f.farmer_id) === String(templateData.farmerCode));
-      return total + (farmerData?.milk_total || 0);
-    }, 0);
-    
-    netPayable = dateWiseData.reduce((total: number, dateGroup: any) => {
-      const farmersForDate = dateGroup.farmers || [];
-      const farmerData = farmersForDate.find((f: any) => String(f.farmer_id) === String(templateData.farmerCode));
-      return total + (farmerData?.net_payable || 0);
-    }, 0);
-  }
-  
-  const totalDeduction = deductionAdvance + deductionCattleFeed + deductionOther1 + deductionOther2;
-  const totalPreviousRemaining = previousAdvanceRemaining + previousCattleFeedRemaining + previousOther1Remaining + previousOther2Remaining;
-  const totalPayments = paymentsAdvance + paymentsCattleFeed + paymentsOther1 + paymentsOther2;
-  
-  const advanceRemaining = previousAdvanceRemaining + paymentsAdvance - deductionAdvance;
-  const cattleFeedRemaining = previousCattleFeedRemaining + paymentsCattleFeed - deductionCattleFeed;
-  const other1Remaining = previousOther1Remaining + paymentsOther1 - deductionOther1;
-  const other2Remaining = previousOther2Remaining + paymentsOther2 - deductionOther2;
-  const totalRemaining = advanceRemaining + cattleFeedRemaining + other1Remaining + other2Remaining;
+      tableRows += `</tr>`;
+    });
 
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <style>
-    body { font-family: Arial, sans-serif; font-size: 16px; line-height: 1.0; margin: 0; padding: 8px; }
-    .header { text-align: center; font-size: 20px; font-weight: bold; margin: 0; margin-bottom: 1px; }
-    .invoice-info { display: flex; justify-content: space-between; margin: 1px 0; font-size: 14px; }
-    .main-table { width: 80%; border-collapse: collapse; margin: 2px 0; border: 1px solid black; }
-    .main-table th, .main-table td { padding: 3px; text-align: center; font-size: 12px; border-left: none; border-right: none; }
-    .main-table th { background-color: #f0f0f0; font-weight: bold; border-bottom: 1px solid black; }
-    .main-table tbody tr td { border-top: none; border-bottom: none; }
-    .total-row td { border-top: 1px solid black !important; border-bottom: 1px solid black !important; }
-    .summary-section { margin-top: 3px; }
-    .summary-table { width: 100%; border-collapse: collapse; }
-    .summary-table td { border: 1px solid black; padding: 3px; font-size: 13px; vertical-align: top; }
-    .summary-left { width: 50%; }
-    .summary-right { width: 50%; }
-    .deduction-table { width: 100%; border-collapse: collapse; }
-    .deduction-table td { border: 1px solid black; padding: 1px; text-align: center; font-size: 12px; }
-    .payment-details { text-align: left; padding: 2px; }
-    .total-row { font-weight: bold; background-color: #f0f0f0; }
-    @media print {
-      .page-break { page-break-before: always; }
-      div[style*="page-break-before: always"] { page-break-before: always; }
-    }
-  </style>
-</head>
-<body>
-  <div class="header">${templateData.dairyName}</div>
-  
-  <div class="invoice-info">
-    <div>
-      <strong>Code & Name:</strong> ${templateData.farmerCode} ${templateData.farmerName}<br>
-      <strong>Branch:</strong> ${templateData.branchName}
-    </div>
-    <div>
-      <strong>Invoice No.</strong> 1<br>
-      <strong>Invoice Date</strong> ${new Date().toLocaleDateString("en-GB")}<br>
-      <strong>Bill Date</strong> ${templateData.fromDate} <strong>To</strong> ${templateData.toDate}
-    </div>
-  </div>
+    const summary = farmer.collections_summary;
+    const currentBill = farmer.current_bill;
+    const previousBill = farmer.previous_bill;
+    const prevBalance = previousBill ? (Number(previousBill.advance_remaining) + Number(previousBill.cattlefeed_remaining) + Number(previousBill.other1_remaining) + Number(previousBill.other2_remaining)) : 0;
+    const currentDeductions = currentBill ? (Number(currentBill.advance_total) + Number(currentBill.cattlefeed_total) + Number(currentBill.other1_total) + Number(currentBill.other2_total)) : 0;
+    const netPayable = currentBill?.net_payable || 0;
 
-  <table class="main-table">
-    <thead>
-      <tr>
-        <th>Date</th>
-        <th>Shift</th>
-        <th>Liter</th>
-        <th>Fat</th>
-        <th>SNF</th>
-        <th>CLR</th>
-        <th>Water</th>
-        ${!templateData.hideRateAmount ? '<th>Rate</th><th>Amount</th>' : ''}
-      </tr>
-    </thead>
-    <tbody>
-      ${tableRows}
-      <tr class="total-row">
-        <td colspan="2">Total</td>
-        <td>${totalLiters.toFixed(1)}</td>
-        <td>${avgFat}</td>
-        <td>${avgSnf}</td>
-        <td>${avgClr}</td>
-        <td>${avgWater}</td>
-        ${!templateData.hideRateAmount ? `<td>${totalLiters > 0 ? (totalAmount / totalLiters).toFixed(1) : "0.0"}</td><td>${totalAmount.toFixed(1)}</td>` : ''}
-      </tr>
-    </tbody>
-  </table>
-
-  <div class="summary-section">
-    <table class="summary-table">
-      <tr>
-        <td class="summary-left">
-          <table class="deduction-table">
-            <tr><td><strong>Deduction Name</strong></td><td><strong>Previous Remaning</strong></td><td><strong>Payments</strong></td><td><strong>Deduction</strong></td><td><strong>Balance</strong></td></tr>
-            <tr><td>Cattle Feed</td><td>${previousCattleFeedRemaining.toFixed(2)}</td><td>${paymentsCattleFeed.toFixed(2)}</td><td>${deductionCattleFeed.toFixed(2)}</td><td>${cattleFeedRemaining.toFixed(2)}</td></tr>
-            <tr><td>Advance</td><td>${previousAdvanceRemaining.toFixed(2)}</td><td>${paymentsAdvance.toFixed(2)}</td><td>${deductionAdvance.toFixed(2)}</td><td>${advanceRemaining.toFixed(2)}</td></tr>
-            <tr><td>Other 1</td><td>${previousOther1Remaining.toFixed(2)}</td><td>${paymentsOther1.toFixed(2)}</td><td>${deductionOther1.toFixed(2)}</td><td>${other1Remaining.toFixed(2)}</td></tr>
-            <tr><td>Other 2</td><td>${previousOther2Remaining.toFixed(2)}</td><td>${paymentsOther2.toFixed(2)}</td><td>${deductionOther2.toFixed(2)}</td><td>${other2Remaining.toFixed(2)}</td></tr>
-            <tr class="total-row"><td><strong>Total</strong></td><td><strong>${totalPreviousRemaining.toFixed(2)}</strong></td><td><strong>${totalPayments.toFixed(2)}</strong></td><td><strong>${totalDeduction.toFixed(2)}</strong></td><td><strong>${totalRemaining.toFixed(2)}</strong></td></tr>
-          </table>
-        </td>
-        <td class="summary-right">
-          <div class="payment-details" style="display: flex; justify-content: space-between;">
+    return `
+      <div class="invoice-container" style="height: 50%; border-bottom: 2px dashed #000; padding: 20px; box-sizing: border-box; overflow: hidden; line-height: 1.4; font-family: Arial, sans-serif;">
+        <table style="width: 100%; border-bottom: 1px solid #000; margin-bottom: 10px;">
+          <tr>
+            <td style="font-size: 12px; font-weight: bold; width: 25%;">Code: ${templateData.dairyCode || ''}</td>
+            <td style="font-size: 20px; font-weight: bold; text-align: center; text-transform: uppercase;">${templateData.dairyName}</td>
+            <td style="font-size: 12px; width: 25%; text-align: right; font-weight: bold;">${templateData.fromDate} - ${templateData.toDate}</td>
+          </tr>
+        </table>
+        <div style="font-size: 13px; margin-bottom: 10px; background: #f0f0f0; padding: 6px 10px; border: 1px solid #000;">
+          <div style="display: flex; justify-content: space-between;">
+            <div><b>Farmer: ${farmer.farmer_id} - ${farmer.farmer_details?.fullName || 'Unknown'}</b></div>
             <div>
-              ${templateData.hideRateAmount ? `<strong>Per Liter Rate:</strong> ${totalLiters > 0 ? (totalAmount / totalLiters).toFixed(2) : "0.00"}<br>` : ''}
-              <strong>Total Amount:</strong> ${milkTotal.toFixed(2)}<br>
-              <strong>Cow Milk:</strong> ${cowLiters.toFixed(2)}<br>
-              <strong>Buffalo Milk:</strong> ${buffaloLiters.toFixed(2)}<br>
-              <strong>Total Milk:</strong> ${totalLiters.toFixed(2)}<br>
-              <strong>Total Deduction:</strong> ${totalDeduction.toFixed(2)}<br>
-              <strong>Net Payable:</strong> ${Math.max(0, totalAmount - totalDeduction).toFixed(2)}<br>
-              <strong>Remaining Amount:</strong> ${totalRemaining.toFixed(2)}
-            </div>
-            <div>
-              <strong>Bank Details:</strong><br>
-              <strong>A/C No.:</strong> ${templateData.bankDetails?.accountNumber || "N/A"}<br>
-              <strong>IFSC:</strong> ${templateData.bankDetails?.ifscCode || "N/A"}<br>
-              <strong>Bank:</strong> ${templateData.bankDetails?.bankName || "N/A"}
+              <b>Bank:</b> ${farmer.farmer_details?.bankName || '-'} | <b>A/c:</b> ${farmer.farmer_details?.accountNumber || '-'}
             </div>
           </div>
-        </td>
-      </tr>
-    </table>
-  </div>
-</body>
-</html>`;
+        </div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px; border: 1px solid #000; margin-bottom: 15px;">
+          <thead style="background: #e0e0e0;">
+            <tr>
+              <th style="padding: 6px; border: 1px solid #000;">Date</th>
+              <th style="padding: 6px; border: 1px solid #000;">S</th>
+              <th style="padding: 6px; border: 1px solid #000;">T</th>
+              <th style="padding: 6px; border: 1px solid #000;">Qty</th>
+              <th style="padding: 6px; border: 1px solid #000;">Fat</th>
+              <th style="padding: 6px; border: 1px solid #000;">SNF</th>
+              ${!templateData.hideRateAmount ? '<th style="padding: 6px; border: 1px solid #000;">Rate</th><th style="padding: 6px; border: 1px solid #000;">Amt</th>' : ''}
+            </tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+          <tfoot style="font-weight: bold; background: #f0f0f0;">
+            <tr>
+              <td colspan="3" style="border: 1px solid #000; text-align: center; padding: 6px;">TOTAL</td>
+              <td style="border: 1px solid #000; text-align: right; padding: 6px;">${Number(summary.total_quantity).toFixed(1)}</td>
+              <td style="border: 1px solid #000; text-align: right; padding: 6px;">${Number(summary.weighted_avg_fat).toFixed(1)}</td>
+              <td style="border: 1px solid #000; text-align: right; padding: 6px;">${Number(summary.weighted_avg_snf).toFixed(1)}</td>
+              ${!templateData.hideRateAmount ? `<td style="border: 1px solid #000; text-align: right; padding: 6px;">${Number(summary.avg_rate).toFixed(1)}</td><td style="border: 1px solid #000; text-align: right; padding: 6px;">${Number(summary.total_amount).toFixed(0)}</td>` : ''}
+            </tr>
+          </tfoot>
+        </table>
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; font-size: 13px;">
+          <tr>
+            <td style="padding: 8px; border: 1px solid #000; width: 25%;"><b>Gross:</b> ${Number(summary.total_amount).toFixed(0)}</td>
+            <td style="padding: 8px; border: 1px solid #000; width: 25%;"><b>Prev Bal:</b> ${Number(prevBalance).toFixed(0)}</td>
+            <td style="padding: 8px; border: 1px solid #000; font-size: 12px;">
+               <b>Deductions:</b> Feed:${Number(currentBill?.cattlefeed_total || 0).toFixed(0)} | Adv:${Number(currentBill?.advance_total || 0).toFixed(0)} | Oth:${(Number(currentBill?.other1_total || 0) + Number(currentBill?.other2_total || 0)).toFixed(0)}
+            </td>
+          </tr>
+          <tr style="background: #f0f0f0;">
+            <td style="padding: 8px; border: 1px solid #000;"><b>Total Ded:</b> ${Number(currentDeductions).toFixed(0)}</td>
+            <td style="padding: 8px; border: 1px solid #000; background: #e0e0e0;" colspan="2"><b>NET PAYABLE:</b> <span style="font-size:18px;">${Number(netPayable).toFixed(0)}</span></td>
+          </tr>
+        </table>
+      </div>`;
+  };
+
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body { margin: 0; padding: 0; font-family: Arial, sans-serif; } @page { size: A4; margin: 0; } .page-container { width: 210mm; height: 297mm; display: flex; flex-direction: column; }</style></head><body><div class="page-container">${templateData.farmers.map(getFarmerHtml).join('')}</div></body></html>`;
+};
+
+export const generateTemplate3Farmers = (templateData: Template3Data): string => {
+  const getFarmerHtml = (farmer: FarmerReportData) => {
+    if (!farmer) return '<div class="invoice-container" style="visibility: hidden;"></div>';
+
+    let tableRows = '';
+    const sortedCollections = [...farmer.collections].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    const groupedByDate: { [key: string]: { Morning?: BillCollection, Evening?: BillCollection } } = {};
+    
+    sortedCollections.forEach(c => {
+      const date = new Date(c.created_at).toLocaleDateString("en-GB");
+      if (!groupedByDate[date]) groupedByDate[date] = {};
+      if (c.shift === 'Morning') groupedByDate[date].Morning = c;
+      if (c.shift === 'Evening') groupedByDate[date].Evening = c;
+    });
+
+    const sortedDates = Object.keys(groupedByDate).sort((a, b) => {
+      const [dayA, monthA, yearA] = a.split('/').map(Number);
+      const [dayB, monthB, yearB] = b.split('/').map(Number);
+      return new Date(yearA, monthA - 1, dayA).getTime() - new Date(yearB, monthB - 1, dayB).getTime();
+    });
+
+    sortedDates.forEach(date => {
+      const dayData = groupedByDate[date];
+      
+      // Morning
+      tableRows += `<tr><td style="padding: 2px 4px; border: 1px solid #000;">${date}</td><td style="padding: 2px 4px; border: 1px solid #000; text-align: center;">M</td>`;
+      if (dayData.Morning) {
+        const m = dayData.Morning;
+        tableRows += `<td style="padding: 2px 4px; border: 1px solid #000; text-align: center;">${m.type ? m.type[0] : '-'}</td><td style="padding: 2px 4px; border: 1px solid #000; text-align: right;">${Number(m.quantity).toFixed(1)}</td><td style="padding: 2px 4px; border: 1px solid #000; text-align: right;">${Number(m.fat).toFixed(1)}</td><td style="padding: 2px 4px; border: 1px solid #000; text-align: right;">${Number(m.snf).toFixed(1)}</td>${!templateData.hideRateAmount ? `<td style="padding: 2px 4px; border: 1px solid #000; text-align: right;">${Number(m.rate).toFixed(1)}</td><td style="padding: 2px 4px; border: 1px solid #000; text-align: right;">${Number(m.amount).toFixed(0)}</td>` : ''}`;
+      } else {
+        tableRows += `<td colspan="${!templateData.hideRateAmount ? 6 : 4}" style="border: 1px solid #000;"></td>`;
+      }
+      tableRows += `</tr>`;
+
+      // Evening
+      tableRows += `<tr><td style="padding: 2px 4px; border: 1px solid #000;"></td><td style="padding: 2px 4px; border: 1px solid #000; text-align: center;">E</td>`;
+      if (dayData.Evening) {
+        const e = dayData.Evening;
+        tableRows += `<td style="padding: 2px 4px; border: 1px solid #000; text-align: center;">${e.type ? e.type[0] : '-'}</td><td style="padding: 2px 4px; border: 1px solid #000; text-align: right;">${Number(e.quantity).toFixed(1)}</td><td style="padding: 2px 4px; border: 1px solid #000; text-align: right;">${Number(e.fat).toFixed(1)}</td><td style="padding: 2px 4px; border: 1px solid #000; text-align: right;">${Number(e.snf).toFixed(1)}</td>${!templateData.hideRateAmount ? `<td style="padding: 2px 4px; border: 1px solid #000; text-align: right;">${Number(e.rate).toFixed(1)}</td><td style="padding: 2px 4px; border: 1px solid #000; text-align: right;">${Number(e.amount).toFixed(0)}</td>` : ''}`;
+      } else {
+        tableRows += `<td colspan="${!templateData.hideRateAmount ? 6 : 4}" style="border: 1px solid #000;"></td>`;
+      }
+      tableRows += `</tr>`;
+    });
+
+    const summary = farmer.collections_summary;
+    const currentBill = farmer.current_bill;
+    const previousBill = farmer.previous_bill;
+    const prevBalance = previousBill ? (Number(previousBill.advance_remaining) + Number(previousBill.cattlefeed_remaining) + Number(previousBill.other1_remaining) + Number(previousBill.other2_remaining)) : 0;
+    const currentDeductions = currentBill ? (Number(currentBill.advance_total) + Number(currentBill.cattlefeed_total) + Number(currentBill.other1_total) + Number(currentBill.other2_total)) : 0;
+    const netPayable = currentBill?.net_payable || 0;
+
+    return `
+      <div class="invoice-container" style="height: 33.33%; border-bottom: 2px dashed #000; padding: 10px; box-sizing: border-box; overflow: hidden; line-height: 1.2; font-family: Arial, sans-serif;">
+        <table style="width: 100%; border-bottom: 1px solid #000; margin-bottom: 5px;">
+          <tr>
+            <td style="font-size: 10px; font-weight: bold; width: 25%;">Code: ${templateData.dairyCode || ''}</td>
+            <td style="font-size: 16px; font-weight: bold; text-align: center; text-transform: uppercase;">${templateData.dairyName}</td>
+            <td style="font-size: 10px; width: 25%; text-align: right; font-weight: bold;">${templateData.fromDate} - ${templateData.toDate}</td>
+          </tr>
+        </table>
+        <div style="font-size: 11px; margin-bottom: 5px; background: #f0f0f0; padding: 4px 8px; border: 1px solid #000;">
+          <div style="display: flex; justify-content: space-between;">
+            <div><b>Farmer: ${farmer.farmer_id} - ${farmer.farmer_details?.fullName || 'Unknown'}</b></div>
+            <div style="font-size: 10px;">
+              <b>Bank:</b> ${farmer.farmer_details?.bankName || '-'} | <b>A/c:</b> ${farmer.farmer_details?.accountNumber || '-'}
+            </div>
+          </div>
+        </div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px; border: 1px solid #000; margin-bottom: 8px;">
+          <thead style="background: #e0e0e0;">
+            <tr>
+              <th style="padding: 4px; border: 1px solid #000;">Date</th>
+              <th style="padding: 4px; border: 1px solid #000;">S</th>
+              <th style="padding: 4px; border: 1px solid #000;">T</th>
+              <th style="padding: 4px; border: 1px solid #000;">Qty</th>
+              <th style="padding: 4px; border: 1px solid #000;">Fat</th>
+              <th style="padding: 4px; border: 1px solid #000;">SNF</th>
+              ${!templateData.hideRateAmount ? '<th style="padding: 4px; border: 1px solid #000;">Rate</th><th style="padding: 4px; border: 1px solid #000;">Amt</th>' : ''}
+            </tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+          <tfoot style="font-weight: bold; background: #f0f0f0;">
+            <tr>
+              <td colspan="3" style="border: 1px solid #000; text-align: center;">TOTAL</td>
+              <td style="border: 1px solid #000; text-align: right;">${Number(summary.total_quantity).toFixed(1)}</td>
+              <td style="border: 1px solid #000; text-align: right;">${Number(summary.weighted_avg_fat).toFixed(1)}</td>
+              <td style="border: 1px solid #000; text-align: right;">${Number(summary.weighted_avg_snf).toFixed(1)}</td>
+              ${!templateData.hideRateAmount ? `<td style="border: 1px solid #000; text-align: right;">${Number(summary.avg_rate).toFixed(1)}</td><td style="border: 1px solid #000; text-align: right;">${Number(summary.total_amount).toFixed(0)}</td>` : ''}
+            </tr>
+          </tfoot>
+        </table>
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; font-size: 11px;">
+          <tr>
+            <td style="padding: 4px; border: 1px solid #000; width: 15%;"><b>Gross:</b> ${Number(summary.total_amount).toFixed(0)}</td>
+            <td style="padding: 4px; border: 1px solid #000; width: 15%;"><b>Prev Bal:</b> ${Number(prevBalance).toFixed(0)}</td>
+            <td style="padding: 4px; border: 1px solid #000; font-size: 10px;">
+               <b>Deductions:</b> Feed:${Number(currentBill?.cattlefeed_total || 0).toFixed(0)} | Adv:${Number(currentBill?.advance_total || 0).toFixed(0)} | Oth:${(Number(currentBill?.other1_total || 0) + Number(currentBill?.other2_total || 0)).toFixed(0)}
+            </td>
+          </tr>
+          <tr style="background: #f0f0f0;">
+            <td style="padding: 4px; border: 1px solid #000;"><b>Total Ded:</b> ${Number(currentDeductions).toFixed(0)}</td>
+            <td style="padding: 4px; border: 1px solid #000; background: #e0e0e0;" colspan="2"><b>NET PAYABLE:</b> <span style="font-size:14px;">${Number(netPayable).toFixed(0)}</span></td>
+          </tr>
+        </table>
+      </div>`;
+  };
+
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body { margin: 0; padding: 0; font-family: Arial, sans-serif; } @page { size: A4; margin: 0; } .page-container { width: 210mm; height: 297mm; display: flex; flex-direction: column; }</style></head><body><div class="page-container">${templateData.farmers.map(getFarmerHtml).join('')}</div></body></html>`;
 };

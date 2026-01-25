@@ -548,8 +548,8 @@ const GenerateBill = () => {
                       </td>
                       <td className="px-3 py-2 text-xs font-medium text-green-600">
                         ₹{Math.max(0, farmer.hasBill 
-                          ? farmer.milk_total - farmer.advanceDeduction - farmer.cattleFeedDeduction - farmer.other1Deduction - farmer.other2Deduction + (farmer.received_total || 0)
-                          : farmer.milk_total - farmer.advance - farmer.cattleFeedAmount - farmer.other1Amount - farmer.other2Amount + (farmer.received_total || 0)
+                          ? farmer.milk_total - farmer.advanceDeduction - farmer.cattleFeedDeduction - farmer.other1Deduction - farmer.other2Deduction
+                          : farmer.milk_total - farmer.advance - farmer.cattleFeedAmount - farmer.other1Amount - farmer.other2Amount
                         ).toFixed(0)}
                       </td>
                     </tr>

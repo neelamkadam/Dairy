@@ -1,6 +1,8 @@
 export const ROUTES = {
   AUTH: {
     LOGIN: `/login`,
+    SIGNUP: `/signup`,
+    RESET_PWD: `/reset-password`,
     SET_NEW_PASSWORD: `/set-new-password`,
     ADMIN_LAYOUT:`/admin`,
   },
@@ -42,6 +44,7 @@ export const ROUTES = {
     VLC_DIFFERENCE_REPORT: `/dashboard/vlc-diffrerence-report`,
     BANK_SUMMARY:`/dashboard/bank-summary`,
     CATTLE_FEED_STOCK_REPORT:`/dashboard/cattle-feed-stock-report`,
+    BONUS_REPORT:`/dashboard/bonus-report`,
   },
   SETTINGS:{
     GENERAL_SETTINGS:`/dashboard/general-settings`,
@@ -55,6 +58,7 @@ export const ROUTES = {
   AVATAR_SELECTOR:`/dashboard/avatar-selector`,
   ADMIN_DASHBOARD:`/admin/admin-dashboard`,
   ADMIN_CREATE_USER:`/admin/create-user`,
+  ADMIN_CREATE_ADMIN:`/admin/create-admin`,
   ADMIN_MASTER:{
     MOBILE_APPLICATION:`/admin/mobile-application`,
     WEB_APPLICATION:`/admin/web-application`,

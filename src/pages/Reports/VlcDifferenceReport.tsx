@@ -55,18 +55,23 @@ const VlcDifferenceReport = () => {
 
     setLoading(true);
     try {
-      const data = await reportsApi.getVlcDifferenceReport({
+      const payload = {
         dairy_id: selectedBranch.branch_id.toString(),
         vlc_id: vlcId,
         from: fromDate,
         to: toDate,
         shift: shift,
-      });
+      };
+      
+      console.log('📤 VLC Difference Report API Request:', payload);
+      const data = await reportsApi.getVlcDifferenceReport(payload);
+      console.log('📥 VLC Difference Report API Response:', data);
       
       if (data.success) {
         setReportData(data.data);
       }
     } catch (error: any) {
+      console.error('❌ VLC Difference Report API Error:', error);
       toast.error(error?.response?.data?.message || "Failed to fetch report");
     } finally {
       setLoading(false);

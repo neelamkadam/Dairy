@@ -21,7 +21,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import FileCopyIcon from "@mui/icons-material/FileCopy";
@@ -281,28 +281,59 @@ const VlcCCommissionEntry: React.FC = () => {
           <div>
             <h3 className="text-sm font-semibold text-gray-800 mb-2">Commission History</h3>
             <div className="space-y-2 max-h-[calc(100vh-200px)] overflow-y-auto pr-2">
-              {commissionData.commissions.map((comm: any, idx: number) => (
-                <Card key={idx} className="border border-purple-200 shadow-sm">
-                  <CardContent className="p-2">
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs font-medium text-gray-600">Type</span>
-                        <span className="text-xs font-semibold text-gray-900">
-                          {comm.type === 'Commission' ? 'Per Liter Commision' : 'Fixed Payment'}
-                        </span>
+              {commissionData.commissions.map((comm: any, idx: number) => {
+                const isActive = idx === 0;
+                const effectiveFrom = new Date(comm.effective_from);
+                
+                // Calculate end date (day before the newer commission's effective date)
+                let endDate = null;
+                if (!isActive) {
+                  const newerCommEffectiveDate = new Date(commissionData.commissions[idx - 1].effective_from);
+                  endDate = subDays(newerCommEffectiveDate, 1);
+                }
+                
+                return (
+                  <Card key={idx} className={cn(
+                    "border shadow-sm",
+                    isActive ? "border-green-300 bg-green-50" : "border-purple-200"
+                  )}>
+                    <CardContent className="p-2">
+                      <div className="space-y-1.5">
+                        {isActive && (
+                          <div className="flex items-center gap-1 mb-1">
+                            <span className="px-2 py-0.5 bg-green-600 text-white text-xs font-semibold rounded">
+                              Active
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-medium text-gray-600">Type</span>
+                          <span className="text-xs font-semibold text-gray-900">
+                            {comm.type === 'Commission' ? 'Per Liter Commision' : 'Fixed Payment'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-medium text-gray-600">Amount</span>
+                          <span className="text-xs font-bold text-purple-600">₹{parseFloat(comm.amount).toFixed(2)}</span>
+                        </div>
+                        <div className="pt-1.5 border-t border-gray-200">
+                          <span className="text-xs text-gray-500">
+                            {isActive ? 'Effective From' : 'Effective Period'}
+                          </span>
+                          <p className="text-xs font-medium text-gray-700">
+                            {isActive 
+                              ? format(effectiveFrom, 'dd-MM-yyyy')
+                              : endDate 
+                                ? `${format(effectiveFrom, 'dd-MM-yyyy')} to ${format(endDate, 'dd-MM-yyyy')}`
+                                : format(effectiveFrom, 'dd-MM-yyyy')
+                            }
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs font-medium text-gray-600">Amount</span>
-                        <span className="text-xs font-bold text-purple-600">₹{parseFloat(comm.amount).toFixed(2)}</span>
-                      </div>
-                      <div className="pt-1.5 border-t border-gray-200">
-                        <span className="text-xs text-gray-500">Effective From</span>
-                        <p className="text-xs font-medium text-gray-700">{format(new Date(comm.effective_from), 'dd-MM-yyyy')}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           </div>
         ) : (

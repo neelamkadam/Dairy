@@ -167,7 +167,20 @@ export const AddFarmer: React.FC = () => {
     }
   }, [routeFarmerId, formData.VLC]);
   useEffect(() => {
-    if (formData.VLC && formData.farmerId && formData.farmerId.length >= 3) {
+    if (formData.VLC && formData.farmerId && formData.farmerId.length >= 1) {
+      // If we're in edit mode and the farmer ID has changed from the existing one,
+      // reset edit mode and check for the new farmer
+      if (isEditMode && existingFarmerData) {
+        const currentNormalizedId = normalizeFarmerId(formData.farmerId);
+        const existingNormalizedId = existingFarmerData.username;
+        
+        if (currentNormalizedId !== existingNormalizedId) {
+          // ID has changed, reset edit mode first
+          setIsEditMode(false);
+          setExistingFarmerData(null);
+        }
+      }
+      
       const timer = setTimeout(() => {
         checkExistingFarmer();
       }, 500);
@@ -574,8 +587,8 @@ export const AddFarmer: React.FC = () => {
   };
 
   return (
-    <div className="w-full px-4 md:max-w-2xl mx-auto space-y-4 md:space-y-6">
-      <div className="flex justify-between items-center gap-2 mt-3 mb-2">
+    <div className="w-full px-4 md:max-w-2xl mx-auto space-y-4 md:space-y-6 py-4">
+      <div className="flex justify-between items-center gap-2">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
