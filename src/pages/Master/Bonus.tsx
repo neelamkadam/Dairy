@@ -210,7 +210,7 @@ const Bonus = () => {
 
             {selectedVlc && farmers.length > 0 && (
               <>
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg">
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border-2 border-blue-200">
                   <h3 className="text-sm font-semibold text-gray-700 mb-3">Quick Apply</h3>
                   <div className="flex flex-wrap gap-4">
                     <div className="flex-1 min-w-[200px]">
@@ -340,7 +340,7 @@ const Bonus = () => {
                 </div>
               </div>
               
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg">
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg border-2 border-blue-200">
                 <Label htmlFor="fixed_amount" className="mb-2 font-medium text-base">Fixed Deduction Amount<span className="text-red-600">*</span></Label>
                 <Input
                   id="fixed_amount"
