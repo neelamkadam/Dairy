@@ -748,7 +748,251 @@ export const generateTemplate2 = (templateData: Template2Data): string => {
 </html>`;
 };
 
-export const generateTemplate3Farmers = (templateData: Template3Data): string => {
+export const generateTemplate2perPage = (templateData: Template3Data): string => {
+// New generateTemplate2perPage with Template1-style compact design
+
+export const generateTemplate2perPage = (templateData: any): string => {
+  const getFarmerHtml = (farmer: any) => {
+    if (!farmer) return '';
+
+    const fromDateParts = templateData.fromDate.split('/');
+    const toDateParts = templateData.toDate.split('/');
+    const fromDate = new Date(parseInt(fromDateParts[2]), parseInt(fromDateParts[1]) - 1, parseInt(fromDateParts[0]));
+    const toDate = new Date(parseInt(toDateParts[2]), parseInt(toDateParts[1]) - 1, parseInt(toDateParts[0]));
+
+    const groupedData = new Map();
+    farmer.collections.forEach((c: any) => {
+      const date = new Date(c.created_at).toLocaleDateString("en-GB");
+      const key = `${date}_${c.shift}`;
+      groupedData.set(key, c);
+    });
+
+    let tableRows = '';
+    let morningTotalLiters = 0, eveningTotalLiters = 0;
+    let morningTotalFat = 0, eveningTotalFat = 0;
+    let morningTotalSnf = 0, eveningTotalSnf = 0;
+    let morningTotalAmount = 0, eveningTotalAmount = 0;
+    let morningCount = 0, eveningCount = 0;
+
+    const currentDate = new Date(fromDate);
+    while (currentDate <= toDate) {
+      const dateKey = currentDate.toLocaleDateString("en-GB");
+      const morning = groupedData.get(`${dateKey}_Morning`);
+      const evening = groupedData.get(`${dateKey}_Evening`);
+
+      if (morning) {
+        morningTotalLiters += Number(morning.quantity);
+        morningTotalFat += Number(morning.fat);
+        morningTotalSnf += Number(morning.snf);
+        morningTotalAmount += Number(morning.amount);
+        morningCount++;
+      }
+      if (evening) {
+        eveningTotalLiters += Number(evening.quantity);
+        eveningTotalFat += Number(evening.fat);
+        eveningTotalSnf += Number(evening.snf);
+        eveningTotalAmount += Number(evening.amount);
+        eveningCount++;
+      }
+
+      tableRows += `
+        <tr>
+          <td style="border: 1px solid black; padding: 2px; text-align: center; font-size: 8px;">${dateKey.substring(0, 5)}</td>
+          <td style="border: 1px solid black; padding: 2px; text-align: center; font-size: 8px;">${morning ? Number(morning.quantity).toFixed(1) : '-'}</td>
+          <td style="border: 1px solid black; padding: 2px; text-align: center; font-size: 8px;">${morning ? Number(morning.fat).toFixed(1) : '-'}</td>
+          <td style="border: 1px solid black; padding: 2px; text-align: center; font-size: 8px;">${morning ? Number(morning.snf).toFixed(1) : '-'}</td>
+          <td style="border: 1px solid black; padding: 2px; text-align: center; font-size: 8px;">${morning ? Number(morning.rate).toFixed(1) : '-'}</td>
+          <td style="border: 1px solid black; padding: 2px; text-align: center; font-size: 8px;">${morning ? Number(morning.amount).toFixed(0) : '-'}</td>
+          <td style="border: 1px solid black; padding: 2px; text-align: center; font-size: 8px;">${evening ? Number(evening.quantity).toFixed(1) : '-'}</td>
+          <td style="border: 1px solid black; padding: 2px; text-align: center; font-size: 8px;">${evening ? Number(evening.fat).toFixed(1) : '-'}</td>
+          <td style="border: 1px solid black; padding: 2px; text-align: center; font-size: 8px;">${evening ? Number(evening.snf).toFixed(1) : '-'}</td>
+          <td style="border: 1px solid black; padding: 2px; text-align: center; font-size: 8px;">${evening ? Number(evening.rate).toFixed(1) : '-'}</td>
+          <td style="border: 1px solid black; padding: 2px; text-align: center; font-size: 8px;">${evening ? Number(evening.amount).toFixed(0) : '-'}</td>
+        </tr>`;
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    const morningAvgFat = morningCount > 0 ? (morningTotalFat / morningCount).toFixed(1) : '0.0';
+    const morningAvgSnf = morningCount > 0 ? (morningTotalSnf / morningCount).toFixed(1) : '0.0';
+    const eveningAvgFat = eveningCount > 0 ? (eveningTotalFat / eveningCount).toFixed(1) : '0.0';
+    const eveningAvgSnf = eveningCount > 0 ? (eveningTotalSnf / eveningCount).toFixed(1) : '0.0';
+    const totalLiters = morningTotalLiters + eveningTotalLiters;
+    const totalAmount = morningTotalAmount + eveningTotalAmount;
+
+    const currentBill = farmer.current_bill;
+    const previousBill = farmer.previous_bill;
+    const prevCattleFeedRemaining = Number(previousBill?.cattlefeed_remaining || 0);
+    const prevAdvanceRemaining = Number(previousBill?.advance_remaining || 0);
+    const prevOther1Remaining = Number(previousBill?.other1_remaining || 0);
+    const prevOther2Remaining = Number(previousBill?.other2_remaining || 0);
+
+    const currentCattleFeed = farmer.payments?.filter((p: any) => p.payment_type === 'cattle feed')
+      .reduce((sum: number, p: any) => sum + Number(p.amount_taken || 0), 0) || 0;
+    const currentAdvance = farmer.payments?.filter((p: any) => p.payment_type === 'advance')
+      .reduce((sum: number, p: any) => sum + Number(p.amount_taken || 0), 0) || 0;
+    const currentOther1 = farmer.payments?.filter((p: any) => p.payment_type === 'other1')
+      .reduce((sum: number, p: any) => sum + Number(p.amount_taken || 0), 0) || 0;
+    const currentOther2 = farmer.payments?.filter((p: any) => p.payment_type === 'other2')
+      .reduce((sum: number, p: any) => sum + Number(p.amount_taken || 0), 0) || 0;
+
+    const totalCattleFeedBalance = prevCattleFeedRemaining + currentCattleFeed;
+    const totalAdvanceBalance = prevAdvanceRemaining + currentAdvance;
+    const totalOther1Balance = prevOther1Remaining + currentOther1;
+    const totalOther2Balance = prevOther2Remaining + currentOther2;
+
+    const cattleFeed = Number(currentBill?.cattlefeed_total || 0);
+    const advance = Number(currentBill?.advance_total || 0);
+    const other1 = Number(currentBill?.other1_total || 0);
+    const other2 = Number(currentBill?.other2_total || 0);
+    const totalDeductions = advance + cattleFeed + other1 + other2;
+
+    const cattleFeedRemaining = totalCattleFeedBalance - cattleFeed;
+    const advanceRemaining = totalAdvanceBalance - advance;
+    const other1Remaining = totalOther1Balance - other1;
+    const other2Remaining = totalOther2Balance - other2;
+    const totalRemaining = cattleFeedRemaining + advanceRemaining + other1Remaining + other2Remaining;
+
+    const netPayable = currentBill?.net_payable || (totalAmount - totalDeductions);
+
+    return `
+      <div style="width: 100%; font-family: Arial, sans-serif; font-size: 9px; margin-bottom: 5px; border: 1px solid #000; padding: 4px; page-break-inside: avoid; height: 48vh;">
+        <div style="text-align: center; margin-bottom: 3px; border-bottom: 1px solid #000; padding-bottom: 3px;">
+          <h2 style="margin: 0; font-size: 13px; font-weight: bold;">${templateData.dairyName}</h2>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 9px; font-weight: bold;">
+          <div>Farmer: ${farmer.farmer_id} - ${farmer.farmer_details?.fullName || 'Unknown'}</div>
+          <div>Bill Cycle: ${templateData.fromDate} to ${templateData.toDate}</div>
+        </div>
+        
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid black; margin-bottom: 4px; font-size: 8px;">
+          <thead>
+            <tr style="background-color: #f0f0f0;">
+              <th rowspan="2" style="border: 1px solid black; padding: 2px; text-align: center; font-weight: bold; font-size: 8px;">Date</th>
+              <th colspan="5" style="border: 1px solid black; padding: 2px; text-align: center; font-weight: bold; font-size: 8px;">Morning</th>
+              <th colspan="5" style="border: 1px solid black; padding: 2px; text-align: center; font-weight: bold; font-size: 8px;">Evening</th>
+            </tr>
+            <tr style="background-color: #f0f0f0;">
+              <th style="border: 1px solid black; padding: 2px; text-align: center; font-size: 7px;">Ltr</th>
+              <th style="border: 1px solid black; padding: 2px; text-align: center; font-size: 7px;">Fat</th>
+              <th style="border: 1px solid black; padding: 2px; text-align: center; font-size: 7px;">SNF</th>
+              <th style="border: 1px solid black; padding: 2px; text-align: center; font-size: 7px;">Rate</th>
+              <th style="border: 1px solid black; padding: 2px; text-align: center; font-size: 7px;">Amt</th>
+              <th style="border: 1px solid black; padding: 2px; text-align: center; font-size: 7px;">Ltr</th>
+              <th style="border: 1px solid black; padding: 2px; text-align: center; font-size: 7px;">Fat</th>
+              <th style="border: 1px solid black; padding: 2px; text-align: center; font-size: 7px;">SNF</th>
+              <th style="border: 1px solid black; padding: 2px; text-align: center; font-size: 7px;">Rate</th>
+              <th style="border: 1px solid black; padding: 2px; text-align: center; font-size: 7px;">Amt</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows}
+            <tr style="background-color: #e8e8e8; font-weight: bold;">
+              <td style="border: 1px solid black; padding: 2px; text-align: center; font-size: 8px;">Total</td>
+              <td style="border: 1px solid black; padding: 2px; text-align: center; font-size: 8px;">${morningTotalLiters.toFixed(1)}</td>
+              <td style="border: 1px solid black; padding: 2px; text-align: center; font-size: 8px;">${morningAvgFat}</td>
+              <td style="border: 1px solid black; padding: 2px; text-align: center; font-size: 8px;">${morningAvgSnf}</td>
+              <td style="border: 1px solid black; padding: 2px; text-align: center; font-size: 8px;">-</td>
+              <td style="border: 1px solid black; padding: 2px; text-align: center; font-size: 8px;">${morningTotalAmount.toFixed(0)}</td>
+              <td style="border: 1px solid black; padding: 2px; text-align: center; font-size: 8px;">${eveningTotalLiters.toFixed(1)}</td>
+              <td style="border: 1px solid black; padding: 2px; text-align: center; font-size: 8px;">${eveningAvgFat}</td>
+              <td style="border: 1px solid black; padding: 2px; text-align: center; font-size: 8px;">${eveningAvgSnf}</td>
+              <td style="border: 1px solid black; padding: 2px; text-align: center; font-size: 8px;">-</td>
+              <td style="border: 1px solid black; padding: 2px; text-align: center; font-size: 8px;">${eveningTotalAmount.toFixed(0)}</td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <table style="width: 100%; border-collapse: collapse; border: 2px solid black; font-size: 7px;">
+          <tr style="background-color: #f0f0f0; font-weight: bold;">
+            <td colspan="3" style="border: 1px solid black; padding: 2px; text-align: center;">Total Liter</td>
+            <td colspan="3" style="border: 1px solid black; padding: 2px; text-align: center;">${totalLiters.toFixed(2)}</td>
+            <td colspan="2" style="border: 1px solid black; padding: 2px; text-align: center;">Total Amount</td>
+            <td colspan="2" style="border: 1px solid black; padding: 2px; text-align: center;">${totalAmount.toFixed(0)}</td>
+          </tr>
+          
+          <tr style="background-color: #f0f0f0; font-weight: bold;">
+            <td colspan="2" style="border: 1px solid black; padding: 2px; text-align: center;">Property Details</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;"></td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;"></td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">Previous Balance</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">Current Balance</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">Total Balance</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">Deduction</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">Remaining</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">Total Payable</td>
+          </tr>
+          
+          <tr>
+            <td colspan="2" style="border: 1px solid black; padding: 2px;">Milk Amount</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">${totalAmount.toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">Cattle Feed</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">${prevCattleFeedRemaining.toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">${currentCattleFeed.toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">${totalCattleFeedBalance.toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">${cattleFeed.toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">${cattleFeedRemaining.toFixed(0)}</td>
+            <td rowspan="4" style="border: 1px solid black; padding: 2px; text-align: center; vertical-align: middle; font-size: 10px; font-weight: bold;">Total Property<br>${totalAmount.toFixed(0)}</td>
+          </tr>
+          
+          <tr>
+            <td colspan="2" style="border: 1px solid black; padding: 2px;">Bonus</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">0</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">Advance</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">${prevAdvanceRemaining.toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">${currentAdvance.toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">${totalAdvanceBalance.toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">${advance.toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">${advanceRemaining.toFixed(0)}</td>
+          </tr>
+          
+          <tr>
+            <td colspan="2" style="border: 1px solid black; padding: 2px;">Fixed</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">0</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">Other1</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">${prevOther1Remaining.toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">${currentOther1.toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">${totalOther1Balance.toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">${other1.toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">${other1Remaining.toFixed(0)}</td>
+          </tr>
+          
+          <tr>
+            <td colspan="2" style="border: 1px solid black; padding: 2px;"></td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;"></td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">Other2</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">${prevOther2Remaining.toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">${currentOther2.toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">${totalOther2Balance.toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">${other2.toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">${other2Remaining.toFixed(0)}</td>
+          </tr>
+          
+          <tr style="background-color: #f0f0f0; font-weight: bold;">
+            <td colspan="2" style="border: 1px solid black; padding: 2px;">Total</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">${totalAmount.toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">Total</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">${(prevAdvanceRemaining + prevCattleFeedRemaining + prevOther1Remaining + prevOther2Remaining).toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">${(currentAdvance + currentCattleFeed + currentOther1 + currentOther2).toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">${(totalAdvanceBalance + totalCattleFeedBalance + totalOther1Balance + totalOther2Balance).toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">${totalDeductions.toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center;">${totalRemaining.toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center; font-size: 10px;">Total Deduction<br>${totalDeductions.toFixed(0)}</td>
+          </tr>
+          
+          <tr style="background-color: #e8e8e8;">
+            <td colspan="9" style="border: 1px solid black; padding: 2px;"></td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center; font-weight: bold; font-size: 10px;">Total Payable<br>${netPayable.toFixed(0)}</td>
+          </tr>
+        </table>
+      </div>
+    `;
+  };
+
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body { margin: 0; padding: 0; font-family: Arial, sans-serif; } @page { size: A4; margin: 0; }</style></head><body>${templateData.farmers.map(getFarmerHtml).join('')}</body></html>`;
+};
+
+
   const getFarmerHtml = (farmer: FarmerReportData) => {
     if (!farmer) return '<div class="invoice-container" style="visibility: hidden;"></div>';
 
@@ -853,9 +1097,10 @@ export const generateTemplate3Farmers = (templateData: Template3Data): string =>
             <td style="padding: 4px; border: 1px solid #000; background: #e0e0e0;" colspan="2"><b>NET PAYABLE:</b> <span style="font-size:14px;">${Number(netPayable).toFixed(0)}</span></td>
           </tr>
         </table>
-      </div>`
-;
+      </div>`;
   };
-        return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body { margin: 0; padding: 0; font-family: Arial, sans-serif; } @page { size: A4; margin: 0; } .page-container { width: 210mm; height: 297mm; display: flex; flex-direction: column; }</style></head><body><div class="page-container">${templateData.farmers.map(getFarmerHtml).join('')}</div></body></html>`;
 
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body { margin: 0; padding: 0; font-family: Arial, sans-serif; } @page { size: A4; margin: 0; } .page-container { width: 210mm; height: 297mm; display: flex; flex-direction: column; }</style></head><body><div class="page-container">${templateData.farmers.map(getFarmerHtml).join('')}</div></body></html>`;
 };
+
+

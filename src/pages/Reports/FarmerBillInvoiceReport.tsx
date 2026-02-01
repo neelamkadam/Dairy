@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { api } from '@/services/config';
 import { useAppSelector } from '@/redux/store';
 import { toast } from 'react-toastify';
-import { generateTemplate2, FarmerBillData, BankDetails, generateTemplate2perPage } from '@/templates/FarmerBillInvoiceTemplate';
+import { generateTemplate2, FarmerBillData, BankDetails } from '@/templates/FarmerBillInvoiceTemplate';
+import { generateFarmer2PerPage } from '@/templates/FarmerBill2PerPageTemplate';
 import { bankSummaryApi } from '@/services/bankSummaryApi';
 import { format } from 'date-fns';
 import jsPDF from 'jspdf';
@@ -340,7 +341,22 @@ const FarmerBillInvoiceReport = () => {
 
       const cowData: FarmerReportData[] = response.data.cow || [];
       const buffaloData: FarmerReportData[] = response.data.buffalo || [];
-      const allData = [...cowData, ...buffaloData];
+      
+      // Merge cow and buffalo data for the same farmer
+      const farmerMap = new Map<string, FarmerReportData>();
+      
+      [...cowData, ...buffaloData].forEach(farmer => {
+        if (farmerMap.has(farmer.farmer_id)) {
+          const existing = farmerMap.get(farmer.farmer_id)!;
+          existing.collections = [...existing.collections, ...farmer.collections];
+          existing.collections_summary.total_quantity += farmer.collections_summary.total_quantity;
+          existing.collections_summary.total_amount += farmer.collections_summary.total_amount;
+        } else {
+          farmerMap.set(farmer.farmer_id, { ...farmer });
+        }
+      });
+      
+      const allData = Array.from(farmerMap.values());
 
       if (allData.length === 0) {
         toast.info('No data found for the selected period');
@@ -355,15 +371,15 @@ const FarmerBillInvoiceReport = () => {
         let htmlContent = "";
         if (chunkSize === 3) {
           htmlContent = generateTemplate3Farmers({
-            dairyName: selectedBranch?.username || 'Dairy',
+            dairyName: selectedBranch?.name || 'Dairy',
             farmers: chunk,
             fromDate: formatDate(fromDate),
             toDate: formatDate(toDate),
             hideRateAmount: hideRateAmount
           });
         } else {
-          htmlContent = generateTemplate2perPage({
-            dairyName: selectedBranch?.username || 'Dairy',
+          htmlContent = generateFarmer2PerPage({
+            dairyName: selectedBranch?.name || 'Dairy',
             farmers: chunk,
             fromDate: formatDate(fromDate),
             toDate: formatDate(toDate),
