@@ -180,7 +180,7 @@ export const generateFarmer2PerPage = (templateData: Template2PerPageData): stri
     const other2Remaining = totalOther2Balance - other2;
     const totalRemaining = cattleFeedRemaining + advanceRemaining + other1Remaining + other2Remaining;
 
-    const netPayable = Number(currentBill?.net_payable || (summaryTotalAmount - totalDeductions));
+    const netPayable = Number((summaryTotalAmount - totalDeductions));
 
     return `
       <div style="width: 100%; font-family: Arial, sans-serif; font-size: 10px; margin-bottom: 40px; border: 1px solid black; padding: 6px; page-break-inside: avoid; font-weight: normal;">
@@ -310,7 +310,7 @@ export const generateFarmer2PerPage = (templateData: Template2PerPageData): stri
           
           <tr>
             <td colspan="9" style="border: 1px solid black; padding: 2px;"></td>
-            <td style="border: 1px solid black; padding: 2px; text-align: center; font-size: 10px;">Total Payable<br>${netPayable.toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 2px; text-align: center; font-size: 10px;">Net Payable<br>${netPayable.toFixed(0)}</td>
           </tr>
         </table>
       </div>
