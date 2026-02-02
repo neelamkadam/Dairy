@@ -27,32 +27,12 @@ export const deductionApi = {
     api.put("/payments/getFarmerBillUpdate", payload),
 
   updateFarmerBillWeb: (payload: any) => {
-    console.log('🔵 [API] Update Farmer Bill Web - Request');
-    console.log('📤 Payload being sent:', JSON.stringify(payload, null, 2));
-    console.log('🔍 Payload fields breakdown:');
-    console.log('  farmer_id:', payload.farmer_id);
-    console.log('  dairy_id:', payload.dairy_id);
-    console.log('  period_start:', payload.period_start);
-    console.log('  period_end:', payload.period_end);
-    console.log('  milk_total:', payload.milk_total);
-    console.log('  advance_total:', payload.advance_total);
-    console.log('  cattlefeed_total:', payload.cattlefeed_total);
-    console.log('  other1_total:', payload.other1_total);
-    console.log('  other2_total:', payload.other2_total);
-    console.log('  received_total:', payload.received_total);
-    console.log('  net_payable:', payload.net_payable, '<-- THIS SHOULD BE 0');
-    console.log('  advance_remaining:', payload.advance_remaining);
-    console.log('  cattlefeed_remaining:', payload.cattlefeed_remaining);
-    console.log('  other1_remaining:', payload.other1_remaining);
-    console.log('  other2_remaining:', payload.other2_remaining);
-    
+    console.log('📤 [DEDUCTION API] updateFarmerBillWeb - Payload:', payload);
     return api.put("/web/billing/update-farmer-bill", payload).then(response => {
-      console.log('✅ [API] Update Farmer Bill Web - Response');
-      console.log('Response data:', response.data);
+      console.log('📤 [DEDUCTION API] updateFarmerBillWeb - Response:', response.data);
       return response;
     }).catch(error => {
-      console.error('❌ [API] Update Farmer Bill Web - Error');
-      console.error('Error details:', error?.response?.data || error);
+      console.error('❌ [API ERROR] updateFarmerBillWeb:', error?.response?.data || error);
       throw error;
     });
   },
@@ -66,11 +46,6 @@ export const deductionApi = {
     api.post("/bill/finalize", { billIds }),
 
   getBillDetailsByFarmers: async (dairyId: number, farmerIds: string[], periodStart: string, periodEnd: string) => {
-    console.log('🔵 Get Bill Details by Farmers API Request:', {
-      endpoint: '/web/billing/bill-details',
-      params: { dairy_id: dairyId, farmer_id: farmerIds.join(','), period_start: periodStart, period_end: periodEnd }
-    });
-    
     const response = await api.get("/web/billing/bill-details", {
       params: { 
         dairy_id: dairyId, 
@@ -79,8 +54,7 @@ export const deductionApi = {
         period_end: periodEnd 
       }
     });
-    
-    console.log('🟢 Get Bill Details by Farmers API Response:', response.data);
+    console.log('📤 [DEDUCTION API] getBillDetailsByFarmers - Response:', response.data);
     return response;
   },
 };

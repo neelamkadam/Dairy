@@ -133,6 +133,8 @@ export interface Template2Data {
   };
   bankDetails?: BankDetails;
   hideRateAmount?: boolean;
+  hideHeader?: boolean;
+  hideSummary?: boolean;
 }
 
 export interface BillCollection {
@@ -229,15 +231,34 @@ export const generateTemplate2 = (templateData: Template2Data): string => {
     }
   );
 
-  if (templateData.farmerBill?.farmerwise_bills) {
-    const farmerwiseBills = templateData.farmerBill.farmerwise_bills;
+  if (templateData.farmerBill) {
+    let billsToSearch: any[] = [];
+    
+    // Handle new API structure (cow/buffalo arrays)
+    if (templateData.farmerBill.cow || templateData.farmerBill.buffalo) {
+         if (Array.isArray(templateData.farmerBill.cow)) {
+             billsToSearch = [...billsToSearch, ...templateData.farmerBill.cow];
+         }
+         if (Array.isArray(templateData.farmerBill.buffalo)) {
+             billsToSearch = [...billsToSearch, ...templateData.farmerBill.buffalo];
+         }
+    } 
+    // Handle old/existing structure
+    else if (templateData.farmerBill.farmerwise_bills) {
+        billsToSearch = templateData.farmerBill.farmerwise_bills;
+    }
+    // Handle case where farmerBill is the array itself
+    else if (Array.isArray(templateData.farmerBill)) {
+        billsToSearch = templateData.farmerBill;
+    }
+
     console.log(
-      `🔍 Template1 - Available farmer IDs:`,
-      farmerwiseBills.map((b: any) => b.farmer_id)
+      `🔍 Template1 - Available farmer IDs in search list:`,
+      billsToSearch.map((b: any) => b.farmer_id)
     );
 
     // Enhanced matching logic
-    farmerBillData = farmerwiseBills.find((bill: any) => {
+    farmerBillData = billsToSearch.find((bill: any) => {
       const billId = String(bill.farmer_id).trim();
       const searchId = String(templateData.farmerCode).trim();
       console.log(`🔍 Template1 - Comparing: "${billId}" vs "${searchId}"`);
@@ -337,6 +358,15 @@ export const generateTemplate2 = (templateData: Template2Data): string => {
   }
 
   // Calculate totals by milk type
+  // Pre-filter data if a specific milk type is requested
+  let processedData = templateData.data;
+  if (templateData.milkType === 'Cow') {
+    processedData = templateData.data.filter(item => (item.type || '').toString().toLowerCase().trim() === 'cow');
+  } else if (templateData.milkType === 'Buffalo') {
+    processedData = templateData.data.filter(item => (item.type || '').toString().toLowerCase().trim() === 'buffalo');
+  }
+
+  // Calculate totals by milk type
   let cowLiters = 0,
     cowAmount = 0;
   let buffaloLiters = 0,
@@ -348,7 +378,7 @@ export const generateTemplate2 = (templateData: Template2Data): string => {
     totalClr = 0,
     recordCount = 0;
 
-  templateData.data.forEach((item) => {
+  processedData.forEach((item) => {
     // Normalize milk type to handle case variations
     const milkType = (item.type || '').toString().toLowerCase().trim();
     
@@ -371,19 +401,28 @@ export const generateTemplate2 = (templateData: Template2Data): string => {
   const avgSnf = recordCount > 0 ? (totalSnf / recordCount).toFixed(1) : "0.0";
   const avgClr = recordCount > 0 ? (totalClr / recordCount).toFixed(1) : "0.0";
   
-  // Calculate averages for cow and buffalo separately
+  // These specific totals are less relevant now that we pre-filter, but good to keep for the hybrid 'All' view
+  const cowTotalFat = processedData.filter(item => (item.type || '').toString().toLowerCase().trim() === "cow").reduce((sum, item) => sum + item.fat, 0);
+  const cowTotalSnf = processedData.filter(item => (item.type || '').toString().toLowerCase().trim() === "cow").reduce((sum, item) => sum + item.snf, 0);
+  const cowTotalClr = processedData.filter(item => (item.type || '').toString().toLowerCase().trim() === "cow").reduce((sum, item) => sum + item.clr, 0);
   
-  const cowTotalFat = templateData.data.filter(item => (item.type || '').toString().toLowerCase().trim() === "cow").reduce((sum, item) => sum + item.fat, 0);
-  const cowTotalSnf = templateData.data.filter(item => (item.type || '').toString().toLowerCase().trim() === "cow").reduce((sum, item) => sum + item.snf, 0);
-  const cowTotalClr = templateData.data.filter(item => (item.type || '').toString().toLowerCase().trim() === "cow").reduce((sum, item) => sum + item.clr, 0);
-  
-  const buffaloTotalFat = templateData.data.filter(item => (item.type || '').toString().toLowerCase().trim() === "buffalo").reduce((sum, item) => sum + item.fat, 0);
-  const buffaloTotalSnf = templateData.data.filter(item => (item.type || '').toString().toLowerCase().trim() === "buffalo").reduce((sum, item) => sum + item.snf, 0);
-  const buffaloTotalClr = templateData.data.filter(item => (item.type || '').toString().toLowerCase().trim() === "buffalo").reduce((sum, item) => sum + item.clr, 0);
+  const buffaloTotalFat = processedData.filter(item => (item.type || '').toString().toLowerCase().trim() === "buffalo").reduce((sum, item) => sum + item.fat, 0);
+  const buffaloTotalSnf = processedData.filter(item => (item.type || '').toString().toLowerCase().trim() === "buffalo").reduce((sum, item) => sum + item.snf, 0);
+  const buffaloTotalClr = processedData.filter(item => (item.type || '').toString().toLowerCase().trim() === "buffalo").reduce((sum, item) => sum + item.clr, 0);
 
   // Generate table rows based on milk types present
-  const hasCowData = cowLiters > 0;
-  const hasBuffaloData = buffaloLiters > 0;
+  let hasCowData = cowLiters > 0;
+  let hasBuffaloData = buffaloLiters > 0;
+
+  // STRICT FILTERING: If the template requested a specific milk type, force the other type to be false
+  // This allows the parent component to call this function twice (once for Cow, once for Buffalo) 
+  // to facilitate generating separate PDF pages.
+  if (templateData.milkType === 'Cow') {
+    hasBuffaloData = false;
+  } else if (templateData.milkType === 'Buffalo') {
+    hasCowData = false;
+  }
+
   const hasBothTypes = hasCowData && hasBuffaloData;
   
   let tableRows = "";
@@ -424,12 +463,8 @@ export const generateTemplate2 = (templateData: Template2Data): string => {
   };
   
   if (hasBothTypes) {
-    // Show separate tables for cow and buffalo with page breaks
     tableRows += generateTableForType(cowData, "");
-    tableRows += `</tbody></table><div style="page-break-before: always;"></div><table class="main-table"><thead><tr><th>Date</th><th>Shift</th><th>Liter</th><th>Fat</th><th>SNF</th><th>CLR</th><th>Rate</th><th>Amount</th></tr></thead><tbody>`;
-    tableRows += generateTableForType(buffaloData, "");
   } else {
-    // Show single table for the available type
     const dataToUse = hasCowData ? cowData : (hasBuffaloData ? buffaloData : groupedData);
     tableRows += generateTableForType(dataToUse, "");
   }
@@ -586,18 +621,19 @@ export const generateTemplate2 = (templateData: Template2Data): string => {
   <meta charset="UTF-8">
   <style>
     @page {
-      margin-top: 30px;
-      margin-left: 10px;
-      margin-right: 10px;
+      margin: 20px;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
     }
     .invoice-layout { 
       font-family: Arial, sans-serif; 
       font-size: 16px; 
       line-height: 1.2; 
       margin: 0;
-      padding-left: 10px !important;
-      padding-right: 10px !important;
-      padding-top: 80px !important;
+      padding: 10px;
       box-sizing: border-box;
       width: 100%;
     }
@@ -643,8 +679,9 @@ export const generateTemplate2 = (templateData: Template2Data): string => {
     .deduction-table td { border: 1px solid black; padding: 5px; text-align: center; font-size: 12px; }
     .payment-details { text-align: left; padding: 2px; line-height: 1.8; }
     .total-row { font-weight: bold; background-color: #f0f0f0; }
+    .page-break { page-break-before: always; break-before: page; }
     @media print {
-      .page-break { page-break-before: always; }
+      .page-break { page-break-before: always; break-before: page; }
       div[style*="page-break-before: always"] { page-break-before: always; }
     }
   </style>
@@ -652,6 +689,7 @@ export const generateTemplate2 = (templateData: Template2Data): string => {
 <body>
   <div class="invoice-layout">
 
+  ${!templateData.hideHeader ? `
   <div class="header">
   ${templateData.branchName}
 </div>
@@ -671,8 +709,10 @@ export const generateTemplate2 = (templateData: Template2Data): string => {
     templateData.toDate
   }
     </div>
-  </div>
+  </div>` : '<div style="height: 20px;"></div>'}
 
+  ${hasBothTypes ? `
+  <h3 style="text-align: center; margin: 10px 0; font-size: 16px;">Cow Milk</h3>
   <table class="main-table">
     <thead>
       <tr>
@@ -689,19 +729,82 @@ export const generateTemplate2 = (templateData: Template2Data): string => {
     <tbody>
       ${tableRows}
       <tr class="total-row">
-        <td colspan="2">Total</td>
-        <td>${totalLiters.toFixed(1)}</td>
-        <td>${avgFat}</td>
-        <td>${avgSnf}</td>
-        <td>${avgClr}</td>
-        <td>${
-          totalLiters > 0 ? (totalAmount / totalLiters).toFixed(1) : "0.0"
-        }</td>
-        <td>${totalAmount.toFixed(1)}</td>
+        <td colspan="2">Cow Total</td>
+        <td>${cowLiters.toFixed(1)}</td>
+        <td>${cowData.size > 0 ? (cowTotalFat / cowData.size).toFixed(1) : '0.0'}</td>
+        <td>${cowData.size > 0 ? (cowTotalSnf / cowData.size).toFixed(1) : '0.0'}</td>
+        <td>${cowData.size > 0 ? (cowTotalClr / cowData.size).toFixed(1) : '0.0'}</td>
+        <td>${cowLiters > 0 ? (cowAmount / cowLiters).toFixed(1) : "0.0"}</td>
+        <td>${cowAmount.toFixed(1)}</td>
       </tr>
     </tbody>
   </table>
+  </div>
+  
+  <div style="page-break-before: always; break-before: page; display: block; height: 0; clear: both;"></div>
+  
+  <div class="invoice-layout">
+  <div class="header">${templateData.branchName}</div>
+  <div class="invoice-info"><div><strong>Code & Name:</strong> ${templateData.farmerCode} ${templateData.farmerName}<br></div><div><strong>Invoice No.</strong> 1<br><strong>Invoice Date</strong> ${new Date().toLocaleDateString("en-GB")}<br><strong>Bill Date</strong> ${templateData.fromDate} <strong>To</strong> ${templateData.toDate}</div></div>
+  <h3 style="text-align: center; margin: 10px 0; font-size: 16px;">Buffalo Milk</h3>
+  <table class="main-table">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Shift</th>
+        <th>Liter</th>
+        <th>Fat</th>
+        <th>SNF</th>
+        <th>CLR</th>
+        <th>Rate</th>
+        <th>Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${generateTableForType(buffaloData, "")}
+      <tr class="total-row">
+        <td colspan="2">Buffalo Total</td>
+        <td>${buffaloLiters.toFixed(1)}</td>
+        <td>${buffaloData.size > 0 ? (buffaloTotalFat / buffaloData.size).toFixed(1) : '0.0'}</td>
+        <td>${buffaloData.size > 0 ? (buffaloTotalSnf / buffaloData.size).toFixed(1) : '0.0'}</td>
+        <td>${buffaloData.size > 0 ? (buffaloTotalClr / buffaloData.size).toFixed(1) : '0.0'}</td>
+        <td>${buffaloLiters > 0 ? (buffaloAmount / buffaloLiters).toFixed(1) : "0.0"}</td>
+        <td>${buffaloAmount.toFixed(1)}</td>
+      </tr>
+    </tbody>
+  </table>
+  ` : `
+  <table class="main-table">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Shift</th>
+        <th>Liter</th>
+        <th>Fat</th>
+        <th>SNF</th>
+        <th>CLR</th>
+        <th>Rate</th>
+        <th>Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${tableRows}
+      <tr class="total-row">
+        <td colspan="2">${hasCowData ? 'Cow Total' : (hasBuffaloData ? 'Buffalo Total' : 'Total')}</td>
+        <td>${hasCowData ? cowLiters.toFixed(1) : (hasBuffaloData ? buffaloLiters.toFixed(1) : totalLiters.toFixed(1))}</td>
+        <td>${hasCowData ? (cowData.size > 0 ? (cowTotalFat / cowData.size).toFixed(1) : '0.0') : (hasBuffaloData ? (buffaloData.size > 0 ? (buffaloTotalFat / buffaloData.size).toFixed(1) : '0.0') : avgFat)}</td>
+        <td>${hasCowData ? (cowData.size > 0 ? (cowTotalSnf / cowData.size).toFixed(1) : '0.0') : (hasBuffaloData ? (buffaloData.size > 0 ? (buffaloTotalSnf / buffaloData.size).toFixed(1) : '0.0') : avgSnf)}</td>
+        <td>${hasCowData ? (cowData.size > 0 ? (cowTotalClr / cowData.size).toFixed(1) : '0.0') : (hasBuffaloData ? (buffaloData.size > 0 ? (buffaloTotalClr / buffaloData.size).toFixed(1) : '0.0') : avgClr)}</td>
+        <td>${hasCowData ? (cowLiters > 0 ? (cowAmount / cowLiters).toFixed(1) : '0.0') : (hasBuffaloData ? (buffaloLiters > 0 ? (buffaloAmount / buffaloLiters).toFixed(1) : '0.0') : (totalLiters > 0 ? (totalAmount / totalLiters).toFixed(1) : "0.0"))}</td>
+        <td>${hasCowData ? cowAmount.toFixed(1) : (hasBuffaloData ? buffaloAmount.toFixed(1) : totalAmount.toFixed(1))}</td>
+      </tr>
+    </tbody>
+  </table>
+  `}
 
+  ${hasBothTypes ? '<div class="page-break"></div>' : ''}}
+  
+  ${!templateData.hideSummary ? `
   <div class="summary-section">
     <table class="summary-table">
       <tr>
@@ -729,20 +832,20 @@ export const generateTemplate2 = (templateData: Template2Data): string => {
             <div>
               <strong>Bank Details:</strong><br>
               <strong>A/C No.:</strong> ${
-                templateData.bankDetails?.accountNumber || "N/A"
+                templateData.bankDetails?.accountNumber || farmerBillData?.farmer_details?.accountNumber || "N/A"
               }<br>
               <strong>IFSC:</strong> ${
-                templateData.bankDetails?.ifscCode || "N/A"
+                templateData.bankDetails?.ifscCode || farmerBillData?.farmer_details?.ifscCode || "N/A"
               }<br>
               <strong>Bank:</strong> ${
-                templateData.bankDetails?.bankName || "N/A"
+                templateData.bankDetails?.bankName || farmerBillData?.farmer_details?.bankName || "N/A"
               }
             </div>
           </div>
         </td>
       </tr>
     </table>
-  </div>
+  </div>` : ''}
   </div>
 </body>
 </html>`;

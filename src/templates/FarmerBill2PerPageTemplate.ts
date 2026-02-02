@@ -85,64 +85,52 @@ export const generateFarmer2PerPage = (templateData: Template2PerPageData): stri
     const fromDate = new Date(parseInt(fromDateParts[2]), parseInt(fromDateParts[1]) - 1, parseInt(fromDateParts[0]));
     const toDate = new Date(parseInt(toDateParts[2]), parseInt(toDateParts[1]) - 1, parseInt(toDateParts[0]));
 
-    const groupedData = new Map();
+    const cowData = new Map();
+    const buffaloData = new Map();
     farmer.collections.forEach((c) => {
       const date = new Date(c.created_at).toLocaleDateString("en-GB");
       const key = `${date}_${c.shift}`;
-      groupedData.set(key, c);
+      const milkType = (c.type || '').toString().toLowerCase().trim();
+      if (milkType === 'cow') cowData.set(key, c);
+      else if (milkType === 'buffalo') buffaloData.set(key, c);
     });
 
-    let tableRows = '';
-    let morningTotalLiters = 0, eveningTotalLiters = 0;
-    let morningTotalFat = 0, eveningTotalFat = 0;
-    let morningTotalSnf = 0, eveningTotalSnf = 0;
-    let morningTotalAmount = 0, eveningTotalAmount = 0;
-    let morningCount = 0, eveningCount = 0;
+    const hasCow = cowData.size > 0;
+    const hasBuff = buffaloData.size > 0;
 
-    const currentDate = new Date(fromDate);
-    while (currentDate <= toDate) {
-      const dateKey = currentDate.toLocaleDateString("en-GB");
-      const morning = groupedData.get(`${dateKey}_Morning`);
-      const evening = groupedData.get(`${dateKey}_Evening`);
-
-      if (morning) {
-        morningTotalLiters += Number(morning.quantity);
-        morningTotalFat += Number(morning.fat);
-        morningTotalSnf += Number(morning.snf);
-        morningTotalAmount += Number(morning.amount);
-        morningCount++;
+    const generateTable = (dataMap: Map<any, any>, label: string) => {
+      let rows = '';
+      let mLiters = 0, eLiters = 0, mFat = 0, eFat = 0, mSnf = 0, eSnf = 0, mAmt = 0, eAmt = 0, mCnt = 0, eCnt = 0;
+      const cd = new Date(fromDate);
+      while (cd <= toDate) {
+        const dk = cd.toLocaleDateString("en-GB");
+        const m = dataMap.get(`${dk}_Morning`);
+        const e = dataMap.get(`${dk}_Evening`);
+        if (m) { mLiters += Number(m.quantity); mFat += Number(m.fat); mSnf += Number(m.snf); mAmt += Number(m.amount); mCnt++; }
+        if (e) { eLiters += Number(e.quantity); eFat += Number(e.fat); eSnf += Number(e.snf); eAmt += Number(e.amount); eCnt++; }
+        rows += `<tr><td style="border-left: 1px solid black; border-right: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${dk.substring(0, 5)}</td><td style="border-left: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${m ? Number(m.quantity).toFixed(1) : '-'}</td><td style="border-left: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${m ? Number(m.fat).toFixed(1) : '-'}</td><td style="border-left: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${m ? Number(m.snf).toFixed(1) : '-'}</td><td style="border-left: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${m ? Number(m.rate).toFixed(1) : '-'}</td><td style="border-left: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${m ? Number(m.amount).toFixed(0) : '-'}</td><td style="border-left: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${e ? Number(e.quantity).toFixed(1) : '-'}</td><td style="border-left: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${e ? Number(e.fat).toFixed(1) : '-'}</td><td style="border-left: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${e ? Number(e.snf).toFixed(1) : '-'}</td><td style="border-left: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${e ? Number(e.rate).toFixed(1) : '-'}</td><td style="border-left: 1px solid black; border-right: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${e ? Number(e.amount).toFixed(0) : '-'}</td></tr>`;
+        cd.setDate(cd.getDate() + 1);
       }
-      if (evening) {
-        eveningTotalLiters += Number(evening.quantity);
-        eveningTotalFat += Number(evening.fat);
-        eveningTotalSnf += Number(evening.snf);
-        eveningTotalAmount += Number(evening.amount);
-        eveningCount++;
-      }
+      return { rows, mLiters, eLiters, mFat: mCnt > 0 ? (mFat / mCnt).toFixed(1) : '0.0', eFat: eCnt > 0 ? (eFat / eCnt).toFixed(1) : '0.0', mSnf: mCnt > 0 ? (mSnf / mCnt).toFixed(1) : '0.0', eSnf: eCnt > 0 ? (eSnf / eCnt).toFixed(1) : '0.0', mAmt, eAmt };
+    };
 
-      tableRows += `
-        <tr>
-          <td style="border-left: 1px solid black; border-right: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${dateKey.substring(0, 5)}</td>
-          <td style="border-left: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${morning ? Number(morning.quantity).toFixed(1) : '-'}</td>
-          <td style="border-left: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${morning ? Number(morning.fat).toFixed(1) : '-'}</td>
-          <td style="border-left: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${morning ? Number(morning.snf).toFixed(1) : '-'}</td>
-          <td style="border-left: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${morning ? Number(morning.rate).toFixed(1) : '-'}</td>
-          <td style="border-left: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${morning ? Number(morning.amount).toFixed(0) : '-'}</td>
-          <td style="border-left: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${evening ? Number(evening.quantity).toFixed(1) : '-'}</td>
-          <td style="border-left: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${evening ? Number(evening.fat).toFixed(1) : '-'}</td>
-          <td style="border-left: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${evening ? Number(evening.snf).toFixed(1) : '-'}</td>
-          <td style="border-left: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${evening ? Number(evening.rate).toFixed(1) : '-'}</td>
-          <td style="border-left: 1px solid black; border-right: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${evening ? Number(evening.amount).toFixed(0) : '-'}</td>
-        </tr>`;
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
+    const cowTable = hasCow ? generateTable(cowData, 'Cow') : null;
+    const buffTable = hasBuff ? generateTable(buffaloData, 'Buffalo') : null;
+    const hasBothTypes = hasCow && hasBuff;
 
-    const morningAvgFat = morningCount > 0 ? (morningTotalFat / morningCount).toFixed(1) : '0.0';
-    const morningAvgSnf = morningCount > 0 ? (morningTotalSnf / morningCount).toFixed(1) : '0.0';
-    const eveningAvgFat = eveningCount > 0 ? (eveningTotalFat / eveningCount).toFixed(1) : '0.0';
-    const eveningAvgSnf = eveningCount > 0 ? (eveningTotalSnf / eveningCount).toFixed(1) : '0.0';
-    const totalLiters = morningTotalLiters + eveningTotalLiters;
-    const totalAmount = morningTotalAmount + eveningTotalAmount;
+    const totalLiters = (cowTable?.mLiters || 0) + (cowTable?.eLiters || 0) + (buffTable?.mLiters || 0) + (buffTable?.eLiters || 0);
+    const totalAmount = (cowTable?.mAmt || 0) + (cowTable?.eAmt || 0) + (buffTable?.mAmt || 0) + (buffTable?.eAmt || 0);
+
+    const cowSection = cowTable ? `
+        ${hasBothTypes ? `<div style="text-align: center; margin-bottom: 3px; border-bottom: 1px solid black; padding-bottom: 3px;"><h2 style="margin: 0; font-size: 14px; font-weight: normal;">${templateData.dairyName}</h2></div><div style="display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 10px;"><div>Farmer: ${farmer.farmer_id} - ${farmer.farmer_details?.fullName || 'Unknown'}</div><div>Bill Cycle: ${templateData.fromDate} to ${templateData.toDate}</div></div>` : ''}
+        <div style="text-align: center; font-weight: bold; margin-bottom: 2px; font-size: 11px;">Cow Milk</div>
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid black; margin-bottom: 4px; font-size: 9px; font-weight: normal;"><thead><tr><th rowspan="2" style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px; font-weight: normal;">Date</th><th colspan="5" style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px; font-weight: normal;">Morning</th><th colspan="5" style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px; font-weight: normal;">Evening</th></tr><tr><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Ltr</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Fat</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">SNF</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Rate</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Amt</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Ltr</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Fat</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">SNF</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Rate</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Amt</th></tr></thead><tbody>${cowTable.rows}<tr><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">Cow Total</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${cowTable.mLiters.toFixed(1)}</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${cowTable.mFat}</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${cowTable.mSnf}</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">-</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${cowTable.mAmt.toFixed(0)}</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${cowTable.eLiters.toFixed(1)}</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${cowTable.eFat}</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${cowTable.eSnf}</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">-</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${cowTable.eAmt.toFixed(0)}</td></tr></tbody></table>` : '';
+
+    const buffSection = buffTable ? `
+        ${hasBothTypes ? '<div style="page-break-before: always;"></div>' : ''}
+        ${hasBothTypes ? `<div style="text-align: center; margin-bottom: 3px; border-bottom: 1px solid black; padding-bottom: 3px;"><h2 style="margin: 0; font-size: 14px; font-weight: normal;">${templateData.dairyName}</h2></div><div style="display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 10px;"><div>Farmer: ${farmer.farmer_id} - ${farmer.farmer_details?.fullName || 'Unknown'}</div><div>Bill Cycle: ${templateData.fromDate} to ${templateData.toDate}</div></div>` : ''}
+        <div style="text-align: center; font-weight: bold; margin-bottom: 2px; font-size: 11px;">Buffalo Milk</div>
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid black; margin-bottom: 4px; font-size: 9px; font-weight: normal;"><thead><tr><th rowspan="2" style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px; font-weight: normal;">Date</th><th colspan="5" style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px; font-weight: normal;">Morning</th><th colspan="5" style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px; font-weight: normal;">Evening</th></tr><tr><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Ltr</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Fat</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">SNF</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Rate</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Amt</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Ltr</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Fat</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">SNF</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Rate</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Amt</th></tr></thead><tbody>${buffTable.rows}<tr><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">Buffalo Total</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${buffTable.mLiters.toFixed(1)}</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${buffTable.mFat}</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${buffTable.mSnf}</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">-</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${buffTable.mAmt.toFixed(0)}</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${buffTable.eLiters.toFixed(1)}</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${buffTable.eFat}</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${buffTable.eSnf}</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">-</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${buffTable.eAmt.toFixed(0)}</td></tr></tbody></table>` : '';
 
     const summaryTotalLiters = farmer.collections_summary?.total_quantity || totalLiters;
     const summaryTotalAmount = farmer.collections_summary?.total_amount || totalAmount;
@@ -183,53 +171,9 @@ export const generateFarmer2PerPage = (templateData: Template2PerPageData): stri
     const netPayable = Number((summaryTotalAmount - totalDeductions));
 
     return `
-      <div style="width: 100%; font-family: Arial, sans-serif; font-size: 10px; margin-bottom: 40px; border: 1px solid black; padding: 6px; page-break-inside: avoid; font-weight: normal;">
-        <div style="text-align: center; margin-bottom: 3px; border-bottom: 1px solid black; padding-bottom: 3px;">
-          <h2 style="margin: 0; font-size: 14px; font-weight: normal;">${templateData.dairyName}</h2>
-        </div>
-        
-        <div style="display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 10px;">
-          <div>Farmer: ${farmer.farmer_id} - ${farmer.farmer_details?.fullName || 'Unknown'}</div>
-          <div>Bill Cycle: ${templateData.fromDate} to ${templateData.toDate}</div>
-        </div>
-        
-        <table style="width: 100%; border-collapse: collapse; border: 1px solid black; margin-bottom: 4px; font-size: 9px; font-weight: normal;">
-          <thead>
-            <tr>
-              <th rowspan="2" style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px; font-weight: normal;">Date</th>
-              <th colspan="5" style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px; font-weight: normal;">Morning</th>
-              <th colspan="5" style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px; font-weight: normal;">Evening</th>
-            </tr>
-            <tr>
-              <th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Ltr</th>
-              <th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Fat</th>
-              <th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">SNF</th>
-              <th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Rate</th>
-              <th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Amt</th>
-              <th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Ltr</th>
-              <th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Fat</th>
-              <th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">SNF</th>
-              <th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Rate</th>
-              <th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Amt</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${tableRows || '<tr><td colspan="11" style="border: 1px solid black; padding: 10px; text-align: center;">No data</td></tr>'}
-            <tr>
-              <td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">Total</td>
-              <td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${morningTotalLiters.toFixed(1)}</td>
-              <td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${morningAvgFat}</td>
-              <td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${morningAvgSnf}</td>
-              <td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">-</td>
-              <td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${morningTotalAmount.toFixed(0)}</td>
-              <td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${eveningTotalLiters.toFixed(1)}</td>
-              <td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${eveningAvgFat}</td>
-              <td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${eveningAvgSnf}</td>
-              <td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">-</td>
-              <td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${eveningTotalAmount.toFixed(0)}</td>
-            </tr>
-          </tbody>
-        </table>
+      <div style="width: 100%; font-family: Arial, sans-serif; font-size: 10px; margin-bottom: 40px; border: 1px solid black; padding: 6px; ${hasBothTypes ? 'page-break-after: always;' : 'page-break-inside: avoid;'} font-weight: normal;">
+        ${!hasBothTypes ? `<div style="text-align: center; margin-bottom: 3px; border-bottom: 1px solid black; padding-bottom: 3px;"><h2 style="margin: 0; font-size: 14px; font-weight: normal;">${templateData.dairyName}</h2></div><div style="display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 10px;"><div>Farmer: ${farmer.farmer_id} - ${farmer.farmer_details?.fullName || 'Unknown'}</div><div>Bill Cycle: ${templateData.fromDate} to ${templateData.toDate}</div></div>` : ''}
+        ${cowSection}${buffSection}
         
         <table style="width: 100%; border-collapse: collapse; border: 1px solid black; font-size: 7px; font-weight: normal;">
           <tr>

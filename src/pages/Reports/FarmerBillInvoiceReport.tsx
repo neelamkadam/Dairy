@@ -146,7 +146,7 @@ const FarmerBillInvoiceReport = () => {
       }
 
       setCollectionData(filteredData);
-      setFarmerBills(collectionResponse.data.farmerwise_bills || []);
+      setFarmerBills(collectionResponse.data as any);
       setFarmerPayments(collectionResponse.data.farmer_payments || []);
       
       // Fetch bank details
@@ -239,54 +239,62 @@ const FarmerBillInvoiceReport = () => {
   const exportToPDF = async () => {
     setPdfLoading(true);
     try {
-      const grouped = groupByFarmer();
       const selectedBranch = branches.find(v => v.branch_id.toString() === selectedVLC);
       const vlcName = selectedBranch?.name || 'VLC Center';
       const dairyName = selectedBranch?.username || 'Dairy';
+      // @ts-ignore
+      const dairyId = selectedBranch?.branch_id || selectedBranch?.id;
+
+      // Fetch complete farmer data with farmer_details from the correct API
+      const response = await billApi.getFarmerReport({
+        dairy_id: dairyId,
+        start_date: fromDate,
+        end_date: toDate
+      });
+
+      if (!response.data.success) {
+        toast.error('Failed to fetch farmer report data');
+        return;
+      }
+
+      const cowData: FarmerReportData[] = response.data.cow || [];
+      const buffaloData: FarmerReportData[] = response.data.buffalo || [];
+      
+      // Combine cow and buffalo data
+      const allFarmerData = [...cowData, ...buffaloData];
+      
+      // Create a map of farmer_id to complete farmer data (including farmer_details)
+      const farmerDataMap = new Map();
+      allFarmerData.forEach(farmer => {
+        if (!farmerDataMap.has(farmer.farmer_id)) {
+          farmerDataMap.set(farmer.farmer_id, farmer);
+        } else {
+          // Merge collections if farmer exists in both cow and buffalo
+          const existing = farmerDataMap.get(farmer.farmer_id);
+          existing.collections = [...existing.collections, ...farmer.collections];
+        }
+      });
 
       const pdf = new jsPDF('p', 'mm', 'a4');
-      const farmerIds = Object.keys(grouped);
+      const farmerIds = Array.from(farmerDataMap.keys());
 
-      for (let i = 0; i < farmerIds.length; i++) {
-        const farmerId = farmerIds[i];
-        const farmerData = grouped[farmerId];
-        const farmerName = farmerData[0].farmer_name;
-        
-        const templateData: FarmerBillData[] = farmerData.map(item => ({
-          date: item.date,
-          shift: item.shift,
-          type: item.type,
-          liters: parseFloat(item.liters),
-          fat: parseFloat(item.fat),
-          snf: parseFloat(item.snf),
-          clr: parseFloat(item.clr),
-          water: item.water ? parseFloat(item.water) : null,
-          rate: parseFloat(item.rate),
-          amount: parseFloat(item.amount),
-          farmer_id: item.farmer_id,
-          farmer_name: item.farmer_name
-        }));
+      // Filter by farmerCode if specified
+      const filteredFarmerIds = farmerCode.trim() 
+        ? farmerIds.filter(id => id === farmerCode.padStart(4, '0'))
+        : farmerIds;
 
-        const htmlContent = generateTemplate2({
-          dairyName: dairyName,
-          branchName: vlcName,
-          farmerCode: farmerId,
-          farmerName: farmerName,
-          fromDate: fromDate,
-          toDate: toDate,
-          milkType: 'All',
-          data: templateData,
-          farmerBill: { farmerwise_bills: farmerBills },
-          paymentSummary: null,
-          bankDetails: bankDetailsMap.get(farmerId),
-          hideRateAmount: hideRateAmount
-        });
+      if (filteredFarmerIds.length === 0) {
+        toast.info('No data found for the selected criteria');
+        return;
+      }
 
+      // Helper to generate a single page/canvas
+      const generatePage = async (htmlContent: string) => {
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = htmlContent;
         tempDiv.style.position = 'absolute';
         tempDiv.style.left = '-9999px';
-        tempDiv.style.width = '210mm';
+        tempDiv.style.width = '210mm'; // A4 width
         document.body.appendChild(tempDiv);
 
         try {
@@ -294,22 +302,102 @@ const FarmerBillInvoiceReport = () => {
             scale: 1.5,
             useCORS: true,
             logging: false,
-            windowWidth: 794
+            windowWidth: 794 // A4 width in pixels at 96 DPI approx
           });
           const imgData = canvas.toDataURL('image/png');
           const imgWidth = 210;
           const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-          if (i > 0) pdf.addPage();
-          pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+          
+          return { imgData, imgWidth, imgHeight };
         } finally {
           document.body.removeChild(tempDiv);
+        }
+      };
+
+      for (let i = 0; i < filteredFarmerIds.length; i++) {
+        const farmerId = filteredFarmerIds[i];
+        const farmerInfo = farmerDataMap.get(farmerId);
+        
+        // Convert collections to FarmerBillData format
+        const templateDataItems: FarmerBillData[] = farmerInfo.collections
+          .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+          .map((item: any) => ({
+            date: item.created_at,
+            shift: item.shift,
+            type: item.type,
+            liters: parseFloat(item.quantity),
+            fat: parseFloat(item.fat),
+            snf: parseFloat(item.snf),
+            clr: parseFloat(item.clr),
+            water: item.water ? parseFloat(item.water) : null,
+            rate: parseFloat(item.rate),
+            amount: parseFloat(item.amount),
+            farmer_id: item.farmer_id,
+            farmer_name: farmerInfo.farmer_details?.fullName || farmerId
+          }));
+
+        const baseParams = {
+          dairyName: dairyName,
+          branchName: vlcName,
+          farmerCode: farmerId,
+          farmerName: farmerInfo.farmer_details?.fullName || farmerId,
+          fromDate: fromDate,
+          toDate: toDate,
+          data: templateDataItems,
+          farmerBill: response.data, // Pass the full response with cow/buffalo arrays
+          paymentSummary: null,
+          bankDetails: farmerInfo.farmer_details ? {
+            accountNumber: farmerInfo.farmer_details.accountNumber,
+            ifscCode: farmerInfo.farmer_details.ifscCode,
+            bankName: farmerInfo.farmer_details.bankName,
+          } : undefined,
+          hideRateAmount: hideRateAmount
+        };
+
+        // Check for mixed types
+        const hasCow = templateDataItems.some(item => item.type === 'Cow');
+        const hasBuffalo = templateDataItems.some(item => item.type === 'Buffalo');
+        const isMixed = hasCow && hasBuffalo;
+
+        if (isMixed) {
+          // 1. Cow Page (Header YES, Summary NO)
+          const cowHtml = generateTemplate2({ 
+            ...baseParams, 
+            milkType: 'Cow',
+            hideHeader: false,
+            hideSummary: true 
+          });
+          const cowPage = await generatePage(cowHtml);
+          if (i > 0) pdf.addPage(); 
+          else if (pdf.getNumberOfPages() > 1) pdf.addPage(); 
+          
+          pdf.addImage(cowPage.imgData, 'PNG', 0, 0, cowPage.imgWidth, cowPage.imgHeight);
+
+          // 2. Buffalo Page (Header NO, Summary YES)
+          const buffaloHtml = generateTemplate2({ 
+            ...baseParams, 
+            milkType: 'Buffalo',
+            hideHeader: true,
+            hideSummary: false
+          });
+          const buffaloPage = await generatePage(buffaloHtml);
+          pdf.addPage();
+          pdf.addImage(buffaloPage.imgData, 'PNG', 0, 0, buffaloPage.imgWidth, buffaloPage.imgHeight);
+
+        } else {
+          // Single type (standard)
+          const htmlContent = generateTemplate2({ ...baseParams, milkType: 'All' });
+          const page = await generatePage(htmlContent);
+          
+          if (i > 0) pdf.addPage();
+          pdf.addImage(page.imgData, 'PNG', 0, 0, page.imgWidth, page.imgHeight);
         }
       }
 
       pdf.save(`Farmer_Bill_${fromDate}_to_${toDate}.pdf`);
       toast.success('PDF downloaded successfully');
     } catch (error) {
+      console.error('PDF Generation Error:', error);
       toast.error('Failed to generate PDF');
     } finally {
       setPdfLoading(false);
@@ -532,7 +620,19 @@ const FarmerBillInvoiceReport = () => {
         const [farmerId, farmerData] = grouped[currentPage] || [];
         if (!farmerId) return null;
 
-        const bill = farmerBills.find(b => b.farmer_id === farmerId);
+        let searchBills: any[] = [];
+        if (Array.isArray(farmerBills)) {
+          searchBills = farmerBills;
+        } else if (farmerBills && (typeof farmerBills === 'object')) {
+           // @ts-ignore
+           if (farmerBills.cow && Array.isArray(farmerBills.cow)) searchBills = [...searchBills, ...farmerBills.cow];
+           // @ts-ignore
+           if (farmerBills.buffalo && Array.isArray(farmerBills.buffalo)) searchBills = [...searchBills, ...farmerBills.buffalo];
+           // @ts-ignore
+           if (farmerBills.farmerwise_bills && Array.isArray(farmerBills.farmerwise_bills)) searchBills = [...searchBills, ...farmerBills.farmerwise_bills];
+        }
+        
+        const bill = searchBills.find((b: any) => b.farmer_id === farmerId);
         const payments = farmerPayments.filter(p => p.farmer_id === farmerId);
         const farmerTotal = farmerData.reduce((sum, item) => sum + parseFloat(item.amount), 0);
         const farmerLiters = farmerData.reduce((sum, item) => sum + parseFloat(item.liters), 0);
@@ -669,7 +769,7 @@ const FarmerBillInvoiceReport = () => {
                     </div>
                     <div className="p-4 bg-green-50 rounded col-span-2">
                       <p className="text-sm text-gray-600">Net Payable</p>
-                      <p className="text-2xl font-bold text-green-600">₹{Math.max(0, bill.net_payable).toFixed(2)}</p>
+                      <p className="text-2xl font-bold text-green-600">₹{(bill.milk_total - bill.deductions.advance - bill.deductions.cattle_feed - bill.deductions.other1 - bill.deductions.other2).toFixed(2)}</p>
                     </div>
                   </div>
                 </CardContent>
