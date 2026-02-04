@@ -363,9 +363,9 @@ const PaymentSummaryReport = () => {
           totals.totalRemaining.toFixed(2)
         ]],
         theme: 'grid',
-        styles: { fontSize: 7 },
-        headStyles: { fillColor: [66, 139, 202] },
-        footStyles: { fillColor: [200, 200, 200], fontStyle: 'bold' }
+        styles: { fontSize: 8, fontStyle: 'bold' },
+        headStyles: { fillColor: [66, 139, 202], fontStyle: 'bold' },
+        footStyles: { fillColor: [255, 255, 0], textColor: [0, 0, 0], fontStyle: 'bold' }
       });
 
       doc.save(`PaymentSummary_${dateFrom}_${dateTo}.pdf`);
