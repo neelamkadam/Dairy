@@ -10,13 +10,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar, ChevronLeft } from "lucide-react";
+import { Lock, CheckCircle, Unlock } from "lucide-react";
 import { billApi } from "@/services/billApi";
 import { deductionApi } from "@/services/deductionApi";
-import { webUserApi } from "@/services/webUserApi";
+import { bonusApi } from "@/services/bonusApi";
 import { normalizeFarmerId } from "@/utils/farmerIdUtils";
-import { adjustDeductionsForNegativeBalance } from "@/utils/priorityUtils";
-import { format, getDaysInMonth } from "date-fns";
+import { format } from "date-fns";
 import { toast } from "react-toastify";
 import { useAppSelector } from "@/redux/store";
 
@@ -53,26 +52,24 @@ const GenerateBill = () => {
     setStartDate(dates.from);
     setEndDate(dates.to);
   };
-  const { userData } = useAppSelector((state) => state.authData);
   const [selectedDairy, setSelectedDairy] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [farmersData, setFarmersData] = useState<any[]>([]);
-  const [priority, setPriority] = useState<string[]>(['advance', 'cattleFeed', 'other1', 'other2']);
   const [isBillFinalized, setIsBillFinalized] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const totals = farmersData.reduce(
     (acc, farmer) => {
-      const netPayable = farmer.hasBill 
-        ? farmer.milk_total - farmer.advanceDeduction - farmer.cattleFeedDeduction - farmer.other1Deduction - farmer.other2Deduction + (farmer.received_total || 0)
-        : farmer.milk_total - farmer.advance - farmer.cattleFeedAmount - farmer.other1Amount - farmer.other2Amount + (farmer.received_total || 0);
-      
       return {
         totalAmount: acc.totalAmount + farmer.milk_total,
         totalDeduction: acc.totalDeduction + (farmer.advanceDeduction || 0) + (farmer.cattleFeedDeduction || 0) + (farmer.other1Deduction || 0) + (farmer.other2Deduction || 0),
-        totalNetPayable: acc.totalNetPayable + netPayable,
+        totalBonus: acc.totalBonus + (farmer.bonusAmount || 0),
+        totalFixed: acc.totalFixed + (farmer.fixedAmount || 0),
+        totalRemaining: acc.totalRemaining + (farmer.totalRemaining || 0),
+        totalNetPayable: acc.totalNetPayable + (farmer.finalAmount || 0),
       };
     },
-    { totalAmount: 0, totalDeduction: 0, totalNetPayable: 0 }
+    { totalAmount: 0, totalDeduction: 0, totalBonus: 0, totalFixed: 0, totalRemaining: 0, totalNetPayable: 0 }
   );
 
   useEffect(() => {
@@ -81,21 +78,6 @@ const GenerateBill = () => {
     }
   }, [branches]);
 
-  useEffect(() => {
-    if (userData?.id) {
-      fetchPriority();
-    }
-  }, [userData?.id]);
-
-  const fetchPriority = async () => {
-    try {
-      const { data } = await webUserApi.getPriority(parseInt(userData.id!));
-      setPriority(data.data);
-    } catch (error) {
-      console.error('Error fetching priority:', error);
-    }
-  };
-
   const fetchBillData = async () => {
     try {
       const { data } = await deductionApi.getAllFarmersBalance(
@@ -103,7 +85,6 @@ const GenerateBill = () => {
         format(startDate, "yyyy-MM-dd"),
         format(endDate, "yyyy-MM-dd")
       );
-      console.log("getAllFarmersBalance response:", data);
       
       // Process the nested data structure
       const farmerMap = new Map();
@@ -138,12 +119,47 @@ const GenerateBill = () => {
               received_total: farmer.total_received || 0,
               net_payable: farmer.net_payable || 0,
               hasBill: false,
+              from_bills: farmer.from_bills || null,
+              bonusAmount: 0,
+              fixedAmount: 0,
+              bonusRate: 0,
+              effectiveFrom: null,
+              advance_remaining: 0,
+              cattlefeed_remaining: 0,
+              other1_remaining: 0,
+              other2_remaining: 0,
             });
           }
         });
       });
       
       const processedData = Array.from(farmerMap.values());
+      console.log('📊 Step 1 - Initial Processed Data:', processedData.map(f => ({
+        farmer_id: f.farmer_id,
+        milk_total: f.milk_total,
+        quantity: f.quantity,
+        advance: f.advance,
+        advanceDeduction: f.advanceDeduction,
+        cattleFeed: f.cattleFeedAmount,
+        cattleFeedDeduction: f.cattleFeedDeduction
+      })));
+
+      // Fetch bonus/fixed deductions
+      const bonusResponse = await bonusApi.getBonusDeductions({
+        dairy_id: selectedDairy,
+        start_date: format(startDate, "yyyy-MM-dd"),
+        end_date: format(endDate, "yyyy-MM-dd"),
+      });
+      console.log('🎁 Step 2 - Bonus Response:', bonusResponse.data);
+
+      // Create bonus/fixed map by farmer (get latest entry - highest ID)
+      const bonusByFarmer = new Map();
+      (bonusResponse.data.data || []).forEach((bonus: any) => {
+        const existing = bonusByFarmer.get(bonus.farmer_id);
+        if (!existing || bonus.id > existing.id) {
+          bonusByFarmer.set(bonus.farmer_id, bonus);
+        }
+      });
 
       // Fetch bill details like FarmerDeduction page
       if (processedData.length > 0) {
@@ -155,9 +171,7 @@ const GenerateBill = () => {
           format(endDate, "yyyy-MM-dd")
         );
 
-        console.log('Bill Details Response:', billDetailsResponse.data);
-
-        // Check if bills are finalized - only if ALL farmers have bill data AND all bills have is_finalized = 1
+        // Check if bills are finalized from EITHER source (same logic as FarmerDeduction)
         const billDetailsMap = new Map(
           (billDetailsResponse.data.data || []).map((detail: any) => [
             detail.farmer_id,
@@ -165,12 +179,29 @@ const GenerateBill = () => {
           ])
         );
         
-        const allFarmersHaveBills = processedData.every(farmer => billDetailsMap.has(farmer.farmer_id));
-        const allBillsFinalized = (billDetailsResponse.data.data || []).every((detail: any) => detail.is_finalized === 1);
-        setIsBillFinalized(allFarmersHaveBills && billDetailsMap.size > 0 && allBillsFinalized);
+        // Check if ANY farmer has finalized bills from EITHER source
+        const hasFinalized = processedData.some(farmer => {
+          // Source 1: Check from_bills for finalized status
+          if (farmer.from_bills && farmer.from_bills.is_finalized === 1) {
+            console.log(`✅ Farmer ${farmer.farmer_id} has finalized bill in from_bills`);
+            return true;
+          }
+          
+          // Source 2: Check if farmer has finalized bills from detailed API data
+          const billDetail = billDetailsMap.get(farmer.farmer_id) as any;
+          if (billDetail && billDetail.is_finalized === 1) {
+            console.log(`✅ Farmer ${farmer.farmer_id} has finalized bill in bill details`);
+            return true;
+          }
+          
+          return false;
+        });
+
+        setIsBillFinalized(hasFinalized);
+        console.log('🔒 Bills Finalized Status:', hasFinalized);
 
         processedData.forEach(farmer => {
-          const billDetail = billDetailsMap.get(farmer.farmer_id);
+          const billDetail = billDetailsMap.get(farmer.farmer_id) as any;
           if (billDetail) {
             const advTotal = parseFloat(billDetail.advance_total || 0);
             const advRemaining = parseFloat(billDetail.advance_remaining || 0);
@@ -180,8 +211,6 @@ const GenerateBill = () => {
             const o1Remaining = parseFloat(billDetail.other1_remaining || 0);
             const o2Total = parseFloat(billDetail.other2_total || 0);
             const o2Remaining = parseFloat(billDetail.other2_remaining || 0);
-
-
 
             farmer.advance_remaining = advRemaining;
             farmer.cattlefeed_remaining = cfRemaining;
@@ -203,44 +232,286 @@ const GenerateBill = () => {
               farmer.hasBill = true;
             }
           }
+
+          // Apply bonus/fixed deductions
+          const bonusEntry = bonusByFarmer.get(farmer.farmer_id);
+          if (bonusEntry) {
+            // Check if current date is greater than effective_from date
+            const currentDate = new Date();
+            const effectiveDate = bonusEntry.effective_from ? new Date(bonusEntry.effective_from) : null;
+            const shouldApplyBonusFixed = effectiveDate && currentDate > effectiveDate;
+
+            if (shouldApplyBonusFixed) {
+              farmer.bonusRate = parseFloat(bonusEntry.bonus_deduction || 0);
+              farmer.bonusAmount = farmer.quantity * farmer.bonusRate;
+              farmer.fixedAmount = parseFloat(bonusEntry.fixed_deduction || 0);
+              farmer.effectiveFrom = bonusEntry.effective_from;
+            } else {
+              farmer.bonusRate = 0;
+              farmer.bonusAmount = 0;
+              farmer.fixedAmount = 0;
+              farmer.effectiveFrom = bonusEntry.effective_from;
+            }
+            console.log(`🎁 Farmer ${farmer.farmer_id} Bonus/Fixed:`, {
+              effective_from: bonusEntry.effective_from,
+              currentDate: currentDate.toISOString(),
+              shouldApply: shouldApplyBonusFixed,
+              quantity: farmer.quantity,
+              bonusRate: farmer.bonusRate,
+              bonusAmount: farmer.bonusAmount,
+              fixedAmount: farmer.fixedAmount
+            });
+          }
         });
+
+        console.log('📋 Step 3 - After Bill Details & Bonus:', processedData.map(f => ({
+          farmer_id: f.farmer_id,
+          milk_total: f.milk_total,
+          advance: f.advance,
+          advanceDeduction: f.advanceDeduction,
+          advance_remaining: f.advance_remaining,
+          cattleFeed: f.cattleFeedAmount,
+          cattleFeedDeduction: f.cattleFeedDeduction,
+          cattlefeed_remaining: f.cattlefeed_remaining,
+          bonusAmount: f.bonusAmount,
+          fixedAmount: f.fixedAmount,
+          hasBill: f.hasBill
+        })));
       }
 
-      // Apply priority distribution to farmers with negative balance
+      // Apply priority-based adjustment with bonus/fixed first
       const adjustedData = processedData.map(farmer => {
-        const netPayable = farmer.hasBill 
-          ? farmer.milk_total - farmer.advanceDeduction - farmer.cattleFeedDeduction - farmer.other1Deduction - farmer.other2Deduction + farmer.received_total
-          : farmer.milk_total - farmer.advance - farmer.cattleFeedAmount - farmer.other1Amount - farmer.other2Amount + farmer.received_total;
+        console.log(`\n💰 Processing Farmer ${farmer.farmer_id}:`);
+        console.log('  Initial Values:', {
+          milk_total: farmer.milk_total,
+          quantity: farmer.quantity,
+          hasBill: farmer.hasBill,
+          advance: farmer.advance,
+          advanceDeduction: farmer.advanceDeduction,
+          cattleFeedAmount: farmer.cattleFeedAmount,
+          cattleFeedDeduction: farmer.cattleFeedDeduction,
+          other1Amount: farmer.other1Amount,
+          other1Deduction: farmer.other1Deduction,
+          other2Amount: farmer.other2Amount,
+          other2Deduction: farmer.other2Deduction,
+          bonusAmount: farmer.bonusAmount,
+          fixedAmount: farmer.fixedAmount,
+          advance_remaining: farmer.advance_remaining,
+          cattlefeed_remaining: farmer.cattlefeed_remaining,
+        });
 
-        if (netPayable >= 0) return farmer;
-
-        let remaining = Math.abs(netPayable);
-        const fieldMap: any = {
-          advance: { deduction: 'advanceDeduction', amount: 'advance' },
-          cattleFeed: { deduction: 'cattleFeedDeduction', amount: 'cattleFeedAmount' },
-          other1: { deduction: 'other1Deduction', amount: 'other1Amount' },
-          other2: { deduction: 'other2Deduction', amount: 'other2Amount' }
-        };
-
-        const updated = { ...farmer };
-
-        for (const key of priority) {
-          const field = fieldMap[key];
-          const currentDeduction = updated[field.deduction];
+        // If bills are finalized for this period, just display saved values
+        if (isBillFinalized && farmer.hasBill) {
+          console.log('  ✅ Bills Finalized - Using Saved Values');
           
-          if (currentDeduction > 0 && remaining > 0) {
-            const deduct = Math.min(currentDeduction, remaining);
-            updated[field.deduction] -= deduct;
-            remaining -= deduct;
-          }
+          const totalBonusFixed = farmer.bonusAmount + farmer.fixedAmount;
+          const netPayableBeforeBonusFixed = farmer.milk_total - (farmer.advanceDeduction + farmer.cattleFeedDeduction + farmer.other1Deduction + farmer.other2Deduction);
+          const finalAmount = netPayableBeforeBonusFixed - totalBonusFixed;
+
+          return {
+            ...farmer,
+            advance_remaining_display: farmer.advance_remaining,
+            cattlefeed_remaining_display: farmer.cattlefeed_remaining,
+            other1_remaining_display: farmer.other1_remaining,
+            other2_remaining_display: farmer.other2_remaining,
+            totalRemaining: farmer.advance_remaining + farmer.cattlefeed_remaining + farmer.other1_remaining + farmer.other2_remaining,
+            netPayableBeforeBonusFixed: netPayableBeforeBonusFixed,
+            finalAmount: finalAmount,
+          };
         }
 
-        return updated;
+        const totalBonusFixed = farmer.bonusAmount + farmer.fixedAmount;
+        const remainingAfterBonusFixed = farmer.milk_total - totalBonusFixed;
+
+        console.log('  Bonus/Fixed Calc:', {
+          totalBonusFixed,
+          remainingAfterBonusFixed
+        });
+
+        // Original deduction amounts
+        // If hasBill is true, use *Deduction fields (current bill totals)
+        // If hasBill is false, use *Amount fields (current period balance)
+        const originalAdvance = farmer.hasBill ? farmer.advanceDeduction : (farmer.advance || 0);
+        const originalCattleFeed = farmer.hasBill ? farmer.cattleFeedDeduction : (farmer.cattleFeedAmount || 0);
+        const originalOther1 = farmer.hasBill ? farmer.other1Deduction : (farmer.other1Amount || 0);
+        const originalOther2 = farmer.hasBill ? farmer.other2Deduction : (farmer.other2Amount || 0);
+        
+        console.log('  Original Deductions:', {
+          originalAdvance,
+          originalCattleFeed,
+          originalOther1,
+          originalOther2,
+          source: farmer.hasBill ? 'Bill Details (*Deduction fields)' : 'Current Period Balance (*Amount fields)'
+        });
+        
+        const totalDeductions = originalAdvance + originalCattleFeed + originalOther1 + originalOther2;
+
+        console.log('  Total Deductions:', totalDeductions);
+        console.log('  Needs Adjustment?', remainingAfterBonusFixed < totalDeductions);
+
+        let finalAdvance = originalAdvance;
+        let finalCattleFeed = originalCattleFeed;
+        let finalOther1 = originalOther1;
+        let finalOther2 = originalOther2;
+
+        // Apply priority adjustment if remaining after bonus/fixed is less than total deductions
+        if (remainingAfterBonusFixed < totalDeductions) {
+          let remaining = Math.max(0, remainingAfterBonusFixed);
+          
+          console.log('  🔄 Applying Priority Adjustment...');
+          console.log('    Available:', remaining);
+          
+          // Priority order: Advance → Cattle Feed → Other1 → Other2
+          finalAdvance = Math.min(originalAdvance, remaining);
+          remaining = Math.max(0, remaining - finalAdvance);
+          console.log('    After Advance:', { finalAdvance, remaining });
+          
+          finalCattleFeed = Math.min(originalCattleFeed, remaining);
+          remaining = Math.max(0, remaining - finalCattleFeed);
+          console.log('    After CattleFeed:', { finalCattleFeed, remaining });
+          
+          finalOther1 = Math.min(originalOther1, remaining);
+          remaining = Math.max(0, remaining - finalOther1);
+          console.log('    After Other1:', { finalOther1, remaining });
+          
+          finalOther2 = Math.min(originalOther2, remaining);
+          console.log('    After Other2:', { finalOther2, remaining: Math.max(0, remaining - finalOther2) });
+        }
+
+        console.log('  Final Deductions:', {
+          finalAdvance,
+          finalCattleFeed,
+          finalOther1,
+          finalOther2
+        });
+
+        // Calculate remaining amounts for next cycle
+        const currentAdvanceRemaining = originalAdvance - finalAdvance;
+        const currentCattleFeedRemaining = originalCattleFeed - finalCattleFeed;
+        const currentOther1Remaining = originalOther1 - finalOther1;
+        const currentOther2Remaining = originalOther2 - finalOther2;
+
+        console.log('  Current Cycle Remaining:', {
+          currentAdvanceRemaining,
+          currentCattleFeedRemaining,
+          currentOther1Remaining,
+          currentOther2Remaining
+        });
+
+        // Total remaining calculation:
+        // If hasBill = true: Remaining values from bill details are ALREADY calculated total
+        // If hasBill = false: Need to add previous remaining (from balance API) + current cycle remaining
+        let totalAdvanceRemaining, totalCattleFeedRemaining, totalOther1Remaining, totalOther2Remaining;
+        
+        if (farmer.hasBill) {
+          // Bills exist - the saved remaining values already include everything
+          // Just use the base remaining + current cycle that couldn't be deducted
+          const prevAdvanceFromBill = farmer.advance - farmer.advanceDeduction; // Previous remaining
+          const prevCattleFeedFromBill = farmer.cattleFeedAmount - farmer.cattleFeedDeduction;
+          const prevOther1FromBill = farmer.other1Amount - farmer.other1Deduction;
+          const prevOther2FromBill = farmer.other2Amount - farmer.other2Deduction;
+          
+          totalAdvanceRemaining = prevAdvanceFromBill + currentAdvanceRemaining;
+          totalCattleFeedRemaining = prevCattleFeedFromBill + currentCattleFeedRemaining;
+          totalOther1Remaining = prevOther1FromBill + currentOther1Remaining;
+          totalOther2Remaining = prevOther2FromBill + currentOther2Remaining;
+          
+          console.log('  Previous from Bill Details:', {
+            prevAdvanceFromBill,
+            prevCattleFeedFromBill,
+            prevOther1FromBill,
+            prevOther2FromBill
+          });
+        } else {
+          // No bills yet - calculate from balance data
+          totalAdvanceRemaining = (farmer.advance_remaining || 0) + currentAdvanceRemaining;
+          totalCattleFeedRemaining = (farmer.cattlefeed_remaining || 0) + currentCattleFeedRemaining;
+          totalOther1Remaining = (farmer.other1_remaining || 0) + currentOther1Remaining;
+          totalOther2Remaining = (farmer.other2_remaining || 0) + currentOther2Remaining;
+          
+          console.log('  Previous from Balance Data:', {
+            advance_remaining: farmer.advance_remaining,
+            cattlefeed_remaining: farmer.cattlefeed_remaining,
+            other1_remaining: farmer.other1_remaining,
+            other2_remaining: farmer.other2_remaining
+          });
+        }
+
+        console.log('  Total Remaining for Next Cycle:', {
+          totalAdvanceRemaining,
+          totalCattleFeedRemaining,
+          totalOther1Remaining,
+          totalOther2Remaining
+        });
+
+        // Calculate net payable before bonus/fixed
+        const netPayableBeforeBonusFixed = farmer.milk_total - (finalAdvance + finalCattleFeed + finalOther1 + finalOther2);
+        
+        // Final amount = net payable before bonus/fixed - total bonus/fixed
+        const finalAmount = netPayableBeforeBonusFixed - totalBonusFixed;
+
+        console.log('  Final Calculation:', {
+          netPayableBeforeBonusFixed,
+          totalBonusFixed,
+          finalAmount
+        });
+
+        return {
+          ...farmer,
+          advanceDeduction: finalAdvance,
+          cattleFeedDeduction: finalCattleFeed,
+          other1Deduction: finalOther1,
+          other2Deduction: finalOther2,
+          advance_remaining_display: totalAdvanceRemaining,
+          cattlefeed_remaining_display: totalCattleFeedRemaining,
+          other1_remaining_display: totalOther1Remaining,
+          other2_remaining_display: totalOther2Remaining,
+          totalRemaining: totalAdvanceRemaining + totalCattleFeedRemaining + totalOther1Remaining + totalOther2Remaining,
+          netPayableBeforeBonusFixed: netPayableBeforeBonusFixed,
+          finalAmount: finalAmount,
+        };
       });
+
+      console.log('✅ Step 4 - Final Adjusted Data:', adjustedData.map(f => ({
+        farmer_id: f.farmer_id,
+        milk_total: f.milk_total,
+        advanceDeduction: f.advanceDeduction,
+        cattleFeedDeduction: f.cattleFeedDeduction,
+        other1Deduction: f.other1Deduction,
+        other2Deduction: f.other2Deduction,
+        bonusAmount: f.bonusAmount,
+        fixedAmount: f.fixedAmount,
+        advance_remaining_display: f.advance_remaining_display,
+        cattlefeed_remaining_display: f.cattlefeed_remaining_display,
+        totalRemaining: f.totalRemaining,
+        finalAmount: f.finalAmount
+      })));
 
       setFarmersData(adjustedData);
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to fetch bill data");
+    }
+  };
+
+  const handleResetToUnfinalized = async () => {
+    try {
+      setResetting(true);
+      const response = await deductionApi.resetToPending(
+        selectedDairy,
+        format(startDate, "yyyy-MM-dd"),
+        format(endDate, "yyyy-MM-dd")
+      );
+      
+      if (response.data.success) {
+        toast.success(`Successfully reset ${response.data.updatedCount} bills to unfinalized status`);
+        // Refresh the data to show updated status
+        await fetchBillData();
+      }
+    } catch (error: any) {
+      console.error('❌ Error resetting bills:', error);
+      toast.error(error?.response?.data?.message || "Failed to reset bills");
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -336,34 +607,29 @@ const GenerateBill = () => {
       }
 
       const records = farmersData.map((farmer) => {
-        const deductions = {
-          advance: farmer.advance_total,
-          cattlefeed: farmer.cattlefeed_total,
-          other1: farmer.other1_total,
-          other2: farmer.other2_total,
-        };
-
-        const adjusted = adjustDeductionsForNegativeBalance(deductions, farmer.milk_total);
-
-        return {
+        const record = {
           farmer_id: normalizeFarmerId(farmer.farmer_id),
           dairy_id: selectedDairy,
           period_start: format(startDate, "yyyy-MM-dd"),
           period_end: format(endDate, "yyyy-MM-dd"),
           milk_total: farmer.milk_total,
-          advance_total: adjusted.advance,
-          cattlefeed_total: adjusted.cattlefeed,
-          other1_total: adjusted.other1,
-          other2_total: adjusted.other2,
-          received_total: farmer.received_total,
-          net_payable: farmer.milk_total - (adjusted.advance + adjusted.cattlefeed + adjusted.other1 + adjusted.other2),
-          advance_remaining: farmer.advance_remaining,
-          cattlefeed_remaining: farmer.cattlefeed_remaining,
-          other1_remaining: farmer.other1_remaining,
-          other2_remaining: farmer.other2_remaining,
+          advance_total: farmer.advanceDeduction,
+          cattlefeed_total: farmer.cattleFeedDeduction,
+          other1_total: farmer.other1Deduction,
+          other2_total: farmer.other2Deduction,
+          received_total: farmer.received_total || 0,
+          bonus_deduction: farmer.bonusAmount || 0,
+          fixed_deduction: farmer.fixedAmount || 0,
+          net_payable: farmer.finalAmount,
+          advance_remaining: farmer.advance_remaining_display || 0,
+          cattlefeed_remaining: farmer.cattlefeed_remaining_display || 0,
+          other1_remaining: farmer.other1_remaining_display || 0,
+          other2_remaining: farmer.other2_remaining_display || 0,
           status: "GENERATED",
           is_finalized: 1,
         };
+        console.log(`📤 Bill Record for ${farmer.farmer_id}:`, record);
+        return record;
       });
 
       const billsData = {
@@ -379,9 +645,29 @@ const GenerateBill = () => {
         await deductionApi.getFinalizedBills(billIds);
       }
 
+      // Create bonus/fixed deduction logs for farmers with bonus/fixed > 0
+      const bonusLogPromises = farmersData
+        .filter(farmer => (farmer.bonusAmount || 0) > 0 || (farmer.fixedAmount || 0) > 0)
+        .map(farmer => 
+          bonusApi.createBonusDeductionLog({
+            dairy_id: selectedDairy,
+            farmer_id: normalizeFarmerId(farmer.farmer_id),
+            start_date: format(startDate, "yyyy-MM-dd"),
+            end_date: format(endDate, "yyyy-MM-dd"),
+            bonus_deduction: farmer.bonusAmount || 0,
+            fixed_deduction: farmer.fixedAmount || 0,
+          })
+        );
+
+      if (bonusLogPromises.length > 0) {
+        await Promise.all(bonusLogPromises);
+        console.log('✅ Bonus/fixed deduction logs created successfully');
+      }
+
       toast.success("Bills generated and finalized successfully");
       await fetchBillData();
     } catch (error: any) {
+      console.error('❌ Error generating bills:', error);
       toast.error(error?.response?.data?.message || "Failed to generate bills");
     } finally {
       setLoading(false);
@@ -412,55 +698,84 @@ const GenerateBill = () => {
             <CardTitle>Select Bill Cycle</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-4 mb-4">
-              <div className="flex items-center gap-2">
-                <Label>Select VLC:</Label>
-                <Select value={selectedDairy.toString()} onValueChange={(value) => setSelectedDairy(parseInt(value))}>
-                  <SelectTrigger className="w-48 bg-white border-gray-300">
-                    <SelectValue placeholder="Select VLC" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white border border-gray-300 shadow-lg">
-                    {branches.map((branch) => (
-                      <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
-                        {branch.username} - {branch.name} - {branch.branchName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Label>Select VLC:</Label>
+                  <Select value={selectedDairy.toString()} onValueChange={(value) => setSelectedDairy(parseInt(value))}>
+                    <SelectTrigger className="w-48 bg-white border-gray-300">
+                      <SelectValue placeholder="Select VLC" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border border-gray-300 shadow-lg">
+                      {branches.map((branch) => (
+                        <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
+                          {branch.username} - {branch.name} - {branch.branchName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label>Start Date:</Label>
+                  <Input
+                    type="date"
+                    value={format(startDate, "yyyy-MM-dd")}
+                    onChange={(e) => handleStartDateChange(e.target.value)}
+                    className="border-gray-300"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label>End Date:</Label>
+                  <Input
+                    type="date"
+                    value={format(endDate, "yyyy-MM-dd")}
+                    disabled
+                    className="border-gray-300 bg-gray-100 cursor-not-allowed"
+                  />
+                </div>
+                <Button 
+                  onClick={fetchBillData}
+                  disabled={loading}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {loading ? "Loading..." : "Show"}
+                </Button>
               </div>
-              <div className="flex items-center gap-2">
-                <Label>Start Date:</Label>
-                <Input
-                  type="date"
-                  value={format(startDate, "yyyy-MM-dd")}
-                  onChange={(e) => handleStartDateChange(e.target.value)}
-                  className="border-gray-300"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <Label>End Date:</Label>
-                <Input
-                  type="date"
-                  value={format(endDate, "yyyy-MM-dd")}
-                  disabled
-                  className="border-gray-300 bg-gray-100 cursor-not-allowed"
-                />
-              </div>
-              <Button 
-                onClick={fetchBillData}
-                disabled={loading}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                {loading ? "Loading..." : "Show"}
-              </Button>
               {farmersData.length > 0 && (
-                <div className={`px-4 py-2 rounded-md font-semibold ${
-                  isBillFinalized 
-                    ? 'bg-green-100 text-green-700' 
-                    : 'bg-yellow-100 text-yellow-700'
-                }`}>
-                  {console.log("🔍 isBillFinalized state:", isBillFinalized)}
-                  {isBillFinalized ? 'Bill Finalized' : 'Not Finalized'}
+                <div className="flex items-center gap-2">
+                  <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-semibold whitespace-nowrap ${
+                    isBillFinalized 
+                      ? 'bg-gray-200 text-gray-700' 
+                      : 'bg-green-100 text-green-700'
+                  }`}>
+                    {isBillFinalized ? (
+                      <>
+                        <Lock className="w-4 h-4" />
+                        <span>Bills Already Finalized</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-4 h-4" />
+                        <span>Bills Not Finalized</span>
+                      </>
+                    )}
+                  </div>
+                  {isBillFinalized && (
+                    <Button
+                      onClick={handleResetToUnfinalized}
+                      disabled={resetting}
+                      className="bg-orange-500 hover:bg-orange-600 text-white text-sm px-4 py-2 flex items-center gap-1.5"
+                    >
+                      {resetting ? (
+                        'Resetting...'
+                      ) : (
+                        <>
+                          <Unlock className="w-4 h-4" />
+                          <span>Reset to Unfinalized</span>
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
@@ -477,7 +792,7 @@ const GenerateBill = () => {
                       Name
                     </th>
                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                      Quantity(L)
+                      Liter
                     </th>
                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                       Amount
@@ -486,7 +801,7 @@ const GenerateBill = () => {
                       Advance
                     </th>
                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                      Feed
+                      Cattle Feed
                     </th>
                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                       Other1
@@ -495,7 +810,16 @@ const GenerateBill = () => {
                       Other2
                     </th>
                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                      Net Pay
+                      Bonus
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      Fixed
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      Remaining
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      Final Amount
                     </th>
                   </tr>
                 </thead>
@@ -509,48 +833,59 @@ const GenerateBill = () => {
                         {farmer.name}
                       </td>
                       <td className="px-3 py-2 text-xs text-gray-900">
-                        {farmer.quantity?.toFixed(1) || "0.0"}
+                        {farmer.quantity?.toFixed(2) || "0.00"}
                       </td>
                       <td className="px-3 py-2 text-xs text-gray-900">
-                        ₹{(farmer.milk_total).toFixed(1)}
+                        ₹{(farmer.milk_total).toFixed(2)}
                       </td>
-                      <td className="px-3 py-2 text-xs text-green-600">
-                        <div>₹{(farmer.advanceDeduction || 0).toFixed(1)}</div>
-                        {(farmer.advance_remaining > 0) && (
-                           <div className="text-[10px] text-red-500">
-                            ₹ {(farmer.advance_remaining || 0).toFixed(1)}
+                      <td className="px-3 py-2 text-xs">
+                        <div className="text-red-600 font-medium">₹{(farmer.advanceDeduction || 0).toFixed(2)}</div>
+                        {(farmer.advance_remaining_display > 0) && (
+                           <div className="text-[10px] text-yellow-600">
+                            ₹{(farmer.advance_remaining_display || 0).toFixed(2)}
                            </div>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-xs text-green-600">
-                        <div>₹{(farmer.cattleFeedDeduction || 0).toFixed(1)}</div>
-                        {(farmer.cattlefeed_remaining > 0) && (
-                          <div className="text-[10px] text-red-500">
-                           ₹ {(farmer.cattlefeed_remaining || 0).toFixed(1)}
+                      <td className="px-3 py-2 text-xs">
+                        <div className="text-red-600 font-medium">₹{(farmer.cattleFeedDeduction || 0).toFixed(2)}</div>
+                        {(farmer.cattlefeed_remaining_display > 0) && (
+                          <div className="text-[10px] text-yellow-600">
+                           ₹{(farmer.cattlefeed_remaining_display || 0).toFixed(2)}
                           </div>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-xs text-green-600">
-                        <div>₹{(farmer.other1Deduction || 0).toFixed(1)}</div>
-                        {(farmer.other1_remaining > 0) && (
-                          <div className="text-[10px] text-red-500">
-                           ₹ {(farmer.other1_remaining || 0).toFixed(1)}
+                      <td className="px-3 py-2 text-xs">
+                        <div className="text-red-600 font-medium">₹{(farmer.other1Deduction || 0).toFixed(2)}</div>
+                        {(farmer.other1_remaining_display > 0) && (
+                          <div className="text-[10px] text-yellow-600">
+                           ₹{(farmer.other1_remaining_display || 0).toFixed(2)}
                           </div>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-xs text-green-600">
-                        <div>₹{(farmer.other2Deduction || 0).toFixed(1)}</div>
-                        {(farmer.other2_remaining > 0) && (
-                          <div className="text-[10px] text-red-500">
-                           ₹ {(farmer.other2_remaining || 0).toFixed(1)}
+                      <td className="px-3 py-2 text-xs">
+                        <div className="text-red-600 font-medium">₹{(farmer.other2Deduction || 0).toFixed(2)}</div>
+                        {(farmer.other2_remaining_display > 0) && (
+                          <div className="text-[10px] text-yellow-600">
+                           ₹{(farmer.other2_remaining_display || 0).toFixed(2)}
                           </div>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-xs font-medium text-green-600">
-                        ₹{Math.max(0, farmer.hasBill 
-                          ? farmer.milk_total - farmer.advanceDeduction - farmer.cattleFeedDeduction - farmer.other1Deduction - farmer.other2Deduction
-                          : farmer.milk_total - farmer.advance - farmer.cattleFeedAmount - farmer.other1Amount - farmer.other2Amount
-                        ).toFixed(0)}
+                      <td className="px-3 py-2 text-xs text-red-600 font-medium">
+                        ₹{(farmer.bonusAmount || 0).toFixed(2)}
+                        {farmer.bonusRate > 0 && (
+                          <div className="text-[10px] text-gray-500">
+                            @₹{farmer.bonusRate.toFixed(2)}/L
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-xs text-red-600 font-medium">
+                        ₹{(farmer.fixedAmount || 0).toFixed(2)}
+                      </td>
+                      <td className="px-3 py-2 text-xs text-yellow-600 font-medium">
+                        ₹{(farmer.totalRemaining || 0).toFixed(2)}
+                      </td>
+                      <td className="px-3 py-2 text-xs font-bold text-green-600">
+                        ₹{(farmer.finalAmount || 0).toFixed(2)}
                       </td>
                     </tr>
                   ))}
@@ -561,18 +896,30 @@ const GenerateBill = () => {
             {/* Totals */}
             <div className="bg-gray-50 px-4 py-3 border-t border-gray-300">
               <div className="flex justify-between items-center text-sm">
-                <div className="flex gap-8">
+                <div className="flex gap-6">
                   <div>
                     <span className="text-xs font-medium text-gray-600">Total Amount</span>
-                    <p className="text-sm font-bold text-gray-900">₹{totals.totalAmount.toFixed(0)}</p>
+                    <p className="text-sm font-bold text-gray-900">₹{totals.totalAmount.toFixed(2)}</p>
                   </div>
                   <div>
                     <span className="text-xs font-medium text-gray-600">Total Deduction</span>
-                    <p className="text-sm font-bold text-red-600">₹{totals.totalDeduction.toFixed(0)}</p>
+                    <p className="text-sm font-bold text-red-600">₹{totals.totalDeduction.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-medium text-gray-600">Total Bonus</span>
+                    <p className="text-sm font-bold text-red-600">₹{totals.totalBonus.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-medium text-gray-600">Total Fixed</span>
+                    <p className="text-sm font-bold text-red-600">₹{totals.totalFixed.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-medium text-gray-600">Total Remaining</span>
+                    <p className="text-sm font-bold text-yellow-600">₹{totals.totalRemaining.toFixed(2)}</p>
                   </div>
                   <div>
                     <span className="text-xs font-medium text-gray-600">Total Net Payable</span>
-                    <p className="text-sm font-bold text-green-600">₹{totals.totalNetPayable.toFixed(0)}</p>
+                    <p className="text-sm font-bold text-green-600">₹{totals.totalNetPayable.toFixed(2)}</p>
                   </div>
                 </div>
               </div>

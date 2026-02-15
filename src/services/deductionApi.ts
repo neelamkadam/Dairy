@@ -57,4 +57,14 @@ export const deductionApi = {
     console.log('📤 [DEDUCTION API] getBillDetailsByFarmers - Response:', response.data);
     return response;
   },
+
+  resetToPending: async (dairyId: number, periodStart: string, periodEnd: string) => {
+    const response = await api.post("/bill/reset-to-pending", {
+      dairy_id: dairyId,
+      period_start: periodStart,
+      period_end: periodEnd
+    });
+    console.log('🔄 [DEDUCTION API] resetToPending - Response:', response.data);
+    return response;
+  },
 };
