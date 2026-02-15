@@ -25,6 +25,7 @@ interface SidebarAccess {
 const SidebarAccessManagement = () => {
   const authState = useAppSelector((state) => state.authData);
   const loggedInUserId = authState?.userData?.id;
+  const userRole = authState?.userRole;
   
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [users, setUsers] = useState<any[]>([]);
@@ -61,13 +62,11 @@ const SidebarAccessManagement = () => {
       if (data.success) {
         let userData = data.data.webUsers || [];
         
-        // Filter users by created_by field
-        if (loggedInUserId) {
-          userData = userData.filter((u: any) => {
-            const createdBy = u.created_by?.toString();
-            const loggedId = loggedInUserId.toString();
-            return createdBy === loggedId;
-          });
+        // Filter users: admin sees all, user sees only their created users
+        if (userRole === "user" && loggedInUserId) {
+          userData = userData.filter((u: any) => 
+            u.created_by?.toString() === loggedInUserId.toString()
+          );
         }
         
         setUsers(userData);
