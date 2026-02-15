@@ -62,13 +62,20 @@ const SidebarAccessManagement = () => {
       if (data.success) {
         let userData = data.data.webUsers || [];
         
+        console.log('All users fetched:', userData);
+        console.log('Current user role:', userRole);
+        console.log('Current user ID:', loggedInUserId);
+        
         // Filter users: admin sees all, user sees only their created users
         if (userRole === "user" && loggedInUserId) {
-          userData = userData.filter((u: any) => 
-            u.created_by?.toString() === loggedInUserId.toString()
-          );
+          userData = userData.filter((u: any) => {
+            const match = u.created_by?.toString() === loggedInUserId.toString();
+            console.log(`User ${u.id} (${u.email}) - created_by: ${u.created_by}, match: ${match}`);
+            return match;
+          });
         }
         
+        console.log('Filtered users:', userData);
         setUsers(userData);
       }
     } catch (error) {
