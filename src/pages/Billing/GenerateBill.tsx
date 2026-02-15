@@ -236,10 +236,10 @@ const GenerateBill = () => {
           // Apply bonus/fixed deductions
           const bonusEntry = bonusByFarmer.get(farmer.farmer_id);
           if (bonusEntry) {
-            // Check if current date is greater than effective_from date
-            const currentDate = new Date();
+            // Check if period end date is greater than effective_from date
+            const periodEndDate = endDate;
             const effectiveDate = bonusEntry.effective_from ? new Date(bonusEntry.effective_from) : null;
-            const shouldApplyBonusFixed = effectiveDate && currentDate > effectiveDate;
+            const shouldApplyBonusFixed = effectiveDate && periodEndDate && periodEndDate > effectiveDate;
 
             if (shouldApplyBonusFixed) {
               farmer.bonusRate = parseFloat(bonusEntry.bonus_deduction || 0);
@@ -254,7 +254,7 @@ const GenerateBill = () => {
             }
             console.log(`🎁 Farmer ${farmer.farmer_id} Bonus/Fixed:`, {
               effective_from: bonusEntry.effective_from,
-              currentDate: currentDate.toISOString(),
+              periodEndDate: periodEndDate?.toISOString(),
               shouldApply: shouldApplyBonusFixed,
               quantity: farmer.quantity,
               bonusRate: farmer.bonusRate,

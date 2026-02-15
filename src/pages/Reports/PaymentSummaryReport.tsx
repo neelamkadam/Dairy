@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Calendar, Download, Loader2, FileSpreadsheet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAppSelector } from "@/redux/store";
@@ -9,6 +9,7 @@ import autoTable from "jspdf-autotable";
 import PdfLoader from "@/components/PdfLoader";
 import * as XLSX from "xlsx";
 import { bankSummaryApi } from "@/services/bankSummaryApi";
+import { bonusApi } from "@/services/bonusApi";
 
 interface FarmerDetail {
   farmer_id: string;
@@ -16,6 +17,7 @@ interface FarmerDetail {
   farmer_name: string;
   date: string;
   milk_total: number;
+  quantity?: number;
   total_received: number;
   deductions: {
     advance: number;
@@ -25,6 +27,23 @@ interface FarmerDetail {
     total: number;
   };
   net_payable: number;
+  from_bills?: {
+    received_total?: number;
+    advance_total?: number;
+    cattlefeed_total?: number;
+    other1_total?: number;
+    other2_total?: number;
+    advance_remaining?: number;
+    cattlefeed_remaining?: number;
+    other1_remaining?: number;
+    other2_remaining?: number;
+  };
+  previous_bill?: {
+    advance_remaining?: number;
+    cattlefeed_remaining?: number;
+    other1_remaining?: number;
+    other2_remaining?: number;
+  };
 }
 
 interface DateWiseData {
@@ -74,6 +93,7 @@ const PaymentSummaryReport = () => {
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [data, setData] = useState<PaymentSummaryData | null>(null);
+  const [bonusData, setBonusData] = useState<Map<string, any>>(new Map());
   const [selectedBranch, setSelectedBranch] = useState<number | null>(null);
   const { branches } = useAppSelector(state => state.branch);
   const authState = useAppSelector((state) => state.authData);
@@ -109,6 +129,30 @@ const PaymentSummaryReport = () => {
       console.log('API Response:', response);
       console.log('Response data:', response.data);
       setData(response.data);
+      
+      // Fetch bonus/fixed deductions
+      try {
+        const bonusResponse = await bonusApi.getBonusDeductions({
+          dairy_id: selectedBranch,
+          start_date: dateFrom,
+          end_date: dateTo,
+        });
+        
+        // Create bonus map by farmer (get latest entry - highest ID)
+        const bonusByFarmer = new Map();
+        (bonusResponse.data.data || []).forEach((bonus: any) => {
+          const existing = bonusByFarmer.get(bonus.farmer_id);
+          if (!existing || bonus.id > existing.id) {
+            bonusByFarmer.set(bonus.farmer_id, bonus);
+          }
+        });
+        setBonusData(bonusByFarmer);
+        console.log('Bonus data loaded:', bonusByFarmer);
+      } catch (bonusError) {
+        console.error('Error fetching bonus data:', bonusError);
+        setBonusData(new Map()); // Reset on error
+      }
+      
       toast.success('Data loaded successfully');
     } catch (error: any) {
       console.error('API Error:', error);
@@ -125,17 +169,15 @@ const PaymentSummaryReport = () => {
     }
   }, [branches]);
 
-  const getAggregatedFarmers = () => {
+  const getAggregatedFarmers = useMemo(() => {
     if (!data?.data) return [];
+    
+    console.log('🚀 getAggregatedFarmers calculating, bonusData size:', bonusData.size);
     
     const farmerMap = new Map();
     
     data.data.forEach(dateData => {
       dateData.farmers.forEach(farmer => {
-        console.log('🔍 Processing farmer:', farmer);
-        console.log('🔍 farmer.net_payable:', farmer.net_payable);
-        console.log('🔍 farmer.from_bills:', farmer.from_bills);
-        
         const farmerId = farmer.farmer_id;
         
         if (!farmerMap.has(farmerId)) {
@@ -144,6 +186,7 @@ const PaymentSummaryReport = () => {
             farmer_username: farmer.farmer_username,
             farmer_name: farmer.farmer_name,
             milk_total: 0,
+            quantity: 0,
             previous_balance: 0,
             advance: 0,
             cattle_feed: 0,
@@ -151,6 +194,9 @@ const PaymentSummaryReport = () => {
             other2: 0,
             received: 0,
             total_deduction: 0,
+            bonusAmount: 0,
+            fixedAmount: 0,
+            bonusRate: 0,
             net_payable: 0,
             remaining_balance: 0
           });
@@ -158,6 +204,7 @@ const PaymentSummaryReport = () => {
         
         const aggregated = farmerMap.get(farmerId);
         aggregated.milk_total += farmer.milk_total || 0;
+        aggregated.quantity += farmer.quantity || 0;
         aggregated.advance += farmer.deductions.advance || 0;
         aggregated.cattle_feed += farmer.deductions.cattle_feed || 0;
         aggregated.other1 += farmer.deductions.other1 || 0;
@@ -169,16 +216,6 @@ const PaymentSummaryReport = () => {
                               (farmer.from_bills?.other1_total || 0) + 
                               (farmer.from_bills?.other2_total || 0);
         aggregated.total_deduction += totalDeduction;
-        
-        // Calculate net_payable: milk_total - total_deduction + received
-        aggregated.net_payable = aggregated.milk_total - aggregated.total_deduction;
-        
-        console.log('🔍 Calculated net_payable:', {
-          milk_total: aggregated.milk_total,
-          total_deduction: aggregated.total_deduction,
-          received: aggregated.received,
-          net_payable: aggregated.net_payable
-        });
         
         const totalRemaining = (farmer.from_bills?.advance_remaining || 0) + 
                               (farmer.from_bills?.cattlefeed_remaining || 0) + 
@@ -196,41 +233,96 @@ const PaymentSummaryReport = () => {
       });
     });
     
-    const sorted = Array.from(farmerMap.values()).sort((a, b) => {
+    // Apply bonus/fixed deductions to farmers
+    const processedData = Array.from(farmerMap.values());
+    const periodEndDate = new Date(dateTo);
+    
+    console.log('🎯 Processing', processedData.length, 'farmers with bonus data');
+    
+    processedData.forEach(farmer => {
+      const bonusEntry = bonusData.get(farmer.farmer_id);
+      
+      if (bonusEntry) {
+        console.log(`📦 Farmer ${farmer.farmer_id} has bonus entry:`, bonusEntry);
+        
+        // Date validation: only apply if period end date > effective_from
+        const effectiveDate = new Date(bonusEntry.effective_from);
+        
+        console.log(`  📅 Date check: period end ${dateTo} > effective ${bonusEntry.effective_from}?`, periodEndDate > effectiveDate);
+        console.log(`  📦 Bonus entry full:`, { bonus_deduction: bonusEntry.bonus_deduction, fixed_deduction: bonusEntry.fixed_deduction });
+        
+        if (periodEndDate > effectiveDate) {
+          // Use bonus_deduction (which is the rate) not bonus_rate
+          farmer.bonusRate = parseFloat(bonusEntry.bonus_deduction || 0);
+          farmer.bonusAmount = farmer.quantity * farmer.bonusRate;
+          farmer.fixedAmount = parseFloat(bonusEntry.fixed_deduction || 0);
+          
+          console.log(`  ✅ Applied: quantity=${farmer.quantity}, rate=${farmer.bonusRate}, bonus=${farmer.bonusAmount.toFixed(2)}, fixed=${farmer.fixedAmount}`);
+        } else {
+          console.log(`  ❌ Not applied: period end date (${dateTo}) is not after effective date (${bonusEntry.effective_from})`);
+        }
+      } else {
+        console.log(`❌ Farmer ${farmer.farmer_id} has NO bonus entry`);
+      }
+      
+      // Calculate net_payable: milk_total - total_deduction - bonus - fixed
+      const totalBonusFixed = farmer.bonusAmount + farmer.fixedAmount;
+      farmer.net_payable = farmer.milk_total - farmer.total_deduction - totalBonusFixed;
+      
+      if (farmer.bonusAmount > 0 || farmer.fixedAmount > 0) {
+        console.log(`📊 Farmer ${farmer.farmer_id} final:`, {
+          milk_total: farmer.milk_total,
+          quantity: farmer.quantity,
+          total_deduction: farmer.total_deduction,
+          bonusAmount: farmer.bonusAmount,
+          fixedAmount: farmer.fixedAmount,
+          totalBonusFixed,
+          net_payable: farmer.net_payable
+        });
+      }
+    });
+    
+    const sorted = processedData.sort((a, b) => {
       const numA = parseInt(a.farmer_username) || 0;
       const numB = parseInt(b.farmer_username) || 0;
       return numA - numB;
     });
     
-    console.log('🔍 Final aggregated farmers:', sorted);
+    console.log('✅ Final aggregated farmers:', sorted.length, 'farmers processed');
     return sorted;
-  };
+  }, [data, bonusData, dateTo]); // useMemo dependencies
 
-  const calculateTotals = () => {
-    const farmers = getAggregatedFarmers();
+  const calculateTotals = useMemo(() => {
+    const farmers = getAggregatedFarmers;
     
     return farmers.reduce((acc, farmer) => ({
       totalMilk: acc.totalMilk + farmer.milk_total,
+      totalQuantity: acc.totalQuantity + farmer.quantity,
       totalAdvance: acc.totalAdvance + farmer.advance,
       totalFeed: acc.totalFeed + farmer.cattle_feed,
       totalOther1: acc.totalOther1 + farmer.other1,
       totalOther2: acc.totalOther2 + farmer.other2,
       totalReceived: acc.totalReceived + farmer.received,
       totalDeduction: acc.totalDeduction + farmer.total_deduction,
+      totalBonus: acc.totalBonus + farmer.bonusAmount,
+      totalFixed: acc.totalFixed + farmer.fixedAmount,
       totalNet: acc.totalNet + Math.max(0, farmer.net_payable),
       totalRemaining: acc.totalRemaining + farmer.remaining_balance
     }), {
       totalMilk: 0,
+      totalQuantity: 0,
       totalAdvance: 0,
       totalFeed: 0,
       totalOther1: 0,
       totalOther2: 0,
       totalReceived: 0,
       totalDeduction: 0,
+      totalBonus: 0,
+      totalFixed: 0,
       totalNet: 0,
       totalRemaining: 0
     });
-  };
+  }, [getAggregatedFarmers]); // useMemo dependency
 
   const exportToExcel = async () => {
     if (!data || !selectedBranch) return;
@@ -318,8 +410,8 @@ const PaymentSummaryReport = () => {
     setPdfLoading(true);
     try {
       const doc = new jsPDF('l', 'mm', 'a4');
-      const farmers = getAggregatedFarmers();
-      const totals = calculateTotals();
+      const farmers = getAggregatedFarmers;
+      const totals = calculateTotals;
       const branch = branches.find(b => b.branch_id === selectedBranch);
       
       doc.setFontSize(16);
@@ -455,9 +547,9 @@ const PaymentSummaryReport = () => {
         </Card>
 
         {(() => {
-          const totals = calculateTotals();
+          const totals = calculateTotals;
           return (
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-7 gap-4 mb-6">
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-gray-600">Total Milk</CardTitle>
@@ -480,6 +572,22 @@ const PaymentSummaryReport = () => {
                 </CardHeader>
                 <CardContent>
                   <p className="text-2xl font-bold">₹{totals.totalFeed.toFixed(2)}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-600">Total Bonus</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold text-red-600">₹{totals.totalBonus.toFixed(2)}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-600">Total Fixed</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold text-red-600">₹{totals.totalFixed.toFixed(2)}</p>
                 </CardContent>
               </Card>
               <Card>
@@ -518,6 +626,7 @@ const PaymentSummaryReport = () => {
                     <tr className="bg-gray-100">
                       <th className="px-2 py-2 text-left text-xs">Code</th>
                       <th className="px-2 py-2 text-left text-xs">Name</th>
+                      <th className="px-2 py-2 text-right text-xs">Liter</th>
                       <th className="px-2 py-2 text-right text-xs">Milk</th>
                       <th className="px-2 py-2 text-right text-xs">Prev Bal</th>
                       <th className="px-2 py-2 text-right text-xs">Advance</th>
@@ -526,18 +635,21 @@ const PaymentSummaryReport = () => {
                       <th className="px-2 py-2 text-right text-xs">Other2</th>
                       <th className="px-2 py-2 text-right text-xs">Received</th>
                       <th className="px-2 py-2 text-right text-xs">Deduction</th>
+                      <th className="px-2 py-2 text-right text-xs">Bonus</th>
+                      <th className="px-2 py-2 text-right text-xs">Fixed</th>
                       <th className="px-2 py-2 text-right text-xs">Net Pay</th>
                       <th className="px-2 py-2 text-right text-xs">Remaining</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(() => {
-                      const farmers = getAggregatedFarmers();
+                      const farmers = getAggregatedFarmers;
                       return farmers.length > 0 ? (
                         farmers.map((farmer) => (
                           <tr key={farmer.farmer_id} className="border-b hover:bg-gray-50">
                             <td className="px-2 py-2 text-xs">{farmer.farmer_username}</td>
                             <td className="px-2 py-2 text-xs">{farmer.farmer_name}</td>
+                            <td className="px-2 py-2 text-right text-xs">{farmer.quantity.toFixed(2)}</td>
                             <td className="px-2 py-2 text-right text-xs">₹{farmer.milk_total.toFixed(2)}</td>
                             <td className="px-2 py-2 text-right text-xs">₹{farmer.previous_balance.toFixed(2)}</td>
                             <td className="px-2 py-2 text-right text-xs">₹{farmer.advance.toFixed(2)}</td>
@@ -546,13 +658,15 @@ const PaymentSummaryReport = () => {
                             <td className="px-2 py-2 text-right text-xs">₹{farmer.other2.toFixed(2)}</td>
                             <td className="px-2 py-2 text-right text-xs">₹{farmer.received.toFixed(2)}</td>
                             <td className="px-2 py-2 text-right text-xs">₹{farmer.total_deduction.toFixed(2)}</td>
+                            <td className="px-2 py-2 text-right text-xs text-red-600">₹{farmer.bonusAmount.toFixed(2)}</td>
+                            <td className="px-2 py-2 text-right text-xs text-red-600">₹{farmer.fixedAmount.toFixed(2)}</td>
                             <td className="px-2 py-2 text-right text-xs font-semibold">₹{Math.max(0, farmer.net_payable).toFixed(2)}</td>
                             <td className="px-2 py-2 text-right text-xs">₹{farmer.remaining_balance.toFixed(2)}</td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={12} className="px-4 py-8 text-center text-gray-500">
+                          <td colSpan={15} className="px-4 py-8 text-center text-gray-500">
                             No data available. Select filters and click Show to load data.
                           </td>
                         </tr>
@@ -561,10 +675,11 @@ const PaymentSummaryReport = () => {
                   </tbody>
                   <tfoot>
                     {(() => {
-                      const totals = calculateTotals();
+                      const totals = calculateTotals;
                       return (
                         <tr className="bg-gray-200 font-bold">
                           <td className="px-2 py-2 text-xs" colSpan={2}>Total</td>
+                          <td className="px-2 py-2 text-right text-xs">{totals.totalQuantity.toFixed(2)}</td>
                           <td className="px-2 py-2 text-right text-xs">₹{totals.totalMilk.toFixed(2)}</td>
                           <td className="px-2 py-2 text-right text-xs"></td>
                           <td className="px-2 py-2 text-right text-xs">₹{totals.totalAdvance.toFixed(2)}</td>
@@ -573,6 +688,8 @@ const PaymentSummaryReport = () => {
                           <td className="px-2 py-2 text-right text-xs">₹{totals.totalOther2.toFixed(2)}</td>
                           <td className="px-2 py-2 text-right text-xs">₹{totals.totalReceived.toFixed(2)}</td>
                           <td className="px-2 py-2 text-right text-xs">₹{totals.totalDeduction.toFixed(2)}</td>
+                          <td className="px-2 py-2 text-right text-xs">₹{totals.totalBonus.toFixed(2)}</td>
+                          <td className="px-2 py-2 text-right text-xs">₹{totals.totalFixed.toFixed(2)}</td>
                           <td className="px-2 py-2 text-right text-xs">₹{Math.max(0, totals.totalNet).toFixed(2)}</td>
                           <td className="px-2 py-2 text-right text-xs">₹{totals.totalRemaining.toFixed(2)}</td>
                         </tr>

@@ -218,17 +218,17 @@ const FarmerDeduction = () => {
           processedData.forEach(farmer => {
             const bonusEntry = bonusMap.get(farmer.farmer_id);
             if (bonusEntry) {
-              // Check if current date is greater than effective_from date
-              const currentDate = new Date();
+              // Check if period end date is greater than effective_from date
+              const periodEndDate = endDate;
               const effectiveDate = bonusEntry.effective_from ? new Date(bonusEntry.effective_from) : null;
-              const shouldApplyBonusFixed = effectiveDate && currentDate > effectiveDate;
+              const shouldApplyBonusFixed = effectiveDate && periodEndDate && periodEndDate > effectiveDate;
 
               console.log(`🎁 [DEBUG] Farmer ${farmer.farmer_id} Bonus Calc:`, {
                 quantity: farmer.quantity,
                 bonusRate: parseFloat(bonusEntry.bonus_deduction || 0),
                 shouldApply: shouldApplyBonusFixed,
                 effectiveFrom: bonusEntry.effective_from,
-                currentDate: currentDate.toISOString()
+                periodEndDate: periodEndDate?.toISOString()
               });
 
               if (shouldApplyBonusFixed) {
