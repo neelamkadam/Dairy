@@ -334,7 +334,7 @@ const PaymentSummaryReport = () => {
         end_date: dateTo,
       });
 
-      const farmers = getAggregatedFarmers();
+      const farmers = getAggregatedFarmers;
       const farmerMap = new Map(farmers.map(f => [f.farmer_id, f]));
       const userIdStr = userData?.id?.toString();
       const userId = userIdStr ? parseInt(userIdStr) : null;
@@ -346,7 +346,7 @@ const PaymentSummaryReport = () => {
           ...farmer,
           milk_total: paymentData?.net_payable || 0
         };
-      }).sort((a, b) => parseInt(a.farmer_id) - parseInt(b.farmer_id));
+      }).filter(row => parseFloat(row.milk_total || 0) > 0).sort((a, b) => parseInt(a.farmer_id) - parseInt(b.farmer_id));
 
       if (userId === 2 || userId === 4 || userIdStr === '2' || userIdStr === '4') {
         const exportData = bankData.map(row => ({
