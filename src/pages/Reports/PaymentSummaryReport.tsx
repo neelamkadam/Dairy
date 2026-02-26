@@ -421,43 +421,52 @@ const PaymentSummaryReport = () => {
       doc.text(`Branch: ${branch?.name || 'N/A'}`, 148, 22, { align: 'center' });
       doc.text(`Period: ${dateFrom} to ${dateTo}`, 148, 28, { align: 'center' });
       
-      const tableData = farmers.map(f => [
-        f.farmer_username,
-        f.farmer_name,
-        f.milk_total.toFixed(2),
-        f.previous_balance.toFixed(2),
-        f.advance.toFixed(2),
-        f.cattle_feed.toFixed(2),
-        f.other1.toFixed(2),
-        f.other2.toFixed(2),
-        f.received.toFixed(2),
-        f.total_deduction.toFixed(2),
-        Math.max(0, f.net_payable).toFixed(2),
-        f.remaining_balance.toFixed(2)
-      ]);
+      // Define all columns with their data
+      const allColumns = [
+        { header: 'Code', data: (f: any) => f.farmer_username, total: '', align: 'left', width: 12 },
+        { header: 'Name', data: (f: any) => f.farmer_name, total: 'Total', align: 'left', width: 25 },
+        { header: 'Liter', data: (f: any) => f.quantity.toFixed(2), total: totals.totalQuantity.toFixed(2), sum: totals.totalQuantity },
+        { header: 'Milk', data: (f: any) => f.milk_total.toFixed(2), total: totals.totalMilk.toFixed(2), sum: totals.totalMilk },
+        { header: 'Prev Bal', data: (f: any) => f.previous_balance.toFixed(2), total: '', sum: farmers.reduce((s, f) => s + f.previous_balance, 0) },
+        { header: 'Advance', data: (f: any) => f.advance.toFixed(2), total: totals.totalAdvance.toFixed(2), sum: totals.totalAdvance },
+        { header: 'Feed', data: (f: any) => f.cattle_feed.toFixed(2), total: totals.totalFeed.toFixed(2), sum: totals.totalFeed },
+        { header: 'Other1', data: (f: any) => f.other1.toFixed(2), total: totals.totalOther1.toFixed(2), sum: totals.totalOther1 },
+        { header: 'Other2', data: (f: any) => f.other2.toFixed(2), total: totals.totalOther2.toFixed(2), sum: totals.totalOther2 },
+        { header: 'Received', data: (f: any) => f.received.toFixed(2), total: totals.totalReceived.toFixed(2), sum: totals.totalReceived },
+        { header: 'Deduction', data: (f: any) => f.total_deduction.toFixed(2), total: totals.totalDeduction.toFixed(2), sum: totals.totalDeduction },
+        { header: 'Bonus', data: (f: any) => f.bonusAmount.toFixed(2), total: totals.totalBonus.toFixed(2), sum: totals.totalBonus },
+        { header: 'Fixed', data: (f: any) => f.fixedAmount.toFixed(2), total: totals.totalFixed.toFixed(2), sum: totals.totalFixed },
+        { header: 'Net Pay', data: (f: any) => Math.max(0, f.net_payable).toFixed(2), total: Math.max(0, totals.totalNet).toFixed(2), sum: totals.totalNet },
+        { header: 'Remaining', data: (f: any) => f.remaining_balance.toFixed(2), total: totals.totalRemaining.toFixed(2), sum: totals.totalRemaining }
+      ];
+
+      // Filter columns where sum > 0
+      const visibleColumns = allColumns.filter(col => col.sum === undefined || col.sum > 0);
+      
+      const headers = visibleColumns.map(col => col.header);
+      const tableData = farmers.map(f => visibleColumns.map(col => col.data(f)));
+      const footerData = visibleColumns.map(col => col.total);
+
+      const columnStyles: any = {};
+      visibleColumns.forEach((col, idx) => {
+        if (col.align || col.width) {
+          columnStyles[idx] = {};
+          if (col.align) columnStyles[idx].halign = col.align;
+          if (col.width) columnStyles[idx].cellWidth = col.width;
+        }
+      });
 
       autoTable(doc, {
         startY: 35,
-        head: [['ID', 'Name', 'Milk', 'Prev Bal', 'Adv', 'Cattle', 'Oth1', 'Oth2', 'Recieved', 'Deduction', 'Net', 'Remaning']],
+        head: [headers],
         body: tableData,
-        foot: [[
-          'Total',
-          '',
-          totals.totalMilk.toFixed(2),
-          '',
-          totals.totalAdvance.toFixed(2),
-          totals.totalFeed.toFixed(2),
-          totals.totalOther1.toFixed(2),
-          totals.totalOther2.toFixed(2),
-          totals.totalReceived.toFixed(2),
-          totals.totalDeduction.toFixed(2),
-          Math.max(0, totals.totalNet).toFixed(2),
-          totals.totalRemaining.toFixed(2)
-        ]],
+        foot: [footerData],
         theme: 'grid',
-        styles: { fontSize: 8, fontStyle: 'bold' },
-        headStyles: { fillColor: [66, 139, 202], fontStyle: 'bold' },
-        footStyles: { fillColor: [255, 255, 0], textColor: [0, 0, 0], fontStyle: 'bold' }
+        styles: { fontSize: 6, cellPadding: 1, halign: 'right' },
+        columnStyles,
+        headStyles: { fillColor: [66, 139, 202], fontStyle: 'bold', fontSize: 6, halign: 'center' },
+        footStyles: { fillColor: [255, 255, 0], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 6 },
+        margin: { left: 5, right: 5 }
       });
 
       doc.save(`PaymentSummary_${dateFrom}_${dateTo}.pdf`);
