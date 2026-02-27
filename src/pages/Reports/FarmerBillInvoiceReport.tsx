@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { api } from '@/services/config';
 import { useAppSelector } from '@/redux/store';
 import { toast } from 'react-toastify';
-import { generateTemplate2, FarmerBillData, BankDetails } from '@/templates/FarmerBillInvoiceTemplate';
+import { generateTemplate2, generateTemplateDetailedHorizontal, FarmerBillData, BankDetails } from '@/templates/FarmerBillInvoiceTemplate';
 import { generateFarmer2PerPage } from '@/templates/FarmerBill2PerPageTemplate';
 import { bankSummaryApi } from '@/services/bankSummaryApi';
 import { format } from 'date-fns';
@@ -113,7 +113,7 @@ const FarmerBillInvoiceReport = () => {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [exportFormat, setExportFormat] = useState<'1-per-page' | '2-per-page' | '3-per-page'>('1-per-page');
+  const [exportFormat, setExportFormat] = useState<'1-per-page' | '2-per-page' | '3-per-page' | 'detailed-horizontal'>('1-per-page');
 
   const handleShow = async () => {
     if (!selectedVLC || !fromDate || !toDate) {
@@ -144,6 +144,11 @@ const FarmerBillInvoiceReport = () => {
         const paddedCode = farmerCode.padStart(4, '0');
         filteredData = filteredData.filter((item: CollectionRecord) => item.farmer_id === paddedCode);
       }
+      
+      // Sort filteredData by farmer_id
+      filteredData.sort((a: CollectionRecord, b: CollectionRecord) => {
+        return parseInt(a.farmer_id) - parseInt(b.farmer_id);
+      });
 
       setCollectionData(filteredData);
       setFarmerBills(collectionResponse.data as any);
@@ -236,12 +241,37 @@ const FarmerBillInvoiceReport = () => {
     return grouped;
   };
 
+  const generatePage = async (htmlContent: string) => {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = htmlContent;
+    tempDiv.style.position = 'absolute';
+    tempDiv.style.left = '-9999px';
+    tempDiv.style.width = '210mm'; // A4 width
+    document.body.appendChild(tempDiv);
+
+    try {
+      const canvas = await html2canvas(tempDiv, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        windowWidth: 794, // Approx 210mm at 96 DPI
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const imgWidth = 210;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      return { imgData, imgWidth, imgHeight };
+    } finally {
+      document.body.removeChild(tempDiv);
+    }
+  };
+
   const exportToPDF = async () => {
     setPdfLoading(true);
     try {
       const selectedBranch = branches.find(v => v.branch_id.toString() === selectedVLC);
-      const vlcName = selectedBranch?.name || 'VLC Center';
-      const dairyName = selectedBranch?.username || 'Dairy';
+      const dairyName = selectedBranch?.name || 'Dairy';
+      const dairyCode = selectedBranch?.username || '';
+      const branchName = selectedBranch?.branchName || '';
       // @ts-ignore
       const dairyId = selectedBranch?.branch_id || selectedBranch?.id;
 
@@ -281,38 +311,13 @@ const FarmerBillInvoiceReport = () => {
       // Filter by farmerCode if specified
       const filteredFarmerIds = farmerCode.trim() 
         ? farmerIds.filter(id => id === farmerCode.padStart(4, '0'))
-        : farmerIds;
+        : farmerIds.sort((a, b) => parseInt(a) - parseInt(b));
 
       if (filteredFarmerIds.length === 0) {
         toast.info('No data found for the selected criteria');
         return;
       }
 
-      // Helper to generate a single page/canvas
-      const generatePage = async (htmlContent: string) => {
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = htmlContent;
-        tempDiv.style.position = 'absolute';
-        tempDiv.style.left = '-9999px';
-        tempDiv.style.width = '210mm'; // A4 width
-        document.body.appendChild(tempDiv);
-
-        try {
-          const canvas = await html2canvas(tempDiv, { 
-            scale: 1.5,
-            useCORS: true,
-            logging: false,
-            windowWidth: 794 // A4 width in pixels at 96 DPI approx
-          });
-          const imgData = canvas.toDataURL('image/png');
-          const imgWidth = 210;
-          const imgHeight = (canvas.height * imgWidth) / canvas.width;
-          
-          return { imgData, imgWidth, imgHeight };
-        } finally {
-          document.body.removeChild(tempDiv);
-        }
-      };
 
       for (let i = 0; i < filteredFarmerIds.length; i++) {
         const farmerId = filteredFarmerIds[i];
@@ -338,7 +343,8 @@ const FarmerBillInvoiceReport = () => {
 
         const baseParams = {
           dairyName: dairyName,
-          branchName: vlcName,
+          branchName: branchName,
+          dairyCode: dairyCode,
           farmerCode: farmerId,
           farmerName: farmerInfo.farmer_details?.fullName || farmerId,
           fromDate: fromDate,
@@ -416,6 +422,9 @@ const FarmerBillInvoiceReport = () => {
     setPdfLoading(true);
     try {
       const selectedBranch = branches.find(v => v.branch_id.toString() === selectedVLC);
+      const dairyName = selectedBranch?.name || 'Dairy';
+      const dairyCode = selectedBranch?.username || '';
+      const branchName = selectedBranch?.branchName || '';
       // @ts-ignore
       const dairyId = selectedBranch?.branch_id || selectedBranch?.id;
 
@@ -447,7 +456,9 @@ const FarmerBillInvoiceReport = () => {
         }
       });
       
-      const allData = Array.from(farmerMap.values());
+      const allData = Array.from(farmerMap.values()).sort((a, b) => {
+        return parseInt(a.farmer_id) - parseInt(b.farmer_id);
+      });
 
       if (allData.length === 0) {
         toast.info('No data found for the selected period');
@@ -462,7 +473,9 @@ const FarmerBillInvoiceReport = () => {
         let htmlContent = "";
         if (chunkSize === 3) {
           htmlContent = generateTemplate3Farmers({
-            dairyName: selectedBranch?.name || 'Dairy',
+            dairyName: dairyName,
+            dairyCode: dairyCode,
+            branchName: branchName,
             farmers: chunk,
             fromDate: formatDate(fromDate),
             toDate: formatDate(toDate),
@@ -470,7 +483,8 @@ const FarmerBillInvoiceReport = () => {
           });
         } else {
           htmlContent = generateFarmer2PerPage({
-            dairyName: selectedBranch?.name || 'Dairy',
+            dairyName: dairyName,
+            branchName: branchName,
             farmers: chunk,
             fromDate: formatDate(fromDate),
             toDate: formatDate(toDate),
@@ -478,30 +492,9 @@ const FarmerBillInvoiceReport = () => {
           });
         }
 
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = htmlContent;
-        tempDiv.style.position = 'absolute';
-        tempDiv.style.left = '-9999px';
-        tempDiv.style.width = '210mm';
-        document.body.appendChild(tempDiv);
-
-        try {
-          const canvas = await html2canvas(tempDiv, {
-            scale: 2,
-            useCORS: true,
-            logging: false,
-            windowWidth: 794
-          });
-
-          const imgData = canvas.toDataURL('image/png');
-          const imgWidth = 210;
-          const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-          if (i > 0) pdf.addPage();
-          pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-        } finally {
-          document.body.removeChild(tempDiv);
-        }
+        const { imgData, imgWidth, imgHeight } = await generatePage(htmlContent);
+        if (i > 0) pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
       }
 
       pdf.save(`Farmer_Bill_Report_${chunkSize}perPage_${fromDate}_to_${toDate}.pdf`);
@@ -515,13 +508,104 @@ const FarmerBillInvoiceReport = () => {
     }
   };
 
+  const exportDetailedHorizontalPDF = async () => {
+    setPdfLoading(true);
+    try {
+      const selectedBranch = branches.find(v => v.branch_id.toString() === selectedVLC);
+      const dairyName = selectedBranch?.name || 'Dairy';
+      const dairyCode = selectedBranch?.username || '';
+      const branchName = selectedBranch?.branchName || '';
+      // @ts-ignore
+      const dairyId = selectedBranch?.branch_id || selectedBranch?.id;
+
+      const response = await billApi.getFarmerReport({
+        dairy_id: dairyId,
+        start_date: fromDate,
+        end_date: toDate
+      });
+
+      if (!response.data.success) {
+        toast.error('Failed to fetch farmer report data');
+        return;
+      }
+
+      const cowData: FarmerReportData[] = response.data.cow || [];
+      const buffaloData: FarmerReportData[] = response.data.buffalo || [];
+      const farmerMap = new Map<string, FarmerReportData>();
+      
+      [...cowData, ...buffaloData].forEach(farmer => {
+        if (farmerMap.has(farmer.farmer_id)) {
+          const existing = farmerMap.get(farmer.farmer_id)!;
+          existing.collections = [...existing.collections, ...farmer.collections];
+        } else {
+          farmerMap.set(farmer.farmer_id, { ...farmer });
+        }
+      });
+
+      const sortedFarmers = Array.from(farmerMap.values()).sort((a, b) => parseInt(a.farmer_id) - parseInt(b.farmer_id));
+      
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      for (let i = 0; i < sortedFarmers.length; i++) {
+        const farmer = sortedFarmers[i];
+        const farmerBillData: FarmerBillData[] = farmer.collections.map(c => ({
+          date: c.created_at,
+          shift: c.shift as 'Morning' | 'Evening',
+          type: c.type as 'Cow' | 'Buffalo',
+          liters: Number(c.quantity),
+          fat: Number(c.fat),
+          snf: Number(c.snf),
+          clr: Number(c.clr || 0),
+          rate: Number(c.rate),
+          amount: Number(c.amount),
+          water: Number(c.water || 0)
+        }));
+
+        const templateData = {
+          dairyName,
+          branchName,
+          dairyCode,
+          farmerCode: farmer.farmer_id,
+          farmerName: farmer.farmer_details?.fullName || 'Unknown',
+          fromDate,
+          toDate,
+          milkType: 'All',
+          data: farmerBillData,
+          bankDetails: {
+            accountNumber: farmer.farmer_details?.accountNumber || '',
+            ifscCode: farmer.farmer_details?.ifscCode || '',
+            bankName: farmer.farmer_details?.bankName || '',
+            branchName: (farmer.farmer_details as any)?.branchName || ''
+          },
+          current_bill: farmer.current_bill,
+          previous_bill: farmer.previous_bill,
+          payments: farmer.payments
+        };
+
+        const html = generateTemplateDetailedHorizontal(templateData as any, i18n.language);
+        const { imgData, imgWidth, imgHeight } = await generatePage(html);
+        
+        if (i > 0) pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      }
+      pdf.save(`Detailed_Horizontal_Bills_${fromDate}_${toDate}.pdf`);
+      toast.success('Detailed PDF downloaded successfully');
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to generate detailed PDF');
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
   const handleExport = () => {
     if (exportFormat === '1-per-page' && collectionData.length === 0) {
       toast.error('Please click "Show" first to load data for the detailed report.');
       return;
     }
     setShowExportModal(false);
-    if (exportFormat === '1-per-page') {
+    if (exportFormat === 'detailed-horizontal') {
+      exportDetailedHorizontalPDF();
+    } else if (exportFormat === '1-per-page') {
       exportToPDF();
     } else if (exportFormat === '2-per-page') {
       exportMultiPerPagePDF(2);
@@ -603,7 +687,7 @@ const FarmerBillInvoiceReport = () => {
       )}
 
       {collectionData.length > 0 && (() => {
-        const grouped = Object.entries(groupByFarmer());
+        const grouped = Object.entries(groupByFarmer()).sort(([idA], [idB]) => parseInt(idA) - parseInt(idB));
         const totalPages = grouped.length;
         const [farmerId, farmerData] = grouped[currentPage] || [];
         if (!farmerId) return null;
@@ -793,6 +877,10 @@ const FarmerBillInvoiceReport = () => {
               <div className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExportFormat('3-per-page')}>
                 <RadioGroupItem value="3-per-page" id="3-per-page" />
                 <Label htmlFor="3-per-page" className="flex-1 font-semibold cursor-pointer">3 Farmers per Page (Compact)</Label>
+              </div>
+              <div className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExportFormat('detailed-horizontal' as any)}>
+                <RadioGroupItem value="detailed-horizontal" id="detailed-horizontal" />
+                <Label htmlFor="detailed-horizontal" className="flex-1 font-semibold cursor-pointer">Detailed Horizontal Format (Full Page)</Label>
               </div>
             </RadioGroup>
           </div>

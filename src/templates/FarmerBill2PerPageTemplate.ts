@@ -70,6 +70,7 @@ export interface FarmerReportData {
 export interface Template2PerPageData {
   dairyName: string;
   dairyCode?: string;
+  branchName?: string;
   farmers: FarmerReportData[];
   fromDate: string;
   toDate: string;
@@ -225,8 +226,15 @@ export const generateFarmer2PerPage = (templateData: Template2PerPageData): stri
     const netPayable = Number((summaryTotalAmount - totalDeductions));
 
     return `
-      <div style="width: 100%; font-family: Arial, sans-serif; font-size: 10px; margin-bottom: 20px; border: 1px solid black; padding: 4px; ${hasBothTypes ? 'page-break-after: always;' : 'page-break-inside: avoid;'} font-weight: normal;">
-        ${!hasBothTypes ? `<div style="text-align: center; margin-bottom: 5px; border-bottom: 1px solid black; padding-bottom: 5px;"><h2 style="margin: 0; font-size: 14px; font-weight: normal;">${templateData.dairyName}</h2></div><div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 10px;"><div>Farmer: ${farmer.farmer_id} - ${farmer.farmer_details?.fullName || 'Unknown'}</div><div>Bill Cycle: ${templateData.fromDate} to ${templateData.toDate}</div></div>` : ''}
+      <div style="width: 100%; font-family: Arial, sans-serif; font-size: 10px; margin-bottom: 20px; border: 1px solid black; padding: 40px 80px; box-sizing: border-box; ${hasBothTypes ? 'page-break-after: always;' : 'page-break-inside: avoid;'} font-weight: normal;">
+        ${!hasBothTypes ? `
+          <div style="text-align: center; margin-bottom: 2px; border-bottom: 1px solid black; padding-bottom: 2px;"><h2 style="margin: 0; font-size: 14px; font-weight: bold;">${templateData.dairyName}</h2></div>
+          <div style="text-align: center; margin-bottom: 5px; font-size: 11px; font-weight: bold; border-bottom: 1px solid black; padding-bottom: 2px;">${templateData.dairyCode || ''}</div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 10px;">
+            <div><b>Farmer:</b> ${farmer.farmer_id} - ${farmer.farmer_details?.fullName || 'Unknown'} | <b>Branch:</b> ${templateData.branchName || ''}</div>
+            <div><b>Bill Cycle:</b> ${templateData.fromDate} to ${templateData.toDate}</div>
+          </div>
+        ` : ''}
         ${cowSection}${buffSection}
         
         <table style="width: 100%; border-collapse: collapse; border: 1px solid black; font-size: 7px; font-weight: normal;">

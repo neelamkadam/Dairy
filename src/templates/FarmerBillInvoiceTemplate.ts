@@ -62,6 +62,9 @@ export interface Template2Data {
     payment_type: string;
     amount_taken: string;
     received: string;
+    created_at?: string;
+    descriptions?: string;
+    cattlefeed_stock?: any;
   }[];
   current_bill?: {
     milk_total: string;
@@ -74,6 +77,7 @@ export interface Template2Data {
     cattlefeed_total: string;
     other1_total: string;
     other2_total: string;
+    received_total: string;
   };
   previous_bill?: {
     advance_remaining: string;
@@ -126,6 +130,9 @@ export interface BillPayment {
   payment_type: string;
   amount_taken: number;
   received: number;
+  created_at?: string;
+  descriptions?: string;
+  cattlefeed_stock?: any;
 }
 
 export interface BillDetail {
@@ -168,6 +175,7 @@ export interface FarmerReportData {
 export interface Template3Data {
   dairyName: string;
   dairyCode?: string;
+  branchName?: string;
   farmers: FarmerReportData[];
   fromDate: string;
   toDate: string;
@@ -176,7 +184,8 @@ export interface Template3Data {
 
 // --- GENERATOR FUNCTIONS ---
 
-const getLabels = (language: string = 'en') => {
+const getLabels = (language: string = 'mr') => {
+  const lang = language.split('-')[0].toLowerCase();
   const translations: any = {
     en: {
       date: 'Date',
@@ -217,8 +226,19 @@ const getLabels = (language: string = 'en') => {
       branch: 'Branch',
       farmer: 'Farmer',
       code: 'Code',
-      morningShort: 'M',
-      eveningShort: 'E'
+      eveningShort: 'E',
+      accNo: 'Acc No',
+      mobile: 'Mo. No',
+      period: 'Period',
+      maagilBaaki: 'Prev Balance',
+      chaluRakkam: 'Curr Amount',
+      ekunBaaki: 'Total Balance',
+      kapatRakkam: 'Deduction',
+      yeneBaaki: 'Remaining',
+      vahantuk: 'Transport',
+      ekunKapat: 'Total Deduction',
+      adaRakkam: 'Paid Amount',
+      pashuKhady: 'Cattle Feed'
     },
     hi: {
       date: 'दिनांक',
@@ -259,8 +279,19 @@ const getLabels = (language: string = 'en') => {
       branch: 'शाखा',
       farmer: 'किसान',
       code: 'कोड',
-      morningShort: 'स',
-      eveningShort: 'श'
+      eveningShort: 'श',
+      accNo: 'खाता नं',
+      mobile: 'मो. नं',
+      period: 'कालावधी',
+      maagilBaaki: 'पिछली शेषराशि',
+      chaluRakkam: 'चालू राशि',
+      ekunBaaki: 'कुल शेष',
+      kapatRakkam: 'कटौती राशि',
+      yeneBaaki: 'शेष राशि',
+      vahantuk: 'परिवहन',
+      ekunKapat: 'कुल कटौती',
+      adaRakkam: 'भुगतान राशि',
+      pashuKhady: 'पशु आहार'
     },
     mr: {
       date: 'दिनांक',
@@ -277,8 +308,8 @@ const getLabels = (language: string = 'en') => {
       bill: 'बिल',
       to: 'पर्यंत',
       payment: 'पेमेंट',
-      feed: 'खाद्य',
-      advance: 'आगाऊ',
+      feed: 'पशुखाद्य',
+      advance: 'ॲडव्हान्स',
       other1: 'इतर1',
       other2: 'इतर2',
       milk: 'दूध',
@@ -302,10 +333,29 @@ const getLabels = (language: string = 'en') => {
       farmer: 'सभासद/शेतकरी',
       code: 'कोड',
       morningShort: 'स',
-      eveningShort: 'सा'
+      eveningShort: 'सा',
+      accNo: 'खाते नं',
+      mobile: 'मो. नं',
+      period: 'कालावधी',
+      maagilBaaki: 'मागील बाकी',
+      chaluRakkam: 'चालू रक्कम',
+      ekunBaaki: 'एकूण बाकी',
+      kapatRakkam: 'कपात रक्कम',
+      yeneBaaki: 'येणे बाकी',
+      vahantuk: 'वाहतूक',
+      ekunKapat: 'एकूण कपात',
+      adaRakkam: 'अदा रक्कम',
+      pashuKhady: 'पशुखाद्य'
     }
   };
-  return translations[language] || translations.en;
+  const selected = { ... (translations[lang] || translations.mr || translations.en) };
+  // Ensure all keys from mr exist in the returned object (fallback to mr then en)
+  Object.keys(translations.mr).forEach(key => {
+    if (selected[key] === undefined) {
+      selected[key] = translations.mr[key] || translations.en[key];
+    }
+  });
+  return selected;
 };
 
 export const generateTemplate2 = (templateData: Template2Data, language: string = 'mr'): string => {
@@ -504,12 +554,13 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
 <head>
   <meta charset="UTF-8">
   <style>
+    * { box-sizing: border-box; }
     body { 
       font-family: Arial, sans-serif; 
       font-size: 16px; 
       line-height: 1.0; 
       margin: 0;
-      padding: 40px 25px 10px 25px; /* Increased side padding */
+      padding: 60px 80px 20px 80px; /* Increased top and significant side padding */
     }
     .header { 
       text-align: center; 
@@ -664,6 +715,226 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
 </html>`;
 };
 
+export const generateTemplateDetailedHorizontal = (templateData: Template2Data, language: string = 'mr'): string => {
+  const labels = getLabels('mr'); // Force Marathi for this specific format to match manual paper bill
+  
+  // Group data by date
+  const groupedByDate = new Map<string, { morning?: FarmerBillData, evening?: FarmerBillData }>();
+  
+  templateData.data.forEach(item => {
+    const itemDate = new Date(item.date);
+    const dateStr = itemDate.toLocaleDateString("en-GB"); // DD/MM/YYYY
+    if (!groupedByDate.has(dateStr)) {
+      groupedByDate.set(dateStr, {});
+    }
+    const dayData = groupedByDate.get(dateStr)!;
+    if (item.shift === 'Morning') dayData.morning = item;
+    else dayData.evening = item;
+  });
+
+  const startDate = new Date(templateData.fromDate);
+  const tenDates: string[] = [];
+  for (let i = 0; i < 10; i++) {
+    const nextDate = new Date(startDate);
+    nextDate.setDate(startDate.getDate() + i);
+    tenDates.push(nextDate.toLocaleDateString("en-GB"));
+  }
+
+  let totalMLtr = 0, totalMAmt = 0, totalELtr = 0, totalEAmt = 0;
+  
+  const tableRows = tenDates.map(date => {
+    const day = groupedByDate.get(date);
+    const m = day?.morning;
+    const e = day?.evening;
+    
+    totalMLtr += m?.liters || 0;
+    totalMAmt += m?.amount || 0;
+    totalELtr += e?.liters || 0;
+    totalEAmt += e?.amount || 0;
+
+    return `
+      <tr>
+        <td style="border: 1px solid black; padding: 4px; text-align: center;">${date.substring(0, 5)}</td>
+        <td style="border: 1px solid black; padding: 4px; text-align: right;">${m ? Number(m.liters).toFixed(1) : ''}</td>
+        <td style="border: 1px solid black; padding: 4px; text-align: right;">${m ? Number(m.fat).toFixed(1) : ''}</td>
+        <td style="border: 1px solid black; padding: 4px; text-align: right;">${m ? Number(m.snf).toFixed(1) : ''}</td>
+        <td style="border: 1px solid black; padding: 4px; text-align: right;">${m ? Number(m.rate).toFixed(2) : ''}</td>
+        <td style="border: 1px solid black; padding: 4px; text-align: right;">${m ? Number(m.amount).toFixed(2) : ''}</td>
+        <td style="border: 1px solid black; padding: 4px; text-align: right;">${e ? Number(e.liters).toFixed(1) : ''}</td>
+        <td style="border: 1px solid black; padding: 4px; text-align: right;">${e ? Number(e.fat).toFixed(1) : ''}</td>
+        <td style="border: 1px solid black; padding: 4px; text-align: right;">${e ? Number(e.snf).toFixed(1) : ''}</td>
+        <td style="border: 1px solid black; padding: 4px; text-align: right;">${e ? Number(e.rate).toFixed(2) : ''}</td>
+        <td style="border: 1px solid black; padding: 4px; text-align: right;">${e ? Number(e.amount).toFixed(2) : ''}</td>
+        <td style="border: 1px solid black; padding: 4px; text-align: right; background: #f9f9f9;">${(m || e) ? (Number(m?.liters || 0) + Number(e?.liters || 0)).toFixed(1) : ''}</td>
+        <td style="border: 1px solid black; padding: 4px; text-align: right; background: #f9f9f9;">${(m || e) ? (Number(m?.amount || 0) + Number(e?.amount || 0)).toFixed(2) : ''}</td>
+      </tr>
+    `;
+  }).join('');
+
+  const summary = {
+    prevAdvance: parseFloat(templateData.previous_bill?.advance_remaining || '0'),
+    prevFeed: parseFloat(templateData.previous_bill?.cattlefeed_remaining || '0'),
+    currAdvance: (templateData.payments || []).filter(p => p.payment_type.toLowerCase().trim() === 'advance').reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0),
+    currFeed: (templateData.payments || []).filter(p => p.payment_type.toLowerCase().trim() === 'cattle feed').reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0),
+    dedAdvance: parseFloat(templateData.current_bill?.advance_total || '0'),
+    dedFeed: parseFloat(templateData.current_bill?.cattlefeed_total || '0'),
+    otherDeductions: parseFloat(templateData.current_bill?.other1_total || '0') + parseFloat(templateData.current_bill?.other2_total || '0'),
+    totalAmount: totalMAmt + totalEAmt,
+    totalDeductions: parseFloat(templateData.current_bill?.advance_total || '0') + parseFloat(templateData.current_bill?.cattlefeed_total || '0') + parseFloat(templateData.current_bill?.other1_total || '0') + parseFloat(templateData.current_bill?.other2_total || '0'),
+    receivedAmount: parseFloat(templateData.current_bill?.received_total || '0'),
+  };
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Arial', sans-serif; font-size: 11px; margin: 0; padding: 20px 30px; line-height: 1.2; }
+    table { width: 100%; border-collapse: collapse; border: 1px solid black; table-layout: fixed; }
+    th, td { border: 1px solid black; padding: 4px; overflow: hidden; word-wrap: break-word; }
+    th { background: #f2f2f2; font-weight: bold; }
+    .header-info { margin-bottom: 8px; width: 100%; border: none; }
+    .header-info table { border: none; }
+    .summary-grid td { padding: 4px; height: 30px; }
+    .no-border td { border: none !important; padding: 2px 0; }
+    .text-right { text-align: right; }
+    .text-center { text-align: center; }
+    .bold { font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="text-center bold" style="font-size: 20px; letter-spacing: 1px; margin-bottom: 2px; border: none;">${templateData.dairyName}</div>
+  <div class="text-center" style="font-size: 11px; margin-bottom: 6px; border: none;">Mo. ${templateData.dairyCode || ''}</div>
+  
+  <div class="header-info">
+    <table class="no-border">
+      <tr style="height: 25px;">
+        <td style="width: 20%; font-size: 11px; vertical-align: middle;"><strong>खाते नं :</strong> ${templateData.farmerCode}</td>
+        <td style="width: 60%; text-align: center; font-size: 16px; vertical-align: middle;"><strong>${templateData.farmerName}</strong></td>
+        <td style="width: 20%; text-align: right; font-size: 11px; vertical-align: middle;"><strong>दिनांक :</strong> ${new Date().toLocaleDateString("en-GB")}</td>
+      </tr>
+      <tr style="height: 20px;">
+        <td style="font-size: 11px; vertical-align: middle;"><strong>बँक खाते नं :</strong> ${templateData.bankDetails?.accountNumber || ''}</td>
+        <td style="text-align: center; font-size: 11px; vertical-align: middle;"><strong>कालावधी :</strong> ${templateData.fromDate} To ${templateData.toDate}</td>
+        <td></td>
+      </tr>
+    </table>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th rowspan="2" style="width: 60px;">${labels.date}</th>
+        <th colspan="5">---------- ${labels.morning} ----------</th>
+        <th colspan="5">---------- ${labels.evening} ----------</th>
+        <th colspan="2">${labels.total}</th>
+      </tr>
+      <tr>
+        <th style="width: 45px;">${labels.quantity}</th><th style="width: 35px;">${labels.fat}</th><th style="width: 35px;">SNF</th><th style="width: 45px;">${labels.rate}</th><th style="width: 60px;">${labels.amount}</th>
+        <th style="width: 45px;">${labels.quantity}</th><th style="width: 35px;">${labels.fat}</th><th style="width: 35px;">SNF</th><th style="width: 45px;">${labels.rate}</th><th style="width: 60px;">${labels.amount}</th>
+        <th style="width: 50px;">${labels.quantity}</th><th style="width: 70px;">${labels.amount}</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td colspan="13" style="padding: 1px 5px; font-weight: bold; background: #fafafa;">गाय</td></tr>
+      ${tableRows}
+      <tr style="font-weight: bold; background: #f2f2f2; height: 30px;">
+        <td class="text-center">${labels.total} :</td>
+        <td class="text-right">${totalMLtr.toFixed(1)}</td>
+        <td colspan="3"></td>
+        <td class="text-right">${totalMAmt.toFixed(2)}</td>
+        <td class="text-right">${totalELtr.toFixed(1)}</td>
+        <td colspan="3"></td>
+        <td class="text-right">${totalEAmt.toFixed(2)}</td>
+        <td class="text-right">${(totalMLtr + totalELtr).toFixed(1)}</td>
+        <td class="text-right">${(totalMAmt + totalEAmt).toFixed(2)}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div style="margin-top: 10px;">
+    <table class="summary-grid">
+      <tr class="bold text-center" style="background: #f2f2f2; font-size: 10px;">
+        <td style="width: 12%;"></td>
+        <td style="width: 12%;">${labels.maagilBaaki}</td>
+        <td style="width: 12%;">${labels.chaluRakkam}</td>
+        <td style="width: 12%;">${labels.ekunBaaki}</td>
+        <td style="width: 12%;">${labels.kapatRakkam}</td>
+        <td style="width: 12%;">${labels.yeneBaaki}</td>
+        <td rowspan="4" style="width: 28%; padding: 0;">
+          <table style="width: 100%; border: none; height: 100%;" class="no-border">
+            <tr><td style="padding-left: 8px; font-size: 10px;">${labels.vahantuk} : </td><td class="text-right bold" style="padding-right: 8px; font-size: 10px;">0.00</td></tr>
+            <tr class="bold"><td style="padding-left: 8px; font-size: 10px;">बिल रक्कम : </td><td class="text-right" style="padding-right: 8px; font-size: 10px;">${summary.totalAmount.toFixed(2)}</td></tr>
+            <tr class="bold"><td style="padding-left: 8px; font-size: 10px;">${labels.ekunKapat} : </td><td class="text-right" style="padding-right: 8px; font-size: 10px;">${summary.totalDeductions.toFixed(2)}</td></tr>
+            <tr class="bold" style="font-size: 11px; border-top: 1px solid black; background: #eee;"><td style="padding-left: 8px; padding-top: 4px; padding-bottom: 4px;">${labels.adaRakkam} : </td><td class="text-right" style="padding-right: 8px;">${summary.receivedAmount.toFixed(2)}</td></tr>
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td class="bold text-center">${labels.advance}</td>
+        <td class="text-right">${summary.prevAdvance.toFixed(2)}</td>
+        <td class="text-right">${summary.currAdvance.toFixed(2)}</td>
+        <td class="text-right">${(summary.prevAdvance + summary.currAdvance).toFixed(2)}</td>
+        <td class="text-right">${summary.dedAdvance.toFixed(2)}</td>
+        <td class="text-right">${((summary.prevAdvance + summary.currAdvance) - summary.dedAdvance).toFixed(0)}.00</td>
+      </tr>
+      <tr>
+        <td class="bold text-center">${labels.pashuKhady}</td>
+        <td class="text-right">${summary.prevFeed.toFixed(2)}</td>
+        <td class="text-right">${summary.currFeed.toFixed(2)}</td>
+        <td class="text-right">${(summary.prevFeed + summary.currFeed).toFixed(2)}</td>
+        <td class="text-right">${summary.dedFeed.toFixed(2)}</td>
+        <td class="text-right">${((summary.prevFeed + summary.currFeed) - summary.dedFeed).toFixed(0)}.00</td>
+      </tr>
+      <tr class="bold">
+        <td class="text-center">${labels.total}</td>
+        <td class="text-right">${(summary.prevAdvance + summary.prevFeed).toFixed(2)}</td>
+        <td class="text-right">${(summary.currAdvance + summary.currFeed).toFixed(2)}</td>
+        <td class="text-right">${(summary.prevAdvance + summary.prevFeed + summary.currAdvance + summary.currFeed).toFixed(2)}</td>
+        <td class="text-right">${(summary.dedAdvance + summary.dedFeed).toFixed(2)}</td>
+        <td class="text-right">${((summary.prevAdvance + summary.prevFeed + summary.currAdvance + summary.currFeed) - (summary.dedAdvance + summary.dedFeed)).toFixed(2)}</td>
+      </tr>
+    </table>
+  </div>
+
+  <div style="margin-top: 10px; font-weight: bold; font-size: 12px; border-bottom: 2px solid black; padding-bottom: 5px;">
+    इतर कपात : ${summary.otherDeductions.toFixed(2)} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; वाह कपात : 0.00
+  </div>
+
+  <div style="margin-top: 5px;">
+    <strong style="font-size: 12px; margin-left: 5px;">तपशील :</strong>
+    <table style="margin-top: 4px; width: 100%; border: 1.5px solid black; border-collapse: collapse;">
+      ${(templateData.payments || []).map(p => {
+        let displayType = (p as any).descriptions || p.payment_type;
+        
+        // If there's a cattlefeed_stock object, format it into a more detailed description
+        const stock = (p as any).cattlefeed_stock;
+        if (stock && stock.stock_name) {
+          displayType = `${stock.stock_name} : ${stock.quantity || 1} दर : ${Number(stock.rate || 0).toFixed(2)}`;
+        }
+        
+        if (displayType === 'Advance' || displayType === 'ॲडव्हान्स') displayType = labels.advance;
+        if (displayType === 'Cattle Feed' || displayType === 'पशुखाद्य') displayType = labels.pashuKhady;
+        
+        return `
+          <tr>
+            <td style="width: 15%; padding: 2px 8px; border: none; font-size: 11px;">${new Date(p.created_at || templateData.fromDate).toLocaleDateString("en-GB")}</td>
+            <td style="padding: 2px 8px; border: none; font-size: 11px;">${displayType}</td>
+            <td class="text-right" style="width: 25%; padding: 2px 15px; border: none; font-size: 11px;">${Number(p.amount_taken || '0').toFixed(2)}</td>
+          </tr>
+        `;
+      }).join('')}
+      ${(templateData.payments || []).length === 0 ? '<tr><td colspan="3" style="padding: 15px; text-align: center; border: none; color: #777;">तपशील उपलब्ध नाही</td></tr>' : ''}
+    </table>
+  </div>
+  
+</body>
+</html>
+  `;
+};
+
 export const generateTemplate3Farmers = (templateData: Template3Data): string => {
   const labels = getLabels('mr');
   const getFarmerHtml = (farmer: FarmerReportData) => {
@@ -718,17 +989,16 @@ export const generateTemplate3Farmers = (templateData: Template3Data): string =>
     const netPayable = currentBill?.net_payable || 0;
 
     return `
-      <div class="invoice-container" style="height: 33.33%; border-bottom: 2px dashed #000; padding: 15px 25px; box-sizing: border-box; overflow: hidden; line-height: 1.3; font-family: Arial, sans-serif;">
-        <table style="width: 100%; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
-          <tr>
-            <td style="font-size: 11px; font-weight: bold; width: 30%; line-height: 1.5;">${labels.code}: ${templateData.dairyCode || ''}</td>
-            <td style="font-size: 18px; font-weight: bold; text-align: center; text-transform: uppercase;">${templateData.dairyName}</td>
-            <td style="font-size: 11px; width: 30%; text-align: right; font-weight: bold; line-height: 1.5;">${templateData.fromDate} - ${templateData.toDate}</td>
-          </tr>
-        </table>
-        <div style="font-size: 11px; margin-bottom: 8px; background: #f0f0f0; padding: 4px 10px;">
+      <div class="invoice-container" style="height: 33.33%; border-bottom: 2px dashed #000; padding: 40px 80px; box-sizing: border-box; overflow: hidden; line-height: 1.3; font-family: Arial, sans-serif;">
+        <div style="text-align: center; font-size: 16px; font-weight: bold; margin-bottom: 2px;">${templateData.dairyName}</div>
+        <div style="text-align: center; font-size: 12px; font-weight: bold; margin-bottom: 8px;">${templateData.dairyCode || ''}</div>
+        <div style="display: flex; justify-content: space-between; font-size: 10px; font-weight: bold; margin-bottom: 5px;">
+           <div>${labels.code}: ${templateData.dairyCode || ''}</div>
+           <div>${templateData.fromDate} - ${templateData.toDate}</div>
+        </div>
+        <div style="font-size: 11px; margin-bottom: 8px; background: #f0f0f0; padding: 4px 10px; border: 1px solid #000;">
           <div style="display: flex; justify-content: space-between;">
-            <div><b>${labels.farmer}: ${farmer.farmer_id} - ${farmer.farmer_details?.fullName || 'Unknown'}</b></div>
+            <div><b>${labels.farmer}: ${farmer.farmer_id} - ${farmer.farmer_details?.fullName || 'Unknown'}</b> | <b>${labels.branch}:</b> ${templateData.branchName || ''}</div>
             <div style="font-size: 10px;">
               <b>${labels.bank}:</b> ${farmer.farmer_details?.bankName || '-'} | <b>${labels.accountNumber}:</b> ${farmer.farmer_details?.accountNumber || '-'}
             </div>
@@ -772,6 +1042,5 @@ export const generateTemplate3Farmers = (templateData: Template3Data): string =>
         </table>
       </div>`;
   };
-        return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body { margin: 0; padding: 0; font-family: Arial, sans-serif; } @page { size: A4; margin: 0; } .page-container { width: 210mm; height: 297mm; display: flex; flex-direction: column; }</style></head><body><div class="page-container">${templateData.farmers.map(getFarmerHtml).join('')}</div></body></html>`;
-
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body { margin: 0; padding: 0; font-family: Arial, sans-serif; } @page { size: A4; margin: 0; } .page-container { width: 210mm; height: 297mm; display: flex; flex-direction: column; }</style></head><body><div class="page-container">${templateData.farmers.map(getFarmerHtml).join('')}</div></body></html>`;
 };
