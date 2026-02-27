@@ -108,7 +108,7 @@ export const generateFarmer2PerPage = (templateData: Template2PerPageData): stri
         const e = dataMap.get(`${dk}_Evening`);
         if (m) { mLiters += Number(m.quantity); mFat += Number(m.fat); mSnf += Number(m.snf); mAmt += Number(m.amount); mCnt++; }
         if (e) { eLiters += Number(e.quantity); eFat += Number(e.fat); eSnf += Number(e.snf); eAmt += Number(e.amount); eCnt++; }
-        rows += `<tr><td style="border-left: 1px solid black; border-right: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${dk.substring(0, 5)}</td><td style="border-left: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${m ? Number(m.quantity).toFixed(1) : '-'}</td><td style="border-left: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${m ? Number(m.fat).toFixed(1) : '-'}</td><td style="border-left: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${m ? Number(m.snf).toFixed(1) : '-'}</td><td style="border-left: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${m ? Number(m.rate).toFixed(1) : '-'}</td><td style="border-left: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${m ? Number(m.amount).toFixed(0) : '-'}</td><td style="border-left: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${e ? Number(e.quantity).toFixed(1) : '-'}</td><td style="border-left: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${e ? Number(e.fat).toFixed(1) : '-'}</td><td style="border-left: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${e ? Number(e.snf).toFixed(1) : '-'}</td><td style="border-left: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${e ? Number(e.rate).toFixed(1) : '-'}</td><td style="border-left: 1px solid black; border-right: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${e ? Number(e.amount).toFixed(0) : '-'}</td></tr>`;
+        rows += `<tr><td style="border-left: 1px solid black; border-right: 1px solid black; padding: 2px 3px; text-align: center; font-size: 9px;">${dk.substring(0, 5)}</td><td style="border-left: 1px solid black; padding: 2px 3px; text-align: center; font-size: 9px;">${m ? Number(m.quantity).toFixed(1) : '-'}</td><td style="border-left: 1px solid black; padding: 2px 3px; text-align: center; font-size: 9px;">${m ? Number(m.fat).toFixed(1) : '-'}</td><td style="border-left: 1px solid black; padding: 2px 3px; text-align: center; font-size: 9px;">${m ? Number(m.snf).toFixed(1) : '-'}</td><td style="border-left: 1px solid black; padding: 2px 3px; text-align: center; font-size: 9px;">${m ? Number(m.rate).toFixed(1) : '-'}</td><td style="border-left: 1px solid black; padding: 2px 3px; text-align: center; font-size: 9px;">${m ? Number(m.amount).toFixed(0) : '-'}</td><td style="border-left: 1px solid black; padding: 2px 3px; text-align: center; font-size: 9px;">${e ? Number(e.quantity).toFixed(1) : '-'}</td><td style="border-left: 1px solid black; padding: 2px 3px; text-align: center; font-size: 9px;">${e ? Number(e.fat).toFixed(1) : '-'}</td><td style="border-left: 1px solid black; padding: 2px 3px; text-align: center; font-size: 9px;">${e ? Number(e.snf).toFixed(1) : '-'}</td><td style="border-left: 1px solid black; padding: 2px 3px; text-align: center; font-size: 9px;">${e ? Number(e.rate).toFixed(1) : '-'}</td><td style="border-left: 1px solid black; border-right: 1px solid black; padding: 2px 3px; text-align: center; font-size: 9px;">${e ? Number(e.amount).toFixed(0) : '-'}</td></tr>`;
         cd.setDate(cd.getDate() + 1);
       }
       return { rows, mLiters, eLiters, mFat: mCnt > 0 ? (mFat / mCnt).toFixed(1) : '0.0', eFat: eCnt > 0 ? (eFat / eCnt).toFixed(1) : '0.0', mSnf: mCnt > 0 ? (mSnf / mCnt).toFixed(1) : '0.0', eSnf: eCnt > 0 ? (eSnf / eCnt).toFixed(1) : '0.0', mAmt, eAmt };
@@ -122,15 +122,69 @@ export const generateFarmer2PerPage = (templateData: Template2PerPageData): stri
     const totalAmount = (cowTable?.mAmt || 0) + (cowTable?.eAmt || 0) + (buffTable?.mAmt || 0) + (buffTable?.eAmt || 0);
 
     const cowSection = cowTable ? `
-        ${hasBothTypes ? `<div style="text-align: center; margin-bottom: 3px; border-bottom: 1px solid black; padding-bottom: 3px;"><h2 style="margin: 0; font-size: 14px; font-weight: normal;">${templateData.dairyName}</h2></div><div style="display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 10px;"><div>Farmer: ${farmer.farmer_id} - ${farmer.farmer_details?.fullName || 'Unknown'}</div><div>Bill Cycle: ${templateData.fromDate} to ${templateData.toDate}</div></div>` : ''}
         <div style="text-align: center; font-weight: bold; margin-bottom: 2px; font-size: 11px;">Cow Milk</div>
-        <table style="width: 100%; border-collapse: collapse; border: 1px solid black; margin-bottom: 4px; font-size: 9px; font-weight: normal;"><thead><tr><th rowspan="2" style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px; font-weight: normal;">Date</th><th colspan="5" style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px; font-weight: normal;">Morning</th><th colspan="5" style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px; font-weight: normal;">Evening</th></tr><tr><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Ltr</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Fat</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">SNF</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Rate</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Amt</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Ltr</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Fat</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">SNF</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Rate</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Amt</th></tr></thead><tbody>${cowTable.rows}<tr><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">Cow Total</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${cowTable.mLiters.toFixed(1)}</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${cowTable.mFat}</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${cowTable.mSnf}</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">-</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${cowTable.mAmt.toFixed(0)}</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${cowTable.eLiters.toFixed(1)}</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${cowTable.eFat}</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${cowTable.eSnf}</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">-</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${cowTable.eAmt.toFixed(0)}</td></tr></tbody></table>` : '';
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid black; margin-bottom: 5px; font-size: 9px;">
+          <thead>
+            <tr style="background-color: #f0f0f0;">
+              <th rowspan="2" style="border: 1px solid black; padding: 4px; text-align: center; font-weight: bold;">Date</th>
+              <th colspan="5" style="border: 1px solid black; padding: 4px; text-align: center; font-weight: bold;">Morning</th>
+              <th colspan="5" style="border: 1px solid black; padding: 4px; text-align: center; font-weight: bold;">Evening</th>
+            </tr>
+            <tr style="background-color: #f0f0f0;">
+              <th style="border: 1px solid black; padding: 4px; text-align: center;">Ltr</th><th style="border: 1px solid black; padding: 4px; text-align: center;">Fat</th><th style="border: 1px solid black; padding: 4px; text-align: center;">SNF</th><th style="border: 1px solid black; padding: 4px; text-align: center;">Rate</th><th style="border: 1px solid black; padding: 4px; text-align: center;">Amt</th>
+              <th style="border: 1px solid black; padding: 4px; text-align: center;">Ltr</th><th style="border: 1px solid black; padding: 4px; text-align: center;">Fat</th><th style="border: 1px solid black; padding: 4px; text-align: center;">SNF</th><th style="border: 1px solid black; padding: 4px; text-align: center;">Rate</th><th style="border: 1px solid black; padding: 4px; text-align: center;">Amt</th>
+            </tr>
+          </thead>
+          <tbody>${cowTable.rows}</tbody>
+          <tfoot style="font-weight: bold; background-color: #f0f0f0;">
+            <tr>
+              <td style="border: 1px solid black; padding: 6px 3px; text-align: center;">Cow Total</td>
+              <td style="border: 1px solid black; padding: 6px 3px; text-align: center;">${cowTable.mLiters.toFixed(1)}</td>
+              <td style="border: 1px solid black; padding: 6px 3px; text-align: center;">${cowTable.mFat}</td>
+              <td style="border: 1px solid black; padding: 6px 3px; text-align: center;">${cowTable.mSnf}</td>
+              <td style="border: 1px solid black; padding: 6px 3px; text-align: center;">-</td>
+              <td style="border: 1px solid black; padding: 6px 3px; text-align: center;">${cowTable.mAmt.toFixed(0)}</td>
+              <td style="border: 1px solid black; padding: 6px 3px; text-align: center;">${cowTable.eLiters.toFixed(1)}</td>
+              <td style="border: 1px solid black; padding: 6px 3px; text-align: center;">${cowTable.eFat}</td>
+              <td style="border: 1px solid black; padding: 6px 3px; text-align: center;">${cowTable.eSnf}</td>
+              <td style="border: 1px solid black; padding: 6px 3px; text-align: center;">-</td>
+              <td style="border: 1px solid black; padding: 6px 3px; text-align: center;">${cowTable.eAmt.toFixed(0)}</td>
+            </tr>
+          </tfoot>
+        </table>` : '';
 
     const buffSection = buffTable ? `
         ${hasBothTypes ? '<div style="page-break-before: always;"></div>' : ''}
-        ${hasBothTypes ? `<div style="text-align: center; margin-bottom: 3px; border-bottom: 1px solid black; padding-bottom: 3px;"><h2 style="margin: 0; font-size: 14px; font-weight: normal;">${templateData.dairyName}</h2></div><div style="display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 10px;"><div>Farmer: ${farmer.farmer_id} - ${farmer.farmer_details?.fullName || 'Unknown'}</div><div>Bill Cycle: ${templateData.fromDate} to ${templateData.toDate}</div></div>` : ''}
-        <div style="text-align: center; font-weight: bold; margin-bottom: 2px; font-size: 11px;">Buffalo Milk</div>
-        <table style="width: 100%; border-collapse: collapse; border: 1px solid black; margin-bottom: 4px; font-size: 9px; font-weight: normal;"><thead><tr><th rowspan="2" style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px; font-weight: normal;">Date</th><th colspan="5" style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px; font-weight: normal;">Morning</th><th colspan="5" style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px; font-weight: normal;">Evening</th></tr><tr><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Ltr</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Fat</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">SNF</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Rate</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Amt</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Ltr</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Fat</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">SNF</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Rate</th><th style="border: 1px solid black; padding: 3px; text-align: center; font-size: 8px; font-weight: normal;">Amt</th></tr></thead><tbody>${buffTable.rows}<tr><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">Buffalo Total</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${buffTable.mLiters.toFixed(1)}</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${buffTable.mFat}</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${buffTable.mSnf}</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">-</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${buffTable.mAmt.toFixed(0)}</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${buffTable.eLiters.toFixed(1)}</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${buffTable.eFat}</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${buffTable.eSnf}</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">-</td><td style="border: 1px solid black; padding: 3px; text-align: center; font-size: 9px;">${buffTable.eAmt.toFixed(0)}</td></tr></tbody></table>` : '';
+        <div style="text-align: center; font-weight: bold; margin-bottom: 2px; font-size: 11px; margin-top: 5px;">Buffalo Milk</div>
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid black; margin-bottom: 5px; font-size: 9px;">
+          <thead>
+            <tr style="background-color: #f0f0f0;">
+              <th rowspan="2" style="border: 1px solid black; padding: 4px; text-align: center; font-weight: bold;">Date</th>
+              <th colspan="5" style="border: 1px solid black; padding: 4px; text-align: center; font-weight: bold;">Morning</th>
+              <th colspan="5" style="border: 1px solid black; padding: 4px; text-align: center; font-weight: bold;">Evening</th>
+            </tr>
+            <tr style="background-color: #f0f0f0;">
+              <th style="border: 1px solid black; padding: 4px; text-align: center;">Ltr</th><th style="border: 1px solid black; padding: 4px; text-align: center;">Fat</th><th style="border: 1px solid black; padding: 4px; text-align: center;">SNF</th><th style="border: 1px solid black; padding: 4px; text-align: center;">Rate</th><th style="border: 1px solid black; padding: 4px; text-align: center;">Amt</th>
+              <th style="border: 1px solid black; padding: 4px; text-align: center;">Ltr</th><th style="border: 1px solid black; padding: 4px; text-align: center;">Fat</th><th style="border: 1px solid black; padding: 4px; text-align: center;">SNF</th><th style="border: 1px solid black; padding: 4px; text-align: center;">Rate</th><th style="border: 1px solid black; padding: 4px; text-align: center;">Amt</th>
+            </tr>
+          </thead>
+          <tbody>${buffTable.rows}</tbody>
+          <tfoot style="font-weight: bold; background-color: #f0f0f0;">
+            <tr>
+              <td style="border: 1px solid black; padding: 6px 3px; text-align: center;">Buffalo Total</td>
+              <td style="border: 1px solid black; padding: 6px 3px; text-align: center;">${buffTable.mLiters.toFixed(1)}</td>
+              <td style="border: 1px solid black; padding: 6px 3px; text-align: center;">${buffTable.mFat}</td>
+              <td style="border: 1px solid black; padding: 6px 3px; text-align: center;">${buffTable.mSnf}</td>
+              <td style="border: 1px solid black; padding: 6px 3px; text-align: center;">-</td>
+              <td style="border: 1px solid black; padding: 6px 3px; text-align: center;">${buffTable.mAmt.toFixed(0)}</td>
+              <td style="border: 1px solid black; padding: 6px 3px; text-align: center;">${buffTable.eLiters.toFixed(1)}</td>
+              <td style="border: 1px solid black; padding: 6px 3px; text-align: center;">${buffTable.eFat}</td>
+              <td style="border: 1px solid black; padding: 6px 3px; text-align: center;">${buffTable.eSnf}</td>
+              <td style="border: 1px solid black; padding: 6px 3px; text-align: center;">-</td>
+              <td style="border: 1px solid black; padding: 6px 3px; text-align: center;">${buffTable.eAmt.toFixed(0)}</td>
+            </tr>
+          </tfoot>
+        </table>` : '';
 
     const summaryTotalLiters = farmer.collections_summary?.total_quantity || totalLiters;
     const summaryTotalAmount = farmer.collections_summary?.total_amount || totalAmount;
@@ -171,8 +225,8 @@ export const generateFarmer2PerPage = (templateData: Template2PerPageData): stri
     const netPayable = Number((summaryTotalAmount - totalDeductions));
 
     return `
-      <div style="width: 100%; font-family: Arial, sans-serif; font-size: 10px; margin-bottom: 40px; border: 1px solid black; padding: 6px; ${hasBothTypes ? 'page-break-after: always;' : 'page-break-inside: avoid;'} font-weight: normal;">
-        ${!hasBothTypes ? `<div style="text-align: center; margin-bottom: 3px; border-bottom: 1px solid black; padding-bottom: 3px;"><h2 style="margin: 0; font-size: 14px; font-weight: normal;">${templateData.dairyName}</h2></div><div style="display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 10px;"><div>Farmer: ${farmer.farmer_id} - ${farmer.farmer_details?.fullName || 'Unknown'}</div><div>Bill Cycle: ${templateData.fromDate} to ${templateData.toDate}</div></div>` : ''}
+      <div style="width: 100%; font-family: Arial, sans-serif; font-size: 10px; margin-bottom: 20px; border: 1px solid black; padding: 4px; ${hasBothTypes ? 'page-break-after: always;' : 'page-break-inside: avoid;'} font-weight: normal;">
+        ${!hasBothTypes ? `<div style="text-align: center; margin-bottom: 5px; border-bottom: 1px solid black; padding-bottom: 5px;"><h2 style="margin: 0; font-size: 14px; font-weight: normal;">${templateData.dairyName}</h2></div><div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 10px;"><div>Farmer: ${farmer.farmer_id} - ${farmer.farmer_details?.fullName || 'Unknown'}</div><div>Bill Cycle: ${templateData.fromDate} to ${templateData.toDate}</div></div>` : ''}
         ${cowSection}${buffSection}
         
         <table style="width: 100%; border-collapse: collapse; border: 1px solid black; font-size: 7px; font-weight: normal;">
@@ -185,76 +239,76 @@ export const generateFarmer2PerPage = (templateData: Template2PerPageData): stri
           
           <tr>
             <td colspan="2" style="border: 1px solid black; padding: 4px; text-align: center;">Property Details</td>
-            <td style="border: 1px solid black; padding: 2px; text-align: center;"></td>
-            <td style="border: 1px solid black; padding: 2px; text-align: center;"></td>
-            <td style="border: 1px solid black; padding: 2px; text-align: center;">Previous Balance</td>
-            <td style="border: 1px solid black; padding: 2px; text-align: center;">Current Balance</td>
-            <td style="border: 1px solid black; padding: 2px; text-align: center;">Total Balance</td>
-            <td style="border: 1px solid black; padding: 2px; text-align: center;">Deduction</td>
-            <td style="border: 1px solid black; padding: 2px; text-align: center;">Remaining</td>
-            <td style="border: 1px solid black; padding: 2px; text-align: center;">Total Payable</td>
+            <td style="border: 1px solid black; padding: 4px; text-align: center;"></td>
+            <td style="border: 1px solid black; padding: 4px; text-align: center;"></td>
+            <td style="border: 1px solid black; padding: 4px; text-align: center;">Previous Balance</td>
+            <td style="border: 1px solid black; padding: 4px; text-align: center;">Current Balance</td>
+            <td style="border: 1px solid black; padding: 4px; text-align: center;">Total Balance</td>
+            <td style="border: 1px solid black; padding: 4px; text-align: center;">Deduction</td>
+            <td style="border: 1px solid black; padding: 4px; text-align: center;">Remaining</td>
+            <td style="border: 1px solid black; padding: 4px; text-align: center;">Total Payable</td>
           </tr>
           
           <tr>
-            <td colspan="2" style="border-left: 1px solid black; border-right: 1px solid black; padding: 2px;">Milk Amount</td>
-            <td style="border-left: 1px solid black; border-right: 1px solid black; padding: 2px; text-align: center;">${summaryTotalAmount.toFixed(0)}</td>
-            <td style="border-left: 1px solid black; border-right: 1px solid black; padding: 2px; text-align: center;">Cattle Feed</td>
-            <td style="border-left: 1px solid black; padding: 2px; text-align: center;">${prevCattleFeedRemaining.toFixed(0)}</td>
-            <td style="border-left: 1px solid black; padding: 2px; text-align: center;">${currentCattleFeed.toFixed(0)}</td>
-            <td style="border-left: 1px solid black; padding: 2px; text-align: center;">${totalCattleFeedBalance.toFixed(0)}</td>
-            <td style="border-left: 1px solid black; padding: 2px; text-align: center;">${cattleFeed.toFixed(0)}</td>
-            <td style="border-left: 1px solid black; border-right: 1px solid black; padding: 2px; text-align: center;">${cattleFeedRemaining.toFixed(0)}</td>
-            <td rowspan="4" style="border: 1px solid black; padding: 2px; text-align: center; vertical-align: middle; font-size: 10px;">Total<br>${summaryTotalAmount.toFixed(0)}</td>
+            <td colspan="2" style="border-left: 1px solid black; border-right: 1px solid black; padding: 4px;">Milk Amount</td>
+            <td style="border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: center;">${summaryTotalAmount.toFixed(0)}</td>
+            <td style="border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: center;">Cattle Feed</td>
+            <td style="border-left: 1px solid black; padding: 4px; text-align: center;">${prevCattleFeedRemaining.toFixed(0)}</td>
+            <td style="border-left: 1px solid black; padding: 4px; text-align: center;">${currentCattleFeed.toFixed(0)}</td>
+            <td style="border-left: 1px solid black; padding: 4px; text-align: center;">${totalCattleFeedBalance.toFixed(0)}</td>
+            <td style="border-left: 1px solid black; padding: 4px; text-align: center;">${cattleFeed.toFixed(0)}</td>
+            <td style="border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: center;">${cattleFeedRemaining.toFixed(0)}</td>
+            <td rowspan="4" style="border: 1px solid black; padding: 4px; text-align: center; vertical-align: middle; font-size: 10px;">Total<br>${summaryTotalAmount.toFixed(0)}</td>
           </tr>
           
           <tr>
-            <td colspan="2" style="border-left: 1px solid black; border-right: 1px solid black; padding: 2px;">Bonus</td>
-            <td style="border-left: 1px solid black; border-right: 1px solid black; padding: 2px; text-align: center;">0</td>
-            <td style="border-left: 1px solid black; border-right: 1px solid black; padding: 2px; text-align: center;">Advance</td>
-            <td style="border-left: 1px solid black; padding: 2px; text-align: center;">${prevAdvanceRemaining.toFixed(0)}</td>
-            <td style="border-left: 1px solid black; padding: 2px; text-align: center;">${currentAdvance.toFixed(0)}</td>
-            <td style="border-left: 1px solid black; padding: 2px; text-align: center;">${totalAdvanceBalance.toFixed(0)}</td>
-            <td style="border-left: 1px solid black; padding: 2px; text-align: center;">${advance.toFixed(0)}</td>
-            <td style="border-left: 1px solid black; border-right: 1px solid black; padding: 2px; text-align: center;">${advanceRemaining.toFixed(0)}</td>
+            <td colspan="2" style="border-left: 1px solid black; border-right: 1px solid black; padding: 4px;">Bonus</td>
+            <td style="border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: center;">0</td>
+            <td style="border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: center;">Advance</td>
+            <td style="border-left: 1px solid black; padding: 4px; text-align: center;">${prevAdvanceRemaining.toFixed(0)}</td>
+            <td style="border-left: 1px solid black; padding: 4px; text-align: center;">${currentAdvance.toFixed(0)}</td>
+            <td style="border-left: 1px solid black; padding: 4px; text-align: center;">${totalAdvanceBalance.toFixed(0)}</td>
+            <td style="border-left: 1px solid black; padding: 4px; text-align: center;">${advance.toFixed(0)}</td>
+            <td style="border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: center;">${advanceRemaining.toFixed(0)}</td>
           </tr>
           
           <tr>
-            <td colspan="2" style="border-left: 1px solid black; border-right: 1px solid black; padding: 2px;">Fixed</td>
-            <td style="border-left: 1px solid black; border-right: 1px solid black; padding: 2px; text-align: center;">0</td>
-            <td style="border-left: 1px solid black; border-right: 1px solid black; padding: 2px; text-align: center;">Other1</td>
-            <td style="border-left: 1px solid black; padding: 2px; text-align: center;">${prevOther1Remaining.toFixed(0)}</td>
-            <td style="border-left: 1px solid black; padding: 2px; text-align: center;">${currentOther1.toFixed(0)}</td>
-            <td style="border-left: 1px solid black; padding: 2px; text-align: center;">${totalOther1Balance.toFixed(0)}</td>
-            <td style="border-left: 1px solid black; padding: 2px; text-align: center;">${other1.toFixed(0)}</td>
-            <td style="border-left: 1px solid black; border-right: 1px solid black; padding: 2px; text-align: center;">${other1Remaining.toFixed(0)}</td>
+            <td colspan="2" style="border-left: 1px solid black; border-right: 1px solid black; padding: 4px;">Fixed</td>
+            <td style="border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: center;">0</td>
+            <td style="border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: center;">Other1</td>
+            <td style="border-left: 1px solid black; padding: 4px; text-align: center;">${prevOther1Remaining.toFixed(0)}</td>
+            <td style="border-left: 1px solid black; padding: 4px; text-align: center;">${currentOther1.toFixed(0)}</td>
+            <td style="border-left: 1px solid black; padding: 4px; text-align: center;">${totalOther1Balance.toFixed(0)}</td>
+            <td style="border-left: 1px solid black; padding: 4px; text-align: center;">${other1.toFixed(0)}</td>
+            <td style="border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: center;">${other1Remaining.toFixed(0)}</td>
           </tr>
           
           <tr>
-            <td colspan="2" style="border-left: 1px solid black; border-right: 1px solid black; padding: 2px;"></td>
-            <td style="border-left: 1px solid black; border-right: 1px solid black; padding: 2px; text-align: center;"></td>
-            <td style="border-left: 1px solid black; border-right: 1px solid black; padding: 2px; text-align: center;">Other2</td>
-            <td style="border-left: 1px solid black; padding: 2px; text-align: center;">${prevOther2Remaining.toFixed(0)}</td>
-            <td style="border-left: 1px solid black; padding: 2px; text-align: center;">${currentOther2.toFixed(0)}</td>
-            <td style="border-left: 1px solid black; padding: 2px; text-align: center;">${totalOther2Balance.toFixed(0)}</td>
-            <td style="border-left: 1px solid black; padding: 2px; text-align: center;">${other2.toFixed(0)}</td>
-            <td style="border-left: 1px solid black; border-right: 1px solid black; padding: 2px; text-align: center;">${other2Remaining.toFixed(0)}</td>
+            <td colspan="2" style="border-left: 1px solid black; border-right: 1px solid black; padding: 4px;"></td>
+            <td style="border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: center;"></td>
+            <td style="border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: center;">Other2</td>
+            <td style="border-left: 1px solid black; padding: 4px; text-align: center;">${prevOther2Remaining.toFixed(0)}</td>
+            <td style="border-left: 1px solid black; padding: 4px; text-align: center;">${currentOther2.toFixed(0)}</td>
+            <td style="border-left: 1px solid black; padding: 4px; text-align: center;">${totalOther2Balance.toFixed(0)}</td>
+            <td style="border-left: 1px solid black; padding: 4px; text-align: center;">${other2.toFixed(0)}</td>
+            <td style="border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: center;">${other2Remaining.toFixed(0)}</td>
           </tr>
           
           <tr>
-            <td colspan="2" style="border: 1px solid black; padding: 2px;">Total</td>
-            <td style="border: 1px solid black; padding: 2px; text-align: center;">${summaryTotalAmount.toFixed(0)}</td>
-            <td style="border: 1px solid black; padding: 2px; text-align: center;">Total</td>
-            <td style="border: 1px solid black; padding: 2px; text-align: center;">${(prevAdvanceRemaining + prevCattleFeedRemaining + prevOther1Remaining + prevOther2Remaining).toFixed(0)}</td>
-            <td style="border: 1px solid black; padding: 2px; text-align: center;">${(currentAdvance + currentCattleFeed + currentOther1 + currentOther2).toFixed(0)}</td>
-            <td style="border: 1px solid black; padding: 2px; text-align: center;">${(totalAdvanceBalance + totalCattleFeedBalance + totalOther1Balance + totalOther2Balance).toFixed(0)}</td>
-            <td style="border: 1px solid black; padding: 2px; text-align: center;">${totalDeductions.toFixed(0)}</td>
-            <td style="border: 1px solid black; padding: 2px; text-align: center;">${totalRemaining.toFixed(0)}</td>
-            <td style="border: 1px solid black; padding: 2px; text-align: center; font-size: 10px;">Total Deduction<br>${totalDeductions.toFixed(0)}</td>
+            <td colspan="2" style="border: 1px solid black; padding: 4px;">Total</td>
+            <td style="border: 1px solid black; padding: 4px; text-align: center;">${summaryTotalAmount.toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 4px; text-align: center;">Total</td>
+            <td style="border: 1px solid black; padding: 4px; text-align: center;">${(prevAdvanceRemaining + prevCattleFeedRemaining + prevOther1Remaining + prevOther2Remaining).toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 4px; text-align: center;">${(currentAdvance + currentCattleFeed + currentOther1 + currentOther2).toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 4px; text-align: center;">${(totalAdvanceBalance + totalCattleFeedBalance + totalOther1Balance + totalOther2Balance).toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 4px; text-align: center;">${totalDeductions.toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 4px; text-align: center;">${totalRemaining.toFixed(0)}</td>
+            <td style="border: 1px solid black; padding: 4px; text-align: center; font-size: 10px;">Total Deduction<br>${totalDeductions.toFixed(0)}</td>
           </tr>
           
           <tr>
-            <td colspan="9" style="border: 1px solid black; padding: 2px;"></td>
-            <td style="border: 1px solid black; padding: 2px; text-align: center; font-size: 10px;">Net Payable<br>${netPayable.toFixed(0)}</td>
+            <td colspan="9" style="border: 1px solid black; padding: 4px;"></td>
+            <td style="border: 1px solid black; padding: 4px; text-align: center; font-size: 10px;">Net Payable<br>${netPayable.toFixed(0)}</td>
           </tr>
         </table>
       </div>

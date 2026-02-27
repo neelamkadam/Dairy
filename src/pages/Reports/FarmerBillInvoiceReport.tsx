@@ -344,8 +344,11 @@ const FarmerBillInvoiceReport = () => {
           fromDate: fromDate,
           toDate: toDate,
           data: templateDataItems,
-          farmerBill: response.data, // Pass the full response with cow/buffalo arrays
-          paymentSummary: null,
+          payments: farmerInfo.payments,
+          current_bill: farmerInfo.current_bill,
+          previous_bill: farmerInfo.previous_bill,
+          bonus_deduction_info: (farmerInfo as any).bonus_deduction_info,
+          bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary,
           bankDetails: farmerInfo.farmer_details ? {
             accountNumber: farmerInfo.farmer_details.accountNumber,
             ifscCode: farmerInfo.farmer_details.ifscCode,
@@ -574,21 +577,6 @@ const FarmerBillInvoiceReport = () => {
               <Label>Farmer Code (Optional)</Label>
               <Input placeholder="Enter code" value={farmerCode} onChange={(e) => setFarmerCode(e.target.value)} />
             </div>
-
-            <div className="flex-1 min-w-[150px]">
-              <Label>Language</Label>
-              <Select value={language} onValueChange={(val) => { setLanguage(val); i18n.changeLanguage(val); }}>
-                <SelectTrigger className="bg-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-white">
-                  <SelectItem value="en">English</SelectItem>
-                  <SelectItem value="hi">हिंदी</SelectItem>
-                  <SelectItem value="mr">मराठी</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
             <div className="flex gap-2">
               <Button className=' bg-blue-600 text-white' onClick={handleShow} disabled={loading}>
                 {loading ? 'Loading...' : 'Show'}

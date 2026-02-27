@@ -160,18 +160,6 @@ const TotalCollectionReport = () => {
                   <SelectItem value="Buffalo">Buffalo</SelectItem>
                 </SelectContent>
               </Select>
-              <div>
-                <Select value={language} onValueChange={(val) => { setLanguage(val); i18n.changeLanguage(val); }}>
-                  <SelectTrigger className="w-48 border-gray-200">
-                    <SelectValue placeholder="Language" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    <SelectItem value="en">English</SelectItem>
-                    <SelectItem value="hi">हिंदी</SelectItem>
-                    <SelectItem value="mr">मराठी</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
             <Button onClick={handleShowReport} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white">
               {loading ? "Loading..." : "Show Report"}

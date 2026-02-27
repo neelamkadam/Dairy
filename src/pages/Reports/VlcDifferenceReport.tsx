@@ -224,19 +224,6 @@ const VlcDifferenceReport = () => {
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <Label className="mb-1">Language</Label>
-          <Select value={language} onValueChange={(val) => { setLanguage(val); i18n.changeLanguage(val); }}>
-            <SelectTrigger className="w-full border-gray-200">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-white">
-              <SelectItem value="en">English</SelectItem>
-              <SelectItem value="hi">हिंदी</SelectItem>
-              <SelectItem value="mr">मराठी</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
         <Button 
           onClick={handleShow} 
           disabled={loading}

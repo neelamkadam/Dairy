@@ -200,19 +200,6 @@ const VlcCommissionReport = () => {
             </PopoverContent>
           </Popover>
         </div>
-        <div>
-          <Label>Language</Label>
-          <Select value={language} onValueChange={(val) => { setLanguage(val); i18n.changeLanguage(val); }}>
-            <SelectTrigger className="w-full border-gray-200 bg-white">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-white">
-              <SelectItem value="en">English</SelectItem>
-              <SelectItem value="hi">हिंदी</SelectItem>
-              <SelectItem value="mr">मराठी</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
         <Button onClick={handleShowReport} disabled={loading} className="text-white bg-blue-600 w-[90px] mt-4.5">
           {loading ? "Loading..." : "Show"}
         </Button>

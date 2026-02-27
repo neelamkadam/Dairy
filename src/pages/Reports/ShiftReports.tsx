@@ -256,19 +256,6 @@ const ShiftReports:React.FC = () => {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Language</label>
-            <Select value={language} onValueChange={(val) => { setLanguage(val); i18n.changeLanguage(val); }}>
-              <SelectTrigger className="w-full bg-white border-gray-200">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-white">
-                <SelectItem value="en">English</SelectItem>
-                <SelectItem value="hi">हिंदी</SelectItem>
-                <SelectItem value="mr">मराठी</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
           <div className="flex justify-end gap-3 mt-6 mr-5">
             <Button 
               onClick={fetchCollectionReport}
