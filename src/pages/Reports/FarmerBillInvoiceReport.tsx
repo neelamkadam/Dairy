@@ -523,6 +523,7 @@ const FarmerBillInvoiceReport = () => {
         start_date: fromDate,
         end_date: toDate
       });
+      console.log("Farmer Report API Response:", response.data);
 
       if (!response.data.success) {
         toast.error('Failed to fetch farmer report data');
@@ -577,8 +578,21 @@ const FarmerBillInvoiceReport = () => {
             branchName: (farmer.farmer_details as any)?.branchName || ''
           },
           current_bill: farmer.current_bill,
-          previous_bill: farmer.previous_bill,
-          payments: farmer.payments
+          previous_bill: (farmer as any).previous_bill,
+          payments: (farmer.payments || []).map((p: any) => {
+            const logs = (farmer as any).payment_logs?.data || [];
+            const logMatch = logs.find((l: any) => 
+              l.payment_type.toLowerCase().trim().replace(/\s/g, '') === p.payment_type.toLowerCase().trim().replace(/\s/g, '') &&
+              parseFloat(l.amount_taken) === parseFloat(p.amount_taken)
+            );
+            const merged = logMatch ? { ...p, ...logMatch } : p;
+            return {
+              ...merged,
+              stock_name: merged.stock_name,
+              stock: merged.stock,
+              date: merged.date || merged.created_at
+            };
+          })
         };
 
         const html = generateTemplateDetailedHorizontal(templateData as any, i18n.language);

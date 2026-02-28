@@ -64,6 +64,8 @@ export interface Template2Data {
     received: string;
     created_at?: string;
     descriptions?: string;
+    stock?: number;
+    stock_name?: string;
     cattlefeed_stock?: any;
   }[];
   current_bill?: {
@@ -132,6 +134,8 @@ export interface BillPayment {
   received: number;
   created_at?: string;
   descriptions?: string;
+  stock?: number;
+  stock_name?: string;
   cattlefeed_stock?: any;
 }
 
@@ -718,19 +722,29 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
 export const generateTemplateDetailedHorizontal = (templateData: Template2Data, language: string = 'mr'): string => {
   const labels = getLabels('mr'); // Force Marathi for this specific format to match manual paper bill
   
-  // Group data by date
-  const groupedByDate = new Map<string, { morning?: FarmerBillData, evening?: FarmerBillData }>();
+  // Group data by date and type (Cow/Buffalo)
+  const groupedData = new Map<string, { 
+    Cow?: { morning?: FarmerBillData, evening?: FarmerBillData },
+    Buffalo?: { morning?: FarmerBillData, evening?: FarmerBillData }
+  }>();
   
   templateData.data.forEach(item => {
     const itemDate = new Date(item.date);
-    const dateStr = itemDate.toLocaleDateString("en-GB"); // DD/MM/YYYY
-    if (!groupedByDate.has(dateStr)) {
-      groupedByDate.set(dateStr, {});
+    const dateStr = itemDate.toLocaleDateString("en-GB");
+    const mType = item.type === 'Buffalo' ? 'Buffalo' : 'Cow';
+    
+    if (!groupedData.has(dateStr)) {
+      groupedData.set(dateStr, {});
     }
-    const dayData = groupedByDate.get(dateStr)!;
-    if (item.shift === 'Morning') dayData.morning = item;
-    else dayData.evening = item;
+    const dayData = groupedData.get(dateStr)!;
+    if (!dayData[mType]) dayData[mType] = {};
+    
+    if (item.shift === 'Morning') dayData[mType]!.morning = item;
+    else dayData[mType]!.evening = item;
   });
+
+  const hasCow = templateData.data.some(d => d.type === 'Cow');
+  const hasBuffalo = templateData.data.some(d => d.type === 'Buffalo');
 
   const startDate = new Date(templateData.fromDate);
   const tenDates: string[] = [];
@@ -740,48 +754,153 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
     tenDates.push(nextDate.toLocaleDateString("en-GB"));
   }
 
-  let totalMLtr = 0, totalMAmt = 0, totalELtr = 0, totalEAmt = 0;
-  
-  const tableRows = tenDates.map(date => {
-    const day = groupedByDate.get(date);
-    const m = day?.morning;
-    const e = day?.evening;
-    
-    totalMLtr += m?.liters || 0;
-    totalMAmt += m?.amount || 0;
-    totalELtr += e?.liters || 0;
-    totalEAmt += e?.amount || 0;
+  let cowMLtr = 0, cowMAmt = 0, cowELtr = 0, cowEAmt = 0;
+  let buffMLtr = 0, buffMAmt = 0, buffELtr = 0, buffEAmt = 0;
 
-    return `
-      <tr>
-        <td style="border: 1px solid black; padding: 4px; text-align: center;">${date.substring(0, 5)}</td>
-        <td style="border: 1px solid black; padding: 4px; text-align: right;">${m ? Number(m.liters).toFixed(1) : ''}</td>
-        <td style="border: 1px solid black; padding: 4px; text-align: right;">${m ? Number(m.fat).toFixed(1) : ''}</td>
-        <td style="border: 1px solid black; padding: 4px; text-align: right;">${m ? Number(m.snf).toFixed(1) : ''}</td>
-        <td style="border: 1px solid black; padding: 4px; text-align: right;">${m ? Number(m.rate).toFixed(2) : ''}</td>
-        <td style="border: 1px solid black; padding: 4px; text-align: right;">${m ? Number(m.amount).toFixed(2) : ''}</td>
-        <td style="border: 1px solid black; padding: 4px; text-align: right;">${e ? Number(e.liters).toFixed(1) : ''}</td>
-        <td style="border: 1px solid black; padding: 4px; text-align: right;">${e ? Number(e.fat).toFixed(1) : ''}</td>
-        <td style="border: 1px solid black; padding: 4px; text-align: right;">${e ? Number(e.snf).toFixed(1) : ''}</td>
-        <td style="border: 1px solid black; padding: 4px; text-align: right;">${e ? Number(e.rate).toFixed(2) : ''}</td>
-        <td style="border: 1px solid black; padding: 4px; text-align: right;">${e ? Number(e.amount).toFixed(2) : ''}</td>
-        <td style="border: 1px solid black; padding: 4px; text-align: right; background: #f9f9f9;">${(m || e) ? (Number(m?.liters || 0) + Number(e?.liters || 0)).toFixed(1) : ''}</td>
-        <td style="border: 1px solid black; padding: 4px; text-align: right; background: #f9f9f9;">${(m || e) ? (Number(m?.amount || 0) + Number(e?.amount || 0)).toFixed(2) : ''}</td>
-      </tr>
-    `;
-  }).join('');
+  templateData.data.forEach(d => {
+    if (d.type === 'Cow') {
+      if (d.shift === 'Morning') { cowMLtr += d.liters; cowMAmt += d.amount; }
+      else { cowELtr += d.liters; cowEAmt += d.amount; }
+    } else if (d.type === 'Buffalo' || d.type === 'Buffaloes') {
+      if (d.shift === 'Morning') { buffMLtr += d.liters; buffMAmt += d.amount; }
+      else { buffELtr += d.liters; buffEAmt += d.amount; }
+    }
+  });
+
+  const getTablesContent = () => {
+    let content = '';
+    
+    // COW SECTION
+    if (hasCow) {
+      content += `<tr style="font-weight: bold; background: #fafafa;">
+        <td style="padding: 1px 5px; text-align: left; border-bottom: none;">गाय</td>
+        ${Array(12).fill('<td style="border-bottom: none;"></td>').join('')}
+      </tr>`;
+      content += tenDates.map(date => {
+        const day = groupedData.get(date);
+        const m = day?.Cow?.morning;
+        const e = day?.Cow?.evening;
+        return `
+          <tr style="height: 22px;">
+            <td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: center;">${date.substring(0, 5)}</td>
+            <td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: right;">${m ? Number(m.liters).toFixed(1) : ''}</td>
+            <td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: right;">${m ? Number(m.fat).toFixed(1) : ''}</td>
+            <td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: right;">${m ? Number(m.snf).toFixed(1) : ''}</td>
+            <td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: right;">${m ? Number(m.rate).toFixed(2) : ''}</td>
+            <td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: right;">${m ? Number(m.amount).toFixed(2) : ''}</td>
+            <td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: right;">${e ? Number(e.liters).toFixed(1) : ''}</td>
+            <td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: right;">${e ? Number(e.fat).toFixed(1) : ''}</td>
+            <td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: right;">${e ? Number(e.snf).toFixed(1) : ''}</td>
+            <td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: right;">${e ? Number(e.rate).toFixed(2) : ''}</td>
+            <td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: right;">${e ? Number(e.amount).toFixed(2) : ''}</td>
+            <td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: right; background: #f9f9f9;">${(m || e) ? (Number(m?.liters || 0) + Number(e?.liters || 0)).toFixed(1) : ''}</td>
+            <td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: right; background: #f9f9f9; border-right: 1px solid black;">${(m || e) ? (Number(m?.amount || 0) + Number(e?.amount || 0)).toFixed(2) : ''}</td>
+          </tr>
+        `;
+      }).join('');
+      
+      if (hasCow && hasBuffalo) {
+        content += `
+          <tr style="font-weight: bold; background: #fdfdfd; border-top: 1px solid #ddd;">
+            <td class="text-center">एकूण (गाय):</td>
+            <td class="text-right">${cowMLtr.toFixed(1)}</td>
+            <td></td><td></td><td></td>
+            <td class="text-right">${cowMAmt.toFixed(2)}</td>
+            <td class="text-right">${cowELtr.toFixed(1)}</td>
+            <td></td><td></td><td></td>
+            <td class="text-right">${cowEAmt.toFixed(2)}</td>
+            <td class="text-right">${(cowMLtr + cowELtr).toFixed(1)}</td>
+            <td class="text-right">${(cowMAmt + cowEAmt).toFixed(2)}</td>
+          </tr>
+        `;
+      }
+    }
+
+    // BUFFALO SECTION
+    if (hasBuffalo) {
+      content += `<tr style="font-weight: bold; background: #fafafa;">
+        <td style="padding: 1px 5px; text-align: left; border-bottom: none;">म्हैस</td>
+        ${Array(12).fill('<td style="border-bottom: none;"></td>').join('')}
+      </tr>`;
+      content += tenDates.map(date => {
+        const day = groupedData.get(date);
+        const m = day?.Buffalo?.morning;
+        const e = day?.Buffalo?.evening;
+        return `
+          <tr style="height: 22px;">
+            <td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: center;">${date.substring(0, 5)}</td>
+            <td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: right;">${m ? Number(m.liters).toFixed(1) : ''}</td>
+            <td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: right;">${m ? Number(m.fat).toFixed(1) : ''}</td>
+            <td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: right;">${m ? Number(m.snf).toFixed(1) : ''}</td>
+            <td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: right;">${m ? Number(m.rate).toFixed(2) : ''}</td>
+            <td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: right;">${m ? Number(m.amount).toFixed(2) : ''}</td>
+            <td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: right;">${e ? Number(e.liters).toFixed(1) : ''}</td>
+            <td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: right;">${e ? Number(e.fat).toFixed(1) : ''}</td>
+            <td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: right;">${e ? Number(e.snf).toFixed(1) : ''}</td>
+            <td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: right;">${e ? Number(e.rate).toFixed(2) : ''}</td>
+            <td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: right;">${e ? Number(e.amount).toFixed(2) : ''}</td>
+            <td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: right; background: #f9f9f9;">${(m || e) ? (Number(m?.liters || 0) + Number(e?.liters || 0)).toFixed(1) : ''}</td>
+            <td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: right; background: #f9f9f9; border-right: 1px solid black;">${(m || e) ? (Number(m?.amount || 0) + Number(e?.amount || 0)).toFixed(2) : ''}</td>
+          </tr>
+        `;
+      }).join('');
+      
+      if (hasCow && hasBuffalo) {
+        content += `
+          <tr style="font-weight: bold; background: #fdfdfd; border-top: 1px solid #ddd;">
+            <td class="text-center">एकूण (म्हैस):</td>
+            <td class="text-right">${buffMLtr.toFixed(1)}</td>
+            <td></td><td></td><td></td>
+            <td class="text-right">${buffMAmt.toFixed(2)}</td>
+            <td class="text-right">${buffELtr.toFixed(1)}</td>
+            <td></td><td></td><td></td>
+            <td class="text-right">${buffEAmt.toFixed(2)}</td>
+            <td class="text-right">${(buffMLtr + buffELtr).toFixed(1)}</td>
+            <td class="text-right">${(buffMAmt + buffEAmt).toFixed(2)}</td>
+          </tr>
+        `;
+      }
+    }
+
+    // IF NEITHER EXISTS (Fallback to 10 empty rows)
+    if (!hasCow && !hasBuffalo) {
+      content += tenDates.map(date => `
+        <tr style="height: 22px;">
+          <td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: center;">${date.substring(0, 5)}</td>
+          ${Array(12).fill('<td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px;"></td>').join('')}
+        </tr>
+      `).join('');
+    }
+    
+    return content;
+  };
+
+  let totalMLtr = 0, totalMAmt = 0, totalELtr = 0, totalEAmt = 0;
+  templateData.data.forEach(d => {
+    if (d.shift === 'Morning') {
+      totalMLtr += d.liters;
+      totalMAmt += d.amount;
+    } else {
+      totalELtr += d.liters;
+      totalEAmt += d.amount;
+    }
+  });
+
 
   const summary = {
     prevAdvance: parseFloat(templateData.previous_bill?.advance_remaining || '0'),
     prevFeed: parseFloat(templateData.previous_bill?.cattlefeed_remaining || '0'),
-    currAdvance: (templateData.payments || []).filter(p => p.payment_type.toLowerCase().trim() === 'advance').reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0),
-    currFeed: (templateData.payments || []).filter(p => p.payment_type.toLowerCase().trim() === 'cattle feed').reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0),
+    currAdvance: (templateData.payments || []).filter(p => p.payment_type.toLowerCase().trim().replace(/\s/g, '') === 'advance').reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0),
+    currFeed: (templateData.payments || []).filter(p => {
+      const pType = p.payment_type.toLowerCase().trim().replace(/\s/g, '');
+      return pType === 'cattlefeed' || pType === 'pashukhady';
+    }).reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0),
     dedAdvance: parseFloat(templateData.current_bill?.advance_total || '0'),
     dedFeed: parseFloat(templateData.current_bill?.cattlefeed_total || '0'),
     otherDeductions: parseFloat(templateData.current_bill?.other1_total || '0') + parseFloat(templateData.current_bill?.other2_total || '0'),
     totalAmount: totalMAmt + totalEAmt,
     totalDeductions: parseFloat(templateData.current_bill?.advance_total || '0') + parseFloat(templateData.current_bill?.cattlefeed_total || '0') + parseFloat(templateData.current_bill?.other1_total || '0') + parseFloat(templateData.current_bill?.other2_total || '0'),
-    receivedAmount: parseFloat(templateData.current_bill?.received_total || '0'),
+    receivedAmount: parseFloat(templateData.current_bill?.net_payable || '0'),
   };
 
   return `
@@ -811,9 +930,10 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
   <div class="header-info">
     <table class="no-border">
       <tr style="height: 25px;">
-        <td style="width: 20%; font-size: 11px; vertical-align: middle;"><strong>खाते नं :</strong> ${templateData.farmerCode}</td>
-        <td style="width: 60%; text-align: center; font-size: 16px; vertical-align: middle;"><strong>${templateData.farmerName}</strong></td>
-        <td style="width: 20%; text-align: right; font-size: 11px; vertical-align: middle;"><strong>दिनांक :</strong> ${new Date().toLocaleDateString("en-GB")}</td>
+        <td style="width: 75%; font-size: 13px; vertical-align: middle;" colspan="2">
+          <strong>खाते नं :</strong> ${templateData.farmerCode} &nbsp;&nbsp;&nbsp; <strong>${templateData.farmerName}</strong>
+        </td>
+        <td style="width: 25%; text-align: right; font-size: 11px; vertical-align: middle;"><strong>दिनांक :</strong> ${new Date().toLocaleDateString("en-GB")}</td>
       </tr>
       <tr style="height: 20px;">
         <td style="font-size: 11px; vertical-align: middle;"><strong>बँक खाते नं :</strong> ${templateData.bankDetails?.accountNumber || ''}</td>
@@ -838,15 +958,14 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
       </tr>
     </thead>
     <tbody>
-      <tr><td colspan="13" style="padding: 1px 5px; font-weight: bold; background: #fafafa;">गाय</td></tr>
-      ${tableRows}
+      ${getTablesContent()}
       <tr style="font-weight: bold; background: #f2f2f2; height: 30px;">
         <td class="text-center">${labels.total} :</td>
         <td class="text-right">${totalMLtr.toFixed(1)}</td>
-        <td colspan="3"></td>
+        <td></td><td></td><td></td>
         <td class="text-right">${totalMAmt.toFixed(2)}</td>
         <td class="text-right">${totalELtr.toFixed(1)}</td>
-        <td colspan="3"></td>
+        <td></td><td></td><td></td>
         <td class="text-right">${totalEAmt.toFixed(2)}</td>
         <td class="text-right">${(totalMLtr + totalELtr).toFixed(1)}</td>
         <td class="text-right">${(totalMAmt + totalEAmt).toFixed(2)}</td>
@@ -878,7 +997,7 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
         <td class="text-right">${summary.currAdvance.toFixed(2)}</td>
         <td class="text-right">${(summary.prevAdvance + summary.currAdvance).toFixed(2)}</td>
         <td class="text-right">${summary.dedAdvance.toFixed(2)}</td>
-        <td class="text-right">${((summary.prevAdvance + summary.currAdvance) - summary.dedAdvance).toFixed(0)}.00</td>
+        <td class="text-right">${((summary.prevAdvance + summary.currAdvance) - summary.dedAdvance).toFixed(2)}</td>
       </tr>
       <tr>
         <td class="bold text-center">${labels.pashuKhady}</td>
@@ -886,7 +1005,7 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
         <td class="text-right">${summary.currFeed.toFixed(2)}</td>
         <td class="text-right">${(summary.prevFeed + summary.currFeed).toFixed(2)}</td>
         <td class="text-right">${summary.dedFeed.toFixed(2)}</td>
-        <td class="text-right">${((summary.prevFeed + summary.currFeed) - summary.dedFeed).toFixed(0)}.00</td>
+        <td class="text-right">${((summary.prevFeed + summary.currFeed) - summary.dedFeed).toFixed(2)}</td>
       </tr>
       <tr class="bold">
         <td class="text-center">${labels.total}</td>
@@ -907,22 +1026,34 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
     <strong style="font-size: 12px; margin-left: 5px;">तपशील :</strong>
     <table style="margin-top: 4px; width: 100%; border: 1.5px solid black; border-collapse: collapse;">
       ${(templateData.payments || []).map(p => {
+        const pType = p.payment_type.toLowerCase().trim();
+        const pTypeNoSpace = pType.replace(/\s/g, '');
+        
         let displayType = (p as any).descriptions || p.payment_type;
         
-        // If there's a cattlefeed_stock object, format it into a more detailed description
-        const stock = (p as any).cattlefeed_stock;
-        if (stock && stock.stock_name) {
-          displayType = `${stock.stock_name} : ${stock.quantity || 1} दर : ${Number(stock.rate || 0).toFixed(2)}`;
+        const isCattleFeed = pTypeNoSpace === 'cattlefeed' || pType === 'pashukhady';
+        
+        if (isCattleFeed && (p.stock_name || (displayType && displayType.includes(':')))) {
+          const sName = p.stock_name || displayType.split(':')[0]?.trim();
+          displayType = `${sName} : ${p.stock || 1} : ${Number(p.amount_taken || 0).toFixed(2)}`;
+        } else if (isCattleFeed) {
+           // Fallback for cattlefeed_stock object if present
+           const cStock = (p as any).cattlefeed_stock;
+           if (cStock && cStock.stock_name) {
+             displayType = `${cStock.stock_name} : ${cStock.quantity || 1} : ${Number(cStock.rate || 0).toFixed(2)}`;
+           }
         }
         
-        if (displayType === 'Advance' || displayType === 'ॲडव्हान्स') displayType = labels.advance;
-        if (displayType === 'Cattle Feed' || displayType === 'पशुखाद्य') displayType = labels.pashuKhady;
+        // Final Marathi translations for base types
+        const lowerDisplay = displayType.toLowerCase().trim();
+        if (lowerDisplay === 'advance') displayType = labels.advance;
+        if (lowerDisplay === 'cattle feed' || lowerDisplay === 'cattlefeed') displayType = labels.pashuKhady;
         
         return `
-          <tr>
-            <td style="width: 15%; padding: 2px 8px; border: none; font-size: 11px;">${new Date(p.created_at || templateData.fromDate).toLocaleDateString("en-GB")}</td>
-            <td style="padding: 2px 8px; border: none; font-size: 11px;">${displayType}</td>
-            <td class="text-right" style="width: 25%; padding: 2px 15px; border: none; font-size: 11px;">${Number(p.amount_taken || '0').toFixed(2)}</td>
+          <tr style="height: 25px;">
+            <td style="width: 15%; padding: 4px 8px; border: none; font-size: 11px;">${new Date(p.created_at || (p as any).date || templateData.fromDate).toLocaleDateString("en-GB")}</td>
+            <td style="padding: 4px 8px; border: none; font-size: 11px;">${displayType}</td>
+            <td class="text-right" style="width: 25%; padding: 4px 15px; border: none; font-size: 11px;">${Number(p.amount_taken || '0').toFixed(2)}</td>
           </tr>
         `;
       }).join('')}

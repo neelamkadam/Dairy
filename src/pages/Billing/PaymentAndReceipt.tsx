@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { CalendarIcon, Bell, CircleUserRound,ChevronRight, ChevronLeft, Search, Trash2 } from "lucide-react";
 import {
   Popover,
@@ -25,6 +26,7 @@ import { toast } from "react-toastify";
 import { useAppSelector } from "@/redux/store";
 import { userApi } from "@/services/userApi";
 import { cattleFeedApi, CattleFeedStock } from "@/services/cattleFeedApi";
+import { deductionApi } from "@/services/deductionApi";
 
 const PaymentAndReceipt: React.FC = () => {
   const { branches } = useAppSelector((state) => state.branch);
@@ -36,6 +38,8 @@ const PaymentAndReceipt: React.FC = () => {
     paymentType: "",
     amountTaken: "",
     receivedAmount: "",
+    emiChecked: false,
+    emiAmount: "",
   });
   const [farmerIdInput, setFarmerIdInput] = useState("");
   const [paymentData, setPaymentData] = useState<any[]>([]);
@@ -45,6 +49,13 @@ const PaymentAndReceipt: React.FC = () => {
   const [cattleFeedStocks, setCattleFeedStocks] = useState<CattleFeedStock[]>([]);
   const [selectedStock, setSelectedStock] = useState<CattleFeedStock | null>(null);
   const [stockQuantity, setStockQuantity] = useState("");
+  const [farmerPreviousBalance, setFarmerPreviousBalance] = useState<{
+    advance: number;
+    cattleFeed: number;
+    other1: number;
+    other2: number;
+    total: number;
+  } | null>(null);
 
   useEffect(() => {
     if (formData.vlcName && formData.fromDate) {
@@ -102,6 +113,77 @@ const PaymentAndReceipt: React.FC = () => {
     }
   };
 
+  const calculatePreviousPeriodDates = (currentDate: Date) => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const day = currentDate.getDate();
+    
+    let prevStartDay: number, prevEndDay: number, prevMonth: number, prevYear: number;
+    
+    if (day >= 1 && day <= 10) {
+      // If current period is 1-10, previous is 21-end of last month
+      prevMonth = month - 1;
+      prevYear = prevMonth < 0 ? year - 1 : year;
+      prevMonth = prevMonth < 0 ? 11 : prevMonth;
+      prevStartDay = 21;
+      prevEndDay = new Date(prevYear, prevMonth + 1, 0).getDate();
+    } else if (day >= 11 && day <= 20) {
+      // If current period is 11-20, previous is 1-10 of same month
+      prevMonth = month;
+      prevYear = year;
+      prevStartDay = 1;
+      prevEndDay = 10;
+    } else {
+      // If current period is 21-end, previous is 11-20 of same month
+      prevMonth = month;
+      prevYear = year;
+      prevStartDay = 11;
+      prevEndDay = 20;
+    }
+    
+    return {
+      from: new Date(prevYear, prevMonth, prevStartDay),
+      to: new Date(prevYear, prevMonth, prevEndDay)
+    };
+  };
+
+  const fetchFarmerPreviousBalance = async (farmerId: string) => {
+    if (!formData.vlcName) return;
+    
+    try {
+      const previousPeriod = calculatePreviousPeriodDates(formData.fromDate);
+      const { data } = await deductionApi.getAllFarmersBalance(
+        parseInt(formData.vlcName),
+        format(previousPeriod.from, "yyyy-MM-dd"),
+        format(previousPeriod.to, "yyyy-MM-dd")
+      );
+      
+      // Find the specific farmer in the response
+      const normalizedFarmerId = normalizeFarmerId(farmerId);
+      let farmerBalance = null;
+      
+      for (const dateEntry of data.data || []) {
+        const farmer = dateEntry.farmers?.find((f: any) => f.farmer_id === normalizedFarmerId);
+        if (farmer?.previous_bill) {
+          farmerBalance = {
+            advance: parseFloat(farmer.previous_bill.advance_remaining || 0),
+            cattleFeed: parseFloat(farmer.previous_bill.cattlefeed_remaining || 0),
+            other1: parseFloat(farmer.previous_bill.other1_remaining || 0),
+            other2: parseFloat(farmer.previous_bill.other2_remaining || 0),
+            total: 0
+          };
+          farmerBalance.total = farmerBalance.advance + farmerBalance.cattleFeed + farmerBalance.other1 + farmerBalance.other2;
+          break;
+        }
+      }
+      
+      setFarmerPreviousBalance(farmerBalance);
+    } catch (error) {
+      console.error('Error fetching farmer previous balance:', error);
+      setFarmerPreviousBalance(null);
+    }
+  };
+
   const handleFarmerSearch = async () => {
     if (!formData.vlcName || !farmerIdInput.trim()) {
       toast.error('Please select VLC and enter Farmer ID');
@@ -117,6 +199,7 @@ const PaymentAndReceipt: React.FC = () => {
       if (!farmer) {
         toast.error('Farmer not found');
         setFormData({ ...formData, farmerCode: "", farmerName: "" });
+        setFarmerPreviousBalance(null);
         return;
       }
 
@@ -125,11 +208,16 @@ const PaymentAndReceipt: React.FC = () => {
         farmerCode: displayId,
         farmerName: farmer.fullName || farmer.name || 'Unknown Farmer',
       });
+      
+      // Fetch previous balance
+      await fetchFarmerPreviousBalance(normalized);
+      
       toast.success('Farmer found');
     } catch (error) {
       console.error('Error searching farmer:', error);
       toast.error('Farmer not found');
       setFormData({ ...formData, farmerCode: "", farmerName: "" });
+      setFarmerPreviousBalance(null);
     }
   };
 
@@ -179,6 +267,8 @@ const PaymentAndReceipt: React.FC = () => {
       payment_type: formData.paymentType as "Advance" | "Cattle Feed" | "Other1" | "Other2",
       amount_taken: parseFloat(formData.amountTaken || "0"),
       received: parseFloat(formData.receivedAmount || "0"),
+      emi: formData.emiChecked ? 1 : 0,
+      emi_amount: formData.emiChecked ? parseFloat(formData.emiAmount || "0") : 0,
     };
     console.log('💰 Creating payment:', payload);
     try {
@@ -204,6 +294,7 @@ const PaymentAndReceipt: React.FC = () => {
       setFarmerIdInput("");
       setSelectedStock(null);
       setStockQuantity("");
+      setFarmerPreviousBalance(null);
       setFormData({
         ...formData,
         farmerCode: "",
@@ -211,6 +302,8 @@ const PaymentAndReceipt: React.FC = () => {
         paymentType: "",
         amountTaken: "",
         receivedAmount: "",
+        emiChecked: false,
+        emiAmount: "",
       });
       fetchPayments();
       fetchCattleFeedStocks();
@@ -236,8 +329,9 @@ const PaymentAndReceipt: React.FC = () => {
                   <Select
                     value={formData.vlcName}
                     onValueChange={(value) => {
-                      setFormData({ vlcName: value, fromDate: new Date(), farmerCode: "", farmerName: "", paymentType: "", amountTaken: "", receivedAmount: "" });
+                      setFormData({ vlcName: value, fromDate: new Date(), farmerCode: "", farmerName: "", paymentType: "", amountTaken: "", receivedAmount: "", emiChecked: false, emiAmount: "" });
                       setFarmerIdInput("");
+                      setFarmerPreviousBalance(null);
                       setCurrentPage(1);
                     }}
                   >
@@ -315,6 +409,73 @@ const PaymentAndReceipt: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* Previous Remaining Balance Section - Show when farmer is selected */}
+            {formData.farmerCode && formData.farmerName && farmerPreviousBalance && farmerPreviousBalance.total > 0 && (
+              <div className="p-6 rounded-lg bg-blue-50 border border-blue-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Previous Remaining Balance</h3>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  {farmerPreviousBalance.advance > 0 && (
+                    <div className="bg-white p-3 rounded-lg shadow-sm">
+                      <div className="text-xs text-gray-600 mb-1">Advance</div>
+                      <div className="text-lg font-semibold text-red-600">₹{farmerPreviousBalance.advance.toFixed(2)}</div>
+                    </div>
+                  )}
+                  {farmerPreviousBalance.cattleFeed > 0 && (
+                    <div className="bg-white p-3 rounded-lg shadow-sm">
+                      <div className="text-xs text-gray-600 mb-1">Cattle Feed</div>
+                      <div className="text-lg font-semibold text-red-600">₹{farmerPreviousBalance.cattleFeed.toFixed(2)}</div>
+                    </div>
+                  )}
+                  {farmerPreviousBalance.other1 > 0 && (
+                    <div className="bg-white p-3 rounded-lg shadow-sm">
+                      <div className="text-xs text-gray-600 mb-1">Other 1</div>
+                      <div className="text-lg font-semibold text-red-600">₹{farmerPreviousBalance.other1.toFixed(2)}</div>
+                    </div>
+                  )}
+                  {farmerPreviousBalance.other2 > 0 && (
+                    <div className="bg-white p-3 rounded-lg shadow-sm">
+                      <div className="text-xs text-gray-600 mb-1">Other 2</div>
+                      <div className="text-lg font-semibold text-red-600">₹{farmerPreviousBalance.other2.toFixed(2)}</div>
+                    </div>
+                  )}
+                  <div className="bg-white p-3 rounded-lg shadow-sm border-2 border-red-400">
+                    <div className="text-xs text-gray-600 mb-1">Total Previous</div>
+                    <div className="text-lg font-bold text-red-600">₹{farmerPreviousBalance.total.toFixed(2)}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Payment Summary - Show when entering payment amount */}
+            {formData.farmerCode && formData.farmerName && (formData.amountTaken || formData.receivedAmount) && formData.paymentType && (
+              <div className="p-6 rounded-lg bg-green-50 border border-green-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment Summary</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto">
+                  <div className="bg-white p-4 rounded-lg shadow-sm">
+                    <div className="text-sm text-gray-600 mb-2">Previous Balance</div>
+                    <div className="text-xl font-semibold text-red-600">
+                      ₹{farmerPreviousBalance?.total.toFixed(2) || '0.00'}
+                    </div>
+                  </div>
+                  <div className="bg-white p-4 rounded-lg shadow-sm">
+                    <div className="text-sm text-gray-600 mb-2">Current {formData.amountTaken ? 'Amount Taken' : 'Received'}</div>
+                    <div className="text-xl font-semibold text-blue-600">
+                      {formData.amountTaken ? '+' : '-'}₹{(parseFloat(formData.amountTaken || formData.receivedAmount || '0')).toFixed(2)}
+                    </div>
+                  </div>
+                  <div className="bg-white p-4 rounded-lg shadow-sm border-2 border-green-400">
+                    <div className="text-sm text-gray-600 mb-2">New Total Balance</div>
+                    <div className="text-xl font-bold text-green-600">
+                      ₹{(
+                        (farmerPreviousBalance?.total || 0) + 
+                        (formData.amountTaken ? parseFloat(formData.amountTaken || '0') : -parseFloat(formData.receivedAmount || '0'))
+                      ).toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           <div className="space-y-6 p-6 bg-white">
             <h3 className="text-lg font-semibold text-gray-900">Payment Details</h3>
@@ -438,6 +599,59 @@ const PaymentAndReceipt: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* EMI Section - Only show when farmer is selected */}
+            {formData.farmerCode && formData.farmerName && (
+              <div className="max-w-4xl mx-auto">
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="emiCheckbox"
+                      checked={formData.emiChecked}
+                      onCheckedChange={(checked) => {
+                        setFormData({
+                          ...formData,
+                          emiChecked: checked as boolean,
+                          emiAmount: checked ? formData.emiAmount : "",
+                        });
+                      }}
+                    />
+                    <Label
+                      htmlFor="emiCheckbox"
+                      className="text-sm font-medium text-gray-700 cursor-pointer"
+                    >
+                      EMI
+                    </Label>
+                  </div>
+
+                  {formData.emiChecked && (
+                    <div className="flex-1 max-w-xs">
+                      <Label htmlFor="emiAmount" className="text-sm font-medium text-gray-700 mb-2 block">
+                        EMI Amount
+                      </Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                          ₹
+                        </span>
+                        <Input
+                          id="emiAmount"
+                          type="number"
+                          placeholder="0.00"
+                          className="pl-8"
+                          value={formData.emiAmount}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              emiAmount: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="flex justify-center pt-4">
               <Button 
