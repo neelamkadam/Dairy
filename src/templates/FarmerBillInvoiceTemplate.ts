@@ -420,13 +420,25 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
     processedData = templateData.data.filter(item => (item.type || '').toString().toLowerCase().trim() === 'buffalo');
   }
 
-  // Calculate totals
-  let cowLiters = 0, cowAmount = 0;
-  let buffaloLiters = 0, buffaloAmount = 0;
+  // Calculate totals for the table (from filtered processedData)
   let totalLiters = 0, totalAmount = 0;
   let totalFat = 0, totalSnf = 0, totalClr = 0, recordCount = 0;
 
   processedData.forEach((item) => {
+    totalLiters += item.liters;
+    totalAmount += item.amount;
+    totalFat += item.fat;
+    totalSnf += item.snf;
+    totalClr += item.clr;
+    recordCount++;
+  });
+
+  // Calculate summary totals from COMPLETE data (for summary section)
+  let cowLiters = 0, cowAmount = 0;
+  let buffaloLiters = 0, buffaloAmount = 0;
+  let summaryTotalLiters = 0, summaryTotalAmount = 0;
+
+  templateData.data.forEach((item) => {
     const milkType = (item.type || '').toString().toLowerCase().trim();
     if (milkType === "cow") {
       cowLiters += item.liters;
@@ -435,12 +447,8 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
       buffaloLiters += item.liters;
       buffaloAmount += item.amount;
     }
-    totalLiters += item.liters;
-    totalAmount += item.amount;
-    totalFat += item.fat;
-    totalSnf += item.snf;
-    totalClr += item.clr;
-    recordCount++;
+    summaryTotalLiters += item.liters;
+    summaryTotalAmount += item.amount;
   });
 
   const avgFat = recordCount > 0 ? (totalFat / recordCount).toFixed(1) : "0.0";
@@ -694,10 +702,10 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
         </td>
         <td class="summary-right">
           <div class="payment-details">
-            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 2px;"><strong>एकूण रक्कम:</strong> <span>${totalAmount.toFixed(2)}</span></div>
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 2px;"><strong>एकूण रक्कम:</strong> <span>${summaryTotalAmount.toFixed(2)}</span></div>
             <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 2px;"><strong>गाय दूध:</strong> <span>${cowLiters.toFixed(2)}</span></div>
             <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 2px;"><strong>म्हैस दूध:</strong> <span>${buffaloLiters.toFixed(2)}</span></div>
-            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 2px;"><strong>एकूण दूध:</strong> <span>${totalLiters.toFixed(2)}</span></div>
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 2px;"><strong>एकूण दूध:</strong> <span>${summaryTotalLiters.toFixed(2)}</span></div>
             <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 2px;"><strong>एकूण Deduction:</strong> <span>${totalDed.toFixed(2)}</span></div>
             ${bonusFixedTotal > 0 ? `<div style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 2px;"><strong>Bonus + Fixed Deduction:</strong> <span>${bonusFixedTotal.toFixed(2)}</span></div>` : ''}
             <div style="display: flex; justify-content: space-between; font-size: 16px; border-top: 1px solid black; margin-top: 4px; padding-top: 4px; font-weight: bold;">

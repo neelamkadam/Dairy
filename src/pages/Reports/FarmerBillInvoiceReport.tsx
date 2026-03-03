@@ -305,7 +305,7 @@ const FarmerBillInvoiceReport = () => {
         }
       });
 
-      const pdf = new jsPDF('p', 'mm', 'a4');
+      let pdf = new jsPDF('p', 'mm', 'a4');
       const farmerIds = Array.from(farmerDataMap.keys());
 
       // Filter by farmerCode if specified
@@ -319,6 +319,8 @@ const FarmerBillInvoiceReport = () => {
       }
 
 
+      const BATCH_SIZE = 50;
+      
       for (let i = 0; i < filteredFarmerIds.length; i++) {
         const farmerId = filteredFarmerIds[i];
         const farmerInfo = farmerDataMap.get(farmerId);
@@ -401,6 +403,12 @@ const FarmerBillInvoiceReport = () => {
           if (i > 0) pdf.addPage();
           pdf.addImage(page.imgData, 'PNG', 0, 0, page.imgWidth, page.imgHeight);
         }
+        
+        // Save in batches to avoid memory issues
+        if ((i + 1) % BATCH_SIZE === 0 && i < filteredFarmerIds.length - 1) {
+          pdf.save(`Farmer_Bill_${fromDate}_to_${toDate}_Part${Math.floor(i / BATCH_SIZE) + 1}.pdf`);
+          pdf = new jsPDF('p', 'mm', 'a4');
+        }
       }
 
       pdf.save(`Farmer_Bill_${fromDate}_to_${toDate}.pdf`);
@@ -423,7 +431,7 @@ const FarmerBillInvoiceReport = () => {
     try {
       const selectedBranch = branches.find(v => v.branch_id.toString() === selectedVLC);
       const dairyName = selectedBranch?.name || 'Dairy';
-      const dairyCode = selectedBranch?.username || '';
+      const dairyCode = selectedBranch?.name || '';
       const branchName = selectedBranch?.branchName || '';
       // @ts-ignore
       const dairyId = selectedBranch?.branch_id || selectedBranch?.id;
@@ -513,7 +521,7 @@ const FarmerBillInvoiceReport = () => {
     try {
       const selectedBranch = branches.find(v => v.branch_id.toString() === selectedVLC);
       const dairyName = selectedBranch?.name || 'Dairy';
-      const dairyCode = selectedBranch?.username || '';
+      const dairyCode = selectedBranch?.name || '';
       const branchName = selectedBranch?.branchName || '';
       // @ts-ignore
       const dairyId = selectedBranch?.branch_id || selectedBranch?.id;
