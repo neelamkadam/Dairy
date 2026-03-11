@@ -16,6 +16,8 @@ import html2canvas from 'html2canvas';
 import PdfLoader from '@/components/PdfLoader';
 import { useTranslation } from 'react-i18next';
 import { billApi } from '@/services/billApi';
+import { bonusApi } from '@/services/bonusApi';
+import { settingsApi } from '@/services/settingsApi';
 import { generateTemplate3Farmers, FarmerReportData } from '@/templates/FarmerBillInvoiceTemplate';
 import {
   Dialog,
@@ -114,6 +116,7 @@ const FarmerBillInvoiceReport = () => {
   const [currentPage, setCurrentPage] = useState(0);
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportFormat, setExportFormat] = useState<'1-per-page' | '2-per-page' | '3-per-page' | 'detailed-horizontal'>('1-per-page');
+  const [milkTypeFilter, setMilkTypeFilter] = useState<'All' | 'Cow' | 'Buffalo'>('All');
 
   const handleShow = async () => {
     if (!selectedVLC || !fromDate || !toDate) {
@@ -132,7 +135,7 @@ const FarmerBillInvoiceReport = () => {
         startShift: 'Morning',
         endDate: toDate,
         endShift: 'Evening',
-        milkType: 'All'
+        milkType: milkTypeFilter
       };
 
       const collectionResponse = await api.get(apiUrl, { params });
@@ -150,8 +153,23 @@ const FarmerBillInvoiceReport = () => {
         return parseInt(a.farmer_id) - parseInt(b.farmer_id);
       });
 
-      setCollectionData(filteredData);
-      setFarmerBills(collectionResponse.data as any);
+      // Apply milk type filter to collection data
+      let finalFilteredData = filteredData;
+      if (milkTypeFilter !== 'All') {
+        finalFilteredData = filteredData.filter((item: CollectionRecord) => item.type === milkTypeFilter);
+      }
+
+      setCollectionData(finalFilteredData);
+      
+      // Filter farmer bills based on milk type
+      let filteredBills = collectionResponse.data;
+      if (milkTypeFilter === 'Cow' && filteredBills.cow) {
+        filteredBills = filteredBills.cow;
+      } else if (milkTypeFilter === 'Buffalo' && filteredBills.buffalo) {
+        filteredBills = filteredBills.buffalo;
+      }
+      
+      setFarmerBills(filteredBills as any);
       setFarmerPayments(collectionResponse.data.farmer_payments || []);
       
       // Fetch bank details
@@ -251,18 +269,74 @@ const FarmerBillInvoiceReport = () => {
 
     try {
       const canvas = await html2canvas(tempDiv, {
-        scale: 2,
+        scale: 1.5,
         useCORS: true,
         logging: false,
         windowWidth: 794, // Approx 210mm at 96 DPI
       });
-      const imgData = canvas.toDataURL('image/png');
+      const imgData = canvas.toDataURL('image/jpeg', 0.85); // JPEG = much smaller than PNG
       const imgWidth = 210;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       return { imgData, imgWidth, imgHeight };
     } finally {
       document.body.removeChild(tempDiv);
     }
+  };
+
+  // ── Shared helper: fetch report language from settings ──
+  const fetchReportLanguage = async (vlc: string): Promise<string> => {
+    try {
+      const { data } = await settingsApi.get(vlc);
+      if (data.success && data.data && data.data.report_language) {
+        const lang = data.data.report_language.toLowerCase();
+        if (lang === 'hindi') return 'hi';
+        if (lang === 'english') return 'en';
+        if (lang === 'marathi') return 'mr';
+      }
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    }
+    return 'mr'; // fallback default
+  };
+
+  // ── Shared helper: fetch bonus deductions and build a map keyed by farmer_id ──
+  const fetchBonusMap = async (dairyId: number): Promise<Map<string, any>> => {
+    try {
+      const bonusResponse = await bonusApi.getBonusDeductions({
+        dairy_id: dairyId,
+        start_date: fromDate,
+        end_date: toDate,
+      });
+      const bonusMap = new Map<string, any>();
+      (bonusResponse.data.data || []).forEach((entry: any) => {
+        const existing = bonusMap.get(entry.farmer_id);
+        // Keep the latest entry (highest id)
+        if (!existing || entry.id > existing.id) {
+          bonusMap.set(entry.farmer_id, entry);
+        }
+      });
+      return bonusMap;
+    } catch {
+      return new Map(); // Graceful fallback — no bonus data
+    }
+  };
+
+  // Helper: attach bonus_deduction_info to a farmer object using the bonus map
+  const attachBonus = (farmer: any, bonusMap: Map<string, any>, totalQty: number) => {
+    const entry = bonusMap.get(farmer.farmer_id);
+    if (!entry) return { ...farmer, bonus_deduction_info: null };
+    const periodEnd = new Date(toDate);
+    const effectiveFrom = new Date(entry.effective_from);
+    if (periodEnd <= effectiveFrom) return { ...farmer, bonus_deduction_info: null };
+    return {
+      ...farmer,
+      bonus_deduction_info: {
+        bonus_amount: parseFloat(entry.bonus_deduction || 0),   // per-liter rate
+        fixed_amount: parseFloat(entry.fixed_deduction || 0),
+        remark: entry.remark || 'इमारत निधी',
+        total_bonus_till_date: 0  // cumulative handled by bonus_deduction_logs_summary
+      }
+    };
   };
 
   const exportToPDF = async () => {
@@ -275,33 +349,40 @@ const FarmerBillInvoiceReport = () => {
       // @ts-ignore
       const dairyId = selectedBranch?.branch_id || selectedBranch?.id;
 
-      // Fetch complete farmer data with farmer_details from the correct API
-      const response = await billApi.getFarmerReport({
-        dairy_id: dairyId,
-        start_date: fromDate,
-        end_date: toDate
-      });
+      // Fetch farmer data, bonus data, and report language in parallel
+      const [response, bonusMap, reportLang] = await Promise.all([
+        billApi.getFarmerReport({ dairy_id: dairyId, start_date: fromDate, end_date: toDate }),
+        fetchBonusMap(dairyId),
+        fetchReportLanguage(selectedVLC)
+      ]);
 
       if (!response.data.success) {
         toast.error('Failed to fetch farmer report data');
         return;
       }
 
-      const cowData: FarmerReportData[] = response.data.cow || [];
-      const buffaloData: FarmerReportData[] = response.data.buffalo || [];
-      
-      // Combine cow and buffalo data
-      const allFarmerData = [...cowData, ...buffaloData];
+      let farmerData: FarmerReportData[] = [];
+      if (milkTypeFilter === 'All') {
+        const cowData: FarmerReportData[] = response.data.cow || [];
+        const buffaloData: FarmerReportData[] = response.data.buffalo || [];
+        farmerData = [...cowData, ...buffaloData];
+      } else if (milkTypeFilter === 'Cow') {
+        farmerData = response.data.cow || [];
+      } else if (milkTypeFilter === 'Buffalo') {
+        farmerData = response.data.buffalo || [];
+      }
       
       // Create a map of farmer_id to complete farmer data (including farmer_details)
       const farmerDataMap = new Map();
-      allFarmerData.forEach(farmer => {
+      farmerData.forEach(farmer => {
         if (!farmerDataMap.has(farmer.farmer_id)) {
           farmerDataMap.set(farmer.farmer_id, farmer);
         } else {
-          // Merge collections if farmer exists in both cow and buffalo
-          const existing = farmerDataMap.get(farmer.farmer_id);
-          existing.collections = [...existing.collections, ...farmer.collections];
+          // Merge collections if farmer exists in both cow and buffalo (only for 'All' filter)
+          if (milkTypeFilter === 'All') {
+            const existing = farmerDataMap.get(farmer.farmer_id);
+            existing.collections = [...existing.collections, ...farmer.collections];
+          }
         }
       });
 
@@ -326,7 +407,14 @@ const FarmerBillInvoiceReport = () => {
         const farmerInfo = farmerDataMap.get(farmerId);
         
         // Convert collections to FarmerBillData format
-        const templateDataItems: FarmerBillData[] = farmerInfo.collections
+        let templateDataItems: FarmerBillData[] = farmerInfo.collections;
+        
+        // Filter collections by milk type if not 'All'
+        if (milkTypeFilter !== 'All') {
+          templateDataItems = farmerInfo.collections.filter((c: any) => c.type === milkTypeFilter);
+        }
+        
+        templateDataItems = templateDataItems
           .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
           .map((item: any) => ({
             date: item.created_at,
@@ -351,11 +439,12 @@ const FarmerBillInvoiceReport = () => {
           farmerName: farmerInfo.farmer_details?.fullName || farmerId,
           fromDate: fromDate,
           toDate: toDate,
+          milkType: milkTypeFilter,
           data: templateDataItems,
           payments: farmerInfo.payments,
           current_bill: farmerInfo.current_bill,
           previous_bill: farmerInfo.previous_bill,
-          bonus_deduction_info: (farmerInfo as any).bonus_deduction_info,
+          bonus_deduction_info: attachBonus(farmerInfo, bonusMap, templateDataItems.reduce((s, i) => s + i.liters, 0)).bonus_deduction_info,
           bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary,
           bankDetails: farmerInfo.farmer_details ? {
             accountNumber: farmerInfo.farmer_details.accountNumber,
@@ -365,10 +454,10 @@ const FarmerBillInvoiceReport = () => {
           hideRateAmount: hideRateAmount
         };
 
-        // Check for mixed types
+        // Check for mixed types (only relevant when milkTypeFilter is 'All')
         const hasCow = templateDataItems.some(item => item.type === 'Cow');
         const hasBuffalo = templateDataItems.some(item => item.type === 'Buffalo');
-        const isMixed = hasCow && hasBuffalo;
+        const isMixed = milkTypeFilter === 'All' && hasCow && hasBuffalo;
 
         if (isMixed) {
           // 1. Cow Page (Header YES, Summary NO)
@@ -377,12 +466,12 @@ const FarmerBillInvoiceReport = () => {
             milkType: 'Cow',
             hideHeader: false,
             hideSummary: true 
-          });
+          }, reportLang);
           const cowPage = await generatePage(cowHtml);
           if (i > 0) pdf.addPage(); 
           else if (pdf.getNumberOfPages() > 1) pdf.addPage(); 
           
-          pdf.addImage(cowPage.imgData, 'PNG', 0, 0, cowPage.imgWidth, cowPage.imgHeight);
+          pdf.addImage(cowPage.imgData, 'JPEG', 0, 0, cowPage.imgWidth, cowPage.imgHeight);
 
           // 2. Buffalo Page (Header NO, Summary YES)
           const buffaloHtml = generateTemplate2({ 
@@ -390,18 +479,18 @@ const FarmerBillInvoiceReport = () => {
             milkType: 'Buffalo',
             hideHeader: true,
             hideSummary: false
-          });
+          }, reportLang);
           const buffaloPage = await generatePage(buffaloHtml);
           pdf.addPage();
-          pdf.addImage(buffaloPage.imgData, 'PNG', 0, 0, buffaloPage.imgWidth, buffaloPage.imgHeight);
+          pdf.addImage(buffaloPage.imgData, 'JPEG', 0, 0, buffaloPage.imgWidth, buffaloPage.imgHeight);
 
         } else {
           // Single type (standard)
-          const htmlContent = generateTemplate2({ ...baseParams, milkType: 'All' });
+          const htmlContent = generateTemplate2({ ...baseParams, milkType: milkTypeFilter }, reportLang);
           const page = await generatePage(htmlContent);
           
           if (i > 0) pdf.addPage();
-          pdf.addImage(page.imgData, 'PNG', 0, 0, page.imgWidth, page.imgHeight);
+          pdf.addImage(page.imgData, 'JPEG', 0, 0, page.imgWidth, page.imgHeight);
         }
         
         // Save in batches to avoid memory issues
@@ -436,11 +525,12 @@ const FarmerBillInvoiceReport = () => {
       // @ts-ignore
       const dairyId = selectedBranch?.branch_id || selectedBranch?.id;
 
-      const response = await billApi.getFarmerReport({
-        dairy_id: dairyId,
-        start_date: fromDate,
-        end_date: toDate
-      });
+      // Fetch farmer data, bonus data, and report language in parallel
+      const [response, bonusMap, reportLang] = await Promise.all([
+        billApi.getFarmerReport({ dairy_id: dairyId, start_date: fromDate, end_date: toDate }),
+        fetchBonusMap(dairyId),
+        fetchReportLanguage(selectedVLC)
+      ]);
 
       if (!response.data.success) {
         toast.error('Failed to fetch farmer report data');
@@ -449,34 +539,107 @@ const FarmerBillInvoiceReport = () => {
 
       const cowData: FarmerReportData[] = response.data.cow || [];
       const buffaloData: FarmerReportData[] = response.data.buffalo || [];
-      
-      // Merge cow and buffalo data for the same farmer
-      const farmerMap = new Map<string, FarmerReportData>();
-      
-      [...cowData, ...buffaloData].forEach(farmer => {
-        if (farmerMap.has(farmer.farmer_id)) {
-          const existing = farmerMap.get(farmer.farmer_id)!;
-          existing.collections = [...existing.collections, ...farmer.collections];
-          existing.collections_summary.total_quantity += farmer.collections_summary.total_quantity;
-          existing.collections_summary.total_amount += farmer.collections_summary.total_amount;
-        } else {
-          farmerMap.set(farmer.farmer_id, { ...farmer });
-        }
-      });
-      
-      const allData = Array.from(farmerMap.values()).sort((a, b) => {
-        return parseInt(a.farmer_id) - parseInt(b.farmer_id);
-      });
+
+      // Build ordered list — cow and buffalo kept SEPARATE (not merged)
+      // Each entry contains only ONE type's collections → template shows separate tables
+      let allData: any[] = [];
+
+      if (milkTypeFilter === 'All') {
+        // For each farmer: cow entry first (no deductions), buffalo entry second (with combined deductions)
+        const cowIds = new Set(cowData.map(f => f.farmer_id));
+        const buffaloIds = new Set(buffaloData.map(f => f.farmer_id));
+        const allIds = new Set([...cowIds, ...buffaloIds]);
+        const sortedIds = Array.from(allIds).sort((a, b) => parseInt(a) - parseInt(b));
+        sortedIds.forEach(id => {
+          const cow = cowData.find(f => f.farmer_id === id);
+          const buffalo = buffaloData.find(f => f.farmer_id === id);
+          const isMixed = !!(cow && buffalo); // farmer has BOTH types
+          if (cow) {
+            const withBonus = attachBonus(cow, bonusMap, cow.collections_summary?.total_quantity || 0);
+            allData.push({ ...withBonus, _displayMilkType: 'Cow', _hideDeductions: isMixed });
+          }
+          if (buffalo) {
+            const withBonus = attachBonus(buffalo, bonusMap, buffalo.collections_summary?.total_quantity || 0);
+            // When mixed, buffalo entry carries combined milk total for accurate deduction display
+            const combinedLiters = isMixed
+              ? (cow!.collections_summary?.total_quantity || 0) + (buffalo.collections_summary?.total_quantity || 0)
+              : buffalo.collections_summary?.total_quantity || 0;
+            const combinedAmount = isMixed
+              ? (cow!.collections_summary?.total_amount || 0) + (buffalo.collections_summary?.total_amount || 0)
+              : 0;
+            allData.push({ ...withBonus, _displayMilkType: 'Buffalo', _hideDeductions: false, _combinedTotalQty: combinedLiters, _combinedTotalAmount: combinedAmount });
+          }
+        });
+      } else if (milkTypeFilter === 'Cow') {
+        allData = cowData
+          .sort((a, b) => parseInt(a.farmer_id) - parseInt(b.farmer_id))
+          .map(f => ({ ...attachBonus(f, bonusMap, f.collections_summary?.total_quantity || 0), _displayMilkType: 'Cow', _hideDeductions: false }));
+      } else {
+        allData = buffaloData
+          .sort((a, b) => parseInt(a.farmer_id) - parseInt(b.farmer_id))
+          .map(f => ({ ...attachBonus(f, bonusMap, f.collections_summary?.total_quantity || 0), _displayMilkType: 'Buffalo', _hideDeductions: false }));
+      }
 
       if (allData.length === 0) {
         toast.info('No data found for the selected period');
         return;
       }
 
+      // Enrich payments with payment_logs data (same as detailed horizontal format)
+      const enrichedData = allData.map((farmer) => {
+        console.log(`Processing Farmer ${farmer.farmer_id}:`, {
+          payments: farmer.payments,
+          payment_logs: (farmer as any).payment_logs,
+          collections: farmer.collections.length,
+          current_bill: farmer.current_bill,
+          previous_bill: farmer.previous_bill
+        });
+
+        const enrichedPayments = (farmer.payments || []).map((p: any) => {
+          const logs = (farmer as any).payment_logs?.data || [];
+          console.log(`  Payment Type: ${p.payment_type}, Amount: ${p.amount_taken}`);
+          console.log(`  Available Logs:`, logs);
+          
+          const logMatch = logs.find((l: any) => 
+            l.payment_type.toLowerCase().trim().replace(/\s/g, '') === p.payment_type.toLowerCase().trim().replace(/\s/g, '') &&
+            parseFloat(l.amount_taken) === parseFloat(p.amount_taken)
+          );
+          
+          console.log(`  Log Match Found:`, logMatch);
+          
+          const merged = logMatch ? { ...p, ...logMatch } : p;
+          const enriched = {
+            ...merged,
+            stock_name: merged.stock_name || '',
+            stock: merged.stock || '',
+            date: merged.date || merged.created_at || ''
+          };
+          
+          console.log(`  Enriched Payment:`, enriched);
+          return enriched;
+        });
+
+        return { 
+          ...farmer, 
+          payments: enrichedPayments
+          // bonus_deduction_info already attached via attachBonus above
+        };
+      });
+
       const pdf = new jsPDF('p', 'mm', 'a4');
-      
-      for (let i = 0; i < allData.length; i += chunkSize) {
-        const chunk = allData.slice(i, i + chunkSize);
+
+      // --- Filter by farmerCode if explicitly entered ---
+      const filteredData = farmerCode.trim()
+        ? enrichedData.filter(f => f.farmer_id === farmerCode.padStart(4, '0'))
+        : enrichedData;
+
+      if (filteredData.length === 0) {
+        toast.info('No data found for the selected farmer / criteria');
+        return;
+      }
+
+      for (let i = 0; i < filteredData.length; i += chunkSize) {
+        const chunk = filteredData.slice(i, i + chunkSize);
         
         let htmlContent = "";
         if (chunkSize === 3) {
@@ -488,21 +651,28 @@ const FarmerBillInvoiceReport = () => {
             fromDate: formatDate(fromDate),
             toDate: formatDate(toDate),
             hideRateAmount: hideRateAmount
-          });
+          }, reportLang);
         } else {
-          htmlContent = generateFarmer2PerPage({
+          const templateData = {
             dairyName: dairyName,
             branchName: branchName,
             farmers: chunk,
             fromDate: formatDate(fromDate),
             toDate: formatDate(toDate),
-            hideRateAmount: hideRateAmount
-          });
+            hideRateAmount: hideRateAmount,
+            language: reportLang,
+            bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary || null
+          };
+          
+          console.log('Template Data for 2-per-page:', templateData);
+          console.log('First Farmer Full Data:', chunk[0]);
+          
+          htmlContent = generateFarmer2PerPage(templateData);
         }
 
         const { imgData, imgWidth, imgHeight } = await generatePage(htmlContent);
         if (i > 0) pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+        pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
       }
 
       pdf.save(`Farmer_Bill_Report_${chunkSize}perPage_${fromDate}_to_${toDate}.pdf`);
@@ -526,37 +696,62 @@ const FarmerBillInvoiceReport = () => {
       // @ts-ignore
       const dairyId = selectedBranch?.branch_id || selectedBranch?.id;
 
-      const response = await billApi.getFarmerReport({
-        dairy_id: dairyId,
-        start_date: fromDate,
-        end_date: toDate
-      });
-      console.log("Farmer Report API Response:", response.data);
+      // Fetch farmer data, bonus data, and report language in parallel
+      const [response, bonusMap, reportLang] = await Promise.all([
+        billApi.getFarmerReport({ dairy_id: dairyId, start_date: fromDate, end_date: toDate }),
+        fetchBonusMap(dairyId),
+        fetchReportLanguage(selectedVLC)
+      ]);
 
       if (!response.data.success) {
         toast.error('Failed to fetch farmer report data');
         return;
       }
 
-      const cowData: FarmerReportData[] = response.data.cow || [];
-      const buffaloData: FarmerReportData[] = response.data.buffalo || [];
+      let farmerData: FarmerReportData[] = [];
+      if (milkTypeFilter === 'All') {
+        const cowData: FarmerReportData[] = response.data.cow || [];
+        const buffaloData: FarmerReportData[] = response.data.buffalo || [];
+        farmerData = [...cowData, ...buffaloData];
+      } else if (milkTypeFilter === 'Cow') {
+        farmerData = response.data.cow || [];
+      } else if (milkTypeFilter === 'Buffalo') {
+        farmerData = response.data.buffalo || [];
+      }
+      
       const farmerMap = new Map<string, FarmerReportData>();
       
-      [...cowData, ...buffaloData].forEach(farmer => {
+      farmerData.forEach(farmer => {
         if (farmerMap.has(farmer.farmer_id)) {
-          const existing = farmerMap.get(farmer.farmer_id)!;
-          existing.collections = [...existing.collections, ...farmer.collections];
+          if (milkTypeFilter === 'All') {
+            const existing = farmerMap.get(farmer.farmer_id)!;
+            existing.collections = [...existing.collections, ...farmer.collections];
+          }
         } else {
           farmerMap.set(farmer.farmer_id, { ...farmer });
         }
       });
 
-      const sortedFarmers = Array.from(farmerMap.values()).sort((a, b) => parseInt(a.farmer_id) - parseInt(b.farmer_id));
-      
+      // --- Filter by farmerCode if explicitly entered ---
+      const sortedFarmers = Array.from(farmerMap.values())
+        .sort((a, b) => parseInt(a.farmer_id) - parseInt(b.farmer_id))
+        .filter(f => !farmerCode.trim() || f.farmer_id === farmerCode.padStart(4, '0'));
+
+      if (sortedFarmers.length === 0) {
+        toast.info('No data found for the selected farmer / criteria');
+        return;
+      }
+
       const pdf = new jsPDF('p', 'mm', 'a4');
       for (let i = 0; i < sortedFarmers.length; i++) {
         const farmer = sortedFarmers[i];
-        const farmerBillData: FarmerBillData[] = farmer.collections.map(c => ({
+        // Filter collections by milk type if not 'All'
+        let filteredCollections = farmer.collections;
+        if (milkTypeFilter !== 'All') {
+          filteredCollections = farmer.collections.filter((c: any) => c.type === milkTypeFilter);
+        }
+        
+        const farmerBillData: FarmerBillData[] = filteredCollections.map(c => ({
           date: c.created_at,
           shift: c.shift as 'Morning' | 'Evening',
           type: c.type as 'Cow' | 'Buffalo',
@@ -577,7 +772,7 @@ const FarmerBillInvoiceReport = () => {
           farmerName: farmer.farmer_details?.fullName || 'Unknown',
           fromDate,
           toDate,
-          milkType: 'All',
+          milkType: milkTypeFilter,
           data: farmerBillData,
           bankDetails: {
             accountNumber: farmer.farmer_details?.accountNumber || '',
@@ -600,14 +795,16 @@ const FarmerBillInvoiceReport = () => {
               stock: merged.stock,
               date: merged.date || merged.created_at
             };
-          })
+          }),
+          bonus_deduction_info: attachBonus(farmer, bonusMap, farmer.collections_summary?.total_quantity || 0).bonus_deduction_info,
+          bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary || null
         };
 
-        const html = generateTemplateDetailedHorizontal(templateData as any, i18n.language);
+        const html = generateTemplateDetailedHorizontal(templateData as any, reportLang);
         const { imgData, imgWidth, imgHeight } = await generatePage(html);
         
         if (i > 0) pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+        pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
       }
       pdf.save(`Detailed_Horizontal_Bills_${fromDate}_${toDate}.pdf`);
       toast.success('Detailed PDF downloaded successfully');
@@ -643,8 +840,8 @@ const FarmerBillInvoiceReport = () => {
 
       <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-wrap gap-4 items-end">
-            <div className="flex-1 min-w-[200px]">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 items-end">
+            <div className="lg:col-span-2">
               <Label>VLC Center</Label>
               <Select value={selectedVLC} onValueChange={setSelectedVLC}>
                 <SelectTrigger className="bg-white">
@@ -653,13 +850,13 @@ const FarmerBillInvoiceReport = () => {
                       const selected = branches.find(b => b.branch_id.toString() === selectedVLC);
                       if (selected) {
                         const text = `${selected.username} - ${selected.name}`;
-                        return text.length > 25 ? text.substring(0, 25) + '...' : text;
+                        return text.length > 25 ? text.substring(0, 40) + '...' : text;
                       }
                       return 'Select VLC Center';
                     })()}
                   </SelectValue>
                 </SelectTrigger>
-                <SelectContent className="bg-white">
+                <SelectContent className="bg-white w-full min-w-[400px]">
                   {branches.map(vlc => (
                     <SelectItem key={vlc.branch_id} value={vlc.branch_id.toString()}>
                       {vlc.username} - {vlc.name} - {vlc.branchName}
@@ -669,33 +866,48 @@ const FarmerBillInvoiceReport = () => {
               </Select>
             </div>
 
-            <div className="flex-1 min-w-[150px]">
+            <div>
               <Label>From Date</Label>
               <Input type="date" value={fromDate} onChange={(e) => handleFromDateChange(e.target.value)} />
             </div>
 
-            <div className="flex-1 min-w-[150px]">
+            <div>
               <Label>To Date</Label>
               <Input type="date" value={toDate} disabled className="bg-gray-100 cursor-not-allowed" />
             </div>
 
-            <div className="flex-1 min-w-[150px]">
+            <div>
               <Label>Farmer Code (Optional)</Label>
               <Input placeholder="Enter code" value={farmerCode} onChange={(e) => setFarmerCode(e.target.value)} />
             </div>
-            <div className="flex gap-2">
-              <Button className=' bg-blue-600 text-white' onClick={handleShow} disabled={loading}>
-                {loading ? 'Loading...' : 'Show'}
-              </Button>
-              <Button 
-                className='bg-red-600 text-white' 
-                onClick={() => setShowExportModal(true)} 
-                disabled={!selectedVLC || pdfLoading} 
-                variant="outline"
-              >
-                Export PDF
-              </Button>
+
+            <div>
+              <Label>Milk Type</Label>
+              <Select value={milkTypeFilter} onValueChange={(value: 'All' | 'Cow' | 'Buffalo') => setMilkTypeFilter(value)}>
+                <SelectTrigger className="bg-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-white">
+                  <SelectItem value="All">All</SelectItem>
+                  <SelectItem value="Cow">Cow</SelectItem>
+                  <SelectItem value="Buffalo">Buffalo</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+          </div>
+          
+          <div className="flex gap-2 mt-4">
+            <Button className='bg-blue-600 text-white' onClick={handleShow} disabled={loading}>
+              {loading ? 'Loading...' : 'Show'}
+            </Button>
+            <Button 
+              className='bg-red-600 text-white' 
+              onClick={() => setShowExportModal(true)} 
+              disabled={!selectedVLC || pdfLoading} 
+              variant="outline"
+            >
+              Export PDF
+            </Button>
           </div>
         </CardContent>
       </Card>

@@ -242,7 +242,11 @@ const getLabels = (language: string = 'mr') => {
       vahantuk: 'Transport',
       ekunKapat: 'Total Deduction',
       adaRakkam: 'Paid Amount',
-      pashuKhady: 'Cattle Feed'
+      pashuKhady: 'Cattle Feed',
+      otherDeduction: 'Other Deduction',
+      transportDeduction: 'Transport Deduction',
+      details: 'Details',
+      noDetails: 'No details available'
     },
     hi: {
       date: 'दिनांक',
@@ -295,7 +299,11 @@ const getLabels = (language: string = 'mr') => {
       vahantuk: 'परिवहन',
       ekunKapat: 'कुल कटौती',
       adaRakkam: 'भुगतान राशि',
-      pashuKhady: 'पशु आहार'
+      pashuKhady: 'पशु आहार',
+      otherDeduction: 'अन्य कटौती',
+      transportDeduction: 'परिवहन कटौती',
+      details: 'विवरण',
+      noDetails: 'कोई विवरण उपलब्ध नहीं है'
     },
     mr: {
       date: 'दिनांक',
@@ -349,7 +357,11 @@ const getLabels = (language: string = 'mr') => {
       vahantuk: 'वाहतूक',
       ekunKapat: 'एकूण कपात',
       adaRakkam: 'अदा रक्कम',
-      pashuKhady: 'पशुखाद्य'
+      pashuKhady: 'पशुखाद्य',
+      otherDeduction: 'इतर कपात',
+      transportDeduction: 'वाह कपात',
+      details: 'तपशील',
+      noDetails: 'तपशील उपलब्ध नाही'
     }
   };
   const selected = { ... (translations[lang] || translations.mr || translations.en) };
@@ -540,7 +552,8 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
   const totalDed = deductionInfo.reduce((sum, d) => sum + d.deduction, 0);
   const totalBal = deductionInfo.reduce((sum, d) => sum + d.balance, 0);
 
-  const bonusAmount = templateData.bonus_deduction_info?.bonus_amount || 0;
+  const bonusRate = templateData.bonus_deduction_info?.bonus_amount || 0;
+  const bonusAmount = bonusRate * summaryTotalLiters;
   const fixedAmount = templateData.bonus_deduction_info?.fixed_amount || 0;
   const bonusFixedTotal = bonusAmount + fixedAmount;
 
@@ -572,7 +585,7 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
       font-size: 16px; 
       line-height: 1.0; 
       margin: 0;
-      padding: 60px 80px 20px 80px; /* Increased top and significant side padding */
+      padding: 0;
     }
     .header { 
       text-align: center; 
@@ -605,8 +618,9 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
     .payment-details { text-align: left; padding: 2px; line-height: 1.4; }
   </style>
 </head>
-<body>
-  ${!templateData.hideHeader ? `
+<body style="margin: 0; padding: 0;">
+  <div style="padding: 60px 80px 20px 80px; box-sizing: border-box; background-color: white;">
+    ${!templateData.hideHeader ? `
   <div class="header">${templateData.dairyName}</div>
   <div class="dairy-code">${templateData.dairyCode || ''}</div>
   <div class="invoice-info">
@@ -685,7 +699,7 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
             <div style="font-weight: bold; margin-bottom: 4px;">${labels.additionalDeductions}:</div>
             ${bonusAmount > 0 ? `
             <div style="display: flex; justify-content: space-between;">
-              <span>${labels.bonusDeduction}:</span>
+              <span>${labels.bonusDeduction} (${bonusRate} x ${summaryTotalLiters.toFixed(1)}):</span>
               <span>₹${bonusAmount.toFixed(2)}</span>
             </div>` : ''}
             ${fixedAmount > 0 ? `
@@ -723,12 +737,13 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
       </tr>
     </table>
   </div>` : ''}
+  </div>
 </body>
 </html>`;
 };
 
 export const generateTemplateDetailedHorizontal = (templateData: Template2Data, language: string = 'mr'): string => {
-  const labels = getLabels('mr'); // Force Marathi for this specific format to match manual paper bill
+  const labels = getLabels(language);
   
   // Group data by date and type (Cow/Buffalo)
   const groupedData = new Map<string, { 
@@ -780,9 +795,9 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
     
     // COW SECTION
     if (hasCow) {
-      content += `<tr style="font-weight: bold; background: #fafafa;">
-        <td style="padding: 1px 5px; text-align: left; border-bottom: none;">गाय</td>
-        ${Array(12).fill('<td style="border-bottom: none;"></td>').join('')}
+      content += `<tr style="font-weight: bold; background: #fafafa; border-bottom: 1px solid black; border-top: 1px solid black;">
+        <td style="padding: 6px 8px; text-align: left; border: none; border-bottom: 1px solid black; border-right: 1px solid black;">${labels.cow}</td>
+        ${Array(12).fill('<td style="border: none; border-bottom: 1px solid black; border-right: 1px solid black;"></td>').join('')}
       </tr>`;
       content += tenDates.map(date => {
         const day = groupedData.get(date);
@@ -809,10 +824,10 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
       
       if (hasCow && hasBuffalo) {
         content += `
-          <tr style="font-weight: bold; background: #fdfdfd; border-top: 1px solid #ddd;">
-            <td class="text-center">एकूण (गाय):</td>
-            <td class="text-right">${cowMLtr.toFixed(1)}</td>
-            <td></td><td></td><td></td>
+          <tr style="font-weight: bold; background: #fdfdfd; border-top: 1px solid black; border-bottom: 1px solid black;">
+            <td class="text-center" style="padding: 4px;">${labels.total} (${labels.cow}):</td>
+            <td class="text-right" style="padding: 4px;">${cowMLtr.toFixed(1)}</td>
+            <td style="padding: 4px;"></td><td style="padding: 4px;"></td><td style="padding: 4px;"></td>
             <td class="text-right">${cowMAmt.toFixed(2)}</td>
             <td class="text-right">${cowELtr.toFixed(1)}</td>
             <td></td><td></td><td></td>
@@ -826,9 +841,9 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
 
     // BUFFALO SECTION
     if (hasBuffalo) {
-      content += `<tr style="font-weight: bold; background: #fafafa;">
-        <td style="padding: 1px 5px; text-align: left; border-bottom: none;">म्हैस</td>
-        ${Array(12).fill('<td style="border-bottom: none;"></td>').join('')}
+      content += `<tr style="font-weight: bold; background: #fafafa; border-bottom: 1px solid black; border-top: 1px solid black;">
+        <td style="padding: 6px 8px; text-align: left; border: none; border-bottom: 1px solid black; border-right: 1px solid black;">${labels.buffalo}</td>
+        ${Array(12).fill('<td style="border: none; border-bottom: 1px solid black; border-right: 1px solid black;"></td>').join('')}
       </tr>`;
       content += tenDates.map(date => {
         const day = groupedData.get(date);
@@ -918,7 +933,7 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
   <meta charset="UTF-8">
   <style>
     * { box-sizing: border-box; }
-    body { font-family: 'Arial', sans-serif; font-size: 11px; margin: 0; padding: 20px 30px; line-height: 1.2; }
+    body { font-family: 'Arial', sans-serif; font-size: 11px; margin: 0; padding: 0; line-height: 1.2; }
     table { width: 100%; border-collapse: collapse; border: 1px solid black; table-layout: fixed; }
     th, td { border: 1px solid black; padding: 4px; overflow: hidden; word-wrap: break-word; }
     th { background: #f2f2f2; font-weight: bold; }
@@ -931,21 +946,22 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
     .bold { font-weight: bold; }
   </style>
 </head>
-<body>
-  <div class="text-center bold" style="font-size: 20px; letter-spacing: 1px; margin-bottom: 2px; border: none;">${templateData.dairyName}</div>
+<body style="margin: 0; padding: 0;">
+  <div style="padding: 20px 30px; box-sizing: border-box; background-color: white;">
+    <div class="text-center bold" style="font-size: 20px; letter-spacing: 1px; margin-bottom: 2px; border: none;">${templateData.dairyName}</div>
   <div class="text-center" style="font-size: 11px; margin-bottom: 6px; border: none;">Mo. ${templateData.dairyCode || ''}</div>
   
   <div class="header-info">
     <table class="no-border">
       <tr style="height: 25px;">
         <td style="width: 75%; font-size: 13px; vertical-align: middle;" colspan="2">
-          <strong>खाते नं :</strong> ${templateData.farmerCode} &nbsp;&nbsp;&nbsp; <strong>${templateData.farmerName}</strong>
+          <strong>${labels.accNo} :</strong> ${templateData.farmerCode} &nbsp;&nbsp;&nbsp; <strong>${templateData.farmerName}</strong>
         </td>
-        <td style="width: 25%; text-align: right; font-size: 11px; vertical-align: middle;"><strong>दिनांक :</strong> ${new Date().toLocaleDateString("en-GB")}</td>
+        <td style="width: 25%; text-align: right; font-size: 11px; vertical-align: middle;"><strong>${labels.date} :</strong> ${new Date().toLocaleDateString("en-GB")}</td>
       </tr>
       <tr style="height: 20px;">
-        <td style="font-size: 11px; vertical-align: middle;"><strong>बँक खाते नं :</strong> ${templateData.bankDetails?.accountNumber || ''}</td>
-        <td style="text-align: center; font-size: 11px; vertical-align: middle;"><strong>कालावधी :</strong> ${templateData.fromDate} To ${templateData.toDate}</td>
+        <td style="font-size: 11px; vertical-align: middle;"><strong>${labels.bankDetail} :</strong> ${templateData.bankDetails?.accountNumber || ''}</td>
+        <td style="text-align: center; font-size: 11px; vertical-align: middle;"><strong>${labels.period} :</strong> ${templateData.fromDate} To ${templateData.toDate}</td>
         <td></td>
       </tr>
     </table>
@@ -1027,11 +1043,11 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
   </div>
 
   <div style="margin-top: 10px; font-weight: bold; font-size: 12px; border-bottom: 2px solid black; padding-bottom: 5px;">
-    इतर कपात : ${summary.otherDeductions.toFixed(2)} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; वाह कपात : 0.00
+    ${labels.otherDeduction} : ${summary.otherDeductions.toFixed(2)} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${labels.transportDeduction} : 0.00
   </div>
 
   <div style="margin-top: 5px;">
-    <strong style="font-size: 12px; margin-left: 5px;">तपशील :</strong>
+    <strong style="font-size: 12px; margin-left: 5px;">${labels.details} :</strong>
     <table style="margin-top: 4px; width: 100%; border: 1.5px solid black; border-collapse: collapse;">
       ${(templateData.payments || []).map(p => {
         const pType = p.payment_type.toLowerCase().trim();
@@ -1065,17 +1081,17 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
           </tr>
         `;
       }).join('')}
-      ${(templateData.payments || []).length === 0 ? '<tr><td colspan="3" style="padding: 15px; text-align: center; border: none; color: #777;">तपशील उपलब्ध नाही</td></tr>' : ''}
+      ${(templateData.payments || []).length === 0 ? `<tr><td colspan="3" style="padding: 15px; text-align: center; border: none; color: #777;">${labels.noDetails}</td></tr>` : ''}
     </table>
   </div>
-  
+  </div>
 </body>
 </html>
   `;
 };
 
-export const generateTemplate3Farmers = (templateData: Template3Data): string => {
-  const labels = getLabels('mr');
+export const generateTemplate3Farmers = (templateData: Template3Data, language: string = 'mr'): string => {
+  const labels = getLabels(language);
   const getFarmerHtml = (farmer: FarmerReportData) => {
     if (!farmer) return '<div class="invoice-container" style="visibility: hidden;"></div>';
 
