@@ -827,7 +827,7 @@ const FarmerBillInvoiceReport = () => {
     } else if (exportFormat === '1-per-page') {
       exportToPDF();
     } else if (exportFormat === '2-per-page') {
-      exportMultiPerPagePDF(2);
+      exportMultiPerPagePDF(1);
     } else {
       exportMultiPerPagePDF(3);
     }

@@ -444,7 +444,7 @@ export const generateFarmer2PerPage = (templateData: Template2PerPageData): stri
 
     // Generate HTML with new unified table format matching the image
     return `
-      <div style="width: 100%; font-family: Arial, sans-serif; font-size: 9px; padding: 8px 12px; box-sizing: border-box; page-break-inside: avoid; font-weight: normal;">
+      <div class="farmer-bill" style="width: 100%; font-family: Arial, sans-serif; font-size: 9px; padding: 8px 12px; box-sizing: border-box; font-weight: normal;">
         <!-- Header -->
         <div style="text-align: center; margin-bottom: 2px;">
           <div style="font-size: 12px; font-weight: bold;">${templateData.dairyName}</div>
@@ -519,18 +519,9 @@ export const generateFarmer2PerPage = (templateData: Template2PerPageData): stri
     `;
   };
 
-  // Generate HTML for each farmer with proper spacing
-  const farmerHtmlArray = templateData.farmers.map((farmer, index) => {
-    const farmerHtml = getFarmerHtml(farmer);
-    // Add page break and spacing after every 2nd farmer (odd index: 1, 3, 5, etc.)
-    if (index % 2 === 1 && index < templateData.farmers.length - 1) {
-      return farmerHtml + '<div style="page-break-after: always;"></div>';
-    }
-    // Add spacing between first and second farmer on same page
-    if (index % 2 === 0 && index < templateData.farmers.length - 1) {
-      return farmerHtml + '<div style="height: 25mm;"></div>';
-    }
-    return farmerHtml;
+  // Generate HTML for each farmer with page breaks (1 per page)
+  const farmerHtmlArray = templateData.farmers.map((farmer) => {
+    return getFarmerHtml(farmer);
   });
 
   return `<!DOCTYPE html>
@@ -547,16 +538,19 @@ export const generateFarmer2PerPage = (templateData: Template2PerPageData): stri
     }
     @page { 
       size: A4; 
-      margin: 0; 
+      margin: 8mm; 
+    }
+    .farmer-bill {
+      width: 100%;
     }
     @media print {
       body { 
         margin: 0; 
-        padding: 10mm 8mm 6mm 8mm; 
+        padding: 0; 
       }
     }
   </style>
 </head>
-<body><div style="padding: 25mm 8mm 6mm 8mm; box-sizing: border-box;">${farmerHtmlArray.join('')}</div></body>
+<body>${farmerHtmlArray.join('')}</body>
 </html>`;
 };
