@@ -15,14 +15,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/redux/store";
 import { userApi } from "@/services/reportsApi";
 import { toast } from "react-toastify";
 import { generateFarmerListPDF } from "@/templates/FarmerListTemplate";
 import { generateFarmerListExcel } from "@/templates/FarmerListExcelTemplate";
 import { Download } from "lucide-react";
+import Pagination from "@/components/Pagination";
 
 const FarmerList = () => {
   const { branches } = useAppSelector((state) => state.branch);
@@ -30,7 +29,7 @@ const FarmerList = () => {
   const [farmers, setFarmers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const handleShow = async () => {
     if (!selectedVlcc) {
@@ -168,53 +167,19 @@ const FarmerList = () => {
             )}
           </TableBody>
         </Table>
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">
-              Showing {farmers.length > 0 ? startIndex + 1 : 0}-{Math.min(endIndex, farmers.length)} of {farmers.length} items
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2 ">
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-              className="border border-gray-400 "
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((page) => (
-              <Button
-                key={page}
-                variant={currentPage === page ? "outline" : "default"}
-                size="sm"
-                onClick={() => setCurrentPage(page)}
-                className={cn(
-                  currentPage === page &&
-                    "bg-blue-600 hover:bg-blue-700 border-none"
-                )}
-              >
-                {page}
-              </Button>
-            ))}
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() =>
-                setCurrentPage(Math.min(totalPages, currentPage + 1))
-              }
-              disabled={currentPage === totalPages}
-              className="border border-gray-400 "
-            >
-              <ChevronRight className="h-4 w-4 " />
-            </Button>
-          </div>
-        </div>
       </div>
 
+      {farmers.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          setCurrentPage={setCurrentPage}
+          itemsPerPage={itemsPerPage}
+          setItemsPerPage={setItemsPerPage}
+          totalItems={farmers.length}
+        />
+      )}
     </div>
   );
 };
+
 export default FarmerList;
