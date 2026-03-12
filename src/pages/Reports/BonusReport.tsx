@@ -64,7 +64,7 @@ const BonusReport = () => {
   const [toDate, setToDate] = useState<string>(todayDates.to);
   const [selectedVLC, setSelectedVLC] = useState<string>("");
   const [farmerId, setFarmerId] = useState<string>("");
-  const [bonusData, setBonusData] = useState<BonusDeduction[]>([]);
+  const [bonusData, setBonusData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -103,8 +103,8 @@ const BonusReport = () => {
       console.log('Bonus Report API Response:', response);
 
       if (response.data.success) {
-        const mergedData = response.data.data.reduce((acc: any[], item: BonusDeduction) => {
-          const existing = acc.find(d => d.farmer_id === item.farmer_id);
+        const mergedData = response.data.data.reduce((acc: any[], item: any) => {
+          const existing = acc.find((d: any) => d.farmer_id === item.farmer_id);
           if (existing) {
             existing.bonus_deduction = (parseFloat(existing.bonus_deduction) + parseFloat(item.bonus_deduction)).toFixed(2);
             existing.fixed_deduction = (parseFloat(existing.fixed_deduction) + parseFloat(item.fixed_deduction)).toFixed(2);
@@ -133,7 +133,7 @@ const BonusReport = () => {
 
     setIsSubmitting(true);
     try {
-      const payload: BonusDeduction = {
+      const payload: any = {
         dairy_id: parseInt(selectedVLC),
         farmer_id: newBonus.farmer_id!,
         start_date: fromDate,
@@ -311,8 +311,8 @@ const BonusReport = () => {
                     <TableRow key={bonus.id} className="hover:bg-gray-50 transition-colors">
                       <TableCell>{bonus.created_at ? format(new Date(bonus.created_at), "dd-MM-yyyy") : "-"}</TableCell>
                       <TableCell className="font-medium text-blue-600">{bonus.farmer_id}</TableCell>
-                      <TableCell>{format(new Date(bonus.start_date), "dd-MM-yyyy")}</TableCell>
-                      <TableCell>{format(new Date(bonus.end_date), "dd-MM-yyyy")}</TableCell>
+                      <TableCell>{fromDate ? format(new Date(fromDate), "dd-MM-yyyy") : "-"}</TableCell>
+                      <TableCell>{toDate ? format(new Date(toDate), "dd-MM-yyyy") : "-"}</TableCell>
                       <TableCell className="text-right text-red-500 font-medium">₹{Number(bonus.bonus_deduction).toFixed(2)}</TableCell>
                       <TableCell className="text-right text-red-500 font-medium">₹{Number(bonus.fixed_deduction).toFixed(2)}</TableCell>
                       <TableCell className="text-right font-bold">₹{(Number(bonus.bonus_deduction) + Number(bonus.fixed_deduction)).toFixed(2)}</TableCell>

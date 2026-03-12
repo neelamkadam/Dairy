@@ -174,6 +174,12 @@ export interface FarmerReportData {
   payments: BillPayment[];
   current_bill: BillDetail | null;
   previous_bill: BillDetail | null;
+  bonus_deduction_info?: {
+    bonus_amount: number;
+    fixed_amount: number;
+    remark?: string;
+    total_bonus_till_date: number | string;
+  } | null;
 }
 
 export interface Template3Data {
@@ -184,6 +190,12 @@ export interface Template3Data {
   fromDate: string;
   toDate: string;
   hideRateAmount?: boolean;
+  bonus_deduction_logs_summary?: {
+    farmers: {
+      farmer_id: string;
+      total_bonus_deduction: string;
+    }[];
+  } | null;
 }
 
 // --- GENERATOR FUNCTIONS ---
@@ -448,7 +460,7 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
   // Calculate summary totals from COMPLETE data (for summary section)
   let cowLiters = 0, cowAmount = 0;
   let buffaloLiters = 0, buffaloAmount = 0;
-  let summaryTotalLiters = 0, summaryTotalAmount = 0;
+  let summaryTotalAmount = 0;
 
   templateData.data.forEach((item) => {
     const milkType = (item.type || '').toString().toLowerCase().trim();
@@ -459,7 +471,6 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
       buffaloLiters += item.liters;
       buffaloAmount += item.amount;
     }
-    summaryTotalLiters += item.liters;
     summaryTotalAmount += item.amount;
   });
 
@@ -552,6 +563,7 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
   const totalDed = deductionInfo.reduce((sum, d) => sum + d.deduction, 0);
   const totalBal = deductionInfo.reduce((sum, d) => sum + d.balance, 0);
 
+  const summaryTotalLiters = cowLiters + buffaloLiters;
   const bonusRate = templateData.bonus_deduction_info?.bonus_amount || 0;
   const bonusAmount = bonusRate * summaryTotalLiters;
   const fixedAmount = templateData.bonus_deduction_info?.fixed_amount || 0;
@@ -699,7 +711,7 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
             <div style="font-weight: bold; margin-bottom: 4px;">${labels.additionalDeductions}:</div>
             ${bonusAmount > 0 ? `
             <div style="display: flex; justify-content: space-between;">
-              <span>${labels.bonusDeduction} (${bonusRate} x ${summaryTotalLiters.toFixed(1)}):</span>
+              <span>${labels.bonusDeduction} (${bonusRate} x ${(cowLiters + buffaloLiters).toFixed(1)}):</span>
               <span>₹${bonusAmount.toFixed(2)}</span>
             </div>` : ''}
             ${fixedAmount > 0 ? `
@@ -719,7 +731,7 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
             <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 2px;"><strong>एकूण रक्कम:</strong> <span>${summaryTotalAmount.toFixed(2)}</span></div>
             <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 2px;"><strong>गाय दूध:</strong> <span>${cowLiters.toFixed(2)}</span></div>
             <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 2px;"><strong>म्हैस दूध:</strong> <span>${buffaloLiters.toFixed(2)}</span></div>
-            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 2px;"><strong>एकूण दूध:</strong> <span>${summaryTotalLiters.toFixed(2)}</span></div>
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 2px;"><strong>एकूण दूध:</strong> <span>${(cowLiters + buffaloLiters).toFixed(2)}</span></div>
             <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 2px;"><strong>एकूण Deduction:</strong> <span>${totalDed.toFixed(2)}</span></div>
             ${bonusFixedTotal > 0 ? `<div style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 2px;"><strong>Bonus + Fixed Deduction:</strong> <span>${bonusFixedTotal.toFixed(2)}</span></div>` : ''}
             <div style="display: flex; justify-content: space-between; font-size: 16px; border-top: 1px solid black; margin-top: 4px; padding-top: 4px; font-weight: bold;">
@@ -910,6 +922,22 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
   });
 
 
+  const bonusRate = templateData.bonus_deduction_info?.bonus_amount || 0;
+  const bonusAmount = bonusRate * (cowMLtr + cowELtr + buffMLtr + buffELtr);
+  const fixedAmount = templateData.bonus_deduction_info?.fixed_amount || 0;
+  const bonusFixedTotal = bonusAmount + fixedAmount;
+
+  let totalBonusTillDate = templateData.bonus_deduction_info?.total_bonus_till_date || 0;
+  if (templateData.bonus_deduction_logs_summary?.farmers) {
+    const farmerBonus = templateData.bonus_deduction_logs_summary.farmers.find(
+      (f) => String(f.farmer_id).padStart(4, "0") === String(templateData.farmerCode).padStart(4, "0") ||
+             String(f.farmer_id) === String(templateData.farmerCode)
+    );
+    if (farmerBonus) {
+      totalBonusTillDate = farmerBonus.total_bonus_deduction;
+    }
+  }
+
   const summary = {
     prevAdvance: parseFloat(templateData.previous_bill?.advance_remaining || '0'),
     prevFeed: parseFloat(templateData.previous_bill?.cattlefeed_remaining || '0'),
@@ -922,7 +950,7 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
     dedFeed: parseFloat(templateData.current_bill?.cattlefeed_total || '0'),
     otherDeductions: parseFloat(templateData.current_bill?.other1_total || '0') + parseFloat(templateData.current_bill?.other2_total || '0'),
     totalAmount: totalMAmt + totalEAmt,
-    totalDeductions: parseFloat(templateData.current_bill?.advance_total || '0') + parseFloat(templateData.current_bill?.cattlefeed_total || '0') + parseFloat(templateData.current_bill?.other1_total || '0') + parseFloat(templateData.current_bill?.other2_total || '0'),
+    totalDeductions: parseFloat(templateData.current_bill?.advance_total || '0') + parseFloat(templateData.current_bill?.cattlefeed_total || '0') + parseFloat(templateData.current_bill?.other1_total || '0') + parseFloat(templateData.current_bill?.other2_total || '0') + bonusFixedTotal,
     receivedAmount: parseFloat(templateData.current_bill?.net_payable || '0'),
   };
 
@@ -1008,10 +1036,11 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
         <td style="width: 12%;">${labels.yeneBaaki}</td>
         <td rowspan="4" style="width: 28%; padding: 0;">
           <table style="width: 100%; border: none; height: 100%;" class="no-border">
-            <tr><td style="padding-left: 8px; font-size: 10px;">${labels.vahantuk} : </td><td class="text-right bold" style="padding-right: 8px; font-size: 10px;">0.00</td></tr>
+            ${bonusAmount > 0 ? `<tr><td style="padding-left: 8px; font-size: 9px;">${labels.bonusDeduction} : </td><td class="text-right bold" style="padding-right: 8px; font-size: 9px;">${bonusAmount.toFixed(2)}</td></tr>` : ''}
+            ${fixedAmount > 0 ? `<tr><td style="padding-left: 8px; font-size: 9px;">${templateData.bonus_deduction_info?.remark || 'इमारत निधी'} : </td><td class="text-right bold" style="padding-right: 8px; font-size: 9px;">${fixedAmount.toFixed(2)}</td></tr>` : ''}
             <tr class="bold"><td style="padding-left: 8px; font-size: 10px;">बिल रक्कम : </td><td class="text-right" style="padding-right: 8px; font-size: 10px;">${summary.totalAmount.toFixed(2)}</td></tr>
             <tr class="bold"><td style="padding-left: 8px; font-size: 10px;">${labels.ekunKapat} : </td><td class="text-right" style="padding-right: 8px; font-size: 10px;">${summary.totalDeductions.toFixed(2)}</td></tr>
-            <tr class="bold" style="font-size: 11px; border-top: 1px solid black; background: #eee;"><td style="padding-left: 8px; padding-top: 4px; padding-bottom: 4px;">${labels.adaRakkam} : </td><td class="text-right" style="padding-right: 8px;">${summary.receivedAmount.toFixed(2)}</td></tr>
+            <tr class="bold" style="font-size: 11px; border-top: 1px solid black; background: #eee;"><td style="padding-left: 8px; padding-top: 4px; padding-bottom: 4px;">${labels.adaRakkam} : </td><td class="text-right" style="padding-right: 8px;">${(summary.receivedAmount).toFixed(2)}</td></tr>
           </table>
         </td>
       </tr>
@@ -1042,8 +1071,13 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
     </table>
   </div>
 
-  <div style="margin-top: 10px; font-weight: bold; font-size: 12px; border-bottom: 2px solid black; padding-bottom: 5px;">
-    ${labels.otherDeduction} : ${summary.otherDeductions.toFixed(2)} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${labels.transportDeduction} : 0.00
+  <div style="margin-top: 10px; font-weight: bold; font-size: 11px; border-bottom: 2px solid black; padding-bottom: 5px; display: flex; justify-content: space-between;">
+    ${(bonusAmount > 0 || fixedAmount > 0 || parseFloat(String(totalBonusTillDate)) > 0) ? `
+    <div style="text-align: right;">
+      ${bonusAmount > 0 ? `<span>${labels.bonusDeduction} : ${bonusAmount.toFixed(2)}</span> &nbsp;&nbsp;` : ''}
+      ${fixedAmount > 0 ? `<span>${templateData.bonus_deduction_info?.remark || 'इमारत निधी'}: ${fixedAmount.toFixed(2)}</span> &nbsp;&nbsp;` : ''}
+      <span>${labels.totalBonusTillDate}: ${parseFloat(String(totalBonusTillDate)).toFixed(2)}</span>
+    </div>` : ''}
   </div>
 
   <div style="margin-top: 5px;">
@@ -1140,8 +1174,24 @@ export const generateTemplate3Farmers = (templateData: Template3Data, language: 
     const currentBill = farmer.current_bill;
     const previousBill = farmer.previous_bill;
     const prevBalance = previousBill ? (Number(previousBill.advance_remaining) + Number(previousBill.cattlefeed_remaining) + Number(previousBill.other1_remaining) + Number(previousBill.other2_remaining)) : 0;
-    const currentDeductions = currentBill ? (Number(currentBill.advance_total) + Number(currentBill.cattlefeed_total) + Number(currentBill.other1_total) + Number(currentBill.other2_total)) : 0;
+    const bonusRate = Number(farmer.bonus_deduction_info?.bonus_amount || 0);
+    const fixedAmount = Number(farmer.bonus_deduction_info?.fixed_amount || 0);
+    const bonusAmount = bonusRate * Number(summary.total_quantity || 0);
+    const bonusFixedTotal = bonusAmount + fixedAmount;
+
+    const currentDeductions = currentBill ? (Number(currentBill.advance_total) + Number(currentBill.cattlefeed_total) + Number(currentBill.other1_total) + Number(currentBill.other2_total) + bonusFixedTotal) : bonusFixedTotal;
     const netPayable = currentBill?.net_payable || 0;
+
+    const bonusRemark = farmer.bonus_deduction_info?.remark || 'इमारत निधी';
+
+    let totalBonusTillDate = farmer.bonus_deduction_info?.total_bonus_till_date || 0;
+    if (templateData.bonus_deduction_logs_summary?.farmers) {
+      const farmerBonus = templateData.bonus_deduction_logs_summary.farmers.find(
+        (f) => String(f.farmer_id).padStart(4, "0") === String(farmer.farmer_id).padStart(4, "0") ||
+               String(f.farmer_id) === String(farmer.farmer_id)
+      );
+      if (farmerBonus) totalBonusTillDate = farmerBonus.total_bonus_deduction;
+    }
 
     return `
       <div class="invoice-container" style="height: 33.33%; border-bottom: 2px dashed #000; padding: 40px 80px; box-sizing: border-box; overflow: hidden; line-height: 1.3; font-family: Arial, sans-serif;">
@@ -1186,8 +1236,18 @@ export const generateTemplate3Farmers = (templateData: Template3Data, language: 
           <tr style="border-bottom: 1px solid black;">
             <td style="padding: 6px 2px; width: 15%; border-right: 1px solid black;"><b>${labels.gross}:</b> ${Number(summary.total_amount).toFixed(0)}</td>
             <td style="padding: 6px 2px; width: 15%; border-right: 1px solid black;"><b>${labels.prevRemaining}:</b> ${Number(prevBalance).toFixed(0)}</td>
-            <td style="padding: 6px 2px; font-size: 11px;">
+          <tr style="background: #fdfdfd; border-bottom: 1px solid black; font-size: 11px;">
+            <td style="padding: 6px 2px; width: 40%; border-right: 1px solid black;">
                <b>${labels.deduction}:</b> ${labels.feed}:${Number(currentBill?.cattlefeed_total || 0).toFixed(0)} | ${labels.advance}:${Number(currentBill?.advance_total || 0).toFixed(0)} | ${labels.other1}:${(Number(currentBill?.other1_total || 0) + Number(currentBill?.other2_total || 0)).toFixed(0)}
+            </td>
+            <td style="padding: 6px 2px; border-right: 1px solid black;" colspan="2">
+              ${(bonusAmount > 0 || fixedAmount > 0 || parseFloat(String(totalBonusTillDate)) > 0) ? `
+                <div style="font-size: 10px;">
+                  ${bonusAmount > 0 ? `<b>${labels.bonusDeduction}</b> (${bonusRate} x ${Number(summary.total_quantity).toFixed(1)}): ${bonusAmount.toFixed(2)} | ` : ''}
+                  ${fixedAmount > 0 ? `<b>${bonusRemark}</b>: ${fixedAmount.toFixed(2)} | ` : ''}
+                  <b>${labels.totalBonusTillDate}</b>: ${parseFloat(String(totalBonusTillDate)).toFixed(2)}
+                </div>
+              ` : ''}
             </td>
           </tr>
           <tr style="background: #f0f0f0;">

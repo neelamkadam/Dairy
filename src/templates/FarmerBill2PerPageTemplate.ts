@@ -321,7 +321,7 @@ export const generateFarmer2PerPage = (templateData: Template2PerPageData): stri
     // Bonus / Fixed deduction rows (only if present)
     if (bonusAmount > 0) {
       deductionRows.push({
-        label: `${t.bonus} (${bonusAmount} × ${totalQtyForBonus.toFixed(1)})`,
+        label: `${t.bonus} (${bonusAmount.toFixed(2)} × ${totalQtyForBonus.toFixed(1)})`,
         prev: '', curr: bonusThisBill.toFixed(2), ded: '', rem: ''
       });
     }
