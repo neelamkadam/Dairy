@@ -50,6 +50,18 @@ interface FarmerWiseRow {
   amount: number;
 }
 
+const normalizeFarmerId = (value: string | number) => {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+
+  // Treat purely numeric IDs as the same regardless of leading zeros.
+  if (/^\d+$/.test(raw)) {
+    return String(Number(raw));
+  }
+
+  return raw.toLowerCase();
+};
+
 const CattleFeedFarmerWiseReport = () => {
   const { branches } = useAppSelector((state) => state.branch);
   const [dairyId, setDairyId] = useState("");
@@ -147,7 +159,7 @@ const CattleFeedFarmerWiseReport = () => {
     try {
       const response = await paymentApi.getFarmerPaymentLogs(dairyId);
 
-      const farmerFilter = farmerId.trim();
+      const farmerFilter = normalizeFarmerId(farmerId);
       const cattleFeedPayments: FarmerPayment[] = ((response.data as FarmerPaymentLogsResponse)?.data || []).filter((p: FarmerPayment) => {
         const normalizedPaymentType = p.payment_type?.toLowerCase().replace(/\s/g, "") || "";
         const normalizedDate = String(p.date || "").includes("T")
@@ -159,7 +171,7 @@ const CattleFeedFarmerWiseReport = () => {
         if (!isWithinDateRange) return false;
         if (!isCattleFeed) return false;
         if (!farmerFilter) return true;
-        return String(p.farmer_id) === farmerFilter;
+        return normalizeFarmerId(p.farmer_id) === farmerFilter;
       });
 
       const transformed: FarmerWiseRow[] = cattleFeedPayments.map((payment) => {
