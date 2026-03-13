@@ -28,6 +28,23 @@ import { userApi } from "@/services/userApi";
 import { cattleFeedApi, CattleFeedStock } from "@/services/cattleFeedApi";
 import { deductionApi } from "@/services/deductionApi";
 
+const toPaymentLogType = (paymentType: string) => {
+  const normalized = paymentType.toLowerCase().replace(/\s+/g, "");
+
+  switch (normalized) {
+    case "advance":
+      return "advance" as const;
+    case "cattlefeed":
+      return "cattlefeed" as const;
+    case "other1":
+      return "other1" as const;
+    case "other2":
+      return "other2" as const;
+    default:
+      return null;
+  }
+};
+
 const PaymentAndReceipt: React.FC = () => {
   const { branches } = useAppSelector((state) => state.branch);
   const [formData, setFormData] = useState({
@@ -277,13 +294,36 @@ const PaymentAndReceipt: React.FC = () => {
       if (formData.paymentType === "Cattle Feed" && selectedStock && stockQuantity) {
         const stockToReduce = parseFloat(stockQuantity);
         const remainingStock = Math.max(0, selectedStock.stock - stockToReduce);
+        const paymentLogType = toPaymentLogType(formData.paymentType);
         
         await cattleFeedApi.updateStock(selectedStock.id, {
           stock_name: selectedStock.stock_name,
           amount: parseFloat(selectedStock.amount),
           stock: remainingStock
         });
-        
+
+        if (paymentLogType) {
+          try {
+            const logPayload = {
+              date: format(formData.fromDate, "yyyy-MM-dd"),
+              dairy_id: Number(formData.vlcName),
+              farmer_id: normalizeFarmerId(formData.farmerCode),
+              farmer_name: formData.farmerName,
+              payment_type: paymentLogType,
+              amount_taken: parseFloat(formData.amountTaken || "0"),
+              received: parseFloat(formData.receivedAmount || "0"),
+              descriptions: `${selectedStock.stock_name}:${stockToReduce}`,
+              stock: stockToReduce,
+              stock_name: selectedStock.stock_name,
+            };
+            console.log("📦 Farmer payment log payload:", logPayload);
+            await paymentApi.createFarmerPaymentLog(logPayload);
+          } catch (logError: unknown) {
+            const errorWithResponse = logError as { response?: { data?: unknown } };
+            console.error("⚠️ Farmer payment log failed (payment still saved):", errorWithResponse.response?.data || logError);
+          }
+        }
+
         setCattleFeedStocks(prev => prev.map(s => 
           s.id === selectedStock.id ? { ...s, stock: remainingStock } : s
         ));

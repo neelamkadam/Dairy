@@ -97,7 +97,16 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
         { title: t('farmer_passbook'), icon: "", href: ROUTES.REPORTS.FARMER_PASSBOOK},
         { title: t('vlc_commission_report'), icon: "", href: ROUTES.REPORTS.VLC_COMMISSION_REPORT },
         { title: t('pl_statement'), icon: "", href: ROUTES.REPORTS.PL_STATEMENT },
-        { title: t('cattle_feed_stock_report'), icon: "", href: ROUTES.REPORTS.CATTLE_FEED_STOCK_REPORT },
+        {
+          title: "Cattle Feed Report",
+          icon: "",
+          children: [
+            { title: "Farmer-wise Cattle Feed Report", icon: "", href: ROUTES.REPORTS.CATTLE_FEED_FARMER_WISE_REPORT },
+            { title: "Cattle Feed Sales Report", icon: "", href: ROUTES.REPORTS.CATTLE_FEED_SALES_REPORT },
+            { title: "Cattle Feed Stock Report", icon: "", href: ROUTES.REPORTS.CATTLE_FEED_STOCK_REPORT },
+            { title: "Cattle Feed Purchases Report", icon: "", href: ROUTES.REPORTS.CATTLE_FEED_PURCHASE_REPORT },
+          ]
+        },
         { title: t('bonus_report'), icon: "", href: ROUTES.REPORTS.BONUS_REPORT },
       ]
     });
@@ -214,8 +223,8 @@ const AppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
   const toggleExpanded = (title: string) => {
     setExpandedItems(prev => {
       const newExpanded = prev.includes(title)
-        ? []
-        : [title];
+        ? prev.filter(itemTitle => itemTitle !== title)
+        : [...prev, title];
       localStorage.setItem('expandedMenuItems', JSON.stringify(newExpanded));
       return newExpanded;
     });
@@ -230,21 +239,24 @@ const AppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
     const hasChildren = item.children && item.children.length > 0;
     const isExpanded = expandedItems.includes(item.title);
     const isActive = item.href && location.pathname === item.href;
+    const hasIcon = !(typeof item.icon === "string" && item.icon.trim() === "") && !!item.icon;
 
     return (
       <div key={item.title} className="w-full">
         <div
            className={cn(
             "flex items-center justify-between w-full px-3 py-2 text-sm rounded-lg cursor-pointer transition-colors",
-            level > 0 && "ml-4 text-gray-600 dark:text-gray-400",
+            level > 0 && "ml-4 pl-3 border-l border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400",
+            level > 1 && "ml-6 text-[13px]",
             isActive
               ? "bg-blue-100 text-blue-700"
               : "hover:bg-gray-100 dark:hover:bg-gray-800"
           )}
           onClick={() => hasChildren ? toggleExpanded(item.title) : handleNavigation(item.href)}
         >
-          <div className="flex items-center gap-3">
-            <span className="text-lg">{item.icon}</span>
+          <div className={cn("flex items-center", level === 0 ? "gap-3" : "gap-2")}>
+            {hasIcon && <span className="text-lg">{item.icon}</span>}
+            {level > 0 && !hasIcon && <span className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-gray-500" />}
             {isOpen && <span className="font-medium">{item.title}</span>}
           </div>
           {hasChildren && isOpen && (

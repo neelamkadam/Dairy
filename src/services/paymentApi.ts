@@ -12,6 +12,22 @@ export interface CreatePaymentRequest {
   descriptions?: string;
 }
 
+export type FarmerPaymentLogType = "advance" | "cattlefeed" | "other1" | "other2";
+
+export interface CreateFarmerPaymentLogRequest {
+  date: string;
+  dairy_id: string | number;
+  farmer_id: string | number;
+  payment_type: FarmerPaymentLogType;
+  farmer_name?: string;
+  amount_taken?: number;
+  received?: number;
+  descriptions?: string;
+  status?: number;
+  stock?: number;
+  stock_name?: string;
+}
+
 export interface UpdatePaymentRequest {
   amount_taken?: number;
   received?: number;
@@ -22,6 +38,10 @@ export interface GetPaymentParams {
   farmer_id?: string;
   dairyid?: string;
   datefrom?: string;
+}
+
+export interface GetFarmerPaymentLogsParams {
+  dairy_id: string;
 }
 
 export const paymentApi = {
@@ -56,4 +76,13 @@ export const paymentApi = {
     api.get("/payments/getdairybillsummary", {
       params: { dairy_id: dairyId, datefrom: dateFrom, dateto: dateTo }
     }),
+
+  getFarmerPaymentLogs: (dairyId: string) =>
+    api.get("/farmer-payment-logs", {
+      params: { dairy_id: dairyId } satisfies GetFarmerPaymentLogsParams,
+    }),
+
+  createFarmerPaymentLog: (payload: CreateFarmerPaymentLogRequest) =>
+    api.post("/farmer-payment-logs", payload),
+
 };

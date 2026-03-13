@@ -54,4 +54,11 @@ export const cattleFeedApi = {
     console.log('✅ GET Response:', res.data);
     return res.data;
   },
+
+  getStockSummary: async (dairyId: string) => {
+    console.log('📤 STOCK SUMMARY GET:', dairyId);
+    const res = await api.get(`/web/cattlefeed-stock/get?dairy_id=${dairyId}`);
+    console.log('✅ STOCK SUMMARY GET Response:', res.data);
+    return res.data;
+  },
 };

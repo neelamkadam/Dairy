@@ -47,6 +47,9 @@ import VlcCommissionReport from "@/pages/Reports/VlcCommissionReport";
 import VlcDifferenceReport from "@/pages/Reports/VlcDifferenceReport";
 import BankSummary from "@/pages/Reports/BankSummary";
 import CattleFeedStockReport from "@/pages/Reports/CattleFeedStockReport";
+import CattleFeedFarmerWiseReport from "@/pages/Reports/CattleFeedFarmerWiseReport";
+import CattleFeedSalesReport from "@/pages/Reports/CattleFeedSalesReport";
+import CattleFeedPurchasesReport from "@/pages/Reports/CattleFeedPurchasesReport";
 import BonusReport from "@/pages/Reports/BonusReport";
 import GeneralSettings from "@/pages/Settings/GeneralSettings";
 import CattleFeedStockSettings from "@/pages/Settings/CattleFeedStock";
@@ -203,8 +206,20 @@ export const AppRoutes = createBrowserRouter([
         element: <BankSummary />,
       },
       {
+        path: "cattle-feed-farmer-wise-report",
+        element: <CattleFeedFarmerWiseReport />,
+      },
+      {
+        path: "cattle-feed-sales-report",
+        element: <CattleFeedSalesReport />,
+      },
+      {
         path: "cattle-feed-stock-report",
         element: <CattleFeedStockReport />,
+      },
+      {
+        path: "cattle-feed-purchase-report",
+        element: <CattleFeedPurchasesReport />,
       },
       {
         path: "bonus-report",

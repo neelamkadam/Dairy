@@ -33,6 +33,10 @@ export const ROUTES = {
   REPORTS:{
     FARMER_BILL_INVOICE_REPORT:`/dashboard/farmer-bill-invoice-report`,
     FARMER_COLLECTION:`/dashboard/farmer-collection`,
+    CATTLE_FEED_FARMER_WISE_REPORT:`/dashboard/cattle-feed-farmer-wise-report`,
+    CATTLE_FEED_SALES_REPORT:`/dashboard/cattle-feed-sales-report`,
+    CATTLE_FEED_STOCK_REPORT:`/dashboard/cattle-feed-stock-report`,
+    CATTLE_FEED_PURCHASE_REPORT:`/dashboard/cattle-feed-purchase-report`,
     FARMER_LIST:`/dashboard/farmer-list`,
     FARMER_PASSBOOK:`/dashboard/farmer-passbook`,
     PAYMENT_SUMMARY:`/dashboard/payment-summary`,
@@ -44,7 +48,6 @@ export const ROUTES = {
     VLC_COMMISSION_REPORT:`/dashboard/vlc-commission-report`,
     VLC_DIFFERENCE_REPORT: `/dashboard/vlc-diffrerence-report`,
     BANK_SUMMARY:`/dashboard/bank-summary`,
-    CATTLE_FEED_STOCK_REPORT:`/dashboard/cattle-feed-stock-report`,
     BONUS_REPORT:`/dashboard/bonus-report`,
   },
   SETTINGS:{
