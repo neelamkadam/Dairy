@@ -25,6 +25,13 @@ import {
   Layers,
   Printer,
   Lock,
+  ClipboardList,
+  PieChart,
+  ListOrdered,
+  Users,
+  Diff,
+  History,
+  Package,
 } from "lucide-react";
 import { settingsApi } from "@/services/settingsApi";
 import { passwordApiService } from "@/services/passwordApiService";
@@ -53,9 +60,22 @@ const GeneralSettings = () => {
   });
   const [multipleModal, setMultipleModal] = useState(0);
 
+  // Report visibility settings states
+  const [showShiftReport, setShowShiftReport] = useState(0);
+  const [showTotalCollection, setShowTotalCollection] = useState(0);
+  const [showPaymentSummary, setShowPaymentSummary] = useState(0);
+  const [showReportRateChart, setShowReportRateChart] = useState(0);
+  const [showFarmerBill, setShowFarmerBill] = useState(0);
+  const [showFarmerList, setShowFarmerList] = useState(0);
+  const [showDifferenceReport, setShowDifferenceReport] = useState(0);
+  const [showBonusDeduction, setShowBonusDeduction] = useState(0);
+  const [showCollectionHistory, setShowCollectionHistory] = useState(0);
+  const [showCattleFeed, setShowCattleFeed] = useState(0);
+
   useEffect(() => {
     if (selectedVlc) {
       fetchSettings();
+      fetchReportSettings();
       checkPassword();
     }
   }, [selectedVlc]);
@@ -81,6 +101,27 @@ const GeneralSettings = () => {
       }
     } catch (error) {
       toast.error("Failed to fetch settings");
+    }
+  };
+
+  const fetchReportSettings = async () => {
+    try {
+      const { data } = await settingsApi.getReportSettings(selectedVlc);
+      if (data.success && data.data) {
+        const settings = data.data;
+        setShowShiftReport(settings.show_shift_report ?? 0);
+        setShowTotalCollection(settings.show_total_collection ?? 0);
+        setShowPaymentSummary(settings.show_payment_summary ?? 0);
+        setShowReportRateChart(settings.show_rate_chart ?? 0);
+        setShowFarmerBill(settings.show_farmer_bill ?? 0);
+        setShowFarmerList(settings.show_farmer_list ?? 0);
+        setShowDifferenceReport(settings.show_difference_report ?? 0);
+        setShowBonusDeduction(settings.show_bonus_deduction ?? 0);
+        setShowCollectionHistory(settings.show_collection_history ?? 0);
+        setShowCattleFeed(settings.show_cattle_feed ?? 0);
+      }
+    } catch (error) {
+      console.error("Failed to fetch report settings");
     }
   };
 
@@ -147,6 +188,22 @@ const GeneralSettings = () => {
       if (data.success) {
         toast.success("Settings updated successfully");
       }
+      
+      // Update report settings
+      await settingsApi.updateReportSettings({
+        vlc: selectedVlc,
+        show_shift_report: showShiftReport,
+        show_total_collection: showTotalCollection,
+        show_payment_summary: showPaymentSummary,
+        show_rate_chart: showReportRateChart,
+        show_farmer_bill: showFarmerBill,
+        show_farmer_list: showFarmerList,
+        show_difference_report: showDifferenceReport,
+        show_bonus_deduction: showBonusDeduction,
+        show_collection_history: showCollectionHistory,
+        show_cattle_feed: showCattleFeed,
+      });
+
     } catch (error) {
       toast.error("Failed to update settings");
     }
@@ -460,6 +517,96 @@ const GeneralSettings = () => {
                   </span>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <FileText className="h-5 w-5 text-blue-600" />
+            <h2 className="text-lg font-semibold text-gray-900">
+              Report Visibility Settings
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+              <div className="flex items-center gap-3">
+                <ClipboardList className="h-5 w-5 text-blue-600" />
+                <h3 className="text-sm font-medium text-gray-900">Shift Report</h3>
+              </div>
+              <Switch checked={showShiftReport === 1} onCheckedChange={(checked) => setShowShiftReport(checked ? 1 : 0)} />
+            </div>
+
+            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+              <div className="flex items-center gap-3">
+                <BarChart3 className="h-5 w-5 text-blue-600" />
+                <h3 className="text-sm font-medium text-gray-900">Total Collection</h3>
+              </div>
+              <Switch checked={showTotalCollection === 1} onCheckedChange={(checked) => setShowTotalCollection(checked ? 1 : 0)} />
+            </div>
+
+            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+              <div className="flex items-center gap-3">
+                <PieChart className="h-5 w-5 text-blue-600" />
+                <h3 className="text-sm font-medium text-gray-900">Payment Summary</h3>
+              </div>
+              <Switch checked={showPaymentSummary === 1} onCheckedChange={(checked) => setShowPaymentSummary(checked ? 1 : 0)} />
+            </div>
+
+            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+              <div className="flex items-center gap-3">
+                <ListOrdered className="h-5 w-5 text-blue-600" />
+                <h3 className="text-sm font-medium text-gray-900">Rate Chart</h3>
+              </div>
+              <Switch checked={showReportRateChart === 1} onCheckedChange={(checked) => setShowReportRateChart(checked ? 1 : 0)} />
+            </div>
+
+            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+              <div className="flex items-center gap-3">
+                <FileText className="h-5 w-5 text-blue-600" />
+                <h3 className="text-sm font-medium text-gray-900">Farmer Bill</h3>
+              </div>
+              <Switch checked={showFarmerBill === 1} onCheckedChange={(checked) => setShowFarmerBill(checked ? 1 : 0)} />
+            </div>
+
+            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+              <div className="flex items-center gap-3">
+                <Users className="h-5 w-5 text-blue-600" />
+                <h3 className="text-sm font-medium text-gray-900">Farmer List</h3>
+              </div>
+              <Switch checked={showFarmerList === 1} onCheckedChange={(checked) => setShowFarmerList(checked ? 1 : 0)} />
+            </div>
+
+            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+              <div className="flex items-center gap-3">
+                <Diff className="h-5 w-5 text-blue-600" />
+                <h3 className="text-sm font-medium text-gray-900">Difference Report</h3>
+              </div>
+              <Switch checked={showDifferenceReport === 1} onCheckedChange={(checked) => setShowDifferenceReport(checked ? 1 : 0)} />
+            </div>
+
+            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+              <div className="flex items-center gap-3">
+                <Minus className="h-5 w-5 text-blue-600" />
+                <h3 className="text-sm font-medium text-gray-900">Bonus Deduction</h3>
+              </div>
+              <Switch checked={showBonusDeduction === 1} onCheckedChange={(checked) => setShowBonusDeduction(checked ? 1 : 0)} />
+            </div>
+
+            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+              <div className="flex items-center gap-3">
+                <History className="h-5 w-5 text-blue-600" />
+                <h3 className="text-sm font-medium text-gray-900">Collection History</h3>
+              </div>
+              <Switch checked={showCollectionHistory === 1} onCheckedChange={(checked) => setShowCollectionHistory(checked ? 1 : 0)} />
+            </div>
+
+            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+              <div className="flex items-center gap-3">
+                <Package className="h-5 w-5 text-blue-600" />
+                <h3 className="text-sm font-medium text-gray-900">Cattle Feed</h3>
+              </div>
+              <Switch checked={showCattleFeed === 1} onCheckedChange={(checked) => setShowCattleFeed(checked ? 1 : 0)} />
             </div>
           </div>
         </div>
