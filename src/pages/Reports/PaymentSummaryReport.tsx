@@ -194,6 +194,8 @@ const PaymentSummaryReport = () => {
             other2: 0,
             received: 0,
             total_deduction: 0,
+            advance_from_bills: 0,
+            cattlefeed_from_bills: 0,
             bonusAmount: 0,
             fixedAmount: 0,
             bonusRate: 0,
@@ -210,6 +212,10 @@ const PaymentSummaryReport = () => {
         aggregated.other1 += farmer.deductions.other1 || 0;
         aggregated.other2 += farmer.deductions.other2 || 0;
         aggregated.received += farmer.from_bills?.received_total || 0;
+        
+        // Track the actual bill amounts for breakdown display
+        aggregated.advance_from_bills += farmer.from_bills?.advance_total || 0;
+        aggregated.cattlefeed_from_bills += farmer.from_bills?.cattlefeed_total || 0;
         
         const totalDeduction = (farmer.from_bills?.advance_total || 0) + 
                               (farmer.from_bills?.cattlefeed_total || 0) + 
@@ -404,6 +410,18 @@ const PaymentSummaryReport = () => {
     }
   };
 
+  const formatDeduction = (farmer: any) => {
+    const advance = farmer.advance_from_bills || 0;
+    const cattleFeed = farmer.cattlefeed_from_bills || 0;
+    const total = farmer.total_deduction || 0;
+    
+    if (total === 0) return '0';
+    if (advance > 0 && cattleFeed > 0) {
+      return `${advance.toFixed(2)} + ${cattleFeed.toFixed(2)} = ${total.toFixed(2)}`;
+    }
+    return total.toFixed(2);
+  };
+
   const exportToPDF = () => {
     if (!data) return;
 
@@ -433,7 +451,7 @@ const PaymentSummaryReport = () => {
         { header: 'Other1', data: (f: any) => f.other1.toFixed(2), total: totals.totalOther1.toFixed(2), sum: totals.totalOther1 },
         { header: 'Other2', data: (f: any) => f.other2.toFixed(2), total: totals.totalOther2.toFixed(2), sum: totals.totalOther2 },
         { header: 'Received', data: (f: any) => f.received.toFixed(2), total: totals.totalReceived.toFixed(2), sum: totals.totalReceived },
-        { header: 'Deduction', data: (f: any) => f.total_deduction.toFixed(2), total: totals.totalDeduction.toFixed(2), sum: totals.totalDeduction },
+        { header: 'Deduction', data: (f: any) => formatDeduction(f), total: totals.totalDeduction.toFixed(2), sum: totals.totalDeduction },
         { header: 'Bonus', data: (f: any) => f.bonusAmount.toFixed(2), total: totals.totalBonus.toFixed(2), sum: totals.totalBonus },
         { header: 'Fixed', data: (f: any) => f.fixedAmount.toFixed(2), total: totals.totalFixed.toFixed(2), sum: totals.totalFixed },
         { header: 'Net Pay', data: (f: any) => Math.max(0, f.net_payable).toFixed(2), total: Math.max(0, totals.totalNet).toFixed(2), sum: totals.totalNet },
@@ -640,8 +658,15 @@ const PaymentSummaryReport = () => {
                       <th className="px-2 py-2 text-right text-xs">Prev Bal</th>
                       <th className="px-2 py-2 text-right text-xs">Advance</th>
                       <th className="px-2 py-2 text-right text-xs">Feed</th>
-                      <th className="px-2 py-2 text-right text-xs">Other1</th>
-                      <th className="px-2 py-2 text-right text-xs">Other2</th>
+                      {(() => {
+                        const totals = calculateTotals;
+                        return (
+                          <>
+                            {totals.totalOther1 > 0 && <th className="px-2 py-2 text-right text-xs">Other1</th>}
+                            {totals.totalOther2 > 0 && <th className="px-2 py-2 text-right text-xs">Other2</th>}
+                          </>
+                        );
+                      })()}
                       <th className="px-2 py-2 text-right text-xs">Received</th>
                       <th className="px-2 py-2 text-right text-xs">Deduction</th>
                       <th className="px-2 py-2 text-right text-xs">Bonus</th>
@@ -663,10 +688,17 @@ const PaymentSummaryReport = () => {
                             <td className="px-2 py-2 text-right text-xs">₹{farmer.previous_balance.toFixed(2)}</td>
                             <td className="px-2 py-2 text-right text-xs">₹{farmer.advance.toFixed(2)}</td>
                             <td className="px-2 py-2 text-right text-xs">₹{farmer.cattle_feed.toFixed(2)}</td>
-                            <td className="px-2 py-2 text-right text-xs">₹{farmer.other1.toFixed(2)}</td>
-                            <td className="px-2 py-2 text-right text-xs">₹{farmer.other2.toFixed(2)}</td>
+                            {(() => {
+                              const totals = calculateTotals;
+                              return (
+                                <>
+                                  {totals.totalOther1 > 0 && <td className="px-2 py-2 text-right text-xs">₹{farmer.other1.toFixed(2)}</td>}
+                                  {totals.totalOther2 > 0 && <td className="px-2 py-2 text-right text-xs">₹{farmer.other2.toFixed(2)}</td>}
+                                </>
+                              );
+                            })()}
                             <td className="px-2 py-2 text-right text-xs">₹{farmer.received.toFixed(2)}</td>
-                            <td className="px-2 py-2 text-right text-xs">₹{farmer.total_deduction.toFixed(2)}</td>
+                            <td className="px-2 py-2 text-right text-xs">₹{formatDeduction(farmer)}</td>
                             <td className="px-2 py-2 text-right text-xs text-red-600">₹{farmer.bonusAmount.toFixed(2)}</td>
                             <td className="px-2 py-2 text-right text-xs text-red-600">₹{farmer.fixedAmount.toFixed(2)}</td>
                             <td className="px-2 py-2 text-right text-xs font-semibold">₹{Math.max(0, farmer.net_payable).toFixed(2)}</td>
@@ -675,7 +707,13 @@ const PaymentSummaryReport = () => {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={15} className="px-4 py-8 text-center text-gray-500">
+                          <td colSpan={(() => {
+                            const totals = calculateTotals;
+                            let colCount = 13; // Base columns
+                            if (totals.totalOther1 > 0) colCount++;
+                            if (totals.totalOther2 > 0) colCount++;
+                            return colCount;
+                          })()} className="px-4 py-8 text-center text-gray-500">
                             No data available. Select filters and click Show to load data.
                           </td>
                         </tr>
@@ -693,8 +731,8 @@ const PaymentSummaryReport = () => {
                           <td className="px-2 py-2 text-right text-xs"></td>
                           <td className="px-2 py-2 text-right text-xs">₹{totals.totalAdvance.toFixed(2)}</td>
                           <td className="px-2 py-2 text-right text-xs">₹{totals.totalFeed.toFixed(2)}</td>
-                          <td className="px-2 py-2 text-right text-xs">₹{totals.totalOther1.toFixed(2)}</td>
-                          <td className="px-2 py-2 text-right text-xs">₹{totals.totalOther2.toFixed(2)}</td>
+                          {totals.totalOther1 > 0 && <td className="px-2 py-2 text-right text-xs">₹{totals.totalOther1.toFixed(2)}</td>}
+                          {totals.totalOther2 > 0 && <td className="px-2 py-2 text-right text-xs">₹{totals.totalOther2.toFixed(2)}</td>}
                           <td className="px-2 py-2 text-right text-xs">₹{totals.totalReceived.toFixed(2)}</td>
                           <td className="px-2 py-2 text-right text-xs">₹{totals.totalDeduction.toFixed(2)}</td>
                           <td className="px-2 py-2 text-right text-xs">₹{totals.totalBonus.toFixed(2)}</td>
