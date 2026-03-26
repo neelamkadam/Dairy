@@ -9,4 +9,7 @@ export const adminApi = {
   setPassword: (userId: number, newPassword: string) => 
     api.post("/web-users/set-password", { userId, newPassword }),
   createAdmin: (data: any) => api.post("/web/admin/create-admin", data),
+  getTrialStartDate: (username: string) => api.get(`/auth/trial-start-date?username=${username}`),
+  updateTrialDays: (username: string, days: number) => api.put("/auth/update-trial-days", { username, days }),
+  getTrialDetails: (payload: { usernames?: string[], username?: string }) => api.post("/auth/get-trial-details", payload),
 };

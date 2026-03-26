@@ -4,9 +4,11 @@ import { toast } from 'react-toastify';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { TrialCalendarModal } from './components/TrialCalendarModal';
+import { addDays, isPast } from 'date-fns';
 
 export const WebApplicationActivation: React.FC = () => {
   const [webUsers, setWebUsers] = useState<any[]>([]);
@@ -15,6 +17,8 @@ export const WebApplicationActivation: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [perPage, setPerPage] = useState(25);
   const [loading, setLoading] = useState(false);
+  const [isTrialModalOpen, setIsTrialModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<string>('');
 
   useEffect(() => {
     fetchWebUsers();
@@ -24,7 +28,23 @@ export const WebApplicationActivation: React.FC = () => {
     try {
       const { data } = await adminApi.getAllUsers();
       if (data.success) {
-        const userData = data.data.webUsers || [];
+        let userData = data.data.webUsers || [];
+        console.log('DEBUG [WebApplicationActivation] userData:', userData);
+        const usernames = userData.map((u: any) => u.username || u.email).filter(Boolean);
+        if (usernames.length > 0) {
+          try {
+            const { data: trialData } = await adminApi.getTrialDetails({ usernames });
+            if (trialData.success && trialData.data) {
+              const trialMap = new Map(trialData.data.map((t: any) => [t.username, t]));
+              userData = userData.map((u: any) => ({
+                ...u,
+                trial_info: trialMap.get(u.username || u.email)
+              }));
+            }
+          } catch (e) {
+            console.error('Error fetching trial data:', e);
+          }
+        }
         setWebUsers(userData);
         setFilteredUsers(userData);
       }
@@ -32,6 +52,12 @@ export const WebApplicationActivation: React.FC = () => {
       console.error('Error fetching web users:', error);
       toast.error('Failed to fetch web users');
     }
+  };
+
+  const isTrialExpired = (user: any) => {
+    if (!user.trial_info?.trial_start_date) return false;
+    const expiryDate = addDays(new Date(user.trial_info.trial_start_date), user.trial_info.trial_days || 0);
+    return isPast(expiryDate);
   };
 
   const handleToggleStatus = async (userId: number, currentStatus: number) => {
@@ -118,8 +144,9 @@ export const WebApplicationActivation: React.FC = () => {
                 <TableHead className="font-semibold">Name</TableHead>
                 <TableHead className="font-semibold">Email</TableHead>
                 <TableHead className="font-semibold">Mobile Number</TableHead>
+                <TableHead className="font-semibold text-center">Trial Account</TableHead>
                 <TableHead className="font-semibold">Status</TableHead>
-                <TableHead className="font-semibold">Action</TableHead>
+                <TableHead className="font-semibold text-right pr-6">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -128,6 +155,29 @@ export const WebApplicationActivation: React.FC = () => {
                   <TableCell className="font-medium">{user.name || '-'}</TableCell>
                   <TableCell>{user.email || '-'}</TableCell>
                   <TableCell>{user.mobile_number || '-'}</TableCell>
+                  <TableCell className="text-center">
+                    {(() => {
+                      const expired = isTrialExpired(user);
+                      return (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => {
+                            setSelectedUser(user.username || user.email);
+                            setIsTrialModalOpen(true);
+                          }}
+                          className={`inline-flex items-center gap-2 ${
+                            expired 
+                              ? "text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700" 
+                              : "text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                          }`}
+                        >
+                          <CalendarIcon className="h-4 w-4" />
+                          {expired ? 'Trial Over' : 'Set Trial'}
+                        </Button>
+                      );
+                    })()}
+                  </TableCell>
                   <TableCell>
                     <span className={`px-2 py-1 rounded text-xs font-medium ${
                       user.is_active === 1 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
@@ -135,7 +185,7 @@ export const WebApplicationActivation: React.FC = () => {
                       {user.is_active === 1 ? 'Active' : 'Inactive'}
                     </span>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-right pr-4">
                     <Switch
                       checked={user.is_active === 1}
                       onCheckedChange={() => handleToggleStatus(user.id, user.is_active)}
@@ -175,6 +225,12 @@ export const WebApplicationActivation: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <TrialCalendarModal 
+        isOpen={isTrialModalOpen}
+        onClose={() => setIsTrialModalOpen(false)}
+        username={selectedUser}
+      />
     </div>
   );
 }

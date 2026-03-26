@@ -8,6 +8,17 @@ import { cattleFeedApi, CattleFeedStock } from "@/services/cattleFeedApi";
 import { toast } from "react-toastify";
 import { useAppSelector } from "@/redux/store";
 import { format } from "date-fns";
+import { Pencil, Trash2, Plus, FileText, Search, Package, IndianRupee, Calendar as CalendarIcon } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 const CattleFeedStockSettings: React.FC = () => {
   const { branches } = useAppSelector((state) => state.branch);
@@ -15,22 +26,59 @@ const CattleFeedStockSettings: React.FC = () => {
   const [stockName, setStockName] = useState("");
   const [stock, setStock] = useState("");
   const [amount, setAmount] = useState("");
-  const [suggestions, setSuggestions] = useState<CattleFeedStock[]>([]);
+  const [purchaseRate, setPurchaseRate] = useState("");
+  const [purchaseDate, setPurchaseDate] = useState<Date | undefined>(new Date());
+  
   const [loading, setLoading] = useState(false);
-  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [existingStock, setExistingStock] = useState<CattleFeedStock | null>(null);
   const [allStocks, setAllStocks] = useState<CattleFeedStock[]>([]);
+  
+  // Edit state
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingStock, setEditingStock] = useState<CattleFeedStock | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editAmount, setEditAmount] = useState("");
 
-  const fetchAllStocks = async (dairy_id: string) => {
+  // Report state
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [startDate, setStartDate] = useState(format(new Date(), "yyyy-MM-01"));
+  const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [reportData, setReportData] = useState<any>(null);
+
+  const [highlightedId, setHighlightedId] = useState<number | null>(null);
+
+  const handleNameBlur = () => {
+    if (!stockName.trim()) return;
+    
+    const existing = allStocks.find(s => s.stock_name.toLowerCase() === stockName.trim().toLowerCase());
+    if (existing) {
+      toast.warning(`"${stockName}" already exists in inventory.`);
+      setHighlightedId(existing.id);
+      
+      // Clear highlight after 3 seconds
+      setTimeout(() => setHighlightedId(null), 5000);
+      
+      // Use requestAnimationFrame for smooth interaction
+      requestAnimationFrame(() => {
+        const element = document.getElementById(`stock-card-${existing.id}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      });
+    }
+  };
+
+  const fetchAllStocks = async (id: string) => {
     try {
-      console.log('📋 Fetching all stocks for dairy:', dairy_id);
-      const response = await cattleFeedApi.getStock(dairy_id);
-      console.log('📋 All Stocks Response:', response);
+      setLoading(true);
+      const response = await cattleFeedApi.getStock(id);
       if (response.success && Array.isArray(response.data)) {
         setAllStocks(response.data);
       }
     } catch (error) {
-      console.error('❌ Failed to fetch all stocks:', error);
+      console.error('❌ Failed to fetch stocks:', error);
+      toast.error("Failed to fetch stocks");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -42,284 +90,693 @@ const CattleFeedStockSettings: React.FC = () => {
     }
   }, [dairyId]);
 
-  const fetchStockByName = async (name: string) => {
-    if (!dairyId) return;
-    try {
-      console.log('🔍 Fetching stocks for dairy:', dairyId);
-      console.log('🔍 Search query:', name);
-      const response = await cattleFeedApi.getStock(dairyId);
-      console.log('📦 Full API Response:', response);
-      console.log('📦 Response Status:', response.status);
-      console.log('📦 Response Data:', response.data);
-      
-      const stockData = Array.isArray(response.data) ? response.data : (response.data?.data || []);
-      console.log('📊 Parsed Stock Data:', stockData);
-      console.log('📊 Stock Data Length:', stockData.length);
-      
-      const matchedStocks = stockData.filter(
-        (item) => item.stock_name.toLowerCase().startsWith(name.toLowerCase())
-      );
-      console.log('🎯 Matched Stocks:', matchedStocks);
-      console.log('🎯 Matched Count:', matchedStocks.length);
-      
-      if (matchedStocks.length > 0) {
-        const totalStock = matchedStocks.reduce((sum, item) => sum + item.stock, 0);
-        const combinedStock = {
-          ...matchedStocks[0],
-          stock: totalStock,
-          _allIds: matchedStocks.map(s => s.id)
-        };
-        console.log('✅ Combined Stock:', combinedStock);
-        console.log('✅ Total Stock Quantity:', totalStock);
-        setSuggestions([combinedStock]);
-        setExistingStock(combinedStock as any);
-      } else {
-        console.log('⚠️ No matching stocks found');
-        setSuggestions([]);
-        setExistingStock(null);
-      }
-    } catch (error) {
-      console.error("❌ Failed to fetch stock", error);
-      console.error("❌ Error details:", JSON.stringify(error, null, 2));
-    }
-  };
-
-  useEffect(() => {
-    if (searchTimeout) clearTimeout(searchTimeout);
-    if (stockName.trim().length >= 3 && dairyId) {
-      const timeout = setTimeout(() => {
-        fetchStockByName(stockName.trim());
-      }, 500);
-      setSearchTimeout(timeout);
-    } else {
-      setSuggestions([]);
-      setExistingStock(null);
-    }
-  }, [stockName, dairyId]);
-
-  const handleSuggestionClick = (suggestion: CattleFeedStock) => {
-    setStockName(suggestion.stock_name);
-    setAmount(suggestion.amount);
-    setSuggestions([]);
-    setExistingStock(suggestion);
-  };
-
-  const handleSubmit = async () => {
+  const handleAddStock = async () => {
     if (!dairyId) {
       toast.error("Please select VLC");
       return;
     }
-
-    if (!stockName.trim() || !stock) {
-      toast.error("Please enter stock name and quantity");
+    if (!stockName.trim() || !stock || !amount || !purchaseRate || !purchaseDate) {
+      toast.error("Please fill all fields");
       return;
     }
 
-    if (!amount) {
-      toast.error("Please enter amount per unit");
+    // Double check on submit
+    const existing = allStocks.find(s => s.stock_name.toLowerCase() === stockName.trim().toLowerCase());
+    if (existing) {
+      toast.warning(`"${stockName}" already exists. Opening edit modal...`);
+      openEditModal(existing);
       return;
     }
 
     setLoading(true);
     try {
-      console.log('💾 Submitting stock - Fetching existing data');
-      console.log('💾 Dairy ID:', dairyId);
-      console.log('💾 Stock Name:', stockName);
-      console.log('💾 New Stock Quantity:', stock);
-      console.log('💾 Amount:', amount);
+      const payload = {
+        dairy_id: dairyId,
+        stock_name: stockName.trim(),
+        amount: parseFloat(amount),
+        stock: parseFloat(stock),
+        purchase_rate: parseFloat(purchaseRate),
+        date: [format(purchaseDate, "yyyy-MM-dd")]
+      };
       
-      const response = await cattleFeedApi.getStock(dairyId);
-      console.log('📦 GET Stock Response:', response);
+      await cattleFeedApi.createStock(payload);
+      toast.success("Stock added successfully");
       
-      const stockData = Array.isArray(response.data) ? response.data : [];
-      console.log('📊 All Stock Data:', stockData);
-      
-      const matchingStocks = stockData.filter(
-        (item) => item.stock_name.toLowerCase() === stockName.trim().toLowerCase()
-      );
-      console.log('🎯 Matching Stocks for Update:', matchingStocks);
-      
-      const totalExistingStock = matchingStocks.reduce((sum, item) => sum + item.stock, 0);
-      console.log('📊 Total Existing Stock:', totalExistingStock);
-
-      if (matchingStocks.length > 0) {
-        const updatePayload = {
-          stock_name: stockName.trim(),
-          stock: parseFloat(stock) + totalExistingStock,
-          amount: parseFloat(amount),
-        };
-        console.log('🔄 Updating existing stock with payload:', updatePayload);
-        await cattleFeedApi.updateStock(matchingStocks[0].id, updatePayload);
-        toast.success("Stock updated successfully");
-      } else {
-        const createPayload = {
-          dairy_id: dairyId,
-          stock_name: stockName.trim(),
-          stock: parseFloat(stock),
-          amount: parseFloat(amount),
-        };
-        console.log('➕ Creating new stock with payload:', createPayload);
-        await cattleFeedApi.createStock(createPayload);
-        toast.success("Stock created successfully");
-      }
-
+      // Reset form
       setStockName("");
       setStock("");
       setAmount("");
-      setSuggestions([]);
-      if (dairyId) {
-        fetchAllStocks(dairyId);
-      }
+      setPurchaseRate("");
+      setPurchaseDate(new Date());
+      fetchAllStocks(dairyId);
     } catch (error) {
-      console.error("❌ Failed to save stock:", error);
-      toast.error("Failed to save stock");
+      console.error("❌ Failed to add stock:", error);
+      toast.error("Failed to add stock");
     } finally {
       setLoading(false);
     }
   };
 
+  const handleDelete = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this stock entry?")) return;
+    
+    try {
+      await cattleFeedApi.deleteStock(id);
+      toast.success("Stock deleted successfully");
+      fetchAllStocks(dairyId);
+    } catch (error) {
+      console.error("❌ Failed to delete stock:", error);
+      toast.error("Failed to delete stock");
+    }
+  };
+
+  // Restock state
+  const [isRestockOpen, setIsRestockOpen] = useState(false);
+  const [restockItem, setRestockItem] = useState<CattleFeedStock | null>(null);
+  const [restockQty, setRestockQty] = useState("");
+  const [restockRate, setRestockRate] = useState("");
+  const [restockDate, setRestockDate] = useState<Date | undefined>(new Date());
+
+  const handleRestock = async () => {
+    if (!restockItem || !restockQty || !restockRate || !restockDate) {
+      toast.error("Please fill all fields");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const newTotalStock = (parseFloat(restockItem.stock.toString()) || 0) + parseFloat(restockQty);
+      const payload = {
+        stock_name: restockItem.stock_name,
+        stock: newTotalStock,
+        purchase_rate: parseFloat(restockRate),
+        date: [format(restockDate, "yyyy-MM-dd")]
+      };
+      
+      await cattleFeedApi.updateStock(restockItem.id, payload);
+      toast.success("Stock added successfully");
+      setIsRestockOpen(false);
+      setRestockQty("");
+      setRestockRate("");
+      fetchAllStocks(dairyId);
+    } catch (error) {
+      console.error("❌ Failed to restock:", error);
+      toast.error("Failed to add stock");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openRestockModal = (item: CattleFeedStock) => {
+    setRestockItem(item);
+    setRestockRate(item.purchase_rate.toString());
+    setIsRestockOpen(true);
+  };
+
+  const openEditModal = (stock: CattleFeedStock) => {
+    setEditingStock(stock);
+    setEditName(stock.stock_name);
+    setEditAmount(stock.amount.toString());
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdate = async () => {
+    if (!editingStock) return;
+    
+    try {
+      setLoading(true);
+      const payload = {
+        stock_name: editName,
+        amount: parseFloat(editAmount)
+      };
+      
+      await cattleFeedApi.updateStock(editingStock.id, payload);
+      toast.success("Stock updated successfully");
+      setIsEditDialogOpen(false);
+      fetchAllStocks(dairyId);
+    } catch (error) {
+      console.error("❌ Failed to update stock:", error);
+      toast.error("Failed to update stock");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchReport = async () => {
+    if (!dairyId) {
+      toast.error("Please select VLC");
+      return;
+    }
+    try {
+      setLoading(true);
+      const response = await cattleFeedApi.getStockReport(dairyId, startDate, endDate);
+      if (response.success) {
+        setReportData(response.data);
+        setIsReportOpen(true);
+      }
+    } catch (error) {
+      console.error("❌ Failed to fetch report:", error);
+      toast.error("Failed to fetch report");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDateLabel = (dateVal: any) => {
+    try {
+      let parsed = dateVal;
+      
+      // If it's a string, try to parse it as JSON
+      if (typeof dateVal === 'string' && (dateVal.startsWith('[') || dateVal.startsWith('{'))) {
+        try {
+          parsed = JSON.parse(dateVal);
+        } catch (e) {
+          // Not JSON, continue with original string
+        }
+      }
+
+      const getRawDate = (d: any) => {
+        if (typeof d === 'string') return d;
+        if (d instanceof Date) return d;
+        return d?.date || d?.purchase_date || d?.created_at;
+      };
+
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map(d => {
+            const raw = getRawDate(d);
+            return raw ? format(new Date(raw), "dd/MM/yyyy") : null;
+          })
+          .filter(Boolean)
+          .join(", ");
+      }
+
+      const singleRaw = getRawDate(parsed);
+      if (singleRaw) return format(new Date(singleRaw), "dd/MM/yyyy");
+      
+      return String(dateVal);
+    } catch (e) {
+      return String(dateVal);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-        <Card className="shadow-sm border-none">
-          <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
-            <CardTitle className="text-2xl font-bold text-gray-800">🐄 Cattle Feed Stock Management</CardTitle>
-            <p className="text-sm text-gray-600 mt-1">Add or update cattle feed inventory</p>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <Label className="text-sm font-medium text-gray-700 mb-2 block">VLC Name</Label>
-                <Select value={dairyId} onValueChange={setDairyId}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select VLC" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    {branches.map((branch) => (
-                      <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
-                        {branch.username} - {branch.name} - {branch.branchName || ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="relative">
-                <div className="flex items-center justify-between mb-2">
-                  <Label className="text-sm font-medium text-gray-700">Stock Name</Label>
-                  {stockName && existingStock && (
-                    <span className="text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded-full font-medium">
-                      ✏️ Editing Existing
-                    </span>
-                  )}
-                  {stockName && !existingStock && stockName.length >= 3 && (
-                    <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full font-medium">
-                      ✨ Adding New
-                    </span>
-                  )}
-                </div>
-                <Input
-                  value={stockName}
-                  onChange={(e) => setStockName(e.target.value)}
-                  placeholder="Type 3+ characters to search"
-                  className="w-full"
-                />
-                {suggestions.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg">
-                    {suggestions.map((s) => (
-                      <div
-                        key={s.id}
-                        className="p-3 hover:bg-blue-50 cursor-pointer transition-colors border-b last:border-b-0"
-                        onClick={() => handleSuggestionClick(s)}
-                      >
-                        <div className="font-medium text-gray-800">{s.stock_name}</div>
-                        <div className="text-xs text-gray-500">Available: {s.stock} units</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <Label className="text-sm font-medium text-gray-700 mb-2 block">Stock Quantity to Add</Label>
-                <Input
-                  type="number"
-                  value={stock}
-                  onChange={(e) => setStock(e.target.value)}
-                  placeholder="Enter quantity"
-                  className="w-full"
-                />
-                {existingStock && stock && (
-                  <p className="text-xs text-gray-600 mt-1">
-                    Current: {existingStock.stock} + New: {stock} = Total: {existingStock.stock + parseFloat(stock)}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <Label className="text-sm font-medium text-gray-700 mb-2 block">Amount per Unit (₹)</Label>
-                <Input
-                  type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="Enter amount"
-                  className="w-full"
-                />
-              </div>
-            </div>
-
-            <div className="mt-6 pt-6 border-t">
-              <Button 
-                onClick={handleSubmit} 
-                disabled={loading} 
-                className="w-full md:w-auto px-8 bg-blue-600 hover:bg-blue-700 text-white h-11"
-              >
-                {loading ? "Saving..." : "💾 Save Stock"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+    <div className="min-h-screen bg-[#f8fafc] p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Cattle Feed Inventory</h1>
+            <p className="text-slate-500 mt-1 font-medium">Manage your livestock feed stock and purchase logs</p>
+          </div>
+          <div className="flex gap-3">
+            <Button 
+              variant="outline" 
+              className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm"
+              onClick={() => setIsReportOpen(true)}
+            >
+              <FileText className="w-4 h-4 mr-2 text-indigo-500" />
+              View Report
+            </Button>
+          </div>
         </div>
 
-        <div>
-          {allStocks.length > 0 ? (
-            <div>
-              <h3 className="text-sm font-semibold text-gray-800 mb-2">Current Stock</h3>
-              <div className="space-y-2 max-h-[calc(100vh-200px)] overflow-y-auto pr-2">
-                {allStocks.map((stock) => (
-                  <Card key={stock.id} className="border border-blue-200 shadow-sm">
-                    <CardContent className="p-3">
-                      <div className="space-y-1.5">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-medium text-gray-600">Name</span>
-                          <span className="text-xs font-semibold text-gray-900">{stock.stock_name}</span>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Add Stock Form */}
+          <div className="lg:col-span-4">
+            <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white overflow-hidden">
+              <CardHeader className="bg-slate-900 text-white p-6">
+                <CardTitle className="text-lg font-semibold flex items-center">
+                  <Plus className="w-5 h-5 mr-2 text-indigo-400" />
+                  Add New Stock
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 space-y-5">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-slate-700">Select VLC Branch</Label>
+                    <Select value={dairyId} onValueChange={setDairyId}>
+                      <SelectTrigger className="w-full bg-slate-50 border-slate-200 focus:ring-indigo-500 h-11">
+                        <SelectValue placeholder="Select VLC" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white">
+                        {branches.map((branch) => (
+                          <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
+                            {branch.username} - {branch.branchName || branch.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-slate-700">Stock Item Name</Label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                      <Input
+                        value={stockName}
+                        onChange={(e) => setStockName(e.target.value)}
+                        onBlur={handleNameBlur}
+                        placeholder="e.g. Wheat Bran, Churi"
+                        className="pl-10 bg-slate-50 border-slate-200 focus:ring-indigo-500 h-11"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold text-slate-700">Quantity</Label>
+                      <div className="relative">
+                        <Package className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                        <Input
+                          type="number"
+                          value={stock}
+                          onChange={(e) => setStock(e.target.value)}
+                          placeholder="0.00"
+                          className="pl-10 bg-slate-50 border-slate-200 h-11"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold text-slate-700">Purchase Rate</Label>
+                      <div className="relative">
+                        <IndianRupee className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                        <Input
+                          type="number"
+                          value={purchaseRate}
+                          onChange={(e) => setPurchaseRate(e.target.value)}
+                          placeholder="0.00"
+                          className="pl-10 bg-slate-50 border-slate-200 h-11"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-slate-700">Selling Rate</Label>
+                    <div className="relative">
+                      <IndianRupee className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                      <Input
+                        type="number"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        placeholder="0.00"
+                        className="pl-10 bg-slate-50 border-slate-200 h-11 font-bold text-green-700"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-slate-700">Date</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full pl-3 text-left font-normal h-11 bg-slate-50 border-slate-200",
+                            !purchaseDate && "text-muted-foreground"
+                          )}
+                        >
+                          {purchaseDate ? (
+                            format(purchaseDate, "PPP")
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 bg-white" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={purchaseDate}
+                          onSelect={setPurchaseDate}
+                          disabled={(date) =>
+                            date > new Date() || date < new Date("1900-01-01")
+                          }
+                          initialFocus
+                          className="bg-white"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+
+                <Button 
+                  onClick={handleAddStock} 
+                  disabled={loading} 
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-100 h-12 transition-all active:scale-[0.98]"
+                >
+                  {loading ? "Processing..." : "Add to Inventory"}
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Stock List */}
+          <div className="lg:col-span-8">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-slate-800">Current Inventory</h3>
+              <span className="text-xs font-semibold px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full border border-slate-200">
+                {allStocks.length} Items Found
+              </span>
+            </div>
+
+            {loading && allStocks.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 animate-pulse">
+                <div className="w-12 h-12 bg-slate-200 rounded-full mb-4"></div>
+                <div className="h-4 w-48 bg-slate-200 rounded"></div>
+              </div>
+            ) : allStocks.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {allStocks.map((item) => (
+                  <Card 
+                    key={item.id} 
+                    id={`stock-card-${item.id}`}
+                    className={cn(
+                      "group border-none shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-500 bg-white overflow-hidden border-l-4 border-l-indigo-500",
+                      highlightedId === item.id && "ring-4 ring-amber-400 scale-[1.02] shadow-2xl z-20 border-l-amber-500"
+                    )}
+                  >
+                    <CardContent className="p-5">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="space-y-1">
+                          <h4 className="font-bold text-slate-900 text-lg group-hover:text-indigo-600 transition-colors">
+                            {item.stock_name}
+                          </h4>
+                          <div className="flex items-center text-xs text-slate-500">
+                            <CalendarIcon className="w-3 h-3 mr-1" />
+                            {formatDateLabel(item.date)}
+                          </div>
                         </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-medium text-gray-600">Stock</span>
-                          <span className="text-xs font-bold text-blue-600">{stock.stock} units</span>
+                        <div className="flex gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => openRestockModal(item)}
+                            className="h-8 w-8 text-slate-400 hover:text-green-600 hover:bg-green-50"
+                            title="Restock"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => openEditModal(item)}
+                            className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleDelete(item.id)}
+                            className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-medium text-gray-600">Amount</span>
-                          <span className="text-xs font-bold text-green-600">₹{parseFloat(stock.amount).toFixed(2)}</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Available Stock</p>
+                          <p className="text-xl font-black text-slate-900">{item.stock} <span className="text-xs font-normal text-slate-400 ml-1">Units</span></p>
                         </div>
-                        <div className="pt-1.5 border-t border-gray-200">
-                          <span className="text-xs text-gray-500">Date</span>
-                          <p className="text-xs font-medium text-gray-700">{format(new Date(stock.date), 'dd-MM-yyyy')}</p>
+                        <div className="bg-green-50/50 p-3 rounded-xl border border-green-100">
+                          <p className="text-[10px] font-bold text-green-600 uppercase tracking-wider mb-1">Selling Rate</p>
+                          <p className="text-xl font-black text-green-700">₹{parseFloat(item.amount.toString()).toFixed(2)}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex items-center justify-between pt-4 border-t border-slate-50">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase">Purchase Rate:</span>
+                          <span className="text-sm font-bold text-slate-700">₹{item.purchase_rate}</span>
+                        </div>
+                        <div className={`text-[10px] font-bold uppercase py-1 px-2 rounded ${item.stock > 10 ? 'bg-indigo-100 text-indigo-700' : 'bg-red-100 text-red-700 animate-pulse'}`}>
+                          {item.stock > 10 ? 'In Stock' : 'Low Stock'}
                         </div>
                       </div>
                     </CardContent>
                   </Card>
                 ))}
               </div>
-            </div>
-          ) : (
-            <div className="text-center py-12 text-gray-500">
-              <p className="text-sm">Select VLC to view stocks</p>
-            </div>
-          )}
+            ) : (
+              <div className="bg-white rounded-2xl border-2 border-dashed border-slate-200 py-20 flex flex-col items-center justify-center text-center px-4">
+                <div className="bg-slate-50 p-4 rounded-full mb-4">
+                    <Package className="w-12 h-12 text-slate-300" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-800 mb-1">Inventory Empty</h3>
+                <p className="text-slate-500 max-w-[280px]">Select a dairy branch to view its inventory or add your first stock entry.</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Restock Modal */}
+      <Dialog open={isRestockOpen} onOpenChange={setIsRestockOpen}>
+        <DialogContent className="sm:max-w-[425px] bg-white border-none shadow-2xl">
+          <DialogHeader className="bg-white">
+            <DialogTitle className="text-xl font-bold text-slate-900 flex items-center">
+              <Plus className="w-5 h-5 mr-2 text-green-500" />
+              Add Stock - {restockItem?.stock_name}
+            </DialogTitle>
+            <p className="text-slate-500 text-sm">Add new inventory for this item.</p>
+          </DialogHeader>
+          <div className="grid gap-6 py-4 bg-white">
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-slate-700">Quantity (Number of Stocks)</Label>
+              <Input
+                type="number"
+                value={restockQty}
+                onChange={(e) => setRestockQty(e.target.value)}
+                placeholder="0.00"
+                className="bg-slate-50 border-slate-200 h-11"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-slate-700">Purchase Price (Rate)</Label>
+              <div className="relative">
+                <IndianRupee className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                <Input
+                  type="number"
+                  value={restockRate}
+                  onChange={(e) => setRestockRate(e.target.value)}
+                  className="pl-10 bg-slate-50 border-slate-200 h-11"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-slate-700">Purchase Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full pl-3 text-left font-normal h-11 bg-slate-50 border-slate-200",
+                      !restockDate && "text-muted-foreground"
+                    )}
+                  >
+                    {restockDate ? (
+                      format(restockDate, "PPP")
+                    ) : (
+                      <span>Pick a date</span>
+                    )}
+                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 bg-white" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={restockDate}
+                    onSelect={setRestockDate}
+                    disabled={(date) =>
+                      date > new Date() || date < new Date("1900-01-01")
+                    }
+                    initialFocus
+                    className="bg-white"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0 bg-white">
+            <Button 
+                variant="outline" 
+                onClick={() => setIsRestockOpen(false)}
+                className="hover:bg-slate-50"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleRestock} 
+              disabled={loading}
+              className="bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-100"
+            >
+              {loading ? "Adding..." : "Add Stock"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Modal */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px] bg-white border-none shadow-2xl">
+          <DialogHeader className="bg-white">
+            <DialogTitle className="text-xl font-bold text-slate-900">Edit Stock Details</DialogTitle>
+            <p className="text-slate-500 text-sm">Update item name and selling rate.</p>
+          </DialogHeader>
+          <div className="grid gap-6 py-6 bg-white">
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-slate-700">Stock Name</Label>
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="bg-slate-50 border-slate-200 focus:ring-indigo-500 h-11"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-slate-700">Selling Rate</Label>
+              <div className="relative">
+                <IndianRupee className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                <Input
+                  type="number"
+                  value={editAmount}
+                  onChange={(e) => setEditAmount(e.target.value)}
+                  className="pl-10 bg-slate-50 border-slate-200 h-11 font-bold text-indigo-600"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0 bg-white">
+            <Button 
+                variant="outline" 
+                onClick={() => setIsEditDialogOpen(false)}
+                className="hover:bg-slate-50"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleUpdate} 
+              disabled={loading}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-100"
+            >
+              {loading ? "Updating..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Report Modal */}
+      <Dialog open={isReportOpen} onOpenChange={setIsReportOpen}>
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto bg-white border-none shadow-2xl">
+          <DialogHeader className="bg-white">
+            <DialogTitle className="text-2xl font-black text-slate-900 flex items-center">
+                <FileText className="w-6 h-6 mr-2 text-indigo-500" />
+                Inventory & Payment Report
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4 mb-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+            <div className="space-y-2">
+              <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Start Date</Label>
+              <Input 
+                type="date" 
+                value={startDate} 
+                onChange={(e) => setStartDate(e.target.value)}
+                className="bg-white border-slate-200 h-10" 
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">End Date</Label>
+              <Input 
+                type="date" 
+                value={endDate} 
+                onChange={(e) => setEndDate(e.target.value)}
+                className="bg-white border-slate-200 h-10" 
+              />
+            </div>
+          </div>
+
+          <Button 
+            onClick={fetchReport} 
+            disabled={loading || !dairyId} 
+            className="w-full bg-slate-900 hover:bg-slate-800 text-white h-11 mb-6"
+          >
+            {loading ? "Generating..." : "Generate Report"}
+          </Button>
+
+          {reportData ? (
+            <div className="space-y-8 bg-white">
+              <section>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-bold text-slate-800 uppercase tracking-tight text-sm">Feed Stock Summary</h4>
+                  <div className="h-[1px] flex-1 bg-slate-100 mx-4"></div>
+                </div>
+                <div className="border border-slate-100 rounded-xl overflow-hidden shadow-sm">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 border-b border-slate-100 text-slate-500">
+                      <tr>
+                        <th className="px-4 py-3 text-left font-semibold">Item</th>
+                        <th className="px-4 py-3 text-right font-semibold">Stock</th>
+                        <th className="px-4 py-3 text-right font-semibold">Price</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {reportData.cattlefeed_stock?.map((s: any) => (
+                        <tr key={s.id} className="hover:bg-indigo-50/30 transition-colors">
+                          <td className="px-4 py-3 font-medium text-slate-700">{s.stock_name}</td>
+                          <td className="px-4 py-3 text-right font-bold text-slate-600">{s.stock}</td>
+                          <td className="px-4 py-3 text-right font-bold text-green-600">₹{parseFloat(s.amount).toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              <section>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-bold text-slate-800 uppercase tracking-tight text-sm">Farmer Payment Logs</h4>
+                  <div className="h-[1px] flex-1 bg-slate-100 mx-4"></div>
+                </div>
+                {reportData.farmer_payments?.length > 0 ? (
+                    <div className="border border-slate-100 rounded-xl overflow-hidden shadow-sm">
+                        <table className="w-full text-sm">
+                        <thead className="bg-slate-50 border-b border-slate-100 text-slate-500">
+                            <tr>
+                            <th className="px-4 py-3 text-left font-semibold">Farmer</th>
+                            <th className="px-4 py-3 text-right font-semibold">Date</th>
+                            <th className="px-4 py-3 text-right font-semibold">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {reportData.farmer_payments.map((p: any, idx: number) => (
+                            <tr key={idx} className="hover:bg-amber-50/30 transition-colors">
+                                <td className="px-4 py-3 font-medium text-slate-700">{p.farmer_name || 'N/A'}</td>
+                                <td className="px-4 py-3 text-right text-slate-500">{format(new Date(p.date), "dd/MM/yy")}</td>
+                                <td className="px-4 py-3 text-right font-bold text-slate-800">₹{parseFloat(p.amount).toFixed(2)}</td>
+                            </tr>
+                            ))}
+                        </tbody>
+                        </table>
+                    </div>
+                ) : (
+                  <div className="py-10 text-center bg-slate-50 rounded-xl text-slate-400 font-medium">
+                    No payment logs found for this period.
+                  </div>
+                )}
+              </section>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-20 text-slate-300">
+                <FileText className="w-16 h-16 mb-2 opacity-20" />
+                <p className="font-medium text-sm">Configure dates and generate your report</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

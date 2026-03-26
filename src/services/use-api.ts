@@ -264,6 +264,46 @@ export const useFileUpload = ({ path, options = {} }: HookProps) => {
   return { isLoading, error, uploadFile };
 };
 
+export const useDeleteApi = <T>({ path, options = {} }: HookProps) => {
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const { isToaster = true } = options;
+  const [data, setData] = useState<ResponseDataModel<T> | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const deleteData = useCallback(
+    async (newPath?: string) => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const response = await AxiosClient.delete(newPath || path);
+        if (response && response?.data) {
+          setData(response?.data);
+          if (response?.data?.message && isToaster) {
+            toast.success(response?.data?.message, TOASTER_CONFIG);
+          }
+          return response;
+        }
+      } catch (error: any) {
+        handleError(error, setError, isToaster);
+        if (error?.response?.status === 401) {
+          clearLocalStorage();
+          dispatch(resetAuthSlice());
+          navigate(ROUTES.AUTH.LOGIN);
+        }
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [path, isToaster, navigate, dispatch]
+  );
+
+  return { data, isLoading, error, deleteData };
+};
+
 export const deleteReport = async (newPath: string) => {
   try {
     const response = await AxiosClient.delete(newPath);

@@ -1,25 +1,31 @@
 import { api } from "./config";
 
 export interface CattleFeedStockRequest {
-  dairy_id: string;
+  dairy_id: string | number;
   stock_name: string;
   amount: number;
   stock: number;
+  purchase_rate: number;
+  date?: string[];
 }
 
 export interface CattleFeedStockUpdateRequest {
-  stock_name: string;
-  amount: number;
-  stock: number;
+  stock_name?: string;
+  amount?: number;
+  stock?: number;
+  purchase_rate?: number;
+  date?: string[];
 }
 
 export interface CattleFeedStock {
   id: number;
-  dairy_id: string;
+  dairy_id: string | number;
   stock_name: string;
-  amount: string;
+  amount: string | number;
   stock: number;
-  date: string;
+  purchase_rate: number;
+  date: string | string[];
+  created_at?: string;
 }
 
 export interface CattleFeedStockResponse {
@@ -33,32 +39,37 @@ export interface CattleFeedStockGetResponse {
   data: CattleFeedStock[];
 }
 
+export interface CattleFeedStockReportResponse {
+  success: boolean;
+  data: {
+    cattlefeed_stock: CattleFeedStock[];
+    farmer_payments: any[];
+  };
+}
+
 export const cattleFeedApi = {
   createStock: async (data: CattleFeedStockRequest) => {
-    console.log('📤 CREATE:', data);
     const res = await api.post("/web/cattlefeed-stock/create", data);
-    console.log('✅ CREATE Response:', res.data);
     return res.data;
   },
 
   updateStock: async (id: number, data: CattleFeedStockUpdateRequest) => {
-    console.log('📤 UPDATE:', { id, data });
     const res = await api.put(`/web/cattlefeed-stock/update/${id}`, data);
-    console.log('✅ UPDATE Response:', res.data);
     return res.data;
   },
 
-  getStock: async (dairyId: string) => {
-    console.log('📤 GET:', dairyId);
+  getStock: async (dairyId: string | number) => {
     const res = await api.get(`/web/cattlefeed-stock/get?dairy_id=${dairyId}`);
-    console.log('✅ GET Response:', res.data);
     return res.data;
   },
 
-  getStockSummary: async (dairyId: string) => {
-    console.log('📤 STOCK SUMMARY GET:', dairyId);
-    const res = await api.get(`/web/cattlefeed-stock/get?dairy_id=${dairyId}`);
-    console.log('✅ STOCK SUMMARY GET Response:', res.data);
+  deleteStock: async (id: number) => {
+    const res = await api.delete(`/web/cattlefeed-stock/delete/${id}`);
+    return res.data;
+  },
+
+  getStockReport: async (dairyId: string | number, startDate: string, endDate: string) => {
+    const res = await api.get(`/web/cattlefeed-stock/report?dairy_id=${dairyId}&start_date=${startDate}&end_date=${endDate}`);
     return res.data;
   },
 };

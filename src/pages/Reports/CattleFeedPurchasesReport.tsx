@@ -96,22 +96,38 @@ const CattleFeedPurchasesReport = () => {
         ? (response as StockRecord[])
         : [];
 
-      const filtered = stockData
-        .filter((item) => {
-          const d = normalizeDate(item.date || "");
-          return d >= startDate && d <= endDate;
-        })
-        .sort((a, b) => normalizeDate(a.date).localeCompare(normalizeDate(b.date)));
+      const transformed: PurchaseRow[] = [];
+      
+      stockData.forEach((item) => {
+        let dates: { purchase_date?: string; date?: string; remark?: string; qty?: number; purchase_rate?: number }[] = [];
+        try {
+          const parsed = typeof item.date === 'string' ? JSON.parse(item.date) : item.date;
+          if (Array.isArray(parsed)) {
+            dates = parsed;
+          }
+        } catch (e) {
+          if (item.date) dates = [{ purchase_date: item.date }];
+        }
 
-      const transformed: PurchaseRow[] = filtered.map((item) => ({
-        id: item.id,
-        date: normalizeDate(item.date),
-        feedType: item.stock_name?.trim() || "—",
-        qty: Number(item.stock || 0),
-        perchesesRate: Number(item.purchase_rate || 0),
-        sellingRate: Number(item.amount || 0),
-        remark: item.remark?.trim() || "—",
-      }));
+        dates.forEach((d: any) => {
+          const rawDate = typeof d === 'string' ? d : (d.purchase_date || d.date || "");
+          const normDate = normalizeDate(rawDate);
+          if (normDate >= startDate && normDate <= endDate) {
+            transformed.push({
+              id: item.id,
+              date: normDate,
+              feedType: item.stock_name?.trim() || "—",
+              qty: Number(d.qty || item.stock || 0),
+              perchesesRate: Number(d.purchase_rate || item.purchase_rate || 0),
+              sellingRate: Number(item.amount || 0),
+              remark: d.remark?.trim() || item.remark?.trim() || "—",
+            });
+          }
+        });
+      });
+
+      // Sort by date then id
+      transformed.sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id);
 
       setRows(transformed);
       if (transformed.length === 0) {
@@ -156,7 +172,9 @@ const CattleFeedPurchasesReport = () => {
       ],
       body: [
         ...rows.map((row) => [
-          format(new Date(row.date), "dd-MM-yy"),
+          row.date && !isNaN(new Date(row.date).getTime())
+            ? format(new Date(row.date), "dd-MM-yy")
+            : "—",
           row.feedType,
           row.qty > 0 ? row.qty.toString() : "—",
           row.perchesesRate > 0 ? row.perchesesRate.toFixed(2) : "—",
@@ -289,7 +307,9 @@ const CattleFeedPurchasesReport = () => {
                   {rows.map((row) => (
                     <tr key={row.id} className="hover:bg-gray-50">
                       <td className="border border-gray-300 p-2 text-center">
-                        {format(new Date(row.date), "dd-MM-yy")}
+                        {row.date && !isNaN(new Date(row.date).getTime())
+                          ? format(new Date(row.date), "dd-MM-yy")
+                          : "—"}
                       </td>
                       <td className="border border-gray-300 p-2 text-center">{row.feedType}</td>
                       <td className="border border-gray-300 p-2 text-center">{row.qty || "—"}</td>

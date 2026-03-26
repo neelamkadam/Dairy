@@ -225,7 +225,9 @@ const CattleFeedFarmerWiseReport = () => {
       startY: 35,
       head: [["Date", "Farmer Code", "Farmer Name", "Feed Type", "Qty (Bag)", "Rate", "Amount"]],
       body: rows.map((row) => [
-        format(new Date(row.date.includes('T') ? row.date.split('T')[0] : row.date), "dd-MM-yy"),
+        row.date && !isNaN(new Date(row.date.includes('T') ? row.date.split('T')[0] : row.date).getTime())
+          ? format(new Date(row.date.includes('T') ? row.date.split('T')[0] : row.date), "dd-MM-yy")
+          : "—",
         row.farmerCode,
         row.farmerName,
         row.feedType,
@@ -339,7 +341,11 @@ const CattleFeedFarmerWiseReport = () => {
                 <tbody>
                   {rows.map((row) => (
                     <tr key={row.id} className="hover:bg-gray-50">
-                      <td className="border border-gray-300 p-2 text-center">{format(new Date(row.date.includes('T') ? row.date.split('T')[0] : row.date), "dd-MM-yy")}</td>
+                      <td className="border border-gray-300 p-2 text-center">
+                        {row.date && !isNaN(new Date(row.date.includes('T') ? row.date.split('T')[0] : row.date).getTime())
+                          ? format(new Date(row.date.includes('T') ? row.date.split('T')[0] : row.date), "dd-MM-yy")
+                          : "—"}
+                      </td>
                       <td className="border border-gray-300 p-2 text-center">{row.farmerCode}</td>
                       <td className="border border-gray-300 p-2 text-center">{row.farmerName}</td>
                       <td className="border border-gray-300 p-2 text-center">{row.feedType}</td>

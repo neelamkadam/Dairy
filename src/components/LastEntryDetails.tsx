@@ -1,6 +1,8 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTranslation } from "react-i18next";
+import { Edit, Trash2 } from "lucide-react";
+import { Button } from "./ui/button";
 
 interface Entry {
   id: number;
@@ -17,9 +19,11 @@ interface Entry {
 
 interface LastEntryDetailsProps {
   entries?: Entry[];
+  onEdit?: (entry: Entry) => void;
+  onDelete?: (id: number) => void;
 }
 
-const LastEntryDetails = ({ entries = [] }: LastEntryDetailsProps) => {
+const LastEntryDetails = ({ entries = [], onEdit, onDelete }: LastEntryDetailsProps) => {
   const { t } = useTranslation();
 
   return (
@@ -35,9 +39,29 @@ const LastEntryDetails = ({ entries = [] }: LastEntryDetailsProps) => {
             {entries.map((entry) => (
               <div key={entry.id} className="border-b pb-4 last:border-b-0">
                 <div className="space-y-2">
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">{t('vlc_id')}:</span>
-                    <span className="text-sm font-medium text-gray-800">{entry.vlc_id}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-gray-800">{entry.vlc_id}</span>
+                      <div className="flex gap-1 ml-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          onClick={() => onEdit?.(entry)}
+                        >
+                          <Edit className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => onDelete?.(entry.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">{t('vlc_name')}:</span>

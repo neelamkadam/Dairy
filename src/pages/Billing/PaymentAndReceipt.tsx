@@ -66,6 +66,7 @@ const PaymentAndReceipt: React.FC = () => {
   const [cattleFeedStocks, setCattleFeedStocks] = useState<CattleFeedStock[]>([]);
   const [selectedStock, setSelectedStock] = useState<CattleFeedStock | null>(null);
   const [stockQuantity, setStockQuantity] = useState("");
+  const [stockRate, setStockRate] = useState("");
   const [farmerPreviousBalance, setFarmerPreviousBalance] = useState<{
     advance: number;
     cattleFeed: number;
@@ -298,7 +299,7 @@ const PaymentAndReceipt: React.FC = () => {
         
         await cattleFeedApi.updateStock(selectedStock.id, {
           stock_name: selectedStock.stock_name,
-          amount: parseFloat(selectedStock.amount),
+          amount: parseFloat(stockRate || selectedStock.amount.toString()),
           stock: remainingStock
         });
 
@@ -334,6 +335,7 @@ const PaymentAndReceipt: React.FC = () => {
       setFarmerIdInput("");
       setSelectedStock(null);
       setStockQuantity("");
+      setStockRate("");
       setFarmerPreviousBalance(null);
       setFormData({
         ...formData,
@@ -530,6 +532,7 @@ const PaymentAndReceipt: React.FC = () => {
                     setFormData({ ...formData, paymentType: value });
                     setSelectedStock(null);
                     setStockQuantity("");
+                    setStockRate("");
                   }}
                 >
                   <SelectTrigger className="w-full">
@@ -556,6 +559,7 @@ const PaymentAndReceipt: React.FC = () => {
                         const stock = cattleFeedStocks.find(s => s.id.toString() === value);
                         setSelectedStock(stock || null);
                         setStockQuantity("");
+                        setStockRate(stock ? parseFloat(stock.amount.toString()).toFixed(2) : "");
                         setFormData({ ...formData, amountTaken: "", receivedAmount: "" });
                       }}
                     >
@@ -574,6 +578,29 @@ const PaymentAndReceipt: React.FC = () => {
 
                   <div>
                     <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                      Rate (₹/unit)
+                    </Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">₹</span>
+                      <Input
+                        type="number"
+                        placeholder="0.00"
+                        className="pl-8 border-amber-300 focus:ring-amber-400"
+                        value={stockRate}
+                        onChange={(e) => {
+                          const rate = e.target.value;
+                          setStockRate(rate);
+                          if (stockQuantity && rate) {
+                            const amount = (parseFloat(stockQuantity) * parseFloat(rate)).toFixed(2);
+                            setFormData({ ...formData, amountTaken: amount, receivedAmount: "" });
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700 mb-2 block">
                       Quantity
                     </Label>
                     <Input
@@ -583,8 +610,8 @@ const PaymentAndReceipt: React.FC = () => {
                       onChange={(e) => {
                         const qty = e.target.value;
                         setStockQuantity(qty);
-                        if (selectedStock && qty) {
-                          const amount = (parseFloat(qty) * parseFloat(selectedStock.amount)).toFixed(2);
+                        if (stockRate && qty) {
+                          const amount = (parseFloat(qty) * parseFloat(stockRate)).toFixed(2);
                           setFormData({ ...formData, amountTaken: amount, receivedAmount: "" });
                         }
                       }}

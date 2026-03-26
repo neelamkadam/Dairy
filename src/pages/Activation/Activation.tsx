@@ -4,9 +4,11 @@ import { toast } from 'react-toastify';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { TrialCalendarModal } from './components/TrialCalendarModal';
+import { addDays, isPast, startOfDay } from 'date-fns';
 
 export const Activation: React.FC = () => {
   const [dairies, setDairies] = useState<any[]>([]);
@@ -15,6 +17,8 @@ export const Activation: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [perPage, setPerPage] = useState(25);
   const [loading, setLoading] = useState(false);
+  const [isTrialModalOpen, setIsTrialModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<string>('');
 
   useEffect(() => {
     fetchDairies();
@@ -24,7 +28,25 @@ export const Activation: React.FC = () => {
     try {
       const { data } = await adminApi.getAllUsers();
       if (data.success) {
-        const dairyData = data.data.dairyManagers || [];
+        let dairyData = data.data.dairyManagers || [];
+        
+        // Fetch trial details for all users in bulk
+        const usernames = dairyData.map((d: any) => d.username).filter(Boolean);
+        if (usernames.length > 0) {
+          try {
+            const { data: trialData } = await adminApi.getTrialDetails({ usernames });
+            if (trialData.success && trialData.data) {
+              const trialMap = new Map(trialData.data.map((t: any) => [t.username, t]));
+              dairyData = dairyData.map((d: any) => ({
+                ...d,
+                trial_info: trialMap.get(d.username)
+              }));
+            }
+          } catch (e) {
+            console.error('Error fetching trial data:', e);
+          }
+        }
+        
         setDairies(dairyData);
         setFilteredDairies(dairyData);
       }
@@ -32,6 +54,13 @@ export const Activation: React.FC = () => {
       console.error('Error fetching dairies:', error);
       toast.error('Failed to fetch dairies');
     }
+  };
+
+  const isTrialExpired = (dairy: any) => {
+    if (!dairy.trial_info?.trial_start_date) return false;
+    const expiryDate = addDays(new Date(dairy.trial_info.trial_start_date), dairy.trial_info.trial_days || 0);
+    // Trial is over if the expiry date is before the start of today
+    return isPast(expiryDate);
   };
 
   const handleToggleStatus = async (username: string, currentStatus: number) => {
@@ -118,8 +147,9 @@ export const Activation: React.FC = () => {
                 <TableHead className="font-semibold">Branch Name</TableHead>
                 <TableHead className="font-semibold">Owner Name</TableHead>
                 <TableHead className="font-semibold">Address</TableHead>
+                <TableHead className="font-semibold text-center">Trial Account</TableHead>
                 <TableHead className="font-semibold">Status</TableHead>
-                <TableHead className="font-semibold">Action</TableHead>
+                <TableHead className="font-semibold text-right pr-6">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -129,6 +159,29 @@ export const Activation: React.FC = () => {
                   <TableCell>{dairy.branchname || '-'}</TableCell>
                   <TableCell>{dairy.ownername || '-'}</TableCell>
                   <TableCell>{dairy.address || '-'}</TableCell>
+                  <TableCell className="text-center">
+                    {(() => {
+                      const expired = isTrialExpired(dairy);
+                      return (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => {
+                            setSelectedUser(dairy.username);
+                            setIsTrialModalOpen(true);
+                          }}
+                          className={`inline-flex items-center gap-2 ${
+                            expired 
+                              ? "text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700" 
+                              : "text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                          }`}
+                        >
+                          <CalendarIcon className="h-4 w-4" />
+                          {expired ? 'Trial Over' : 'Set Trial'}
+                        </Button>
+                      );
+                    })()}
+                  </TableCell>
                   <TableCell>
                     <span className={`px-2 py-1 rounded text-xs font-medium ${
                       dairy.is_active === 1 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
@@ -136,7 +189,7 @@ export const Activation: React.FC = () => {
                       {dairy.is_active === 1 ? 'Active' : 'Inactive'}
                     </span>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-right pr-6">
                     <Switch
                       checked={dairy.is_active === 1}
                       onCheckedChange={() => handleToggleStatus(dairy.username, dairy.is_active)}
@@ -176,6 +229,11 @@ export const Activation: React.FC = () => {
           </div>
         </div>
       </div>
+      <TrialCalendarModal 
+        isOpen={isTrialModalOpen}
+        onClose={() => setIsTrialModalOpen(false)}
+        username={selectedUser}
+      />
     </div>
   );
 }

@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils";
 import LastEntryDetails from "@/components/LastEntryDetails";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect, useRef } from "react";
-import { usePostApi } from "@/services/use-api";
+import { usePostApi, usePutApi, useDeleteApi } from "@/services/use-api";
 import { toast } from "react-toastify";
 import { useAppSelector } from "@/redux/store";
 import { rateChartApi } from "@/services/rateChartApi";
@@ -54,18 +54,25 @@ interface FormData {
 const VLCCollectionEntry = () => {
   const { t } = useTranslation();
   const { postData, isLoading } = usePostApi({
-    path: "/web/collection/vlc-entry"
+    path: "/api/web/collection/vlc-entry"
   });
   const { postData: fetchEntries } = usePostApi({
-    path: "/web/collection/vlc-entries"
+    path: "/api/web/collection/vlc-entries"
   });
   const { postData: bulkPostData, isLoading: isBulkLoading } = usePostApi({
-    path: "/web/collection/bulk-vlc-entries"
+    path: "/api/web/collection/bulk-vlc-entries"
+  });
+  const { putData, isLoading: isUpdating } = usePutApi({
+    path: "/api/web/collection/vlc-entry"
+  });
+  const { deleteData } = useDeleteApi({
+    path: "/api/web/collection/vlc-entry"
   });
   const { branches } = useAppSelector((state) => state.branch);
   const [lastEntries, setLastEntries] = useState([]);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const getDefaultShift = () => {
@@ -143,7 +150,7 @@ const VLCCollectionEntry = () => {
           parseFloat(formData.snf),
           selectedBranch.branch_id,
           formData.rateChartName,
-          formData.milkType,
+          formData.type === 'Buffalo' ? 'Buffalo' : 'Cow',
           format(formData.date, 'yyyy-MM-dd')
         );
 
@@ -169,7 +176,7 @@ const VLCCollectionEntry = () => {
 
     const timer = setTimeout(fetchRate, 300);
     return () => clearTimeout(timer);
-  }, [formData.fat, formData.snf, formData.weight, formData.userId, formData.date, formData.milkType, formData.rateChartName, branches]);
+  }, [formData.fat, formData.snf, formData.weight, formData.userId, formData.date, formData.type, formData.rateChartName, branches]);
 
   const fetchLastEntries = async () => {
     if (!branches?.length || !formData.date || !formData.shift) return;
@@ -361,11 +368,14 @@ const VLCCollectionEntry = () => {
 
       console.log('📤 Submitting VLC entry:', payload);
 
-      const response = await postData(payload);
+      const response = editingId 
+        ? await putData(payload, `/api/web/collection/vlc-entry/${editingId}`)
+        : await postData(payload);
       
       if (response?.data?.success) {
-        toast.success("VLC entry created successfully");
+        toast.success(editingId ? "VLC entry updated successfully" : "VLC entry created successfully");
         // Reset form
+        setEditingId(null);
         setFormData({
           date: new Date(),
           shift: getDefaultShift(),
@@ -384,7 +394,42 @@ const VLCCollectionEntry = () => {
         fetchLastEntries();
       }
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to create VLC entry");
+      toast.error(error?.response?.data?.message || `Failed to ${editingId ? 'update' : 'create'} VLC entry`);
+    }
+  };
+
+  const handleEdit = (entry: any) => {
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    setEditingId(entry.id);
+    setFormData({
+      date: new Date(entry.date),
+      shift: entry.shift.toLowerCase(),
+      userId: entry.vlc_id,
+      vlcName: entry.vlc_name,
+      milkType: entry.type === 'Buffalo' ? 'Buffalo' : 'Cow',
+      rateChartName: 'Rate Chart 1',
+      weight: entry.weight.toString(),
+      fat: entry.fat.toString(),
+      snf: entry.snf.toString(),
+      clr: entry.clr.toString(),
+      rate: entry.rate ? entry.rate.toString() : "",
+      amount: Number(entry.amount || (entry.weight * entry.rate) || 0),
+      type: (entry.type as 'Cow' | 'Buffalo' | 'Both') || 'Both'
+    });
+  };
+
+  const handleDelete = async (id: number) => {
+    if (window.confirm("Are you sure you want to delete this entry?")) {
+      try {
+        const response = await deleteData(`/api/web/collection/vlc-entry/${id}`);
+        if (response?.data?.success) {
+          fetchLastEntries();
+        }
+      } catch (error) {
+        console.error("Failed to delete entry:", error);
+      }
     }
   };
 
@@ -631,7 +676,7 @@ const VLCCollectionEntry = () => {
                 type="number"
                 step="0.01"
                 placeholder="0.00"
-                value={formData.amount.toFixed(2)}
+                value={Number(formData.amount || 0).toFixed(2)}
                 readOnly
                 className="bg-gray-100 border-gray-200 text-gray-700 font-semibold"
               />
@@ -639,13 +684,39 @@ const VLCCollectionEntry = () => {
           </div>
 
           {/* Submit Button */}
-          <div className="flex justify-center pt-4">
+          <div className="flex justify-center gap-4 pt-4">
+            {editingId && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setEditingId(null);
+                  setFormData({
+                    date: new Date(),
+                    shift: getDefaultShift(),
+                    userId: "",
+                    vlcName: "",
+                    milkType: 'Cow',
+                    rateChartName: 'Rate Chart 1',
+                    weight: "",
+                    fat: "",
+                    snf: "",
+                    clr: "",
+                    rate: "",
+                    amount: 0,
+                    type: 'Both',
+                  });
+                }}
+                className="w-full sm:w-auto border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </Button>
+            )}
             <Button
               onClick={handleSubmit}
-              disabled={isLoading}
+              disabled={isLoading || isUpdating}
               className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 text-sm font-medium transition-colors disabled:opacity-50"
             >
-              {isLoading ? t('submitting') : t('submit_entry')}
+              {isLoading || isUpdating ? t('submitting') : editingId ? "Update Entry" : t('submit_entry')}
             </Button>
           </div>
         </CardContent>
@@ -653,7 +724,11 @@ const VLCCollectionEntry = () => {
       </div>
       
       <div className="w-full lg:w-[35%]">
-        <LastEntryDetails entries={getFilteredEntries()} />
+        <LastEntryDetails 
+          entries={getFilteredEntries()} 
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
       </div>
 
       <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>

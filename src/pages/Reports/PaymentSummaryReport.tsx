@@ -8,6 +8,8 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import PdfLoader from "@/components/PdfLoader";
 import * as XLSX from "xlsx";
+import { userApi } from "@/services/reportsApi";
+import { normalizeFarmerId } from "@/utils/farmerIdUtils";
 import { bankSummaryApi } from "@/services/bankSummaryApi";
 import { bonusApi } from "@/services/bonusApi";
 
@@ -92,6 +94,7 @@ const PaymentSummaryReport = () => {
   };
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [farmerNamesMap, setFarmerNamesMap] = useState<Map<string, string>>(new Map());
   const [data, setData] = useState<PaymentSummaryData | null>(null);
   const [bonusData, setBonusData] = useState<Map<string, any>>(new Map());
   const [selectedBranch, setSelectedBranch] = useState<number | null>(null);
@@ -148,6 +151,22 @@ const PaymentSummaryReport = () => {
         });
         setBonusData(bonusByFarmer);
         console.log('Bonus data loaded:', bonusByFarmer);
+        
+        // Fetch original farmer names to fix the KrutiDev encoding issue
+        try {
+          const farmersResponse = await userApi.getFarmers(selectedBranch.toString());
+          if (farmersResponse?.success && Array.isArray(farmersResponse.data)) {
+            const nameMap = new Map<string, string>();
+            farmersResponse.data.forEach((f: any) => {
+              const normalized = normalizeFarmerId(f.username || f.farmer_id || "");
+              nameMap.set(normalized, f.fullName || f.name || "");
+            });
+            setFarmerNamesMap(nameMap);
+            console.log('✨ [NAME FIX] Farmer names map built:', nameMap.size);
+          }
+        } catch (nameError) {
+          console.error('Error fetching farmer names for sync:', nameError);
+        }
       } catch (bonusError) {
         console.error('Error fetching bonus data:', bonusError);
         setBonusData(new Map()); // Reset on error
@@ -179,12 +198,16 @@ const PaymentSummaryReport = () => {
     data.data.forEach(dateData => {
       dateData.farmers.forEach(farmer => {
         const farmerId = farmer.farmer_id;
+        const normalized = normalizeFarmerId(farmerId);
+        
+        // Use the fetched original name if available, otherwise fallback to API name
+        const displayName = farmerNamesMap.get(normalized) || farmer.farmer_name || "";
         
         if (!farmerMap.has(farmerId)) {
           farmerMap.set(farmerId, {
             farmer_id: farmerId,
             farmer_username: farmer.farmer_username,
-            farmer_name: farmer.farmer_name,
+            farmer_name: displayName,
             milk_total: 0,
             quantity: 0,
             previous_balance: 0,
@@ -196,48 +219,70 @@ const PaymentSummaryReport = () => {
             total_deduction: 0,
             advance_from_bills: 0,
             cattlefeed_from_bills: 0,
+            other1_from_bills: 0,
+            other2_from_bills: 0,
             bonusAmount: 0,
             fixedAmount: 0,
             bonusRate: 0,
             net_payable: 0,
-            remaining_balance: 0
+            remaining_balance: 0,
+            _billProcessed: false // Flag to ensure we only count bill data once
           });
         }
         
         const aggregated = farmerMap.get(farmerId);
-        aggregated.milk_total += farmer.milk_total || 0;
-        aggregated.quantity += farmer.quantity || 0;
+        
+        // Refresh name from map if possible (to catch the best name)
+        if (displayName) {
+          aggregated.farmer_name = displayName;
+        }
+
+        aggregated.milk_total = parseFloat((aggregated.milk_total + (farmer.milk_total || 0)).toFixed(2));
+        aggregated.quantity = parseFloat((aggregated.quantity + (farmer.quantity || 0)).toFixed(2));
+        
+        // Logs are daily, so we MUST sum them
         aggregated.advance += farmer.deductions.advance || 0;
         aggregated.cattle_feed += farmer.deductions.cattle_feed || 0;
         aggregated.other1 += farmer.deductions.other1 || 0;
         aggregated.other2 += farmer.deductions.other2 || 0;
-        aggregated.received += farmer.from_bills?.received_total || 0;
         
-        // Track the actual bill amounts for breakdown display
-        aggregated.advance_from_bills += farmer.from_bills?.advance_total || 0;
-        aggregated.cattlefeed_from_bills += farmer.from_bills?.cattlefeed_total || 0;
-        
-        const totalDeduction = (farmer.from_bills?.advance_total || 0) + 
-                              (farmer.from_bills?.cattlefeed_total || 0) + 
-                              (farmer.from_bills?.other1_total || 0) + 
-                              (farmer.from_bills?.other2_total || 0);
-        aggregated.total_deduction += totalDeduction;
-        
-        const totalRemaining = (farmer.from_bills?.advance_remaining || 0) + 
-                              (farmer.from_bills?.cattlefeed_remaining || 0) + 
-                              (farmer.from_bills?.other1_remaining || 0) + 
-                              (farmer.from_bills?.other2_remaining || 0);
-        aggregated.remaining_balance += totalRemaining;
-        
-        if (farmer.previous_bill) {
-          const prevRemaining = (farmer.previous_bill.advance_remaining || 0) + 
-                               (farmer.previous_bill.cattlefeed_remaining || 0) + 
-                               (farmer.previous_bill.other1_remaining || 0) + 
-                               (farmer.previous_bill.other2_remaining || 0);
-          aggregated.previous_balance = prevRemaining;
+        // Bills and Previous balances are period-totals, so we ONLY count them once
+        if (!aggregated._billProcessed && farmer.from_bills) {
+          aggregated.received = farmer.from_bills.received_total || 0;
+          aggregated.advance_from_bills = farmer.from_bills.advance_total || 0;
+          aggregated.cattlefeed_from_bills = farmer.from_bills.cattlefeed_total || 0;
+          aggregated.other1_from_bills = farmer.from_bills.other1_total || 0;
+          aggregated.other2_from_bills = farmer.from_bills.other2_total || 0;
+          
+          aggregated.total_deduction = parseFloat((
+            (farmer.from_bills.advance_total || 0) + 
+            (farmer.from_bills.cattlefeed_total || 0) + 
+            (farmer.from_bills.other1_total || 0) + 
+            (farmer.from_bills.other2_total || 0)
+          ).toFixed(2));
+          
+          aggregated.remaining_balance = parseFloat((
+            (farmer.from_bills.advance_remaining || 0) + 
+            (farmer.from_bills.cattlefeed_remaining || 0) + 
+            (farmer.from_bills.other1_remaining || 0) + 
+            (farmer.from_bills.other2_remaining || 0)
+          ).toFixed(2));
+          
+          aggregated._billProcessed = true;
+        }
+
+        // Set previous balance from the first entry that has it (should be consistent)
+        if (aggregated.previous_balance === 0 && farmer.previous_bill) {
+          aggregated.previous_balance = parseFloat((
+            (farmer.previous_bill.advance_remaining || 0) + 
+            (farmer.previous_bill.cattlefeed_remaining || 0) + 
+            (farmer.previous_bill.other1_remaining || 0) + 
+            (farmer.previous_bill.other2_remaining || 0)
+          ).toFixed(2));
         }
       });
     });
+
     
     // Apply bonus/fixed deductions to farmers
     const processedData = Array.from(farmerMap.values());
@@ -413,14 +458,25 @@ const PaymentSummaryReport = () => {
   const formatDeduction = (farmer: any) => {
     const advance = farmer.advance_from_bills || 0;
     const cattleFeed = farmer.cattlefeed_from_bills || 0;
+    const other1 = farmer.other1_from_bills || 0;
+    const other2 = farmer.other2_from_bills || 0;
     const total = farmer.total_deduction || 0;
     
     if (total === 0) return '0';
-    if (advance > 0 && cattleFeed > 0) {
-      return `${advance.toFixed(2)} + ${cattleFeed.toFixed(2)} = ${total.toFixed(2)}`;
+    
+    const parts = [];
+    if (advance > 0) parts.push(advance.toFixed(2));
+    if (cattleFeed > 0) parts.push(cattleFeed.toFixed(2));
+    if (other1 > 0) parts.push(other1.toFixed(2));
+    if (other2 > 0) parts.push(other2.toFixed(2));
+
+    if (parts.length > 1) {
+      return `${parts.join(' + ')} = ${total.toFixed(2)}`;
     }
+    
     return total.toFixed(2);
   };
+
 
   const exportToPDF = () => {
     if (!data) return;
@@ -682,7 +738,7 @@ const PaymentSummaryReport = () => {
                         farmers.map((farmer) => (
                           <tr key={farmer.farmer_id} className="border-b hover:bg-gray-50">
                             <td className="px-2 py-2 text-xs">{farmer.farmer_username}</td>
-                            <td className="px-2 py-2 text-xs">{farmer.farmer_name}</td>
+                            <td className="px-2 py-2 text-xs" style={{ fontFamily: "'Noto Sans Devanagari', 'Roboto', sans-serif" }}>{farmer.farmer_name}</td>
                             <td className="px-2 py-2 text-right text-xs">{farmer.quantity.toFixed(2)}</td>
                             <td className="px-2 py-2 text-right text-xs">₹{farmer.milk_total.toFixed(2)}</td>
                             <td className="px-2 py-2 text-right text-xs">₹{farmer.previous_balance.toFixed(2)}</td>
