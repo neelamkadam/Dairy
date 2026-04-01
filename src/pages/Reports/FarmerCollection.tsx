@@ -8,6 +8,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -30,7 +32,8 @@ import { api } from "@/services/config";
 const FarmerCollection = () => {
   const { t } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
-  const [vlcName, setVlcName] = useState("");
+  const [selectedVLCs, setSelectedVLCs] = useState<string[]>([]);
+  const [vlcSearch, setVlcSearch] = useState("");
   const [milkType, setMilkType] = useState("All");
   const [isFromCalendarOpen, setIsFromCalendarOpen] = useState(false);
   const [isToCalendarOpen, setIsToCalendarOpen] = useState(false);
@@ -74,30 +77,38 @@ const FarmerCollection = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(100);
 
+  const filteredBranches = branches.filter(b => 
+    b.name.toLowerCase().includes(vlcSearch.toLowerCase()) || 
+    b.username.toLowerCase().includes(vlcSearch.toLowerCase())
+  );
+
   const handleSubmit = async () => {
-    if (!vlcName || !fromDate || !toDate) {
+    if (selectedVLCs.length === 0 || !fromDate || !toDate) {
       toast.error("Please fill all required fields");
       return;
     }
 
     setLoading(true);
     try {
-      const { data } = await api.get("/webreports/collections", {
-        params: {
-          dairy_id: vlcName,
-          milk_type: milkType,
-          shift: shift,
-          from: format(fromDate, "yyyy-MM-dd"),
-          to: format(toDate, "yyyy-MM-dd"),
-        },
-      });
+      const promises = selectedVLCs.map(vlcId => 
+        api.get("/webreports/collections", {
+          params: {
+            dairy_id: vlcId,
+            milk_type: milkType,
+            shift: shift,
+            from: format(fromDate, "yyyy-MM-dd"),
+            to: format(toDate, "yyyy-MM-dd"),
+          },
+        })
+      );
 
-      if (data.success) {
-        setCollectionData(data.data || []);
-        setSummary(data.summary || null);
-        setCurrentPage(1);
-        toast.success(data.message || "Data fetched successfully");
-      }
+      const results = await Promise.all(promises);
+      const allCollections = results.flatMap(res => res.data.success ? (res.data.data || []) : []);
+      
+      setCollectionData(allCollections);
+      setSummary(results[0]?.data.summary || null);
+      setCurrentPage(1);
+      toast.success("Data fetched successfully");
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to fetch data");
       setCollectionData([]);
@@ -112,9 +123,10 @@ const FarmerCollection = () => {
       toast.error("No data to export");
       return;
     }
-    const selectedBranch = branches?.find(b => b.branch_id.toString() === vlcName);
-    const branchName = selectedBranch ? selectedBranch.name : "";
-    const dairyName = selectedBranch ? selectedBranch.username : "";
+    const firstBranchId = selectedVLCs[0];
+    const selectedBranch = branches?.find(b => b.branch_id.toString() === firstBranchId);
+    const branchName = selectedVLCs.length > 1 ? "Multiple Centers" : (selectedBranch ? selectedBranch.name : "");
+    const dairyName = selectedVLCs.length > 1 ? "Combined Report" : (selectedBranch ? selectedBranch.username : "");
     const fromDateStr = format(fromDate, "dd-MM-yyyy");
     const toDateStr = format(toDate, "dd-MM-yyyy");
     generateFarmerCollectionPDF(collectionData, branchName, dairyName, fromDateStr, toDateStr, shift, milkType);
@@ -126,12 +138,65 @@ const FarmerCollection = () => {
       toast.error("No data to export");
       return;
     }
-    const selectedBranch = branches?.find(b => b.branch_id.toString() === vlcName);
-    const branchName = selectedBranch ? selectedBranch.name : "";
+    const firstBranchId = selectedVLCs[0];
+    const selectedBranch = branches?.find(b => b.branch_id.toString() === firstBranchId);
+    const branchName = selectedVLCs.length > 1 ? "Multiple Centers" : (selectedBranch ? selectedBranch.name : "");
     const fromDateStr = format(fromDate, "dd-MM-yyyy");
     const toDateStr = format(toDate, "dd-MM-yyyy");
     generateFarmerCollectionExcel(collectionData, branchName, fromDateStr, toDateStr, shift, milkType);
     toast.success("Excel exported successfully");
+  };
+
+  const exportToText = () => {
+    if (!collectionData || collectionData.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+
+    // Sort data: Date, then Shift, then Farmer ID
+    const sortedData = [...collectionData].sort((a, b) => {
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      if (dateA !== dateB) return dateA - dateB;
+
+      const shiftOrder: { [key: string]: number } = { 'Morning': 1, 'Evening': 2 };
+      const orderA = shiftOrder[a.shift] || 0;
+      const orderB = shiftOrder[b.shift] || 0;
+      if (orderA !== orderB) return orderA - orderB;
+
+      return parseInt(a.farmer_code) - parseInt(b.farmer_code);
+    });
+
+    const lines = sortedData.map(item => {
+      const dateObj = new Date(item.created_at);
+      const day = String(dateObj.getDate()).padStart(2, '0');
+      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+      
+      const shift = item.shift === 'Morning' ? 'M' : 'E';
+      const farmerId = parseInt(item.farmer_code).toString();
+      const milkTypeChar = item.type === 'Buffalo' ? 'B' : (item.type === 'Cow' ? 'C' : item.type?.charAt(0) || '');
+      
+      const qty = parseFloat(item.quantity || '0');
+      const formattedQty = (qty >= 0 ? '+' : '-') + Math.abs(qty).toFixed(2).padStart(6, '0');
+      
+      const fat = parseFloat(item.fat || '0').toFixed(1).padStart(4, '0');
+      const clr = parseFloat(item.clr || '0').toFixed(1).padStart(4, '0');
+      const snfValue = parseFloat(item.snf || '0').toFixed(2);
+
+      return `${day}/${month}, ${shift}, ${farmerId}, ${milkTypeChar}, ${formattedQty}, ${fat}, ${clr}, ${snfValue}`;
+    });
+
+    const content = lines.join('\n');
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Collection_Data_${format(fromDate, "dd-MM-yyyy")}_to_${format(toDate, "dd-MM-yyyy")}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success("Text file exported successfully");
   };
 
 
@@ -150,18 +215,60 @@ const FarmerCollection = () => {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                   <div>
                     <label className="text-sm font-medium">{t('vlc_name')}</label>
-                    <Select value={vlcName} onValueChange={setVlcName}>
-                      <SelectTrigger className="w-full border border-gray-200">
-                        <SelectValue placeholder="Select VLC" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white">
-                        {branches.map((branch) => (
-                          <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
-                            {branch.username} - {branch.name} - {branch.branchName || ''}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full justify-between text-left font-normal border-gray-200 bg-white h-10 shadow-none">
+                          <span className="truncate">
+                            {selectedVLCs.length > 0 
+                              ? `${selectedVLCs.length} VLC(s) selected` 
+                              : "Select VLC Centers"}
+                          </span>
+                          <CalendarIcon className="ml-2 h-4 w-4 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[350px] p-0 bg-white shadow-lg border" align="start">
+                        <div className="p-2 border-b">
+                          <Input 
+                            placeholder="Search VLC..." 
+                            value={vlcSearch}
+                            onChange={(e) => setVlcSearch(e.target.value)}
+                            className="h-9 shadow-none text-sm"
+                          />
+                        </div>
+                        <div className="max-h-[300px] overflow-y-auto p-2">
+                          <div className="flex items-center space-x-2 pb-2 mb-2 border-b px-2">
+                            <Checkbox 
+                              id="select-all-vlc"
+                              checked={selectedVLCs.length === branches.length && branches.length > 0}
+                              onCheckedChange={(checked) => {
+                                if (checked) setSelectedVLCs(branches.map(b => b.branch_id.toString()));
+                                else setSelectedVLCs([]);
+                              }}
+                            />
+                            <label htmlFor="select-all-vlc" className="text-sm font-semibold cursor-pointer">Select All VLCs</label>
+                          </div>
+                          {filteredBranches.length > 0 ? (
+                            filteredBranches.map((branch) => (
+                              <div key={branch.branch_id} className="flex items-center space-x-2 py-1.5 px-2 hover:bg-gray-50 rounded-sm">
+                                <Checkbox 
+                                  id={`vlc-${branch.branch_id}`}
+                                  checked={selectedVLCs.includes(branch.branch_id.toString())}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) setSelectedVLCs([...selectedVLCs, branch.branch_id.toString()]);
+                                    else setSelectedVLCs(selectedVLCs.filter(id => id !== branch.branch_id.toString()));
+                                  }}
+                                />
+                                <label htmlFor={`vlc-${branch.branch_id}`} className="text-sm cursor-pointer truncate">
+                                  {branch.username} - {branch.name}
+                                </label>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="p-4 text-center text-sm text-gray-500">No VLC centers found.</div>
+                          )}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <div>
                     <label className="text-sm font-medium">{t('milk_type')}</label>
@@ -259,7 +366,15 @@ const FarmerCollection = () => {
                 </Button>
               </CardContent>
             </Card>
-            <div className="flex justify-end gap-3 px-4 md:px-0 md:w-[90%] lg:w-[85%] m-auto mt-4">
+            <div className="flex justify-end flex-wrap gap-3 px-4 md:px-0 md:w-[90%] lg:w-[85%] m-auto mt-4">
+              <Button 
+                onClick={exportToText}
+                disabled={!collectionData || collectionData.length === 0}
+                className="bg-green-600 hover:bg-green-700 text-white h-11 flex items-center justify-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Export Text
+              </Button>
               <Button 
                 onClick={handleExportExcel}
                 disabled={!collectionData || collectionData.length === 0}
@@ -272,7 +387,7 @@ const FarmerCollection = () => {
                 onClick={handleExportPDF}
                 disabled={!collectionData || collectionData.length === 0}
                 variant="outline" 
-                className="bg-red-500 text-white h-11 flex items-center justify-center gap-2"
+                className="bg-red-500 text-white h-11 flex items-center justify-center gap-2 border-none"
               >
                 <Download className="h-4 w-4" />
                 {t('pdf_export')}

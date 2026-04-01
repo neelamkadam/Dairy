@@ -8,7 +8,7 @@ import { getSidebarAccess, createOrUpdateSidebarAccess } from "@/services/sideba
 import { adminApi } from "@/services/adminApi";
 import { toast } from "react-toastify";
 import { Input } from "@/components/ui/input";
-import { useAppSelector } from "@/redux/store";
+import { RootState, useAppSelector } from "@/redux/store";
 import { KeyRound, Eye, EyeOff } from "lucide-react";
 
 interface SidebarAccess {
@@ -20,10 +20,12 @@ interface SidebarAccess {
   reports: number;
   settings: number;
   shubham_milk_product: number;
+  payment: number;
+  dyn: number;
 }
 
 const SidebarAccessManagement = () => {
-  const authState = useAppSelector((state) => state.authData);
+  const authState = useAppSelector((state: RootState) => state.authData);
   const loggedInUserId = authState?.userData?.id;
   const userRole = authState?.userRole;
   
@@ -38,6 +40,8 @@ const SidebarAccessManagement = () => {
     reports: 0,
     settings: 0,
     shubham_milk_product: 0,
+    payment: 0,
+    dyn: 0,
   });
   const [loading, setLoading] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -97,6 +101,8 @@ const SidebarAccessManagement = () => {
           reports: response.data.reports || 0,
           settings: response.data.settings || 0,
           shubham_milk_product: response.data.shubham_milk_product || 0,
+          payment: response.data.payment || 0,
+          dyn: response.data.dyn || 0,
         });
       }
     } catch (error) {
@@ -172,6 +178,8 @@ const SidebarAccessManagement = () => {
     { key: "reports", label: "Reports" },
     { key: "settings", label: "Settings" },
     { key: "shubham_milk_product", label: "Shubham Milk Product" },
+    { key: "payment", label: "Payment" },
+    { key: "dyn", label: "Dynamic Milk Cycle" },
   ];
 
   return (

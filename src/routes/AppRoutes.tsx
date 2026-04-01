@@ -56,8 +56,11 @@ import CattleFeedStockSettings from "@/pages/Settings/CattleFeedStock";
 import PasswordManager from "@/pages/Settings/PasswordManager";
 import AdminCreateUser from "@/pages/Settings/AdminCreateUser";
 import ShubhamMilkProduct from "@/pages/ShubhamMilkProduct/ShubhamMilkProduct";
+import DynamicBillCycle from "@/pages/DynamicBillCycle/DynamicBillCycle";
 import Profile from "@/pages/Profile/Profile";
 import AvatarSelector from "@/pages/Profile/AvatarSelector";
+import GroupCattleFeedStock from "@/pages/Payment/GroupCattleFeedStock";
+import FarmerPayment from "@/pages/Payment/FarmerPayment";
 import { createBrowserRouter } from "react-router-dom";
 
 export const AppRoutes = createBrowserRouter([
@@ -248,6 +251,18 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "shubham-milk-product",
         element: <ShubhamMilkProduct />,
+      },
+      {
+        path: "group-cattle-feed-stock",
+        element: <GroupCattleFeedStock />,
+      },
+      {
+        path: "farmer-payment",
+        element: <FarmerPayment />,
+      },
+      {
+        path: "dynamic-bill-cycle",
+        element: <DynamicBillCycle />,
       },
       {
         path: "profile",

@@ -1,7 +1,8 @@
 import { api } from "./config";
 
 export interface CattleFeedStockRequest {
-  dairy_id: string | number;
+  owner_type: "group" | "vlc";
+  owner_id: string | number;
   stock_name: string;
   amount: number;
   stock: number;
@@ -19,7 +20,9 @@ export interface CattleFeedStockUpdateRequest {
 
 export interface CattleFeedStock {
   id: number;
-  dairy_id: string | number;
+  owner_type: "group" | "vlc";
+  owner_id: string | number;
+  dairy_id?: string | number; // Backward compatibility
   stock_name: string;
   amount: string | number;
   stock: number;
@@ -58,8 +61,8 @@ export const cattleFeedApi = {
     return res.data;
   },
 
-  getStock: async (dairyId: string | number) => {
-    const res = await api.get(`/web/cattlefeed-stock/get?dairy_id=${dairyId}`);
+  getStock: async (ownerId: string | number, ownerType: "group" | "vlc") => {
+    const res = await api.get(`/web/cattlefeed-stock/get?owner_type=${ownerType}&owner_id=${ownerId}`);
     return res.data;
   },
 
@@ -68,8 +71,20 @@ export const cattleFeedApi = {
     return res.data;
   },
 
-  getStockReport: async (dairyId: string | number, startDate: string, endDate: string) => {
-    const res = await api.get(`/web/cattlefeed-stock/report?dairy_id=${dairyId}&start_date=${startDate}&end_date=${endDate}`);
+  transferStock: async (data: {
+    from_owner_id: number;
+    to_owner_id: number;
+    stock_name: string;
+    quantity: number;
+    date?: string;
+  }) => {
+    const res = await api.post("/web/cattlefeed-stock/transfer", data);
+    return res.data;
+  },
+
+  getStockReport: async (dairyId: string | number, webUserId: string | number, startDate: string, endDate: string) => {
+    // If web_user_id is passed, the array will include both branch and main inventory
+    const res = await api.get(`/web/cattlefeed-stock/report?dairy_id=${dairyId}&web_user_id=${webUserId}&start_date=${startDate}&end_date=${endDate}`);
     return res.data;
   },
 };

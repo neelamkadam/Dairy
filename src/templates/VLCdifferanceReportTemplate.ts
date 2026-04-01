@@ -24,15 +24,19 @@ export const generateVLCDifferenceReportPDF = (
     [
       { text: "Period", rowSpan: 2, style: "tableHeader", alignment: "center" },
       { text: "Shift", rowSpan: 2, style: "tableHeader", alignment: "center" },
-      { text: "VLC Collection Data", colSpan: 4, style: "tableHeaderBlue", alignment: "center" },
+      { text: "Type", rowSpan: 2, style: "tableHeader", alignment: "center" },
+      { text: "VLC Collection Data", colSpan: 5, style: "tableHeaderBlue", alignment: "center" },
       {},
       {},
       {},
-      { text: "Dairy Entry", colSpan: 4, style: "tableHeaderGreen", alignment: "center" },
+      {},
+      { text: "Dairy Entry", colSpan: 5, style: "tableHeaderGreen", alignment: "center" },
       {},
       {},
       {},
-      { text: "Difference (VLC - Dairy)", colSpan: 4, style: "tableHeaderPurple", alignment: "center" },
+      {},
+      { text: "Difference (VLC - Dairy)", colSpan: 5, style: "tableHeaderPurple", alignment: "center" },
+      {},
       {},
       {},
       {},
@@ -40,29 +44,36 @@ export const generateVLCDifferenceReportPDF = (
     [
       {},
       {},
+      {},
       { text: "Weight", style: "subHeader", alignment: "center" },
       { text: "Fat", style: "subHeader", alignment: "center" },
       { text: "SNF", style: "subHeader", alignment: "center" },
+      { text: "Rate", style: "subHeader", alignment: "center" },
       { text: "Amount", style: "subHeader", alignment: "center" },
       { text: "Weight", style: "subHeader", alignment: "center" },
       { text: "Fat", style: "subHeader", alignment: "center" },
       { text: "SNF", style: "subHeader", alignment: "center" },
+      { text: "Rate", style: "subHeader", alignment: "center" },
       { text: "Amount", style: "subHeader", alignment: "center" },
       { text: "Weight", style: "subHeader", alignment: "center" },
       { text: "Fat", style: "subHeader", alignment: "center" },
       { text: "SNF", style: "subHeader", alignment: "center" },
+      { text: "Rate", style: "subHeader", alignment: "center" },
       { text: "Amount", style: "subHeader", alignment: "center" },
     ],
     ...reportData.map((period) => [
       { text: period.period, alignment: "center" },
       { text: period.shift, alignment: "center" },
+      { text: period.type, alignment: "center" },
       { text: period.vlc.total_weight, alignment: "center" },
       { text: period.vlc.avg_fat, alignment: "center" },
       { text: period.vlc.avg_snf, alignment: "center" },
+      { text: period.vlc.avg_rate || '0.00', alignment: "center" },
       { text: period.vlc.total_amount, alignment: "center", bold: true },
       { text: period.dairy.total_weight, alignment: "center" },
       { text: period.dairy.avg_fat, alignment: "center" },
       { text: period.dairy.avg_snf, alignment: "center" },
+      { text: period.dairy.avg_rate || '0.00', alignment: "center" },
       { text: period.dairy.total_amount, alignment: "center", bold: true },
       {
         text: period.difference.weight,
@@ -83,6 +94,12 @@ export const generateVLCDifferenceReportPDF = (
         color: parseFloat(period.difference.snf) < 0 ? "red" : parseFloat(period.difference.snf) > 0 ? "green" : "black",
       },
       {
+        text: period.difference.rate || '0.00',
+        alignment: "center",
+        bold: true,
+        color: parseFloat(period.difference.rate || '0') < 0 ? "red" : parseFloat(period.difference.rate || '0') > 0 ? "green" : "black",
+      },
+      {
         text: period.difference.amount,
         alignment: "center",
         bold: true,
@@ -93,7 +110,7 @@ export const generateVLCDifferenceReportPDF = (
 
   const docDefinition: any = {
     pageOrientation: "landscape",
-    pageMargins: [40, 60, 40, 60],
+    pageMargins: [20, 40, 20, 40],
     content: [
       {
         columns: [
@@ -118,7 +135,7 @@ export const generateVLCDifferenceReportPDF = (
       {
         table: {
           headerRows: 2,
-          widths: ["auto", "auto", "*", "*", "*", "*", "*", "*", "*", "*", "*", "*", "*", "*"],
+          widths: Array(18).fill("*"),
           body: tableBody,
         },
         layout: {
@@ -131,49 +148,52 @@ export const generateVLCDifferenceReportPDF = (
     ],
     styles: {
       header: {
-        fontSize: 18,
+        fontSize: 14,
         bold: true,
         alignment: "center",
         margin: [0, 0, 0, 10],
       },
       subheader: {
-        fontSize: 11,
+        fontSize: 9,
         alignment: "center",
       },
       branchName: {
-        fontSize: 12,
+        fontSize: 11,
         bold: true,
       },
       userName: {
-        fontSize: 10,
+        fontSize: 9,
       },
       rightInfo: {
-        fontSize: 10,
+        fontSize: 9,
       },
       tableHeader: {
         bold: true,
-        fontSize: 10,
+        fontSize: 8,
         fillColor: "#eeeeee",
       },
       tableHeaderBlue: {
         bold: true,
-        fontSize: 10,
+        fontSize: 8,
         color: "#1e40af",
       },
       tableHeaderGreen: {
         bold: true,
-        fontSize: 10,
+        fontSize: 8,
         color: "#15803d",
       },
       tableHeaderPurple: {
         bold: true,
-        fontSize: 10,
+        fontSize: 8,
         color: "#6b21a8",
       },
       subHeader: {
-        fontSize: 9,
+        fontSize: 7,
         bold: true,
       },
+    },
+    defaultStyle: {
+      fontSize: 7,
     },
   };
 

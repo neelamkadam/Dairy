@@ -782,11 +782,12 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
   const hasBuffalo = templateData.data.some(d => d.type === 'Buffalo');
 
   const startDate = new Date(templateData.fromDate);
-  const tenDates: string[] = [];
-  for (let i = 0; i < 10; i++) {
-    const nextDate = new Date(startDate);
-    nextDate.setDate(startDate.getDate() + i);
-    tenDates.push(nextDate.toLocaleDateString("en-GB"));
+  const endDate = new Date(templateData.toDate);
+  const allDates: string[] = [];
+  let currentDate = new Date(startDate);
+  while (currentDate <= endDate) {
+    allDates.push(currentDate.toLocaleDateString("en-GB"));
+    currentDate.setDate(currentDate.getDate() + 1);
   }
 
   let cowMLtr = 0, cowMAmt = 0, cowELtr = 0, cowEAmt = 0;
@@ -811,7 +812,7 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
         <td style="padding: 6px 8px; text-align: left; border: none; border-bottom: 1px solid black; border-right: 1px solid black;">${labels.cow}</td>
         ${Array(12).fill('<td style="border: none; border-bottom: 1px solid black; border-right: 1px solid black;"></td>').join('')}
       </tr>`;
-      content += tenDates.map(date => {
+      content += allDates.map(date => {
         const day = groupedData.get(date);
         const m = day?.Cow?.morning;
         const e = day?.Cow?.evening;
@@ -857,7 +858,7 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
         <td style="padding: 6px 8px; text-align: left; border: none; border-bottom: 1px solid black; border-right: 1px solid black;">${labels.buffalo}</td>
         ${Array(12).fill('<td style="border: none; border-bottom: 1px solid black; border-right: 1px solid black;"></td>').join('')}
       </tr>`;
-      content += tenDates.map(date => {
+      content += allDates.map(date => {
         const day = groupedData.get(date);
         const m = day?.Buffalo?.morning;
         const e = day?.Buffalo?.evening;
@@ -899,7 +900,7 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
 
     // IF NEITHER EXISTS (Fallback to 10 empty rows)
     if (!hasCow && !hasBuffalo) {
-      content += tenDates.map(date => `
+      content += allDates.map(date => `
         <tr style="height: 22px;">
           <td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px; text-align: center;">${date.substring(0, 5)}</td>
           ${Array(12).fill('<td style="border: none; border-left: 1px solid black; border-right: 1px solid black; padding: 4px;"></td>').join('')}

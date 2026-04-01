@@ -140,6 +140,27 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
       href: ROUTES.SHUBHAM_MILK_PRODUCT,
     });
   }
+  
+  if (true) {
+    items.push({
+      title: "Group Stock",
+      icon: "📦",
+      href: ROUTES.GROUP_CATTLE_FEED_STOCK,
+    });
+    items.push({
+      title: "Farmer Payment",
+      icon: "💳",
+      href: ROUTES.FARMER_PAYMENT,
+    });
+  }
+
+  if (access?.dyn) {
+    items.push({
+      title: "Dynamic Bill Cycle",
+      icon: "📅",
+      href: ROUTES.DYNAMIC_BILL_CYCLE,
+    });
+  }
 
   return items;
 };
