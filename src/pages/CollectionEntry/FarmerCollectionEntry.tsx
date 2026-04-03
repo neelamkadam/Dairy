@@ -410,7 +410,7 @@ const FarmerCollectionEntry = () => {
       }
       
       console.log('🎯 Setting recent collections:', collections.length);
-      setRecentCollections(collections.slice(0, 10));
+      setRecentCollections(collections);
     } catch (error) {
       console.error('❌ Error fetching recent collections:', error);
       setRecentCollections([]);
@@ -773,12 +773,12 @@ const FarmerCollectionEntry = () => {
             <Card className="shadow-sm border-0 shadow-gray-200/50 p-5 bg-white">
               <CardHeader className="p-0 pb-4">
                 <CardTitle className="text-lg font-semibold text-gray-900">
-                  {t('recent_collections')}
+                  {t('recent_collections')} ({recentCollections.length})
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                 {recentCollections.length > 0 ? (
-                  <div className="space-y-0">
+                  <div className="space-y-0 max-h-96 overflow-y-auto">
                     {recentCollections.map((collection, index) => {
                       const milkTypeVal = collection.type || collection.milkType || 'N/A';
                       const qtyVal = parseFloat(collection.quantity?.toString() || collection.qty?.toString() || '0');
