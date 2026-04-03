@@ -68,6 +68,10 @@ const LastEntryDetails = ({ entries = [], onEdit, onDelete }: LastEntryDetailsPr
                     <span className="text-sm font-medium text-gray-800">{entry.vlc_name}</span>
                   </div>
                   <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">{t('shift')}:</span>
+                    <span className="text-sm font-medium text-gray-800">{entry.shift}</span>
+                  </div>
+                  <div className="flex justify-between">
                     <span className="text-sm text-gray-600">{t('weight')}:</span>
                     <span className="text-sm font-medium text-gray-800">{entry.weight} kg</span>
                   </div>

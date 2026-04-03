@@ -77,7 +77,7 @@ const VLCCollectionEntry = () => {
 
   const getDefaultShift = () => {
     const hour = new Date().getHours();
-    return hour >= 16 ? "evening" : "morning";
+    return hour >= 17 ? "evening" : "morning";
   };
 
   const [bulkFormData, setBulkFormData] = useState({
@@ -151,7 +151,8 @@ const VLCCollectionEntry = () => {
           selectedBranch.branch_id,
           formData.rateChartName,
           formData.type === 'Buffalo' ? 'Buffalo' : 'Cow',
-          format(formData.date, 'yyyy-MM-dd')
+          format(formData.date, 'yyyy-MM-dd'),
+          formData.shift.charAt(0).toUpperCase() + formData.shift.slice(1) as 'Morning' | 'Evening'
         );
 
         if (response?.price) {
@@ -176,7 +177,7 @@ const VLCCollectionEntry = () => {
 
     const timer = setTimeout(fetchRate, 300);
     return () => clearTimeout(timer);
-  }, [formData.fat, formData.snf, formData.weight, formData.userId, formData.date, formData.type, formData.rateChartName, branches]);
+  }, [formData.fat, formData.snf, formData.weight, formData.userId, formData.date, formData.type, formData.rateChartName, formData.shift, branches]);
 
   const fetchLastEntries = async () => {
     if (!branches?.length || !formData.date || !formData.shift) return;
@@ -374,11 +375,13 @@ const VLCCollectionEntry = () => {
       
       if (response?.data?.success) {
         toast.success(editingId ? "VLC entry updated successfully" : "VLC entry created successfully");
-        // Reset form
+        // Reset form but keep date and shift
+        const currentDate = formData.date;
+        const currentShift = formData.shift;
         setEditingId(null);
         setFormData({
-          date: new Date(),
-          shift: getDefaultShift(),
+          date: currentDate,
+          shift: currentShift,
           userId: "",
           vlcName: "",
           milkType: 'Cow',
@@ -689,10 +692,12 @@ const VLCCollectionEntry = () => {
               <Button
                 variant="outline"
                 onClick={() => {
+                  const currentDate = formData.date;
+                  const currentShift = formData.shift;
                   setEditingId(null);
                   setFormData({
-                    date: new Date(),
-                    shift: getDefaultShift(),
+                    date: currentDate,
+                    shift: currentShift,
                     userId: "",
                     vlcName: "",
                     milkType: 'Cow',
