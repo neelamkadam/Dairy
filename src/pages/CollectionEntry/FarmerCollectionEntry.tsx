@@ -477,6 +477,8 @@ const FarmerCollectionEntry = () => {
       setClr(parseFloat(existing.clr.toString()).toFixed(1));
       setRate(existing.rate.toString());
       setAmount(amtVal);
+      // Set the milk type to the existing collection's type for editing
+      setMilkType((existing.type || existing.milkType) as 'Cow' | 'Buffalo');
       console.log('✅ Form populated with existing values');
     }
     setShowModal(false);
@@ -500,6 +502,12 @@ const FarmerCollectionEntry = () => {
   };
 
   const handleMilkTypeChange = (type: 'Cow' | 'Buffalo') => {
+    // If we're in editing mode, allow changing milk type freely
+    if (editingId) {
+      setMilkType(type);
+      return;
+    }
+    
     // Check if collection exists for this type
     const hasCollection = existingCollections.some(c => (c.type || c.milkType) === type);
     
