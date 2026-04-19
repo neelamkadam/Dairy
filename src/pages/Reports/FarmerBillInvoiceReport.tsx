@@ -69,7 +69,7 @@ interface FarmerPayment {
 }
 
 const FarmerBillInvoiceReport = () => {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const branches = useAppSelector((state) => (state as any).branch.branches);
   const userId = useAppSelector((state) => (state as any).authData?.userData?.id);
   const hideRateAmount = userId === '7';
@@ -120,7 +120,7 @@ const FarmerBillInvoiceReport = () => {
 
   const handleShow = async () => {
     if (!selectedVLC || !fromDate || !toDate) {
-      toast.error('Please select VLC Center and date range');
+      toast.error(t('please_select_vlc_center_and_date_range'));
       return;
     }
 
@@ -197,7 +197,7 @@ const FarmerBillInvoiceReport = () => {
       setCurrentPage(0);
     } catch (error: any) {
       console.error('Error fetching data:', error);
-      toast.error(`Failed to fetch data: ${error.response?.data?.message || error.message}`);
+      toast.error(t('failed_to_fetch_data_with_reason', { message: error.response?.data?.message || error.message }));
     } finally {
       setLoading(false);
     }
@@ -357,7 +357,7 @@ const FarmerBillInvoiceReport = () => {
       ]);
 
       if (!response.data.success) {
-        toast.error('Failed to fetch farmer report data');
+        toast.error(t('failed_to_fetch_farmer_report_data'));
         return;
       }
 
@@ -395,7 +395,7 @@ const FarmerBillInvoiceReport = () => {
         : farmerIds.sort((a, b) => parseInt(a) - parseInt(b));
 
       if (filteredFarmerIds.length === 0) {
-        toast.info('No data found for the selected criteria');
+        toast.info(t('no_data_found_for_selected_criteria'));
         return;
       }
 
@@ -501,10 +501,10 @@ const FarmerBillInvoiceReport = () => {
       }
 
       pdf.save(`Farmer_Bill_${fromDate}_to_${toDate}.pdf`);
-      toast.success('PDF downloaded successfully');
+      toast.success(t('pdf_downloaded_successfully'));
     } catch (error) {
       console.error('PDF Generation Error:', error);
-      toast.error('Failed to generate PDF');
+      toast.error(t('failed_to_generate_pdf'));
     } finally {
       setPdfLoading(false);
     }
@@ -512,7 +512,7 @@ const FarmerBillInvoiceReport = () => {
 
   const exportMultiPerPagePDF = async (chunkSize: number) => {
     if (!selectedVLC || !fromDate || !toDate) {
-      toast.error('Please select VLC Center and date range');
+      toast.error(t('please_select_vlc_center_and_date_range'));
       return;
     }
 
@@ -533,7 +533,7 @@ const FarmerBillInvoiceReport = () => {
       ]);
 
       if (!response.data.success) {
-        toast.error('Failed to fetch farmer report data');
+        toast.error(t('failed_to_fetch_farmer_report_data'));
         return;
       }
 
@@ -581,7 +581,7 @@ const FarmerBillInvoiceReport = () => {
       }
 
       if (allData.length === 0) {
-        toast.info('No data found for the selected period');
+        toast.info(t('no_data_found_for_selected_period'));
         return;
       }
 
@@ -634,7 +634,7 @@ const FarmerBillInvoiceReport = () => {
         : enrichedData;
 
       if (filteredData.length === 0) {
-        toast.info('No data found for the selected farmer / criteria');
+        toast.info(t('no_data_found_for_selected_farmer_or_criteria'));
         return;
       }
 
@@ -676,11 +676,11 @@ const FarmerBillInvoiceReport = () => {
       }
 
       pdf.save(`Farmer_Bill_Report_${chunkSize}perPage_${fromDate}_to_${toDate}.pdf`);
-      toast.success('PDF downloaded successfully');
+      toast.success(t('pdf_downloaded_successfully'));
 
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error('Failed to generate PDF');
+      toast.error(t('failed_to_generate_pdf'));
     } finally {
       setPdfLoading(false);
     }
@@ -704,7 +704,7 @@ const FarmerBillInvoiceReport = () => {
       ]);
 
       if (!response.data.success) {
-        toast.error('Failed to fetch farmer report data');
+        toast.error(t('failed_to_fetch_farmer_report_data'));
         return;
       }
 
@@ -738,7 +738,7 @@ const FarmerBillInvoiceReport = () => {
         .filter(f => !farmerCode.trim() || f.farmer_id === farmerCode.padStart(4, '0'));
 
       if (sortedFarmers.length === 0) {
-        toast.info('No data found for the selected farmer / criteria');
+        toast.info(t('no_data_found_for_selected_farmer_or_criteria'));
         return;
       }
 
@@ -807,10 +807,10 @@ const FarmerBillInvoiceReport = () => {
         pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
       }
       pdf.save(`Detailed_Horizontal_Bills_${fromDate}_${toDate}.pdf`);
-      toast.success('Detailed PDF downloaded successfully');
+      toast.success(t('detailed_pdf_downloaded_successfully'));
     } catch (error) {
       console.error('Export error:', error);
-      toast.error('Failed to generate detailed PDF');
+      toast.error(t('failed_to_generate_detailed_pdf'));
     } finally {
       setPdfLoading(false);
     }
@@ -818,7 +818,7 @@ const FarmerBillInvoiceReport = () => {
 
   const handleExport = () => {
     if (exportFormat === '1-per-page' && collectionData.length === 0) {
-      toast.error('Please click "Show" first to load data for the detailed report.');
+      toast.error(t('please_click_show_first_for_detailed_report'));
       return;
     }
     setShowExportModal(false);
@@ -836,23 +836,23 @@ const FarmerBillInvoiceReport = () => {
   return (
     <div className="p-6 space-y-6">
       <PdfLoader isLoading={pdfLoading} />
-      <h1 className="text-2xl font-bold">Farmer Bill Invoice Report</h1>
+      <h1 className="text-2xl font-bold">{t('farmer_bill_invoice_report')}</h1>
 
       <Card>
         <CardContent className="pt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 items-end">
             <div className="lg:col-span-2">
-              <Label>VLC Center</Label>
+              <Label>{t('vlcc_center')}</Label>
               <Select value={selectedVLC} onValueChange={setSelectedVLC}>
                 <SelectTrigger className="bg-white">
-                  <SelectValue placeholder="Select VLC Center">
+                  <SelectValue placeholder={t('select_vlc_center')}>
                     {selectedVLC && (() => {
                       const selected = branches.find(b => b.branch_id.toString() === selectedVLC);
                       if (selected) {
                         const text = `${selected.username} - ${selected.name}`;
                         return text.length > 25 ? text.substring(0, 40) + '...' : text;
                       }
-                      return 'Select VLC Center';
+                      return t('select_vlc_center');
                     })()}
                   </SelectValue>
                 </SelectTrigger>
@@ -867,30 +867,30 @@ const FarmerBillInvoiceReport = () => {
             </div>
 
             <div>
-              <Label>From Date</Label>
+              <Label>{t('from_date')}</Label>
               <Input type="date" value={fromDate} onChange={(e) => handleFromDateChange(e.target.value)} />
             </div>
 
             <div>
-              <Label>To Date</Label>
+              <Label>{t('to_date')}</Label>
               <Input type="date" value={toDate} disabled className="bg-gray-100 cursor-not-allowed" />
             </div>
 
             <div>
-              <Label>Farmer Code (Optional)</Label>
-              <Input placeholder="Enter code" value={farmerCode} onChange={(e) => setFarmerCode(e.target.value)} />
+              <Label>{t('farmer_code_optional')}</Label>
+              <Input placeholder={t('enter_code')} value={farmerCode} onChange={(e) => setFarmerCode(e.target.value)} />
             </div>
 
             <div>
-              <Label>Milk Type</Label>
+              <Label>{t('milk_type')}</Label>
               <Select value={milkTypeFilter} onValueChange={(value: 'All' | 'Cow' | 'Buffalo') => setMilkTypeFilter(value)}>
                 <SelectTrigger className="bg-white">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-white">
-                  <SelectItem value="All">All</SelectItem>
-                  <SelectItem value="Cow">Cow</SelectItem>
-                  <SelectItem value="Buffalo">Buffalo</SelectItem>
+                  <SelectItem value="All">{t('all')}</SelectItem>
+                  <SelectItem value="Cow">{t('cow')}</SelectItem>
+                  <SelectItem value="Buffalo">{t('buffalo')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -898,7 +898,7 @@ const FarmerBillInvoiceReport = () => {
           
           <div className="flex gap-2 mt-4">
             <Button className='bg-blue-600 text-white' onClick={handleShow} disabled={loading}>
-              {loading ? 'Loading...' : 'Show'}
+              {loading ? t('loading') : t('show')}
             </Button>
             <Button 
               className='bg-red-600 text-white' 
@@ -906,7 +906,7 @@ const FarmerBillInvoiceReport = () => {
               disabled={!selectedVLC || pdfLoading} 
               variant="outline"
             >
-              Export PDF
+              {t('export_pdf')}
             </Button>
           </div>
         </CardContent>
@@ -915,7 +915,7 @@ const FarmerBillInvoiceReport = () => {
       {collectionData.length === 0 && fromDate && toDate && (
         <Card>
           <CardContent className="pt-6">
-            <p className="text-center text-gray-500">No collection data found for the selected period.</p>
+            <p className="text-center text-gray-500">{t('no_collection_data_found_for_selected_period')}</p>
           </CardContent>
         </Card>
       )}
@@ -940,13 +940,71 @@ const FarmerBillInvoiceReport = () => {
         
         const bill = searchBills.find((b: any) => b.farmer_id === farmerId);
         const payments = farmerPayments.filter(p => p.farmer_id === farmerId);
-        const farmerTotal = farmerData.reduce((sum, item) => sum + parseFloat(item.amount), 0);
-        const farmerLiters = farmerData.reduce((sum, item) => sum + parseFloat(item.liters), 0);
+
+        type ShiftAgg = {
+          liters: number;
+          amount: number;
+          fatWeighted: number;
+          snfWeighted: number;
+          rateWeighted: number;
+        };
+
+        type DateRow = {
+          morning: ShiftAgg;
+          evening: ShiftAgg;
+        };
+
+        const emptyShift = (): ShiftAgg => ({
+          liters: 0,
+          amount: 0,
+          fatWeighted: 0,
+          snfWeighted: 0,
+          rateWeighted: 0,
+        });
+
+        const typeDateMap = new Map<string, Map<string, DateRow>>();
+
+        farmerData.forEach((item) => {
+          const typeKey = item.type || 'Cow';
+          const dateKey = formatDate(item.date);
+          const shiftKey = (item.shift || '').toLowerCase().startsWith('e') ? 'evening' : 'morning';
+          const liters = parseFloat(item.liters || '0') || 0;
+          const amount = parseFloat(item.amount || '0') || 0;
+          const fat = parseFloat(item.fat || '0') || 0;
+          const snf = parseFloat(item.snf || '0') || 0;
+          const rate = parseFloat(item.rate || '0') || 0;
+
+          if (!typeDateMap.has(typeKey)) {
+            typeDateMap.set(typeKey, new Map<string, DateRow>());
+          }
+
+          const dateMap = typeDateMap.get(typeKey)!;
+          if (!dateMap.has(dateKey)) {
+            dateMap.set(dateKey, { morning: emptyShift(), evening: emptyShift() });
+          }
+
+          const dateRow = dateMap.get(dateKey)!;
+          const slot = dateRow[shiftKey as 'morning' | 'evening'];
+          slot.liters += liters;
+          slot.amount += amount;
+          slot.fatWeighted += fat * liters;
+          slot.snfWeighted += snf * liters;
+          slot.rateWeighted += rate * liters;
+        });
+
+        const orderedTypes = ['Cow', 'Buffalo'].filter((t) => typeDateMap.has(t));
+        const extraTypes = Array.from(typeDateMap.keys()).filter((t) => !orderedTypes.includes(t));
+        const displayTypes = [...orderedTypes, ...extraTypes];
+
+        const formatAvg = (weighted: number, liters: number, digits = 1) => {
+          if (!liters) return '-';
+          return (weighted / liters).toFixed(digits);
+        };
 
         return (
           <>
             <div className="flex justify-between items-center">
-              <p className="text-sm text-gray-600">Farmer {currentPage + 1} of {totalPages}</p>
+              <p className="text-sm text-gray-600">{t('farmer_page_status', { current: currentPage + 1, total: totalPages })}</p>
               <div className="flex gap-2">
                 <Button 
                   onClick={() => setCurrentPage(p => Math.max(0, p - 1))} 
@@ -954,7 +1012,7 @@ const FarmerBillInvoiceReport = () => {
                   variant="outline"
                   size="sm"
                 >
-                  Previous
+                  {t('previous')}
                 </Button>
                 <Button 
                   onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))} 
@@ -962,7 +1020,7 @@ const FarmerBillInvoiceReport = () => {
                   variant="outline"
                   size="sm"
                 >
-                  Next
+                  {t('next')}
                 </Button>
               </div>
             </div>
@@ -970,50 +1028,108 @@ const FarmerBillInvoiceReport = () => {
             <div className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Farmer: {farmerId} - {farmerData[0].farmer_name}</CardTitle>
+                <CardTitle>{t('farmer_with_id_name', { id: farmerId, name: farmerData[0].farmer_name })}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse">
                     <thead>
                       <tr className="bg-gray-100">
-                        <th className="border p-2">Date</th>
-                        <th className="border p-2">Shift</th>
-                        <th className="border p-2">Type</th>
-                        <th className="border p-2">Liters</th>
-                        <th className="border p-2">FAT%</th>
-                        <th className="border p-2">SNF%</th>
-                        <th className="border p-2">CLR</th>
-                        <th className="border p-2">Water</th>
-                        {!hideRateAmount && <th className="border p-2">Rate</th>}
-                        {!hideRateAmount && <th className="border p-2">Amount</th>}
+                        <th className="border p-2" rowSpan={2}>{t('date')}</th>
+                        <th className="border p-2" colSpan={hideRateAmount ? 3 : 5}>{t('morning')}</th>
+                        <th className="border p-2 border-l-2 border-black" colSpan={hideRateAmount ? 3 : 5}>{t('evening')}</th>
+                        <th className="border p-2" colSpan={hideRateAmount ? 1 : 2}>{t('total')}</th>
+                      </tr>
+                      <tr className="bg-gray-100">
+                        <th className="border p-2 border-l-2 border-black">{t('liter')}</th>
+                        <th className="border p-2">{t('fat')}</th>
+                        <th className="border p-2">{t('snf')}</th>
+                        {!hideRateAmount && <th className="border p-2">{t('rate')}</th>}
+                        {!hideRateAmount && <th className="border p-2">{t('amount')}</th>}
+                        <th className="border p-2">{t('liter')}</th>
+                        <th className="border p-2">{t('fat')}</th>
+                        <th className="border p-2">{t('snf')}</th>
+                        {!hideRateAmount && <th className="border p-2">{t('rate')}</th>}
+                        {!hideRateAmount && <th className="border p-2">{t('amount')}</th>}
+                        <th className="border p-2">{t('liter')}</th>
+                        {!hideRateAmount && <th className="border p-2">{t('amount')}</th>}
                       </tr>
                     </thead>
                     <tbody>
-                      {farmerData.map((item, idx) => (
-                        <tr key={idx} className="hover:bg-gray-50">
-                          <td className="border p-2">{formatDate(item.date)}</td>
-                          <td className="border p-2">{item.shift}</td>
-                          <td className="border p-2">{item.type}</td>
-                          <td className="border p-2 text-right">{parseFloat(item.liters).toFixed(2)}</td>
-                          <td className="border p-2 text-right">{parseFloat(item.fat).toFixed(1)}</td>
-                          <td className="border p-2 text-right">{parseFloat(item.snf).toFixed(1)}</td>
-                          <td className="border p-2 text-right">{parseFloat(item.clr).toFixed(1)}</td>
-                          <td className="border p-2 text-right">{item.water ? parseFloat(item.water).toFixed(1) : '-'}</td>
-                          {!hideRateAmount && <td className="border p-2 text-right">{parseFloat(item.rate).toFixed(2)}</td>}
-                          {!hideRateAmount && <td className="border p-2 text-right">{parseFloat(item.amount).toFixed(2)}</td>}
-                        </tr>
-                      ))}
-                      <tr className="bg-blue-50 font-bold">
-                        <td colSpan={3} className="border p-2 text-right">Total</td>
-                        <td className="border p-2 text-right">{farmerLiters.toFixed(2)}</td>
-                        <td className="border p-2"></td>
-                        <td className="border p-2"></td>
-                        <td className="border p-2"></td>
-                        <td className="border p-2"></td>
-                        {!hideRateAmount && <td className="border p-2"></td>}
-                        {!hideRateAmount && <td className="border p-2 text-right">{farmerTotal.toFixed(2)}</td>}
-                      </tr>
+                      {displayTypes.map((type) => {
+                        const dateMap = typeDateMap.get(type)!;
+                        const dateRows = Array.from(dateMap.entries()).sort((a, b) => {
+                          const [d1, m1, y1] = a[0].split('-').map(Number);
+                          const [d2, m2, y2] = b[0].split('-').map(Number);
+                          return new Date(y1, m1 - 1, d1).getTime() - new Date(y2, m2 - 1, d2).getTime();
+                        });
+
+                        const typeTotals = dateRows.reduce(
+                          (acc, [, row]) => {
+                            acc.morningLiters += row.morning.liters;
+                            acc.morningAmount += row.morning.amount;
+                            acc.eveningLiters += row.evening.liters;
+                            acc.eveningAmount += row.evening.amount;
+                            acc.totalLiters += row.morning.liters + row.evening.liters;
+                            acc.totalAmount += row.morning.amount + row.evening.amount;
+                            return acc;
+                          },
+                          {
+                            morningLiters: 0,
+                            morningAmount: 0,
+                            eveningLiters: 0,
+                            eveningAmount: 0,
+                            totalLiters: 0,
+                            totalAmount: 0,
+                          }
+                        );
+
+                        return (
+                          <>
+                            <tr key={`${type}-header`} className="bg-gray-50 font-semibold">
+                              <td className="border p-2" colSpan={hideRateAmount ? 8 : 13}>
+                                {type}
+                              </td>
+                            </tr>
+                            {dateRows.map(([dateKey, row]) => {
+                              const totalLiters = row.morning.liters + row.evening.liters;
+                              const totalAmount = row.morning.amount + row.evening.amount;
+                              return (
+                                <tr key={`${type}-${dateKey}`} className="hover:bg-gray-50">
+                                  <td className="border p-2">{dateKey}</td>
+                                  <td className="border p-2 text-right">{row.morning.liters ? row.morning.liters.toFixed(1) : ''}</td>
+                                  <td className="border p-2 text-right">{formatAvg(row.morning.fatWeighted, row.morning.liters)}</td>
+                                  <td className="border p-2 text-right">{formatAvg(row.morning.snfWeighted, row.morning.liters)}</td>
+                                  {!hideRateAmount && <td className="border p-2 text-right">{formatAvg(row.morning.rateWeighted, row.morning.liters, 2)}</td>}
+                                  {!hideRateAmount && <td className="border p-2 text-right">{row.morning.amount ? row.morning.amount.toFixed(2) : ''}</td>}
+                                  <td className="border p-2 border-l-2 border-black text-right">{row.evening.liters ? row.evening.liters.toFixed(1) : ''}</td>
+                                  <td className="border p-2 text-right">{formatAvg(row.evening.fatWeighted, row.evening.liters)}</td>
+                                  <td className="border p-2 text-right">{formatAvg(row.evening.snfWeighted, row.evening.liters)}</td>
+                                  {!hideRateAmount && <td className="border p-2 text-right">{formatAvg(row.evening.rateWeighted, row.evening.liters, 2)}</td>}
+                                  {!hideRateAmount && <td className="border p-2 text-right">{row.evening.amount ? row.evening.amount.toFixed(2) : ''}</td>}
+                                  <td className="border p-2 text-right">{totalLiters ? totalLiters.toFixed(1) : ''}</td>
+                                  {!hideRateAmount && <td className="border p-2 text-right">{totalAmount ? totalAmount.toFixed(2) : ''}</td>}
+                                </tr>
+                              );
+                            })}
+                            <tr key={`${type}-total`} className="bg-blue-50 font-bold">
+                              <td className="border p-2">{t('total_label')}</td>
+                              <td className="border p-2 text-right">{typeTotals.morningLiters.toFixed(1)}</td>
+                              <td className="border p-2"></td>
+                              <td className="border p-2"></td>
+                              {!hideRateAmount && <td className="border p-2"></td>}
+                              {!hideRateAmount && <td className="border p-2 text-right">{typeTotals.morningAmount.toFixed(2)}</td>}
+                              <td className="border p-2 border-l-2 border-black text-right">{typeTotals.eveningLiters.toFixed(1)}</td>
+                              <td className="border p-2"></td>
+                              <td className="border p-2"></td>
+                              {!hideRateAmount && <td className="border p-2"></td>}
+                              {!hideRateAmount && <td className="border p-2 text-right">{typeTotals.eveningAmount.toFixed(2)}</td>}
+                              <td className="border p-2 text-right">{typeTotals.totalLiters.toFixed(1)}</td>
+                              {!hideRateAmount && <td className="border p-2 text-right">{typeTotals.totalAmount.toFixed(2)}</td>}
+                            </tr>
+                          </>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -1023,16 +1139,16 @@ const FarmerBillInvoiceReport = () => {
             {payments.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Payments/Deductions</CardTitle>
+                  <CardTitle>{t('payments_deductions')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="overflow-x-auto">
                     <table className="w-full border-collapse">
                       <thead>
                         <tr className="bg-gray-100">
-                          <th className="border p-2">Date</th>
-                          <th className="border p-2">Type</th>
-                          <th className="border p-2">Amount</th>
+                          <th className="border p-2">{t('date')}</th>
+                          <th className="border p-2">{t('type')}</th>
+                          <th className="border p-2">{t('amount')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1053,28 +1169,28 @@ const FarmerBillInvoiceReport = () => {
             {bill && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Bill Summary</CardTitle>
+                  <CardTitle>{t('bill_summary')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 bg-gray-50 rounded">
-                      <p className="text-sm text-gray-600">Total Milk Amount</p>
+                      <p className="text-sm text-gray-600">{t('total_milk_amount')}</p>
                       <p className="text-xl font-bold">₹{bill.milk_total.toFixed(2)}</p>
                     </div>
                     <div className="p-4 bg-gray-50 rounded">
-                      <p className="text-sm text-gray-600">Advance</p>
+                      <p className="text-sm text-gray-600">{t('advance')}</p>
                       <p className="text-xl font-bold">₹{bill.deductions.advance.toFixed(2)}</p>
                     </div>
                     <div className="p-4 bg-gray-50 rounded">
-                      <p className="text-sm text-gray-600">Cattle Feed</p>
+                      <p className="text-sm text-gray-600">{t('cattle_feed')}</p>
                       <p className="text-xl font-bold">₹{bill.deductions.cattle_feed.toFixed(2)}</p>
                     </div>
                     <div className="p-4 bg-gray-50 rounded">
-                      <p className="text-sm text-gray-600">Other Deductions</p>
+                      <p className="text-sm text-gray-600">{t('other_deductions')}</p>
                       <p className="text-xl font-bold">₹{(bill.deductions.other1 + bill.deductions.other2).toFixed(2)}</p>
                     </div>
                     <div className="p-4 bg-green-50 rounded col-span-2">
-                      <p className="text-sm text-gray-600">Net Payable</p>
+                      <p className="text-sm text-gray-600">{t('net_payable')}</p>
                       <p className="text-2xl font-bold text-green-600">₹{(bill.milk_total - bill.deductions.advance - bill.deductions.cattle_feed - bill.deductions.other1 - bill.deductions.other2).toFixed(2)}</p>
                     </div>
                   </div>
@@ -1089,9 +1205,9 @@ const FarmerBillInvoiceReport = () => {
       <Dialog open={showExportModal} onOpenChange={setShowExportModal}>
         <DialogContent className="sm:max-w-[425px] bg-white">
           <DialogHeader>
-            <DialogTitle>Select Export Format</DialogTitle>
+            <DialogTitle>{t('select_export_format')}</DialogTitle>
             <DialogDescription>
-              Choose how many farmer bills you want to print per A4 sheet.
+              {t('choose_farmer_bills_per_a4')}
             </DialogDescription>
           </DialogHeader>
           <div className="py-2">
@@ -1102,25 +1218,25 @@ const FarmerBillInvoiceReport = () => {
             >
               <div className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExportFormat('1-per-page')}>
                 <RadioGroupItem value="1-per-page" id="1-per-page" />
-                <Label htmlFor="1-per-page" className="flex-1 font-semibold cursor-pointer">1 Farmer per Page (Full Details)</Label>
+                <Label htmlFor="1-per-page" className="flex-1 font-semibold cursor-pointer">{t('export_option_1_per_page')}</Label>
               </div>
               <div className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExportFormat('2-per-page')}>
                 <RadioGroupItem value="2-per-page" id="2-per-page" />
-                <Label htmlFor="2-per-page" className="flex-1 font-semibold cursor-pointer">2 Farmers per Page (Medium)</Label>
+                <Label htmlFor="2-per-page" className="flex-1 font-semibold cursor-pointer">{t('export_option_2_per_page')}</Label>
               </div>
               <div className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExportFormat('3-per-page')}>
                 <RadioGroupItem value="3-per-page" id="3-per-page" />
-                <Label htmlFor="3-per-page" className="flex-1 font-semibold cursor-pointer">3 Farmers per Page (Compact)</Label>
+                <Label htmlFor="3-per-page" className="flex-1 font-semibold cursor-pointer">{t('export_option_3_per_page')}</Label>
               </div>
               <div className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExportFormat('detailed-horizontal' as any)}>
                 <RadioGroupItem value="detailed-horizontal" id="detailed-horizontal" />
-                <Label htmlFor="detailed-horizontal" className="flex-1 font-semibold cursor-pointer">Detailed Horizontal Format (Full Page)</Label>
+                <Label htmlFor="detailed-horizontal" className="flex-1 font-semibold cursor-pointer">{t('export_option_detailed_horizontal')}</Label>
               </div>
             </RadioGroup>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowExportModal(false)}>Cancel</Button>
-            <Button onClick={handleExport} className="bg-blue-600 text-white hover:bg-blue-700">Download PDF</Button>
+            <Button variant="outline" onClick={() => setShowExportModal(false)}>{t('cancel')}</Button>
+            <Button onClick={handleExport} className="bg-blue-600 text-white hover:bg-blue-700">{t('download_pdf')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

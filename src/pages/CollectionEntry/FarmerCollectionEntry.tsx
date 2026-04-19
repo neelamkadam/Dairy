@@ -1,26 +1,20 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { format } from "date-fns";
+import { format, parse, isValid } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Separator } from "@/components/ui/separator";
 import {
   ArrowLeft,
+  CalendarIcon,
   User,
   Save,
   Search,
@@ -67,6 +61,7 @@ const FarmerCollectionEntry = () => {
   const branches = useAppSelector((state) => state.branch.branches);
   const [selectedBranch, setSelectedBranch] = useState<number | null>(null);
   const [date, setDate] = useState<Date>(new Date());
+  const [dateInput, setDateInput] = useState<string>(format(new Date(), "dd-MM-yyyy"));
   const [shift, setShift] = useState<'Morning' | 'Evening'>('Morning');
   const [farmerIdInput, setFarmerIdInput] = useState("");
   const [farmerId, setFarmerId] = useState("");
@@ -87,7 +82,12 @@ const FarmerCollectionEntry = () => {
   const [isMultipleMode, setIsMultipleMode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [recentCollections, setRecentCollections] = useState<Collection[]>([]);
+  const farmerIdInputRef = useRef<HTMLInputElement>(null);
   const quantityRef = useRef<HTMLInputElement>(null);
+  const cowMilkTypeButtonRef = useRef<HTMLButtonElement>(null);
+  const buffaloMilkTypeButtonRef = useRef<HTMLButtonElement>(null);
+  const modalPrimaryActionRef = useRef<HTMLButtonElement>(null);
+  const formContainerRef = useRef<HTMLDivElement>(null);
   const [showWater, setShowWater] = useState(false);
 
   useEffect(() => {
@@ -95,6 +95,14 @@ const FarmerCollectionEntry = () => {
       fetchSettings();
     }
   }, [selectedBranch]);
+
+  useEffect(() => {
+    if (!showModal) return;
+
+    setTimeout(() => {
+      modalPrimaryActionRef.current?.focus();
+    }, 0);
+  }, [showModal]);
 
   const fetchSettings = async () => {
     if (!selectedBranch) return;
@@ -237,13 +245,17 @@ const FarmerCollectionEntry = () => {
             // Cow exists, Buffalo doesn't - proceed with Buffalo
             console.log('➡️ Cow exists, proceeding with Buffalo');
             setMilkType('Buffalo');
-            quantityRef.current?.focus();
+            setTimeout(() => {
+              buffaloMilkTypeButtonRef.current?.focus();
+            }, 0);
             return;
           } else if (hasBuffalo && !hasCow) {
             // Buffalo exists, Cow doesn't - proceed with Cow
             console.log('➡️ Buffalo exists, proceeding with Cow');
             setMilkType('Cow');
-            quantityRef.current?.focus();
+            setTimeout(() => {
+              cowMilkTypeButtonRef.current?.focus();
+            }, 0);
             return;
           } else {
             // Both exist - show modal for the first type
@@ -258,6 +270,14 @@ const FarmerCollectionEntry = () => {
           setShowModal(true);
           return;
         }
+      }
+
+      if (farmer.milkType === 'Both') {
+        toast.info(t('select_milk_type'));
+        setTimeout(() => {
+          cowMilkTypeButtonRef.current?.focus();
+        }, 0);
+        return;
       }
 
       console.log('✅ No existing collections, focusing quantity input');
@@ -355,6 +375,10 @@ const FarmerCollectionEntry = () => {
       if (selectedBranch) {
         await fetchRecentCollections(selectedBranch, dateStr, shift);
       }
+
+      setTimeout(() => {
+        farmerIdInputRef.current?.focus();
+      }, 0);
     } catch (error: any) {
       toast.error(error?.response?.data?.message || t('failed_to_save_collection'));
     } finally {
@@ -427,11 +451,50 @@ const FarmerCollectionEntry = () => {
   const handleDateChange = async (newDate: Date | undefined) => {
     if (newDate) {
       setDate(newDate);
+      setDateInput(format(newDate, 'dd-MM-yyyy'));
       resetForm();
       if (selectedBranch) {
         await fetchRecentCollections(selectedBranch, format(newDate, 'yyyy-MM-dd'), shift);
       }
     }
+  };
+
+  const parseTypedDate = (value: string): Date | null => {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    const ddmmyyyy = parse(trimmed, 'dd-MM-yyyy', new Date());
+    if (isValid(ddmmyyyy) && format(ddmmyyyy, 'dd-MM-yyyy') === trimmed) {
+      return ddmmyyyy;
+    }
+
+    const yyyymmdd = parse(trimmed, 'yyyy-MM-dd', new Date());
+    if (isValid(yyyymmdd) && format(yyyymmdd, 'yyyy-MM-dd') === trimmed) {
+      return yyyymmdd;
+    }
+
+    return null;
+  };
+
+  const formatDateInputWithHyphen = (value: string): string => {
+    const digitsOnly = value.replace(/\D/g, '').slice(0, 8);
+
+    if (digitsOnly.length <= 2) return digitsOnly;
+    if (digitsOnly.length <= 4) {
+      return `${digitsOnly.slice(0, 2)}-${digitsOnly.slice(2)}`;
+    }
+
+    return `${digitsOnly.slice(0, 2)}-${digitsOnly.slice(2, 4)}-${digitsOnly.slice(4)}`;
+  };
+
+  const handleDateInputCommit = async () => {
+    const parsedDate = parseTypedDate(dateInput);
+    if (!parsedDate) {
+      toast.error('Please enter date in DD-MM-YYYY or YYYY-MM-DD format');
+      setDateInput(format(date, 'dd-MM-yyyy'));
+      return;
+    }
+    await handleDateChange(parsedDate);
   };
 
   const handleShiftChange = async (newShift: 'Morning' | 'Evening') => {
@@ -518,7 +581,71 @@ const FarmerCollectionEntry = () => {
     } else {
       // Just change the milk type
       setMilkType(type);
+      quantityRef.current?.focus();
     }
+  };
+
+  const focusNextField = (currentElement: HTMLElement) => {
+    const container = formContainerRef.current;
+    if (!container) return;
+
+    const focusableElements = Array.from(
+      container.querySelectorAll<HTMLElement>(
+        'input, select, textarea, button, [tabindex]:not([tabindex="-1"])'
+      )
+    ).filter((el) => {
+      if (el.hasAttribute('disabled')) return false;
+      if (el.getAttribute('tabindex') === '-1') return false;
+      if (el instanceof HTMLInputElement && el.type === 'hidden') return false;
+      return el.offsetParent !== null;
+    });
+
+    const currentIndex = focusableElements.indexOf(currentElement);
+    if (currentIndex === -1) return;
+
+    for (let i = currentIndex + 1; i < focusableElements.length; i += 1) {
+      const next = focusableElements[i];
+      if (next instanceof HTMLButtonElement && next.type === 'submit') {
+        continue;
+      }
+      next.focus();
+      break;
+    }
+  };
+
+  const handleEnterAsTab = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'Enter') return;
+
+    const target = e.target as HTMLElement;
+    if (!target) return;
+
+    if (target instanceof HTMLTextAreaElement) return;
+    if (target instanceof HTMLButtonElement) return;
+
+    if (target instanceof HTMLInputElement && target.dataset.enterAction === 'farmer-search') {
+      e.preventDefault();
+      void handleFarmerSearch();
+      return;
+    }
+
+    if (target instanceof HTMLInputElement && target.dataset.enterAction === 'submit-entry') {
+      e.preventDefault();
+      void handleSubmit();
+      return;
+    }
+
+    const explicitNextId = target.dataset.enterNext;
+    if (explicitNextId) {
+      const explicitNextElement = document.getElementById(explicitNextId) as HTMLElement | null;
+      if (explicitNextElement) {
+        e.preventDefault();
+        explicitNextElement.focus();
+        return;
+      }
+    }
+
+    e.preventDefault();
+    focusNextField(target);
   };
 
   return (
@@ -535,7 +662,7 @@ const FarmerCollectionEntry = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-left">
           {/* Main Form */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2" ref={formContainerRef} onKeyDownCapture={handleEnterAsTab}>
             <div className="space-y-4 bg-white p-5 rounded-2xl">
               {/* Top Form Fields */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 ">
@@ -543,72 +670,93 @@ const FarmerCollectionEntry = () => {
                   <Label className="text-sm font-medium text-gray-700 block">
                     {t('vlc_name')}
                   </Label>
-                  <Select onValueChange={handleBranchChange}>
-                    <SelectTrigger className="w-full border-gray-200">
-                      <SelectValue placeholder={t('select_vlc')} />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white">
-                      {branches.map((branch) => (
-                        <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
-                          {branch.username} - {branch.name} - {branch.branchName || ''}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <select
+                    value={selectedBranch?.toString() || ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value) {
+                        void handleBranchChange(value);
+                      }
+                    }}
+                    className="w-full h-10 rounded-md border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">{t('select_vlc')}</option>
+                    {branches.map((branch) => (
+                      <option key={branch.branch_id} value={branch.branch_id.toString()}>
+                        {branch.username} - {branch.name} - {branch.branchName || ''}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
                   <Label className="text-sm font-medium text-gray-700">
                     {t('date')}
                   </Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal border-gray-200 hover:bg-gray-100"
-                        )}
-                      >
-                        {format(date, "dd-MM-yyyy")}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 bg-white" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={date}
-                        onSelect={handleDateChange}
-                        initialFocus
-                        className="pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <div className="flex gap-2">
+                    <Input
+                      type="text"
+                      value={dateInput}
+                      data-enter-next="shift-select"
+                      placeholder="DD-MM-YYYY"
+                      onChange={(e) => setDateInput(formatDateInputWithHyphen(e.target.value))}
+                      onBlur={() => {
+                        void handleDateInputCommit();
+                      }}
+                      className="border-gray-200"
+                    />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="border-gray-200 px-3"
+                        >
+                          <CalendarIcon className="h-4 w-4" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 bg-white" align="end">
+                        <Calendar
+                          mode="single"
+                          selected={date}
+                          onSelect={handleDateChange}
+                          initialFocus
+                          className="pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-700">
                     {t('shift')}
                   </Label>
-                  <Select value={shift} onValueChange={handleShiftChange}>
-                    <SelectTrigger className="w-full bg-white border-gray-200">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white">
-                      <SelectItem value="Morning">{t('morning')}</SelectItem>
-                      <SelectItem value="Evening">{t('evening')}</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <select
+                    id="shift-select"
+                    value={shift}
+                    onChange={(e) => {
+                      const newShift = e.target.value as 'Morning' | 'Evening';
+                      void handleShiftChange(newShift);
+                    }}
+                    className="w-full h-10 rounded-md border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="Morning">{t('morning')}</option>
+                    <option value="Evening">{t('evening')}</option>
+                  </select>
                 </div>
               </div>
               {/* Farmer Search */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="md:col-span-2">
+                <div className="md:col-span-1">
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">
                     {t('farmer_id')}
                   </Label>
                   <div className="flex gap-2">
                     <Input
+                      ref={farmerIdInputRef}
                       value={farmerIdInput}
                       onChange={(e) => setFarmerIdInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleFarmerSearch()}
+                      data-enter-action="farmer-search"
                       placeholder={t('enter_farmer_id')}
                       className="border-gray-200"
                     />
@@ -617,14 +765,14 @@ const FarmerCollectionEntry = () => {
                     </Button>
                   </div>
                 </div>
-                <div>
+                <div className="md:col-span-2">
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">
                     {t('farmer_name')}
                   </Label>
                   <Input
                     value={farmerName}
                     readOnly
-                    className="border-gray-200 bg-gray-50"
+                    className="border-gray-200 bg-gray-50 font-semibold"
                   />
                 </div>
               </div>
@@ -643,6 +791,7 @@ const FarmerCollectionEntry = () => {
                       <Button
                         key={type}
                         type="button"
+                        ref={type === 'Cow' ? cowMilkTypeButtonRef : type === 'Buffalo' ? buffaloMilkTypeButtonRef : undefined}
                         onClick={() => handleMilkTypeChange(type)}
                         className={cn(
                           "flex-1 h-10",
@@ -658,7 +807,7 @@ const FarmerCollectionEntry = () => {
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                    {t('quantity')}
+                    {t('liter')}
                   </Label>
                   <Input
                     ref={quantityRef}
@@ -706,6 +855,7 @@ const FarmerCollectionEntry = () => {
                   <Input
                     type="number"
                     step="0.01"
+                    data-enter-action="submit-entry"
                     placeholder="0.0"
                     value={clr}
                     onChange={(e) => {
@@ -867,6 +1017,7 @@ const FarmerCollectionEntry = () => {
                 
                 <div className="grid grid-cols-1 gap-3">
                   <Button 
+                    ref={modalPrimaryActionRef}
                     onClick={handleMultipleCollection} 
                     className="bg-green-500 hover:bg-green-600 text-white h-auto py-3 flex flex-col items-start"
                   >
