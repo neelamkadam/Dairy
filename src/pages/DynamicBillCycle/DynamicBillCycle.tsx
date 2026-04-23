@@ -780,7 +780,7 @@ const DynamicBillCycle = () => {
     try {
       const selectedBranch = branches.find(b => b.branch_id.toString() === vlcId);
       const vlcName = selectedBranch?.name || 'VLC Center';
-      const dairyName = selectedBranch?.username || 'Dairy';
+      const dairyName = selectedBranch?.name || selectedBranch?.username || 'Dairy';
       const fromDate = format(startDate, 'yyyy-MM-dd');
       const toDate = format(endDate, 'yyyy-MM-dd');
 
@@ -971,7 +971,7 @@ const DynamicBillCycle = () => {
     try {
       const selectedBranch = branches.find(b => b.branch_id.toString() === vlcId);
       const vlcName = selectedBranch?.name || 'VLC Center';
-      const dairyName = selectedBranch?.username || 'Dairy';
+      const dairyName = selectedBranch?.name || selectedBranch?.username || 'Dairy';
       const fromDate = format(currentFarmer.periodStart, 'yyyy-MM-dd');
       const toDate = format(currentFarmer.periodEnd, 'yyyy-MM-dd');
 
