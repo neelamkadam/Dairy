@@ -1,11 +1,11 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Calendar, Download, Loader2, FileSpreadsheet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAppSelector } from "@/redux/store";
 import { api } from "@/services/config";
 import { toast } from "react-toastify";
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import html2canvas from "html2canvas";
 import PdfLoader from "@/components/PdfLoader";
 import * as XLSX from "xlsx";
 import { userApi } from "@/services/reportsApi";
@@ -98,6 +98,7 @@ const PaymentSummaryReport = () => {
   const [data, setData] = useState<PaymentSummaryData | null>(null);
   const [bonusData, setBonusData] = useState<Map<string, any>>(new Map());
   const [selectedBranch, setSelectedBranch] = useState<number | null>(null);
+  const pdfExportRef = useRef<HTMLDivElement | null>(null);
   const { branches } = useAppSelector(state => state.branch);
   const authState = useAppSelector((state) => state.authData);
   const userData = authState?.userData;
@@ -341,7 +342,7 @@ const PaymentSummaryReport = () => {
     
     console.log('✅ Final aggregated farmers:', sorted.length, 'farmers processed');
     return sorted;
-  }, [data, bonusData, dateTo]); // useMemo dependencies
+  }, [data, bonusData, dateTo, farmerNamesMap]); // useMemo dependencies
 
   const calculateTotals = useMemo(() => {
     const farmers = getAggregatedFarmers;
@@ -478,73 +479,55 @@ const PaymentSummaryReport = () => {
   };
 
 
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
     if (!data) return;
 
     setPdfLoading(true);
     try {
+      const exportElement = pdfExportRef.current;
+      if (!exportElement) {
+        toast.error('Report content is not ready for PDF export');
+        return;
+      }
+
+      // Wait for web fonts before rasterizing so Marathi glyphs are captured correctly.
+      if (document.fonts?.ready) {
+        await document.fonts.ready;
+      }
+
+      const canvas = await html2canvas(exportElement, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      });
+
       const doc = new jsPDF('l', 'mm', 'a4');
-      const farmers = getAggregatedFarmers;
-      const totals = calculateTotals;
-      const branch = branches.find(b => b.branch_id === selectedBranch);
-      
-      doc.setFontSize(16);
-      doc.text('Payment Summary Report', 148, 15, { align: 'center' });
-      
-      doc.setFontSize(10);
-      doc.text(`Branch: ${branch?.name || 'N/A'}`, 148, 22, { align: 'center' });
-      doc.text(`Period: ${dateFrom} to ${dateTo}`, 148, 28, { align: 'center' });
-      
-      // Define all columns with their data
-      const allColumns = [
-        { header: 'Code', data: (f: any) => f.farmer_username, total: '', align: 'left', width: 12 },
-        { header: 'Name', data: (f: any) => f.farmer_name, total: 'Total', align: 'left', width: 25 },
-        { header: 'Liter', data: (f: any) => f.quantity.toFixed(2), total: totals.totalQuantity.toFixed(2), sum: totals.totalQuantity },
-        { header: 'Milk', data: (f: any) => f.milk_total.toFixed(2), total: totals.totalMilk.toFixed(2), sum: totals.totalMilk },
-        { header: 'Prev Bal', data: (f: any) => f.previous_balance.toFixed(2), total: '', sum: farmers.reduce((s, f) => s + f.previous_balance, 0) },
-        { header: 'Advance', data: (f: any) => f.advance.toFixed(2), total: totals.totalAdvance.toFixed(2), sum: totals.totalAdvance },
-        { header: 'Feed', data: (f: any) => f.cattle_feed.toFixed(2), total: totals.totalFeed.toFixed(2), sum: totals.totalFeed },
-        { header: 'Other1', data: (f: any) => f.other1.toFixed(2), total: totals.totalOther1.toFixed(2), sum: totals.totalOther1 },
-        { header: 'Other2', data: (f: any) => f.other2.toFixed(2), total: totals.totalOther2.toFixed(2), sum: totals.totalOther2 },
-        { header: 'Received', data: (f: any) => f.received.toFixed(2), total: totals.totalReceived.toFixed(2), sum: totals.totalReceived },
-        { header: 'Deduction', data: (f: any) => formatDeduction(f), total: totals.totalDeduction.toFixed(2), sum: totals.totalDeduction },
-        { header: 'Bonus', data: (f: any) => f.bonusAmount.toFixed(2), total: totals.totalBonus.toFixed(2), sum: totals.totalBonus },
-        { header: 'Fixed', data: (f: any) => f.fixedAmount.toFixed(2), total: totals.totalFixed.toFixed(2), sum: totals.totalFixed },
-        { header: 'Net Pay', data: (f: any) => Math.max(0, f.net_payable).toFixed(2), total: Math.max(0, totals.totalNet).toFixed(2), sum: totals.totalNet },
-        { header: 'Remaining', data: (f: any) => f.remaining_balance.toFixed(2), total: totals.totalRemaining.toFixed(2), sum: totals.totalRemaining }
-      ];
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 5;
+      const printableWidth = pageWidth - margin * 2;
+      const printableHeight = pageHeight - margin * 2;
+      const imgHeight = (canvas.height * printableWidth) / canvas.width;
+      const imgData = canvas.toDataURL('image/png');
 
-      // Filter columns where sum > 0
-      const visibleColumns = allColumns.filter(col => col.sum === undefined || col.sum > 0);
-      
-      const headers = visibleColumns.map(col => col.header);
-      const tableData = farmers.map(f => visibleColumns.map(col => col.data(f)));
-      const footerData = visibleColumns.map(col => col.total);
+      let heightLeft = imgHeight;
+      let positionY = margin;
 
-      const columnStyles: any = {};
-      visibleColumns.forEach((col, idx) => {
-        if (col.align || col.width) {
-          columnStyles[idx] = {};
-          if (col.align) columnStyles[idx].halign = col.align;
-          if (col.width) columnStyles[idx].cellWidth = col.width;
-        }
-      });
+      doc.addImage(imgData, 'PNG', margin, positionY, printableWidth, imgHeight);
+      heightLeft -= printableHeight;
 
-      autoTable(doc, {
-        startY: 35,
-        head: [headers],
-        body: tableData,
-        foot: [footerData],
-        theme: 'grid',
-        styles: { fontSize: 6, cellPadding: 1, halign: 'right' },
-        columnStyles,
-        headStyles: { fillColor: [66, 139, 202], fontStyle: 'bold', fontSize: 6, halign: 'center' },
-        footStyles: { fillColor: [255, 255, 0], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 6 },
-        margin: { left: 5, right: 5 }
-      });
+      while (heightLeft > 0) {
+        positionY = margin - (imgHeight - heightLeft);
+        doc.addPage();
+        doc.addImage(imgData, 'PNG', margin, positionY, printableWidth, imgHeight);
+        heightLeft -= printableHeight;
+      }
 
       doc.save(`PaymentSummary_${dateFrom}_${dateTo}.pdf`);
       toast.success('PDF exported successfully');
+    } catch (error) {
+      console.error('PDF export error:', error);
+      toast.error('Failed to export PDF');
     } finally {
       setPdfLoading(false);
     }
@@ -693,6 +676,13 @@ const PaymentSummaryReport = () => {
           );
         })()}
 
+        <div ref={pdfExportRef}>
+          <div className="mb-3 text-center">
+            <h2 className="text-xl font-semibold">Payment Summary Report</h2>
+            <p className="text-sm text-gray-600">
+              Branch: {branches.find(b => b.branch_id === selectedBranch)?.name || 'N/A'} | Period: {dateFrom} to {dateTo}
+            </p>
+          </div>
         <Card>
           <CardHeader>
             <CardTitle>Farmer Payment Details</CardTitle>
@@ -804,6 +794,7 @@ const PaymentSummaryReport = () => {
             )}
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   );

@@ -32,6 +32,7 @@ import {
   Diff,
   History,
   Package,
+  MessageCircle,
 } from "lucide-react";
 import { settingsApi } from "@/services/settingsApi";
 import { passwordApiService } from "@/services/passwordApiService";
@@ -59,6 +60,7 @@ const GeneralSettings = () => {
     return saved ? parseInt(saved) : 0;
   });
   const [multipleModal, setMultipleModal] = useState(0);
+  const [cc, setCc] = useState(0);
 
   // Report visibility settings states
   const [showShiftReport, setShowShiftReport] = useState(0);
@@ -85,6 +87,8 @@ const GeneralSettings = () => {
       const { data } = await settingsApi.get(selectedVlc);
       if (data.success && data.data) {
         const settings = data.data;
+        console.log('Fetched settings:', settings); // Debug log
+        console.log('CC value from API:', settings.cc); // Debug log
         setAddFarmer(settings.add_farmer ?? 0);
         setRateChart(settings.rate_chart ?? 0);
         setDeduction(settings.deduction ?? 0);
@@ -98,6 +102,7 @@ const GeneralSettings = () => {
         setReportLanguage(settings.report_language || "English");
         setShowWater(settings.show_water ?? 0);
         setMultipleModal(settings.multiple_modal ?? 0);
+        setCc(settings.cc ?? 0);
       }
     } catch (error) {
       toast.error("Failed to fetch settings");
@@ -169,6 +174,7 @@ const GeneralSettings = () => {
       return;
     }
     try {
+      console.log('CC value before save:', cc); // Debug log
       const { data } = await settingsApi.update({
         vlc: selectedVlc,
         add_farmer: addFarmer,
@@ -184,6 +190,7 @@ const GeneralSettings = () => {
         report_language: reportLanguage,
         show_water: showWater,
         multiple_modal: multipleModal,
+        cc: cc,
       });
       if (data.success) {
         toast.success("Settings updated successfully");
@@ -203,6 +210,9 @@ const GeneralSettings = () => {
         show_collection_history: showCollectionHistory,
         show_cattle_feed: showCattleFeed,
       });
+
+      // Don't refetch settings automatically to prevent resetting values
+      // fetchSettings(); // Removed this line
 
     } catch (error) {
       toast.error("Failed to update settings");
@@ -472,6 +482,32 @@ const GeneralSettings = () => {
                   <Switch checked={weightTier === 1} onCheckedChange={(checked) => setWeightTier(checked ? 1 : 0)} />
                   <span className="text-xs text-gray-700 font-medium">
                     {weightTier === 1 ? "Active" : "Inactive"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+                <div className="flex items-center gap-3">
+                  <MessageCircle className="h-5 w-5 text-blue-600" />
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-900">
+                      CC
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      Carbon Copy functionality
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch 
+                    checked={cc === 1} 
+                    onCheckedChange={(checked) => {
+                      console.log('CC toggle changed to:', checked ? 1 : 0); // Debug log
+                      setCc(checked ? 1 : 0);
+                    }} 
+                  />
+                  <span className="text-xs text-gray-700 font-medium">
+                    {cc === 1 ? "Active" : "Inactive"}
                   </span>
                 </div>
               </div>
