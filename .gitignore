@@ -30,3 +30,8 @@ node_modules
 
 # Netlify
 .netlify
+
+# Yarn
+yarn.lock
+.yarnrc
+.yarnrc.yml
