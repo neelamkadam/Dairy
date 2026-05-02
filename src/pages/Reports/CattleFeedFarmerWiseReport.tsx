@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { format } from "date-fns";
 import { Download } from "lucide-react";
 import jsPDF from "jspdf";
@@ -69,20 +69,37 @@ const CattleFeedFarmerWiseReport = () => {
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<FarmerWiseRow[]>([]);
 
+  const selectedVlcObj = branches.find((b: any) => b.branch_id.toString() === dairyId);
+
   const calculateDateRange = (dateStr: string) => {
     const [year, month, day] = dateStr.split("-").map(Number);
+    const cycleDays = selectedVlcObj?.days || 10;
+    const lastDayOfMonth = new Date(year, month, 0).getDate();
 
-    let startDay: number;
-    let endDay: number;
-    if (day >= 1 && day <= 10) {
+    let startDay: number, endDay: number;
+    
+    if (cycleDays === 15) {
+      if (day >= 1 && day <= 15) {
+        startDay = 1;
+        endDay = 15;
+      } else {
+        startDay = 16;
+        endDay = lastDayOfMonth;
+      }
+    } else if (cycleDays >= 28) {
       startDay = 1;
-      endDay = 10;
-    } else if (day >= 11 && day <= 20) {
-      startDay = 11;
-      endDay = 20;
+      endDay = lastDayOfMonth;
     } else {
-      startDay = 21;
-      endDay = new Date(year, month, 0).getDate();
+      if (day >= 1 && day <= 10) {
+        startDay = 1;
+        endDay = 10;
+      } else if (day >= 11 && day <= 20) {
+        startDay = 11;
+        endDay = 20;
+      } else {
+        startDay = 21;
+        endDay = lastDayOfMonth;
+      }
     }
 
     return {
@@ -91,9 +108,26 @@ const CattleFeedFarmerWiseReport = () => {
     };
   };
 
-  const todayDates = calculateDateRange(new Date().toISOString().split("T")[0]);
-  const [startDate, setStartDate] = useState<string>(todayDates.from);
-  const [endDate, setEndDate] = useState<string>(todayDates.to);
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+
+  useEffect(() => {
+    if (branches.length > 0 && !dairyId) {
+      setDairyId(branches[0].branch_id.toString());
+      // Initialize dates for the first branch
+      const dates = calculateDateRange(new Date().toISOString().split("T")[0]);
+      setStartDate(dates.from);
+      setEndDate(dates.to);
+    }
+  }, [branches]);
+
+  useEffect(() => {
+    if (dairyId) {
+      const dates = calculateDateRange(startDate || new Date().toISOString().split("T")[0]);
+      setStartDate(dates.from);
+      setEndDate(dates.to);
+    }
+  }, [dairyId, branches]);
 
   const handleStartDateChange = (newDate: string) => {
     const dates = calculateDateRange(newDate);
@@ -219,7 +253,7 @@ const CattleFeedFarmerWiseReport = () => {
     doc.text("Farmer-wise Cattle Feed Report", 14, 15);
     doc.setFontSize(10);
     doc.text(dairyName, 14, 22);
-    doc.text(`Period: ${format(new Date(startDate), "dd-MM-yyyy")} to ${format(new Date(endDate), "dd-MM-yyyy")}`, 14, 28);
+    doc.text(`Period: ${startDate ? format(new Date(startDate), "dd-MM-yyyy") : ""} to ${endDate ? format(new Date(endDate), "dd-MM-yyyy") : ""}`, 14, 28);
 
     autoTable(doc, {
       startY: 35,

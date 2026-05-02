@@ -6,6 +6,7 @@ interface Branch {
   username: string;
   name: string;
   branchName: string;
+  days: number;
 }
 
 export interface BranchState {

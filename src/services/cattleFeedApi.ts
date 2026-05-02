@@ -61,8 +61,13 @@ export const cattleFeedApi = {
     return res.data;
   },
 
-  getStock: async (ownerId: string | number, ownerType: "group" | "vlc") => {
+  getStock: async (ownerId: string | number, ownerType: "group" | "vlc" = "vlc") => {
     const res = await api.get(`/web/cattlefeed-stock/get?owner_type=${ownerType}&owner_id=${ownerId}`);
+    return res.data;
+  },
+
+  getStockSummary: async (ownerId: string | number) => {
+    const res = await api.get(`/web/cattlefeed-stock/get?owner_type=vlc&owner_id=${ownerId}`);
     return res.data;
   },
 

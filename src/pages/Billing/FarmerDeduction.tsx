@@ -39,21 +39,39 @@ const FarmerDeduction = () => {
   const { branches } = useAppSelector((state) => state.branch);
   const [searchTerm, setSearchTerm] = useState("");
   const [vlcName, setVlcName] = useState("");
-  
+  const selectedVlc = branches.find(b => b.branch_id.toString() === vlcName);
+
   const calculateDateRange = (dateStr: string) => {
     const [year, month, day] = dateStr.split('-').map(Number);
+    const cycleDays = selectedVlc?.days || 10;
+    const lastDayOfMonth = new Date(year, month, 0).getDate();
     
     let startDay: number, endDay: number;
-    if (day >= 1 && day <= 10) {
+    
+    if (cycleDays === 15) {
+      if (day >= 1 && day <= 15) {
+        startDay = 1;
+        endDay = 15;
+      } else {
+        startDay = 16;
+        endDay = lastDayOfMonth;
+      }
+    } else if (cycleDays >= 28) {
       startDay = 1;
-      endDay = 10;
-    } else if (day >= 11 && day <= 20) {
-      startDay = 11;
-      endDay = 20;
-    } else if (day >= 21) {
-      startDay = 21;
-      endDay = new Date(year, month, 0).getDate();
-    } else return { from: dateStr, to: dateStr };
+      endDay = lastDayOfMonth;
+    } else {
+      // Default to 10 days logic
+      if (day >= 1 && day <= 10) {
+        startDay = 1;
+        endDay = 10;
+      } else if (day >= 11 && day <= 20) {
+        startDay = 11;
+        endDay = 20;
+      } else {
+        startDay = 21;
+        endDay = lastDayOfMonth;
+      }
+    }
     
     return {
       from: new Date(year, month - 1, startDay),
@@ -61,9 +79,8 @@ const FarmerDeduction = () => {
     };
   };
 
-  const todayDates = calculateDateRange(new Date().toISOString().split('T')[0]);
-  const [startDate, setStartDate] = useState<Date | undefined>(todayDates.from);
-  const [endDate, setEndDate] = useState<Date | undefined>(todayDates.to);
+  const [startDate, setStartDate] = useState<Date | undefined>(new Date());
+  const [endDate, setEndDate] = useState<Date | undefined>(new Date());
   
   const handleStartDateChange = (date: Date | undefined) => {
     if (date) {
@@ -89,6 +106,21 @@ const FarmerDeduction = () => {
   const shouldShowOther2 = () => farmerData.some(f => f.other2Amount > 0 || f.other2Deduction > 0);
   const shouldShowBonus = () => farmerData.some(f => f.bonusAmount > 0 || f.bonusRate > 0);
   const shouldShowFixed = () => farmerData.some(f => f.fixedAmount > 0);
+
+  useEffect(() => {
+    if (branches.length > 0 && !vlcName) {
+      setVlcName(branches[0].branch_id.toString());
+    }
+  }, [branches]);
+
+  useEffect(() => {
+    if (vlcName && startDate) {
+      const dateStr = format(startDate, 'yyyy-MM-dd');
+      const dates = calculateDateRange(dateStr);
+      setStartDate(dates.from);
+      setEndDate(dates.to);
+    }
+  }, [vlcName, branches]);
 
   useEffect(() => {
     if (userData?.id) {

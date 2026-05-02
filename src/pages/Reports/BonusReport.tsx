@@ -37,21 +37,39 @@ import { useTranslation } from "react-i18next";
 const BonusReport = () => {
   const { t } = useTranslation();
   const { branches } = useAppSelector((state: any) => state.branch);
-  
+  const [selectedVLC, setSelectedVLC] = useState<string>("");
+  const selectedVlcObj = branches.find((b: any) => b.branch_id.toString() === selectedVLC);
+
   const calculateDateRange = (dateStr: string) => {
     const [year, month, day] = dateStr.split('-').map(Number);
+    const cycleDays = selectedVlcObj?.days || 10;
+    const lastDayOfMonth = new Date(year, month, 0).getDate();
     
     let startDay: number, endDay: number;
-    if (day >= 1 && day <= 10) {
+    
+    if (cycleDays === 15) {
+      if (day >= 1 && day <= 15) {
+        startDay = 1;
+        endDay = 15;
+      } else {
+        startDay = 16;
+        endDay = lastDayOfMonth;
+      }
+    } else if (cycleDays >= 28) {
       startDay = 1;
-      endDay = 10;
-    } else if (day >= 11 && day <= 20) {
-      startDay = 11;
-      endDay = 20;
-    } else if (day >= 21) {
-      startDay = 21;
-      endDay = new Date(year, month, 0).getDate();
-    } else return { from: dateStr, to: dateStr };
+      endDay = lastDayOfMonth;
+    } else {
+      if (day >= 1 && day <= 10) {
+        startDay = 1;
+        endDay = 10;
+      } else if (day >= 11 && day <= 20) {
+        startDay = 11;
+        endDay = 20;
+      } else {
+        startDay = 21;
+        endDay = lastDayOfMonth;
+      }
+    }
     
     return {
       from: `${year}-${String(month).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`,
@@ -59,10 +77,8 @@ const BonusReport = () => {
     };
   };
 
-  const todayDates = calculateDateRange(new Date().toISOString().split('T')[0]);
-  const [fromDate, setFromDate] = useState<string>(todayDates.from);
-  const [toDate, setToDate] = useState<string>(todayDates.to);
-  const [selectedVLC, setSelectedVLC] = useState<string>("");
+  const [fromDate, setFromDate] = useState<string>("");
+  const [toDate, setToDate] = useState<string>("");
   const [farmerId, setFarmerId] = useState<string>("");
   const [bonusData, setBonusData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -78,10 +94,22 @@ const BonusReport = () => {
   });
 
   useEffect(() => {
-    if (branches.length > 0) {
+    if (branches.length > 0 && !selectedVLC) {
       setSelectedVLC(branches[0].branch_id.toString());
+      // Initialize dates for the first branch
+      const dates = calculateDateRange(new Date().toISOString().split("T")[0]);
+      setFromDate(dates.from);
+      setToDate(dates.to);
     }
   }, [branches]);
+
+  useEffect(() => {
+    if (selectedVLC) {
+      const dates = calculateDateRange(fromDate || new Date().toISOString().split('T')[0]);
+      setFromDate(dates.from);
+      setToDate(dates.to);
+    }
+  }, [selectedVLC, branches]);
 
   const fetchBonusData = async () => {
     if (!selectedVLC) {

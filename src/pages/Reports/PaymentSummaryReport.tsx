@@ -62,20 +62,40 @@ interface PaymentSummaryData {
 }
 
 const PaymentSummaryReport = () => {
+  const { branches } = useAppSelector(state => state.branch);
+  const [selectedBranch, setSelectedBranch] = useState<number | null>(null);
+  const selectedVlc = branches.find(b => b.branch_id === selectedBranch);
+
   const calculateEndDate = (startDate: string) => {
     const [year, month, day] = startDate.split('-').map(Number);
+    const cycleDays = selectedVlc?.days || 10;
+    const lastDayOfMonth = new Date(year, month, 0).getDate();
     
     let startDay: number, endDay: number;
-    if (day >= 1 && day <= 10) {
+    
+    if (cycleDays === 15) {
+      if (day >= 1 && day <= 15) {
+        startDay = 1;
+        endDay = 15;
+      } else {
+        startDay = 16;
+        endDay = lastDayOfMonth;
+      }
+    } else if (cycleDays >= 28) {
       startDay = 1;
-      endDay = 10;
-    } else if (day >= 11 && day <= 20) {
-      startDay = 11;
-      endDay = 20;
-    } else if (day >= 21) {
-      startDay = 21;
-      endDay = new Date(year, month, 0).getDate();
-    } else return { from: startDate, to: startDate };
+      endDay = lastDayOfMonth;
+    } else {
+      if (day >= 1 && day <= 10) {
+        startDay = 1;
+        endDay = 10;
+      } else if (day >= 11 && day <= 20) {
+        startDay = 11;
+        endDay = 20;
+      } else {
+        startDay = 21;
+        endDay = lastDayOfMonth;
+      }
+    }
     
     return {
       from: `${year}-${String(month).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`,
@@ -83,9 +103,8 @@ const PaymentSummaryReport = () => {
     };
   };
 
-  const todayDates = calculateEndDate(new Date().toISOString().split('T')[0]);
-  const [dateFrom, setDateFrom] = useState(todayDates.from);
-  const [dateTo, setDateTo] = useState(todayDates.to);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const handleDateFromChange = (newDate: string) => {
     const dates = calculateEndDate(newDate);
@@ -97,9 +116,7 @@ const PaymentSummaryReport = () => {
   const [farmerNamesMap, setFarmerNamesMap] = useState<Map<string, string>>(new Map());
   const [data, setData] = useState<PaymentSummaryData | null>(null);
   const [bonusData, setBonusData] = useState<Map<string, any>>(new Map());
-  const [selectedBranch, setSelectedBranch] = useState<number | null>(null);
   const pdfExportRef = useRef<HTMLDivElement | null>(null);
-  const { branches } = useAppSelector(state => state.branch);
   const authState = useAppSelector((state) => state.authData);
   const userData = authState?.userData;
 
@@ -108,6 +125,14 @@ const PaymentSummaryReport = () => {
       setSelectedBranch(branches[0].branch_id);
     }
   }, [branches]);
+
+  useEffect(() => {
+    if (selectedBranch) {
+      const dates = calculateEndDate(dateFrom || new Date().toISOString().split('T')[0]);
+      setDateFrom(dates.from);
+      setDateTo(dates.to);
+    }
+  }, [selectedBranch, branches]);
 
   const fetchPaymentSummary = async () => {
     if (!selectedBranch) {

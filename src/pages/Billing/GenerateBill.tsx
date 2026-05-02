@@ -21,21 +21,40 @@ import { useAppSelector } from "@/redux/store";
 
 const GenerateBill = () => {
   const { branches } = useAppSelector((state) => state.branch);
+  const [selectedDairy, setSelectedDairy] = useState<number>(0);
+  const selectedVlc = branches.find(b => b.branch_id === selectedDairy);
   
   const calculateDateRange = (dateStr: string) => {
     const [year, month, day] = dateStr.split('-').map(Number);
+    const cycleDays = selectedVlc?.days || 10;
+    const lastDayOfMonth = new Date(year, month, 0).getDate();
     
     let startDay: number, endDay: number;
-    if (day >= 1 && day <= 10) {
+    
+    if (cycleDays === 15) {
+      if (day >= 1 && day <= 15) {
+        startDay = 1;
+        endDay = 15;
+      } else {
+        startDay = 16;
+        endDay = lastDayOfMonth;
+      }
+    } else if (cycleDays >= 28) { // Handle 30, 31, or month-end cycles
       startDay = 1;
-      endDay = 10;
-    } else if (day >= 11 && day <= 20) {
-      startDay = 11;
-      endDay = 20;
-    } else if (day >= 21) {
-      startDay = 21;
-      endDay = new Date(year, month, 0).getDate();
-    } else return { from: new Date(dateStr), to: new Date(dateStr) };
+      endDay = lastDayOfMonth;
+    } else {
+      // Default to 10 days logic
+      if (day >= 1 && day <= 10) {
+        startDay = 1;
+        endDay = 10;
+      } else if (day >= 11 && day <= 20) {
+        startDay = 11;
+        endDay = 20;
+      } else {
+        startDay = 21;
+        endDay = lastDayOfMonth;
+      }
+    }
     
     return {
       from: new Date(year, month - 1, startDay),
@@ -43,16 +62,14 @@ const GenerateBill = () => {
     };
   };
 
-  const todayDates = calculateDateRange(new Date().toISOString().split('T')[0]);
-  const [startDate, setStartDate] = useState<Date>(todayDates.from);
-  const [endDate, setEndDate] = useState<Date>(todayDates.to);
+  const [startDate, setStartDate] = useState<Date>(new Date());
+  const [endDate, setEndDate] = useState<Date>(new Date());
 
   const handleStartDateChange = (newDate: string) => {
     const dates = calculateDateRange(newDate);
     setStartDate(dates.from);
     setEndDate(dates.to);
   };
-  const [selectedDairy, setSelectedDairy] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [farmersData, setFarmersData] = useState<any[]>([]);
   const [isBillFinalized, setIsBillFinalized] = useState(false);
@@ -73,10 +90,18 @@ const GenerateBill = () => {
   );
 
   useEffect(() => {
-    if (branches.length > 0) {
+    if (branches.length > 0 && selectedDairy === 0) {
       setSelectedDairy(branches[0].branch_id);
     }
   }, [branches]);
+
+  useEffect(() => {
+    if (selectedDairy !== 0) {
+      const dates = calculateDateRange(format(startDate, "yyyy-MM-dd"));
+      setStartDate(dates.from);
+      setEndDate(dates.to);
+    }
+  }, [selectedDairy, branches]); // Added branches to dependency to ensure selectedVlc is available
 
   const fetchBillData = async () => {
     try {
