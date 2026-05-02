@@ -781,9 +781,10 @@ const DynamicBillCycle = () => {
   };
 
   const selectFarmerFromSearch = (farmerId: string) => {
-    const index = filteredFarmers.findIndex(f => f.farmer_id === farmerId);
+    const index = farmersData.findIndex(f => f.farmer_id === farmerId);
     if (index !== -1) {
       setSelectedFarmerIndex(index);
+      setSearchTerm(""); // Clear search term to hide results dropdown
     }
   };
 
@@ -1508,23 +1509,23 @@ const DynamicBillCycle = () => {
                       <h3 className="text-sm font-semibold text-gray-700">Deductions</h3>
                     </div>
                     
-                    {/* Advance Row */}
+                    {/* Kirana Row */}
                     <div className="grid grid-cols-3 gap-4 items-start">
                       <div>
-                        <p className="text-xs font-medium text-gray-700">Advance:</p>
-                        <p className="text-sm font-bold text-gray-800">₹{currentFarmer.advance?.toFixed(2) || "0.00"}</p>
-                        {currentFarmer.advance_remaining > 0 && (
-                          <p className="text-xs text-red-500">Rem: ₹{currentFarmer.advance_remaining?.toFixed(2)}</p>
+                        <p className="text-xs font-medium text-gray-700">Kirana:</p>
+                        <p className="text-sm font-bold text-gray-800">₹{currentFarmer.other1Amount?.toFixed(2) || "0.00"}</p>
+                        {currentFarmer.other1_remaining > 0 && (
+                          <p className="text-xs text-red-500">Rem: ₹{currentFarmer.other1_remaining?.toFixed(2)}</p>
                         )}
                       </div>
                       <Input
                         type="number"
                         placeholder="0.00"
-                        value={currentFarmer.paymentAdvance || ""}
-                        onChange={(e) => handleDeductionChange('paymentAdvance', e.target.value)}
+                        value={currentFarmer.paymentOther1 || ""}
+                        onChange={(e) => handleDeductionChange('paymentOther1', e.target.value)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
-                            handlePaymentSubmit('Advance', currentFarmer.paymentAdvance);
+                            handlePaymentSubmit('Other1', currentFarmer.paymentOther1);
                           }
                         }}
                         className="h-7 text-sm"
@@ -1533,11 +1534,11 @@ const DynamicBillCycle = () => {
                         <Input
                           type="number"
                           placeholder="0.00"
-                          value={currentFarmer.advanceDeduction || ""}
-                          onChange={(e) => handleDeductionChange('advanceDeduction', e.target.value)}
+                          value={currentFarmer.other1Deduction || ""}
+                          onChange={(e) => handleDeductionChange('other1Deduction', e.target.value)}
                           className="h-7 text-sm"
                         />
-                        <p className="text-xs text-green-600">After: ₹{((currentFarmer.advance || 0) - (currentFarmer.advanceDeduction || 0)).toFixed(2)}</p>
+                        <p className="text-xs text-green-600">After: ₹{((currentFarmer.other1Amount || 0) - (currentFarmer.other1Deduction || 0)).toFixed(2)}</p>
                       </div>
                     </div>
 
@@ -1574,23 +1575,23 @@ const DynamicBillCycle = () => {
                       </div>
                     </div>
 
-                    {/* Kirana Row */}
+                    {/* Advance Row */}
                     <div className="grid grid-cols-3 gap-4 items-start">
                       <div>
-                        <p className="text-xs font-medium text-gray-700">Kirana:</p>
-                        <p className="text-sm font-bold text-gray-800">₹{currentFarmer.other1Amount?.toFixed(2) || "0.00"}</p>
-                        {currentFarmer.other1_remaining > 0 && (
-                          <p className="text-xs text-red-500">Rem: ₹{currentFarmer.other1_remaining?.toFixed(2)}</p>
+                        <p className="text-xs font-medium text-gray-700">Advance:</p>
+                        <p className="text-sm font-bold text-gray-800">₹{currentFarmer.advance?.toFixed(2) || "0.00"}</p>
+                        {currentFarmer.advance_remaining > 0 && (
+                          <p className="text-xs text-red-500">Rem: ₹{currentFarmer.advance_remaining?.toFixed(2)}</p>
                         )}
                       </div>
                       <Input
                         type="number"
                         placeholder="0.00"
-                        value={currentFarmer.paymentOther1 || ""}
-                        onChange={(e) => handleDeductionChange('paymentOther1', e.target.value)}
+                        value={currentFarmer.paymentAdvance || ""}
+                        onChange={(e) => handleDeductionChange('paymentAdvance', e.target.value)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
-                            handlePaymentSubmit('Other1', currentFarmer.paymentOther1);
+                            handlePaymentSubmit('Advance', currentFarmer.paymentAdvance);
                           }
                         }}
                         className="h-7 text-sm"
@@ -1599,11 +1600,11 @@ const DynamicBillCycle = () => {
                         <Input
                           type="number"
                           placeholder="0.00"
-                          value={currentFarmer.other1Deduction || ""}
-                          onChange={(e) => handleDeductionChange('other1Deduction', e.target.value)}
+                          value={currentFarmer.advanceDeduction || ""}
+                          onChange={(e) => handleDeductionChange('advanceDeduction', e.target.value)}
                           className="h-7 text-sm"
                         />
-                        <p className="text-xs text-green-600">After: ₹{((currentFarmer.other1Amount || 0) - (currentFarmer.other1Deduction || 0)).toFixed(2)}</p>
+                        <p className="text-xs text-green-600">After: ₹{((currentFarmer.advance || 0) - (currentFarmer.advanceDeduction || 0)).toFixed(2)}</p>
                       </div>
                     </div>
 

@@ -85,4 +85,10 @@ export const paymentApi = {
   createFarmerPaymentLog: (payload: CreateFarmerPaymentLogRequest) =>
     api.post("/farmer-payment-logs", payload),
 
+  updateFarmerPaymentLog: (id: number | string, payload: Partial<CreateFarmerPaymentLogRequest>) =>
+    api.put(`/farmer-payment-logs/${id}`, payload),
+
+  deleteFarmerPaymentLog: (id: number | string) =>
+    api.delete(`/farmer-payment-logs/${id}`),
+
 };

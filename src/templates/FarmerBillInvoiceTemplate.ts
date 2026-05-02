@@ -532,6 +532,12 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
 
   const deductionInfo = [
     {
+      label: labels.other1, // Kirana - always show
+      prev: parseFloat(templateData.previous_bill?.other1_remaining || '0'),
+      payment: getSumOfPayments('other1') + getSumOfPayments('other 1'),
+      deduction: parseFloat(templateData.current_bill?.other1_total || '0')
+    },
+    {
       label: labels.feed,
       prev: parseFloat(templateData.previous_bill?.cattlefeed_remaining || '0'),
       payment: getSumOfPayments('cattle feed'),
@@ -542,12 +548,6 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
       prev: parseFloat(templateData.previous_bill?.advance_remaining || '0'),
       payment: getSumOfPayments('advance'),
       deduction: parseFloat(templateData.current_bill?.advance_total || '0')
-    },
-    {
-      label: labels.other1, // Kirana - always show
-      prev: parseFloat(templateData.previous_bill?.other1_remaining || '0'),
-      payment: getSumOfPayments('other1') + getSumOfPayments('other 1'),
-      deduction: parseFloat(templateData.current_bill?.other1_total || '0')
     }
   ];
 
@@ -1063,12 +1063,12 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
         </td>
       </tr>
       <tr>
-        <td class="bold text-center">${labels.advance}</td>
-        <td class="text-right">${summary.prevAdvance.toFixed(2)}</td>
-        <td class="text-right">${summary.currAdvance.toFixed(2)}</td>
-        <td class="text-right">${(summary.prevAdvance + summary.currAdvance).toFixed(2)}</td>
-        <td class="text-right">${summary.dedAdvance.toFixed(2)}</td>
-        <td class="text-right">${((summary.prevAdvance + summary.currAdvance) - summary.dedAdvance).toFixed(2)}</td>
+        <td class="bold text-center">${labels.other1}</td>
+        <td class="text-right">${(parseFloat(templateData.previous_bill?.other1_remaining || '0')).toFixed(2)}</td>
+        <td class="text-right">${((templateData.payments || []).filter(p => p.payment_type.toLowerCase().includes('other1')).reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0)).toFixed(2)}</td>
+        <td class="text-right">${(parseFloat(templateData.previous_bill?.other1_remaining || '0') + (templateData.payments || []).filter(p => p.payment_type.toLowerCase().includes('other1')).reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0)).toFixed(2)}</td>
+        <td class="text-right">${(parseFloat(templateData.current_bill?.other1_total || '0')).toFixed(2)}</td>
+        <td class="text-right">${(parseFloat(templateData.previous_bill?.other1_remaining || '0') + (templateData.payments || []).filter(p => p.payment_type.toLowerCase().includes('other1')).reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0) - parseFloat(templateData.current_bill?.other1_total || '0')).toFixed(2)}</td>
       </tr>
       <tr>
         <td class="bold text-center">${labels.pashuKhady}</td>
@@ -1079,12 +1079,12 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
         <td class="text-right">${((summary.prevFeed + summary.currFeed) - summary.dedFeed).toFixed(2)}</td>
       </tr>
       <tr>
-        <td class="bold text-center">${labels.other1}</td>
-        <td class="text-right">${(parseFloat(templateData.previous_bill?.other1_remaining || '0')).toFixed(2)}</td>
-        <td class="text-right">${((templateData.payments || []).filter(p => p.payment_type.toLowerCase().includes('other1')).reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0)).toFixed(2)}</td>
-        <td class="text-right">${(parseFloat(templateData.previous_bill?.other1_remaining || '0') + (templateData.payments || []).filter(p => p.payment_type.toLowerCase().includes('other1')).reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0)).toFixed(2)}</td>
-        <td class="text-right">${(parseFloat(templateData.current_bill?.other1_total || '0')).toFixed(2)}</td>
-        <td class="text-right">${(parseFloat(templateData.previous_bill?.other1_remaining || '0') + (templateData.payments || []).filter(p => p.payment_type.toLowerCase().includes('other1')).reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0) - parseFloat(templateData.current_bill?.other1_total || '0')).toFixed(2)}</td>
+        <td class="bold text-center">${labels.advance}</td>
+        <td class="text-right">${summary.prevAdvance.toFixed(2)}</td>
+        <td class="text-right">${summary.currAdvance.toFixed(2)}</td>
+        <td class="text-right">${(summary.prevAdvance + summary.currAdvance).toFixed(2)}</td>
+        <td class="text-right">${summary.dedAdvance.toFixed(2)}</td>
+        <td class="text-right">${((summary.prevAdvance + summary.currAdvance) - summary.dedAdvance).toFixed(2)}</td>
       </tr>
       ${showOther2 ? `
       <tr>
@@ -1235,7 +1235,7 @@ export const generateTemplate3Farmers = (templateData: Template3Data, language: 
             <td style="padding: 6px 2px; width: 15%; border-right: 1px solid black;"><b>${labels.prevRemaining}:</b> ${Number(prevBalance).toFixed(0)}</td>
           <tr style="background: #fdfdfd; border-bottom: 1px solid black; font-size: 11px;">
             <td style="padding: 6px 2px; width: 40%; border-right: 1px solid black;">
-               <b>${labels.deduction}:</b> ${labels.feed}:${Number(currentBill?.cattlefeed_total || 0).toFixed(0)} | ${labels.advance}:${Number(currentBill?.advance_total || 0).toFixed(0)} | ${labels.other1}:${Number(currentBill?.other1_total || 0).toFixed(0)}${showOther2 ? ` | ${labels.other2}:${Number(currentBill?.other2_total || 0).toFixed(0)}` : ''}
+               <b>${labels.deduction}:</b> ${labels.other1}:${Number(currentBill?.other1_total || 0).toFixed(0)} | ${labels.feed}:${Number(currentBill?.cattlefeed_total || 0).toFixed(0)} | ${labels.advance}:${Number(currentBill?.advance_total || 0).toFixed(0)}${showOther2 ? ` | ${labels.other2}:${Number(currentBill?.other2_total || 0).toFixed(0)}` : ''}
             </td>
             <td style="padding: 6px 2px; border-right: 1px solid black;" colspan="2">
               ${(bonusAmount > 0 || fixedAmount > 0 || parseFloat(String(totalBonusTillDate)) > 0) ? `

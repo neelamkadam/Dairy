@@ -14,8 +14,16 @@ import { toast } from "react-toastify";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constatnts/routesConstants";
-import { Search, Package, User, Landmark, Plus, ArrowRightLeft, FileText } from "lucide-react";
+import { Search, Package, User, Landmark, Plus, ArrowRightLeft, FileText, Edit2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const FarmerPayment: React.FC = () => {
   const navigate = useNavigate();
@@ -41,12 +49,18 @@ const FarmerPayment: React.FC = () => {
   const [stockRate, setStockRate] = useState("");
   
   const [amountTaken, setAmountTaken] = useState("");
-  const [receivedAmount, setReceivedAmount] = useState("");
   const [emiChecked, setEmiChecked] = useState(false);
   const [emiAmount, setEmiAmount] = useState("");
   const [showSummary, setShowSummary] = useState(false);
   const [summaryData, setSummaryData] = useState<any[]>([]);
   const [summaryLoading, setSummaryLoading] = useState(false);
+
+  const [editingLog, setEditingLog] = useState<any>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState<any>({});
+
+  const [logToDelete, setLogToDelete] = useState<any>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const normalizeFarmerId = (id: string) => {
     if (!id) return "";
@@ -166,7 +180,7 @@ const FarmerPayment: React.FC = () => {
         farmer_name: farmerName,
         payment_type: paymentType as any,
         amount_taken: parseFloat(amountTaken || "0"),
-        received: parseFloat(receivedAmount || "0"),
+        received: 0,
         emi: emiChecked ? 1 : 0,
         emi_amount: emiChecked ? parseFloat(emiAmount || "0") : 0,
       };
@@ -197,7 +211,7 @@ const FarmerPayment: React.FC = () => {
       }
 
       toast.success("Payment recorded successfully");
-      setFarmerIdInput(""); setFarmerName(""); setAmountTaken(""); setReceivedAmount(""); setEmiChecked(false); setEmiAmount("");
+      setFarmerIdInput(""); setFarmerName(""); setAmountTaken(""); setEmiChecked(false); setEmiAmount("");
       setSelectedStock(null); setStockQuantity(""); setStockRate(""); setFarmerPreviousBalance(null);
       fetchVlcStocks(vlcId); fetchGroupStocks();
     } catch (e) {
@@ -236,8 +250,60 @@ const FarmerPayment: React.FC = () => {
     }
   };
 
+  const handleEditClick = (log: any) => {
+    setEditingLog(log);
+    setEditFormData({
+      stock: log.stock || "",
+      stock_name: log.stock_name || "",
+      amount_taken: log.amount_taken || "",
+      descriptions: log.descriptions || ""
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateLog = async () => {
+    if (!editingLog) return;
+    try {
+      setLoading(true);
+      const payload = {
+        ...editFormData,
+        stock: editFormData.stock !== "" ? parseFloat(editFormData.stock) : undefined,
+        amount_taken: editFormData.amount_taken !== "" ? parseFloat(editFormData.amount_taken) : undefined,
+      };
+      const res = await paymentApi.updateFarmerPaymentLog(editingLog.id, payload);
+      if (res.status === 200) {
+        toast.success("Payment log updated successfully");
+        setIsEditModalOpen(false);
+        fetchSummary();
+      }
+    } catch (e) {
+      console.error("Update log error:", e);
+      toast.error("Failed to update log");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteLog = async () => {
+    if (!logToDelete) return;
+    try {
+      setLoading(true);
+      const res = await paymentApi.deleteFarmerPaymentLog(logToDelete.id);
+      if (res.status === 200 || res.status === 204) {
+        toast.success("Payment log deleted successfully");
+        setIsDeleteModalOpen(false);
+        fetchSummary();
+      }
+    } catch (e) {
+      console.error("Delete log error:", e);
+      toast.error("Failed to delete log");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-[#f1f5f9] p-4 md:p-8">
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
       <div className="max-w-6xl mx-auto space-y-8">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex flex-col gap-1">
@@ -276,10 +342,18 @@ const FarmerPayment: React.FC = () => {
                   <div className="space-y-2">
                     <Label className="uppercase text-[10px] font-black text-slate-400 tracking-widest">Select VLC</Label>
                     <Select value={vlcId} onValueChange={setVlcId}>
-                      <SelectTrigger className="bg-white border-slate-200 h-12 rounded-xl"><SelectValue placeholder="VLC Branch" /></SelectTrigger>
-                      <SelectContent className="bg-white">
+                      <SelectTrigger className="bg-white border-slate-200 h-12 rounded-xl w-full overflow-hidden">
+                        <div className="truncate text-left">
+                          <SelectValue placeholder="VLC Branch" />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent className="bg-white max-w-[300px]">
                         {branches.map((b: any) => (
-                           <SelectItem key={b.branch_id} value={b.branch_id.toString()}>{b.username} - {b.name}</SelectItem>
+                           <SelectItem key={b.branch_id} value={b.branch_id.toString()}>
+                             <span className="truncate block">
+                               {b.username} - {b.name}
+                             </span>
+                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -323,7 +397,7 @@ const FarmerPayment: React.FC = () => {
                      <div className="bg-blue-600 p-4 rounded-2xl text-white shadow-lg shadow-blue-100 italic animate-in fade-in zoom-in duration-300">
                         <User className="w-5 h-5 mb-2 opacity-60" />
                         <div className="text-sm font-medium opacity-80">Farmer Name</div>
-                        <div className="text-lg font-black uppercase tracking-tight">{farmerName}</div>
+                        <div className="text-lg font-black uppercase tracking-tight truncate">{farmerName}</div>
                         {farmerPreviousBalance && (
                           <div className="mt-3 pt-3 border-t border-blue-500 flex justify-between items-center text-xs">
                              <span className="font-bold">Prev. Balance</span>
@@ -423,7 +497,7 @@ const FarmerPayment: React.FC = () => {
                      <div className="bg-slate-900 p-8 rounded-3xl text-white shadow-2xl shadow-indigo-100 flex flex-col justify-between">
                         <div>
                           <div className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-2">Total Amount to Deduct</div>
-                          <div className="text-5xl font-black tracking-tighter">₹{amountTaken || receivedAmount || "0.00"}</div>
+                          <div className="text-5xl font-black tracking-tighter">₹{amountTaken || "0.00"}</div>
                         </div>
                         
                         <div className="mt-8 space-y-4">
@@ -435,17 +509,6 @@ const FarmerPayment: React.FC = () => {
                                 onChange={(e) => setAmountTaken(e.target.value)}
                                 placeholder="0.00"
                                 className="bg-white/10 border-white/10 h-10 text-white placeholder:text-white/20 text-lg font-bold rounded-xl"
-                                disabled={paymentType === "Cattle Feed"}
-                              />
-                           </div>
-                           <div className="space-y-2">
-                              <Label className="text-xs font-bold text-indigo-300">Received from Farmer</Label>
-                              <Input 
-                                type="number" 
-                                value={receivedAmount} 
-                                onChange={(e) => setReceivedAmount(e.target.value)}
-                                placeholder="0.00"
-                                className="bg-white/10 border-white/10 h-10 text-white placeholder:text-white/20 rounded-xl"
                                 disabled={paymentType === "Cattle Feed"}
                               />
                            </div>
@@ -482,57 +545,120 @@ const FarmerPayment: React.FC = () => {
           </CardContent>
         </Card>
         
-        {/* Summary Modal */}
+        {/* Summary Section - Mounted on page */}
         {showSummary && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[80vh] overflow-hidden">
-              <div className="p-6 border-b border-slate-200 flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-slate-900">
-                  Payment Summary - {format(fromDate, "dd MMM yyyy")}
-                </h2>
+          <div className="animate-in slide-in-from-bottom-4 duration-500">
+            <Card className="border-none shadow-2xl shadow-slate-200 bg-white overflow-hidden">
+              <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <div className="flex items-center gap-3">
+                  <div className="bg-green-100 p-2 rounded-lg">
+                    <FileText className="w-6 h-6 text-green-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-900">
+                      Payment Summary
+                    </h2>
+                    <p className="text-slate-500 text-sm font-medium">{format(fromDate, "dd MMMM yyyy")}</p>
+                  </div>
+                </div>
                 <Button 
-                  variant="outline" 
+                  variant="ghost" 
                   onClick={() => setShowSummary(false)}
-                  className="rounded-full w-10 h-10 p-0"
+                  className="rounded-full w-10 h-10 p-0 hover:bg-slate-200"
                 >
                   ×
                 </Button>
               </div>
-              <div className="p-6 overflow-y-auto max-h-[60vh]">
+              
+              <div className="p-8">
                 {summaryData.length > 0 ? (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                      <div className="bg-blue-50 p-4 rounded-xl text-center border border-blue-100">
-                        <div className="text-2xl font-bold text-blue-600">{summaryData.length}</div>
-                        <div className="text-sm text-blue-800">Total Transactions</div>
+                  <div className="space-y-10">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="bg-blue-50/50 p-6 rounded-3xl border border-blue-100/50">
+                        <div className="text-sm font-bold text-blue-600 uppercase tracking-widest mb-1">Transactions</div>
+                        <div className="text-3xl font-black text-slate-900">{summaryData.length}</div>
                       </div>
-                      <div className="bg-green-50 p-4 rounded-xl text-center border border-green-100">
-                        <div className="text-2xl font-bold text-green-600">
+                      <div className="bg-green-50/50 p-6 rounded-3xl border border-green-100/50">
+                        <div className="text-sm font-bold text-green-600 uppercase tracking-widest mb-1">Total Deducted</div>
+                        <div className="text-3xl font-black text-slate-900">
                           ₹{summaryData.reduce((sum, item) => sum + parseFloat(item.amount_taken || 0), 0).toFixed(2)}
                         </div>
-                        <div className="text-sm text-green-800">Total Amount Taken</div>
                       </div>
-                      <div className="bg-purple-50 p-4 rounded-xl text-center border border-purple-100">
-                        <div className="text-2xl font-bold text-purple-600">
-                          ₹{summaryData.reduce((sum, item) => sum + parseFloat(item.received || 0), 0).toFixed(2)}
-                        </div>
-                        <div className="text-sm text-purple-800">Total Received</div>
-                      </div>
-                      <div className="bg-orange-50 p-4 rounded-xl text-center border border-orange-100">
-                        <div className="text-2xl font-bold text-orange-600">
+                      <div className="bg-orange-50/50 p-6 rounded-3xl border border-orange-100/50">
+                        <div className="text-sm font-bold text-orange-600 uppercase tracking-widest mb-1">Farmers</div>
+                        <div className="text-3xl font-black text-slate-900">
                           {new Set(summaryData.map(item => item.farmer_id)).size}
                         </div>
-                        <div className="text-sm text-orange-800">Unique Farmers</div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
+                      <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                        Detailed Transaction Logs
+                      </h3>
+                      <div className="rounded-3xl border border-slate-100 overflow-hidden shadow-sm max-h-[400px] overflow-y-auto">
+                        <table className="w-full border-collapse">
+                          <thead className="sticky top-0 z-10">
+                            <tr className="bg-slate-900 text-white">
+                              <th className="p-4 text-left text-xs font-black uppercase tracking-widest">Farmer</th>
+                              <th className="p-4 text-left text-xs font-black uppercase tracking-widest">Category</th>
+                              <th className="p-4 text-right text-xs font-black uppercase tracking-widest">Taken</th>
+                              <th className="p-4 text-left text-xs font-black uppercase tracking-widest">Description</th>
+                              <th className="p-4 text-center text-xs font-black uppercase tracking-widest">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-50">
+                            {summaryData.map((item, index) => (
+                              <tr key={index} className="hover:bg-slate-50 transition-colors bg-white">
+                                <td className="p-4">
+                                  <div className="font-black text-slate-900">{item.farmer_name}</div>
+                                  <div className="text-[10px] font-bold text-slate-400">ID: {item.farmer_id}</div>
+                                </td>
+                                <td className="p-4">
+                                  <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${
+                                    item.payment_type?.toLowerCase().includes('advance') ? 'bg-blue-100 text-blue-700' :
+                                    item.payment_type?.toLowerCase().includes('cattle') ? 'bg-amber-100 text-amber-700' :
+                                    'bg-slate-100 text-slate-700'
+                                  }`}>
+                                    {item.payment_type}
+                                  </span>
+                                </td>
+                                <td className="p-4 text-right font-black text-slate-900">₹{parseFloat(item.amount_taken || 0).toFixed(2)}</td>
+                                <td className="p-4 text-sm text-slate-500 font-medium">{item.descriptions || '-'}</td>
+                                <td className="p-4 text-center">
+                                  <div className="flex items-center justify-center gap-1">
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm" 
+                                      onClick={() => handleEditClick(item)}
+                                      className="h-8 w-8 p-0 hover:bg-slate-100 rounded-full"
+                                    >
+                                      <Edit2 className="w-4 h-4 text-slate-400 hover:text-blue-600" />
+                                    </Button>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm" 
+                                      onClick={() => { setLogToDelete(item); setIsDeleteModalOpen(true); }}
+                                      className="h-8 w-8 p-0 hover:bg-red-50 rounded-full group/del"
+                                    >
+                                      <Trash2 className="w-4 h-4 text-slate-400 group-hover/del:text-red-600" />
+                                    </Button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     </div>
 
                     {/* Stock Wise Summary - Grouped */}
-                    <div className="mb-8">
-                      <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                        <Package className="w-5 h-5 text-amber-600" />
-                        Stock-wise Summary (Cattle Feed)
+                    <div>
+                      <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                        <Package className="w-4 h-4" />
+                        Stock-wise Summary
                       </h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         {Object.entries(
                           summaryData.reduce((acc: any, item: any) => {
                             if (item.payment_type === 'cattlefeed' && item.stock_name) {
@@ -545,70 +671,128 @@ const FarmerPayment: React.FC = () => {
                             return acc;
                           }, {})
                         ).map(([name, totals]: [string, any]) => (
-                          <div key={name} className="bg-white p-5 rounded-2xl border-2 border-slate-100 shadow-sm flex flex-col justify-center hover:border-blue-200 transition-colors">
-                            <div className="text-sm font-bold text-blue-600 uppercase tracking-widest mb-2">Item Summary</div>
+                          <div key={name} className="bg-white p-6 rounded-3xl border-2 border-slate-50 shadow-sm hover:border-blue-100 transition-all group">
+                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 group-hover:text-blue-500 transition-colors">Item Details</div>
                             <div className="text-lg font-black text-slate-900 leading-tight">
                               {name} : {totals.stock} : ₹{totals.amount.toFixed(2)}
                             </div>
-                            <div className="text-[10px] font-black text-slate-400 mt-3 uppercase tracking-[0.2em]">
-                              Name : Stock : Amount
+                            <div className="flex gap-2 mt-4">
+                               <div className="h-1 flex-1 bg-slate-100 rounded-full overflow-hidden">
+                                  <div className="h-full bg-blue-500 w-2/3"></div>
+                               </div>
                             </div>
                           </div>
                         ))}
                       </div>
-                      {Object.keys(summaryData.filter(item => item.payment_type === 'cattlefeed')).length === 0 && (
-                        <div className="text-sm text-slate-400 italic">No cattle feed transactions for this date.</div>
+                      {summaryData.filter(item => item.payment_type === 'cattlefeed').length === 0 && (
+                        <div className="bg-slate-50 p-8 rounded-3xl border border-dashed border-slate-200 text-center text-slate-400 font-medium">
+                          No cattle feed transactions recorded for this date.
+                        </div>
                       )}
-                    </div>
-                    
-                    <div className="overflow-x-auto">
-                      <table className="w-full border-collapse border border-slate-300">
-                        <thead>
-                          <tr className="bg-slate-100">
-                            <th className="border border-slate-300 p-3 text-left">Farmer ID</th>
-                            <th className="border border-slate-300 p-3 text-left">Farmer Name</th>
-                            <th className="border border-slate-300 p-3 text-left">Payment Type</th>
-                            <th className="border border-slate-300 p-3 text-right">Amount Taken</th>
-                            <th className="border border-slate-300 p-3 text-right">Received</th>
-                            <th className="border border-slate-300 p-3 text-left">Description</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {summaryData.map((item, index) => (
-                            <tr key={index} className="hover:bg-slate-50">
-                              <td className="border border-slate-300 p-3 font-mono">{item.farmer_id}</td>
-                              <td className="border border-slate-300 p-3">{item.farmer_name}</td>
-                              <td className="border border-slate-300 p-3">
-                                <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                                  item.payment_type === 'Advance' ? 'bg-blue-100 text-blue-800' :
-                                  item.payment_type === 'Cattle Feed' ? 'bg-amber-100 text-amber-800' :
-                                  item.payment_type === 'Other1' ? 'bg-green-100 text-green-800' :
-                                  'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {item.payment_type === 'Other1' ? 'Kirana' : item.payment_type}
-                                </span>
-                              </td>
-                              <td className="border border-slate-300 p-3 text-right font-bold">₹{parseFloat(item.amount_taken || 0).toFixed(2)}</td>
-                              <td className="border border-slate-300 p-3 text-right font-bold">₹{parseFloat(item.received || 0).toFixed(2)}</td>
-                              <td className="border border-slate-300 p-3 text-sm">{item.descriptions || '-'}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
                     </div>
                   </div>
                 ) : (
-                  <div className="text-center py-12 text-slate-500">
-                    <div className="text-6xl mb-4">📊</div>
-                    <div className="text-xl font-bold mb-2">No payments found</div>
-                    <div className="text-sm">No payment transactions were recorded for the selected date.</div>
+                  <div className="text-center py-20 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
+                    <div className="text-6xl mb-6 grayscale opacity-50">📊</div>
+                    <div className="text-2xl font-black text-slate-900 mb-2">No data recorded</div>
+                    <p className="text-slate-500">There are no payment transactions for the selected date.</p>
                   </div>
                 )}
               </div>
-            </div>
+            </Card>
           </div>
         )}
       </div>
+
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="sm:max-w-[425px] bg-white rounded-3xl p-8">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black text-slate-900">Edit Payment Log</DialogTitle>
+            <DialogDescription className="font-medium text-slate-500">
+              Update details for this transaction record.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-6 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="stock_name" className="text-right font-bold text-slate-600">Stock Name</Label>
+              <Input
+                id="stock_name"
+                value={editFormData.stock_name}
+                onChange={(e) => setEditFormData({ ...editFormData, stock_name: e.target.value })}
+                className="col-span-3 rounded-xl h-11"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="stock" className="text-right font-bold text-slate-600">Quantity</Label>
+              <Input
+                id="stock"
+                type="number"
+                value={editFormData.stock}
+                onChange={(e) => setEditFormData({ ...editFormData, stock: e.target.value })}
+                className="col-span-3 rounded-xl h-11"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="amount" className="text-right font-bold text-slate-600">Amount</Label>
+              <Input
+                id="amount"
+                type="number"
+                value={editFormData.amount_taken}
+                onChange={(e) => setEditFormData({ ...editFormData, amount_taken: e.target.value })}
+                className="col-span-3 rounded-xl h-11"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="desc" className="text-right font-bold text-slate-600">Description</Label>
+              <Input
+                id="desc"
+                value={editFormData.descriptions}
+                onChange={(e) => setEditFormData({ ...editFormData, descriptions: e.target.value })}
+                className="col-span-3 rounded-xl h-11"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              onClick={handleUpdateLog} 
+              disabled={loading}
+              className="w-full bg-blue-600 hover:bg-blue-700 h-12 rounded-xl font-black shadow-lg shadow-blue-100"
+            >
+              {loading ? "SAVING..." : "SAVE CHANGES"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <DialogContent className="sm:max-w-[400px] bg-white rounded-3xl p-8">
+          <DialogHeader className="flex flex-col items-center text-center">
+            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
+              <Trash2 className="w-8 h-8 text-red-600" />
+            </div>
+            <DialogTitle className="text-2xl font-black text-slate-900">Are you sure?</DialogTitle>
+            <DialogDescription className="font-medium text-slate-500 mt-2">
+              This will permanently delete the transaction record for <span className="font-black text-slate-900">{logToDelete?.farmer_name}</span>. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="grid grid-cols-2 gap-3 mt-6">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsDeleteModalOpen(false)}
+              className="rounded-xl h-12 font-bold border-slate-200 hover:bg-slate-50"
+            >
+              CANCEL
+            </Button>
+            <Button 
+              onClick={handleDeleteLog} 
+              disabled={loading}
+              className="bg-red-600 hover:bg-red-700 h-12 rounded-xl font-black text-white shadow-lg shadow-red-100"
+            >
+              {loading ? "DELETING..." : "DELETE"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
