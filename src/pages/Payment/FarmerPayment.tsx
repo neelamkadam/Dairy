@@ -14,9 +14,7 @@ import { toast } from "react-toastify";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constatnts/routesConstants";
-import { Search, Calendar as CalendarIcon, Package, User, Landmark, Plus, ArrowRightLeft, FileText } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
+import { Search, Package, User, Landmark, Plus, ArrowRightLeft, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const FarmerPayment: React.FC = () => {
@@ -34,7 +32,7 @@ const FarmerPayment: React.FC = () => {
   const [farmerPreviousBalance, setFarmerPreviousBalance] = useState<any>(null);
   
   const [paymentType, setPaymentType] = useState<"Advance" | "Cattle Feed" | "Other1" | "Other2" | "">("");
-  const [stockSource, setStockSource] = useState<"vlc" | "group">("vlc");
+  const [stockSource, setStockSource] = useState<"vlc" | "group">("group");
   
   const [vlcStocks, setVlcStocks] = useState<CattleFeedStock[]>([]);
   const [groupStocks, setGroupStocks] = useState<CattleFeedStock[]>([]);
@@ -46,6 +44,9 @@ const FarmerPayment: React.FC = () => {
   const [receivedAmount, setReceivedAmount] = useState("");
   const [emiChecked, setEmiChecked] = useState(false);
   const [emiAmount, setEmiAmount] = useState("");
+  const [showSummary, setShowSummary] = useState(false);
+  const [summaryData, setSummaryData] = useState<any[]>([]);
+  const [summaryLoading, setSummaryLoading] = useState(false);
 
   const normalizeFarmerId = (id: string) => {
     if (!id) return "";
@@ -206,6 +207,35 @@ const FarmerPayment: React.FC = () => {
     }
   };
 
+  const fetchSummary = async () => {
+    if (!vlcId || !fromDate) {
+      toast.error("Please select VLC and date");
+      return;
+    }
+
+    setSummaryLoading(true);
+    try {
+      const dateStr = format(fromDate, "yyyy-MM-dd");
+      // Use the provided API endpoint with dairy_id and date
+      const response = await fetch(`https://api.neodairysales.com/farmer-payment-logs?dairy_id=${vlcId}&date=${dateStr}`);
+      const data = await response.json();
+      
+      if (data.data) {
+        // Filter data for the selected date just in case API returns more
+        const filteredData = data.data.filter((item: any) => item.date === dateStr);
+        setSummaryData(filteredData);
+        setShowSummary(true);
+      } else {
+        toast.error("Failed to fetch summary data");
+      }
+    } catch (error) {
+      console.error("Summary fetch error:", error);
+      toast.error("Failed to fetch summary");
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f1f5f9] p-4 md:p-8">
       <div className="max-w-6xl mx-auto space-y-8">
@@ -217,14 +247,25 @@ const FarmerPayment: React.FC = () => {
             </h1>
             <p className="text-slate-500 font-medium">Assign advances or cattle feed to farmers from Local or Group stocks.</p>
           </div>
-          <Button 
-            variant="outline" 
-            onClick={() => navigate(ROUTES.REPORTS.CATTLE_FEED_STOCK_REPORT)}
-            className="w-fit bg-white border-slate-200 hover:bg-slate-50 h-11 px-6 shadow-sm font-bold text-slate-700"
-          >
-            <FileText className="w-4 h-4 mr-2 text-blue-600" />
-            Cattle Feed Report
-          </Button>
+          <div className="flex gap-3">
+            <Button 
+              variant="outline" 
+              onClick={() => navigate(ROUTES.REPORTS.CATTLE_FEED_STOCK_REPORT)}
+              className="w-fit bg-white border-slate-200 hover:bg-slate-50 h-11 px-6 shadow-sm font-bold text-slate-700"
+            >
+              <FileText className="w-4 h-4 mr-2 text-blue-600" />
+              Cattle Feed Report
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={fetchSummary}
+              disabled={summaryLoading || !vlcId}
+              className="w-fit bg-white border-slate-200 hover:bg-slate-50 h-11 px-6 shadow-sm font-bold text-slate-700"
+            >
+              <FileText className="w-4 h-4 mr-2 text-green-600" />
+              {summaryLoading ? "Loading..." : "Summary"}
+            </Button>
+          </div>
         </header>
 
         <Card className="border-none shadow-xl shadow-slate-200 bg-white overflow-hidden">
@@ -245,17 +286,20 @@ const FarmerPayment: React.FC = () => {
                   </div>
                   <div className="space-y-2">
                     <Label className="uppercase text-[10px] font-black text-slate-400 tracking-widest">Date</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full text-left bg-white h-12 rounded-xl justify-between">
-                          {format(fromDate, "dd/MM/yyyy")}
-                          <CalendarIcon className="w-4 h-4 text-slate-400" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 bg-white" align="start">
-                        <Calendar mode="single" selected={fromDate} onSelect={(d) => d && setFromDate(d)} className="bg-white" />
-                      </PopoverContent>
-                    </Popover>
+                    <Input
+                      type="date"
+                      value={fromDate && !isNaN(fromDate.getTime()) ? format(fromDate, 'yyyy-MM-dd') : ''}
+                      onChange={(e) => {
+                        const dateValue = e.target.value;
+                        if (dateValue) {
+                          const newDate = new Date(dateValue);
+                          if (!isNaN(newDate.getTime())) {
+                            setFromDate(newDate);
+                          }
+                        }
+                      }}
+                      className="bg-white h-12 rounded-xl"
+                    />
                   </div>
                 </div>
 
@@ -297,14 +341,14 @@ const FarmerPayment: React.FC = () => {
                     <div className="space-y-3">
                       <Label className="text-sm font-bold text-slate-700">Payment Category</Label>
                       <div className="grid grid-cols-2 gap-2">
-                        {["Advance", "Cattle Feed", "Other1", "Other2"].map((t) => (
+                        {["Advance", "Cattle Feed", "Kirana", "Other2"].map((t) => (
                            <Button 
                              key={t}
-                             variant={paymentType === t ? "default" : "outline"}
-                             onClick={() => setPaymentType(t as any)}
+                             variant={paymentType === (t === "Kirana" ? "Other1" : t) ? "default" : "outline"}
+                             onClick={() => setPaymentType((t === "Kirana" ? "Other1" : t) as any)}
                              className={cn(
                                "rounded-xl h-12 text-xs font-bold transition-all",
-                               paymentType === t ? "bg-slate-900 text-white shadow-lg" : "hover:bg-slate-50 text-slate-600"
+                               paymentType === (t === "Kirana" ? "Other1" : t) ? "bg-slate-900 text-white shadow-lg" : "hover:bg-slate-50 text-slate-600"
                              )}
                            >
                              {t}
@@ -437,6 +481,133 @@ const FarmerPayment: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+        
+        {/* Summary Modal */}
+        {showSummary && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[80vh] overflow-hidden">
+              <div className="p-6 border-b border-slate-200 flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-slate-900">
+                  Payment Summary - {format(fromDate, "dd MMM yyyy")}
+                </h2>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowSummary(false)}
+                  className="rounded-full w-10 h-10 p-0"
+                >
+                  ×
+                </Button>
+              </div>
+              <div className="p-6 overflow-y-auto max-h-[60vh]">
+                {summaryData.length > 0 ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                      <div className="bg-blue-50 p-4 rounded-xl text-center border border-blue-100">
+                        <div className="text-2xl font-bold text-blue-600">{summaryData.length}</div>
+                        <div className="text-sm text-blue-800">Total Transactions</div>
+                      </div>
+                      <div className="bg-green-50 p-4 rounded-xl text-center border border-green-100">
+                        <div className="text-2xl font-bold text-green-600">
+                          ₹{summaryData.reduce((sum, item) => sum + parseFloat(item.amount_taken || 0), 0).toFixed(2)}
+                        </div>
+                        <div className="text-sm text-green-800">Total Amount Taken</div>
+                      </div>
+                      <div className="bg-purple-50 p-4 rounded-xl text-center border border-purple-100">
+                        <div className="text-2xl font-bold text-purple-600">
+                          ₹{summaryData.reduce((sum, item) => sum + parseFloat(item.received || 0), 0).toFixed(2)}
+                        </div>
+                        <div className="text-sm text-purple-800">Total Received</div>
+                      </div>
+                      <div className="bg-orange-50 p-4 rounded-xl text-center border border-orange-100">
+                        <div className="text-2xl font-bold text-orange-600">
+                          {new Set(summaryData.map(item => item.farmer_id)).size}
+                        </div>
+                        <div className="text-sm text-orange-800">Unique Farmers</div>
+                      </div>
+                    </div>
+
+                    {/* Stock Wise Summary - Grouped */}
+                    <div className="mb-8">
+                      <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <Package className="w-5 h-5 text-amber-600" />
+                        Stock-wise Summary (Cattle Feed)
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {Object.entries(
+                          summaryData.reduce((acc: any, item: any) => {
+                            if (item.payment_type === 'cattlefeed' && item.stock_name) {
+                              if (!acc[item.stock_name]) {
+                                acc[item.stock_name] = { stock: 0, amount: 0 };
+                              }
+                              acc[item.stock_name].stock += parseFloat(item.stock || 0);
+                              acc[item.stock_name].amount += parseFloat(item.amount_taken || 0);
+                            }
+                            return acc;
+                          }, {})
+                        ).map(([name, totals]: [string, any]) => (
+                          <div key={name} className="bg-white p-5 rounded-2xl border-2 border-slate-100 shadow-sm flex flex-col justify-center hover:border-blue-200 transition-colors">
+                            <div className="text-sm font-bold text-blue-600 uppercase tracking-widest mb-2">Item Summary</div>
+                            <div className="text-lg font-black text-slate-900 leading-tight">
+                              {name} : {totals.stock} : ₹{totals.amount.toFixed(2)}
+                            </div>
+                            <div className="text-[10px] font-black text-slate-400 mt-3 uppercase tracking-[0.2em]">
+                              Name : Stock : Amount
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {Object.keys(summaryData.filter(item => item.payment_type === 'cattlefeed')).length === 0 && (
+                        <div className="text-sm text-slate-400 italic">No cattle feed transactions for this date.</div>
+                      )}
+                    </div>
+                    
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse border border-slate-300">
+                        <thead>
+                          <tr className="bg-slate-100">
+                            <th className="border border-slate-300 p-3 text-left">Farmer ID</th>
+                            <th className="border border-slate-300 p-3 text-left">Farmer Name</th>
+                            <th className="border border-slate-300 p-3 text-left">Payment Type</th>
+                            <th className="border border-slate-300 p-3 text-right">Amount Taken</th>
+                            <th className="border border-slate-300 p-3 text-right">Received</th>
+                            <th className="border border-slate-300 p-3 text-left">Description</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {summaryData.map((item, index) => (
+                            <tr key={index} className="hover:bg-slate-50">
+                              <td className="border border-slate-300 p-3 font-mono">{item.farmer_id}</td>
+                              <td className="border border-slate-300 p-3">{item.farmer_name}</td>
+                              <td className="border border-slate-300 p-3">
+                                <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                                  item.payment_type === 'Advance' ? 'bg-blue-100 text-blue-800' :
+                                  item.payment_type === 'Cattle Feed' ? 'bg-amber-100 text-amber-800' :
+                                  item.payment_type === 'Other1' ? 'bg-green-100 text-green-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {item.payment_type === 'Other1' ? 'Kirana' : item.payment_type}
+                                </span>
+                              </td>
+                              <td className="border border-slate-300 p-3 text-right font-bold">₹{parseFloat(item.amount_taken || 0).toFixed(2)}</td>
+                              <td className="border border-slate-300 p-3 text-right font-bold">₹{parseFloat(item.received || 0).toFixed(2)}</td>
+                              <td className="border border-slate-300 p-3 text-sm">{item.descriptions || '-'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-slate-500">
+                    <div className="text-6xl mb-4">📊</div>
+                    <div className="text-xl font-bold mb-2">No payments found</div>
+                    <div className="text-sm">No payment transactions were recorded for the selected date.</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

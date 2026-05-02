@@ -33,6 +33,7 @@ export interface Template2Data {
   dairyName: string;
   branchName: string;
   dairyCode?: string;
+  dairyPhone?: string;
   farmerCode: string;
   farmerName: string;
   fromDate: string;
@@ -185,6 +186,7 @@ export interface FarmerReportData {
 export interface Template3Data {
   dairyName: string;
   dairyCode?: string;
+  dairyPhone?: string;
   branchName?: string;
   farmers: FarmerReportData[];
   fromDate: string;
@@ -220,7 +222,7 @@ const getLabels = (language: string = 'mr') => {
       payment: 'Payment',
       feed: 'Cattle Feed',
       advance: 'Advance',
-      other1: 'Other 1',
+      other1: 'Kirana',
       other2: 'Other 2',
       milk: 'Milk',
       cow: 'Cow',
@@ -277,7 +279,7 @@ const getLabels = (language: string = 'mr') => {
       payment: 'भुगतान',
       feed: 'पशु आहार',
       advance: 'एडवांस',
-      other1: 'अन्य 1',
+      other1: 'किराना',
       other2: 'अन्य 2',
       milk: 'दूध',
       cow: 'गाय',
@@ -334,7 +336,7 @@ const getLabels = (language: string = 'mr') => {
       payment: 'पेमेंट',
       feed: 'पशुखाद्य',
       advance: 'ॲडव्हान्स',
-      other1: 'इतर1',
+      other1: 'किराणा',
       other2: 'इतर2',
       milk: 'दूध',
       cow: 'गाय',
@@ -542,26 +544,37 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
       deduction: parseFloat(templateData.current_bill?.advance_total || '0')
     },
     {
-      label: labels.other1,
+      label: labels.other1, // Kirana - always show
       prev: parseFloat(templateData.previous_bill?.other1_remaining || '0'),
       payment: getSumOfPayments('other1') + getSumOfPayments('other 1'),
       deduction: parseFloat(templateData.current_bill?.other1_total || '0')
-    },
-    {
-      label: labels.other2,
-      prev: parseFloat(templateData.previous_bill?.other2_remaining || '0'),
-      payment: getSumOfPayments('other2') + getSumOfPayments('other 2'),
-      deduction: parseFloat(templateData.current_bill?.other2_total || '0')
     }
-  ].map(d => ({
+  ];
+
+  // Add Other2 only if it has values
+  const other2Prev = parseFloat(templateData.previous_bill?.other2_remaining || '0');
+  const other2Payment = getSumOfPayments('other2') + getSumOfPayments('other 2');
+  const other2Deduction = parseFloat(templateData.current_bill?.other2_total || '0');
+  
+  if (other2Prev > 0 || other2Payment > 0 || other2Deduction > 0) {
+    deductionInfo.push({
+      label: labels.other2,
+      prev: other2Prev,
+      payment: other2Payment,
+      deduction: other2Deduction
+    });
+  }
+
+  // Calculate balances
+  const processedDeductionInfo = deductionInfo.map(d => ({
     ...d,
     balance: d.prev + d.payment - d.deduction
   }));
 
-  const totalPrev = deductionInfo.reduce((sum, d) => sum + d.prev, 0);
-  const totalPay = deductionInfo.reduce((sum, d) => sum + d.payment, 0);
-  const totalDed = deductionInfo.reduce((sum, d) => sum + d.deduction, 0);
-  const totalBal = deductionInfo.reduce((sum, d) => sum + d.balance, 0);
+  const totalPrev = processedDeductionInfo.reduce((sum, d) => sum + d.prev, 0);
+  const totalPay = processedDeductionInfo.reduce((sum, d) => sum + d.payment, 0);
+  const totalDed = processedDeductionInfo.reduce((sum, d) => sum + d.deduction, 0);
+  const totalBal = processedDeductionInfo.reduce((sum, d) => sum + d.balance, 0);
 
   const summaryTotalLiters = cowLiters + buffaloLiters;
   const bonusRate = templateData.bonus_deduction_info?.bonus_amount || 0;
@@ -642,7 +655,6 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
     </div>
     <div>
       <strong>${labels.invoice} No.</strong> 1<br>
-      <strong>${labels.invoice} ${labels.date}</strong> ${new Date().toLocaleDateString("en-GB")}<br>
       <strong>${labels.bill} ${labels.date}</strong> ${templateData.fromDate} <strong>${labels.to}</strong> ${templateData.toDate}
     </div>
   </div>` : '<div style="height: 30px;"></div>'}
@@ -689,7 +701,7 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
               <td>${labels.deduction}</td>
               <td>${labels.balance}</td>
             </tr>
-            ${deductionInfo.map(d => `
+            ${processedDeductionInfo.map(d => `
               <tr>
                 <td>${d.label}</td>
                 <td>${d.prev.toFixed(2)}</td>
@@ -955,6 +967,11 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
     receivedAmount: parseFloat(templateData.current_bill?.net_payable || '0'),
   };
 
+  // Check if we need to show Other2 row (Kirana always shows)
+  const showOther2 = (parseFloat(templateData.previous_bill?.other2_remaining || '0') > 0 || 
+                     parseFloat(templateData.current_bill?.other2_total || '0') > 0 ||
+                     (templateData.payments || []).some(p => p.payment_type.toLowerCase().includes('other2')));
+
   return `
 <!DOCTYPE html>
 <html>
@@ -978,7 +995,7 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
 <body style="margin: 0; padding: 0;">
   <div style="padding: 20px 30px; box-sizing: border-box; background-color: white;">
     <div class="text-center bold" style="font-size: 20px; letter-spacing: 1px; margin-bottom: 2px; border: none;">${templateData.dairyName}</div>
-  <div class="text-center" style="font-size: 11px; margin-bottom: 6px; border: none;">Mo. ${templateData.dairyCode || ''}</div>
+  <div class="text-center" style="font-size: 11px; margin-bottom: 6px; border: none;">Mo. ${templateData.dairyPhone || templateData.dairyCode || ''}</div>
   
   <div class="header-info">
     <table class="no-border">
@@ -986,7 +1003,7 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
         <td style="width: 75%; font-size: 13px; vertical-align: middle;" colspan="2">
           <strong>${labels.accNo} :</strong> ${templateData.farmerCode} &nbsp;&nbsp;&nbsp; <strong>${templateData.farmerName}</strong>
         </td>
-        <td style="width: 25%; text-align: right; font-size: 11px; vertical-align: middle;"><strong>${labels.date} :</strong> ${new Date().toLocaleDateString("en-GB")}</td>
+        <td style="width: 25%; text-align: right; font-size: 11px; vertical-align: middle;"></td>
       </tr>
       <tr style="height: 20px;">
         <td style="font-size: 11px; vertical-align: middle;"><strong>${labels.bankDetail} :</strong> ${templateData.bankDetails?.accountNumber || ''}</td>
@@ -1035,7 +1052,7 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
         <td style="width: 12%;">${labels.ekunBaaki}</td>
         <td style="width: 12%;">${labels.kapatRakkam}</td>
         <td style="width: 12%;">${labels.yeneBaaki}</td>
-        <td rowspan="4" style="width: 28%; padding: 0;">
+        <td rowspan="5" style="width: 28%; padding: 0;">
           <table style="width: 100%; border: none; height: 100%;" class="no-border">
             ${bonusAmount > 0 ? `<tr><td style="padding-left: 8px; font-size: 9px;">${labels.bonusDeduction} : </td><td class="text-right bold" style="padding-right: 8px; font-size: 9px;">${bonusAmount.toFixed(2)}</td></tr>` : ''}
             ${fixedAmount > 0 ? `<tr><td style="padding-left: 8px; font-size: 9px;">${templateData.bonus_deduction_info?.remark || 'इमारत निधी'} : </td><td class="text-right bold" style="padding-right: 8px; font-size: 9px;">${fixedAmount.toFixed(2)}</td></tr>` : ''}
@@ -1061,18 +1078,35 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
         <td class="text-right">${summary.dedFeed.toFixed(2)}</td>
         <td class="text-right">${((summary.prevFeed + summary.currFeed) - summary.dedFeed).toFixed(2)}</td>
       </tr>
+      <tr>
+        <td class="bold text-center">${labels.other1}</td>
+        <td class="text-right">${(parseFloat(templateData.previous_bill?.other1_remaining || '0')).toFixed(2)}</td>
+        <td class="text-right">${((templateData.payments || []).filter(p => p.payment_type.toLowerCase().includes('other1')).reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0)).toFixed(2)}</td>
+        <td class="text-right">${(parseFloat(templateData.previous_bill?.other1_remaining || '0') + (templateData.payments || []).filter(p => p.payment_type.toLowerCase().includes('other1')).reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0)).toFixed(2)}</td>
+        <td class="text-right">${(parseFloat(templateData.current_bill?.other1_total || '0')).toFixed(2)}</td>
+        <td class="text-right">${(parseFloat(templateData.previous_bill?.other1_remaining || '0') + (templateData.payments || []).filter(p => p.payment_type.toLowerCase().includes('other1')).reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0) - parseFloat(templateData.current_bill?.other1_total || '0')).toFixed(2)}</td>
+      </tr>
+      ${showOther2 ? `
+      <tr>
+        <td class="bold text-center">${labels.other2}</td>
+        <td class="text-right">${(parseFloat(templateData.previous_bill?.other2_remaining || '0')).toFixed(2)}</td>
+        <td class="text-right">${((templateData.payments || []).filter(p => p.payment_type.toLowerCase().includes('other2')).reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0)).toFixed(2)}</td>
+        <td class="text-right">${(parseFloat(templateData.previous_bill?.other2_remaining || '0') + (templateData.payments || []).filter(p => p.payment_type.toLowerCase().includes('other2')).reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0)).toFixed(2)}</td>
+        <td class="text-right">${(parseFloat(templateData.current_bill?.other2_total || '0')).toFixed(2)}</td>
+        <td class="text-right">${(parseFloat(templateData.previous_bill?.other2_remaining || '0') + (templateData.payments || []).filter(p => p.payment_type.toLowerCase().includes('other2')).reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0) - parseFloat(templateData.current_bill?.other2_total || '0')).toFixed(2)}</td>
+      </tr>` : ''}
       <tr class="bold">
         <td class="text-center">${labels.total}</td>
-        <td class="text-right">${(summary.prevAdvance + summary.prevFeed).toFixed(2)}</td>
-        <td class="text-right">${(summary.currAdvance + summary.currFeed).toFixed(2)}</td>
-        <td class="text-right">${(summary.prevAdvance + summary.prevFeed + summary.currAdvance + summary.currFeed).toFixed(2)}</td>
-        <td class="text-right">${(summary.dedAdvance + summary.dedFeed).toFixed(2)}</td>
-        <td class="text-right">${((summary.prevAdvance + summary.prevFeed + summary.currAdvance + summary.currFeed) - (summary.dedAdvance + summary.dedFeed)).toFixed(2)}</td>
+        <td class="text-right">${(summary.prevAdvance + summary.prevFeed + parseFloat(templateData.previous_bill?.other1_remaining || '0') + (showOther2 ? parseFloat(templateData.previous_bill?.other2_remaining || '0') : 0)).toFixed(2)}</td>
+        <td class="text-right">${(summary.currAdvance + summary.currFeed + (templateData.payments || []).filter(p => p.payment_type.toLowerCase().includes('other1')).reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0) + (showOther2 ? (templateData.payments || []).filter(p => p.payment_type.toLowerCase().includes('other2')).reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0) : 0)).toFixed(2)}</td>
+        <td class="text-right">${(summary.prevAdvance + summary.prevFeed + summary.currAdvance + summary.currFeed + parseFloat(templateData.previous_bill?.other1_remaining || '0') + (templateData.payments || []).filter(p => p.payment_type.toLowerCase().includes('other1')).reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0) + (showOther2 ? parseFloat(templateData.previous_bill?.other2_remaining || '0') + (templateData.payments || []).filter(p => p.payment_type.toLowerCase().includes('other2')).reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0) : 0)).toFixed(2)}</td>
+        <td class="text-right">${(summary.dedAdvance + summary.dedFeed + parseFloat(templateData.current_bill?.other1_total || '0') + (showOther2 ? parseFloat(templateData.current_bill?.other2_total || '0') : 0)).toFixed(2)}</td>
+        <td class="text-right">${((summary.prevAdvance + summary.prevFeed + summary.currAdvance + summary.currFeed + parseFloat(templateData.previous_bill?.other1_remaining || '0') + (templateData.payments || []).filter(p => p.payment_type.toLowerCase().includes('other1')).reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0) + (showOther2 ? parseFloat(templateData.previous_bill?.other2_remaining || '0') + (templateData.payments || []).filter(p => p.payment_type.toLowerCase().includes('other2')).reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0) : 0)) - (summary.dedAdvance + summary.dedFeed + parseFloat(templateData.current_bill?.other1_total || '0') + (showOther2 ? parseFloat(templateData.current_bill?.other2_total || '0') : 0))).toFixed(2)}</td>
       </tr>
     </table>
   </div>
 
-  <div style="margin-top: 10px; font-weight: bold; font-size: 11px; border-bottom: 2px solid black; padding-bottom: 5px; display: flex; justify-content: space-between;">
+  <div style="margin-top: 5px; font-weight: bold; font-size: 11px; border-bottom: 2px solid black; padding-bottom: 5px; display: flex; justify-content: space-between;">
     ${(bonusAmount > 0 || fixedAmount > 0 || parseFloat(String(totalBonusTillDate)) > 0) ? `
     <div style="text-align: right;">
       ${bonusAmount > 0 ? `<span>${labels.bonusDeduction} : ${bonusAmount.toFixed(2)}</span> &nbsp;&nbsp;` : ''}
@@ -1081,44 +1115,6 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
     </div>` : ''}
   </div>
 
-  <div style="margin-top: 5px;">
-    <strong style="font-size: 12px; margin-left: 5px;">${labels.details} :</strong>
-    <table style="margin-top: 4px; width: 100%; border: 1.5px solid black; border-collapse: collapse;">
-      ${(templateData.payments || []).map(p => {
-        const pType = p.payment_type.toLowerCase().trim();
-        const pTypeNoSpace = pType.replace(/\s/g, '');
-        
-        let displayType = (p as any).descriptions || p.payment_type;
-        
-        const isCattleFeed = pTypeNoSpace === 'cattlefeed' || pType === 'pashukhady';
-        
-        if (isCattleFeed && (p.stock_name || (displayType && displayType.includes(':')))) {
-          const sName = p.stock_name || displayType.split(':')[0]?.trim();
-          displayType = `${sName} : ${p.stock || 1} : ${Number(p.amount_taken || 0).toFixed(2)}`;
-        } else if (isCattleFeed) {
-           // Fallback for cattlefeed_stock object if present
-           const cStock = (p as any).cattlefeed_stock;
-           if (cStock && cStock.stock_name) {
-             displayType = `${cStock.stock_name} : ${cStock.quantity || 1} : ${Number(cStock.rate || 0).toFixed(2)}`;
-           }
-        }
-        
-        // Final Marathi translations for base types
-        const lowerDisplay = displayType.toLowerCase().trim();
-        if (lowerDisplay === 'advance') displayType = labels.advance;
-        if (lowerDisplay === 'cattle feed' || lowerDisplay === 'cattlefeed') displayType = labels.pashuKhady;
-        
-        return `
-          <tr style="height: 25px;">
-            <td style="width: 15%; padding: 4px 8px; border: none; font-size: 11px;">${new Date(p.created_at || (p as any).date || templateData.fromDate).toLocaleDateString("en-GB")}</td>
-            <td style="padding: 4px 8px; border: none; font-size: 11px;">${displayType}</td>
-            <td class="text-right" style="width: 25%; padding: 4px 15px; border: none; font-size: 11px;">${Number(p.amount_taken || '0').toFixed(2)}</td>
-          </tr>
-        `;
-      }).join('')}
-      ${(templateData.payments || []).length === 0 ? `<tr><td colspan="3" style="padding: 15px; text-align: center; border: none; color: #777;">${labels.noDetails}</td></tr>` : ''}
-    </table>
-  </div>
   </div>
 </body>
 </html>
@@ -1197,7 +1193,7 @@ export const generateTemplate3Farmers = (templateData: Template3Data, language: 
     return `
       <div class="invoice-container" style="height: 33.33%; border-bottom: 2px dashed #000; padding: 40px 80px; box-sizing: border-box; overflow: hidden; line-height: 1.3; font-family: Arial, sans-serif;">
         <div style="text-align: center; font-size: 16px; font-weight: bold; margin-bottom: 2px;">${templateData.dairyName}</div>
-        <div style="text-align: center; font-size: 12px; font-weight: bold; margin-bottom: 8px;">${templateData.dairyCode || ''}</div>
+        <div style="text-align: center; font-size: 12px; font-weight: bold; margin-bottom: 8px;">${templateData.dairyPhone || templateData.dairyCode || ''}</div>
         <div style="display: flex; justify-content: space-between; font-size: 10px; font-weight: bold; margin-bottom: 5px;">
            <div>${labels.code}: ${templateData.dairyCode || ''}</div>
            <div>${templateData.fromDate} - ${templateData.toDate}</div>
@@ -1239,7 +1235,7 @@ export const generateTemplate3Farmers = (templateData: Template3Data, language: 
             <td style="padding: 6px 2px; width: 15%; border-right: 1px solid black;"><b>${labels.prevRemaining}:</b> ${Number(prevBalance).toFixed(0)}</td>
           <tr style="background: #fdfdfd; border-bottom: 1px solid black; font-size: 11px;">
             <td style="padding: 6px 2px; width: 40%; border-right: 1px solid black;">
-               <b>${labels.deduction}:</b> ${labels.feed}:${Number(currentBill?.cattlefeed_total || 0).toFixed(0)} | ${labels.advance}:${Number(currentBill?.advance_total || 0).toFixed(0)} | ${labels.other1}:${(Number(currentBill?.other1_total || 0) + Number(currentBill?.other2_total || 0)).toFixed(0)}
+               <b>${labels.deduction}:</b> ${labels.feed}:${Number(currentBill?.cattlefeed_total || 0).toFixed(0)} | ${labels.advance}:${Number(currentBill?.advance_total || 0).toFixed(0)} | ${labels.other1}:${Number(currentBill?.other1_total || 0).toFixed(0)}${showOther2 ? ` | ${labels.other2}:${Number(currentBill?.other2_total || 0).toFixed(0)}` : ''}
             </td>
             <td style="padding: 6px 2px; border-right: 1px solid black;" colspan="2">
               ${(bonusAmount > 0 || fixedAmount > 0 || parseFloat(String(totalBonusTillDate)) > 0) ? `

@@ -4,8 +4,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar as CalendarIcon, Loader2, Search, ChevronLeft, ChevronRight, Save, FileDown } from "lucide-react";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAppSelector, RootState } from "@/redux/store";
 import { useSelector } from "react-redux";
 import { format, startOfMonth, endOfMonth, isWithinInterval, addDays, startOfDay, endOfDay } from "date-fns";
@@ -25,11 +23,12 @@ const DynamicBillCycle = () => {
   const { t } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
   const userId = useSelector((state: RootState) => state.authData?.userData?.id);
+  const userPhone = useSelector((state: RootState) => state.authData?.userData?.phone);
   const hideRateAmount = userId === '7';
   
   // State definitions (must be at top)
   const [vlcId, setVlcId] = useState("");
-  const [anchorDate, setAnchorDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [loading, setLoading] = useState(false);
@@ -38,10 +37,12 @@ const DynamicBillCycle = () => {
   const [farmersData, setFarmersData] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedFarmerIndex, setSelectedFarmerIndex] = useState(0);
+  const [billStatus, setBillStatus] = useState<{[key: string]: boolean}>({});
 
   useEffect(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const initialDates = calculateDateRange(todayStr, 10);
+    const today = new Date();
+    setSelectedDate(today);
+    const initialDates = calculateDateRange(format(today, 'yyyy-MM-dd'), 10);
     setStartDate(initialDates.from);
     setEndDate(initialDates.to);
   }, []);
@@ -97,10 +98,11 @@ const DynamicBillCycle = () => {
     };
   };
 
-  const handleStartDateChange = (date: Date | undefined) => {
-    if (date) {
-      setAnchorDate(date);
-      const dates = calculateDateRange(format(date, 'yyyy-MM-dd'), 10);
+  const handleDateChange = (dateString: string) => {
+    if (dateString) {
+      const date = new Date(dateString);
+      setSelectedDate(date);
+      const dates = calculateDateRange(dateString, 10);
       setStartDate(dates.from);
       setEndDate(dates.to);
     }
@@ -110,16 +112,22 @@ const DynamicBillCycle = () => {
     const current = filteredFarmers[selectedFarmerIndex];
     if (!current) return;
     const newCycle = parseInt(cycle);
+    
+    // Recalculate date range based on new cycle
+    const dates = calculateDateRange(format(selectedDate, 'yyyy-MM-dd'), newCycle);
+    setStartDate(dates.from);
+    setEndDate(dates.to);
+    
     setFarmersData(prev => prev.map(f => 
       f.farmer_id === current.farmer_id ? { ...f, bill_cycle: newCycle, modified: true } : f
     ));
   };
 
   const computeFarmerStats = (farmer: any) => {
-    if (!farmer || !anchorDate) return null;
+    if (!farmer || !selectedDate) return null;
     
     const cycle = farmer.bill_cycle || 10;
-    const range = calculateDateRange(format(anchorDate, 'yyyy-MM-dd'), cycle);
+    const range = calculateDateRange(format(selectedDate, 'yyyy-MM-dd'), cycle);
     const start = range.from;
     const end = range.to;
     
@@ -306,9 +314,17 @@ const DynamicBillCycle = () => {
           (billDetailsResponse.data.data || []).map((detail: any) => [detail.farmer_id, detail])
         );
 
+        // Track bill generation status
+        const statusMap: {[key: string]: boolean} = {};
+        
         processedData.forEach(farmer => {
-          farmer.bill_details = billDetailsMap.get(farmer.farmer_id) || null;
+          const billDetail = billDetailsMap.get(farmer.farmer_id);
+          farmer.bill_details = billDetail || null;
+          // Check if bill is already generated (has is_finalized = 1 or status = 'finalized')
+          statusMap[farmer.farmer_id] = !!(billDetail && (billDetail.is_finalized === 1 || billDetail.status === 'finalized'));
         });
+        
+        setBillStatus(statusMap);
       }
 
       setFarmersData(processedData);
@@ -334,7 +350,7 @@ const DynamicBillCycle = () => {
   
   const currentFarmer: any = useMemo(() => {
     return computeFarmerStats(currentFarmerRaw);
-  }, [currentFarmerRaw, anchorDate, farmersData]);
+  }, [currentFarmerRaw, selectedDate, farmersData]);
 
   const handlePaymentSubmit = async (paymentType: "Advance" | "Cattle Feed" | "Other1" | "Other2", amount: string) => {
     if (!amount || parseFloat(amount) <= 0) return;
@@ -590,8 +606,14 @@ const DynamicBillCycle = () => {
     }
 
     const currentFarmer = filteredFarmers[selectedFarmerIndex];
-    if (!currentFarmer?.modified) {
-      toast.info("No changes to save");
+    if (!currentFarmer) {
+      toast.error("No farmer selected");
+      return;
+    }
+
+    // Check if bill is already generated
+    if (billStatus[currentFarmer.farmer_id]) {
+      toast.info(`Bill already generated for farmer ${currentFarmer.farmer_id}`);
       return;
     }
 
@@ -713,6 +735,12 @@ const DynamicBillCycle = () => {
 
       await deductionApi.updateFarmerBillWeb(billData);
       
+      // Update bill status to generated
+      setBillStatus(prev => ({
+        ...prev,
+        [currentFarmer.farmer_id]: true
+      }));
+      
       // Update local state to mark as saved and clear payment fields
       // Preserve cow_data and buffalo_data with their collection_ids and rates
       setFarmersData(prev => prev.map((farmer) => 
@@ -781,16 +809,18 @@ const DynamicBillCycle = () => {
       const selectedBranch = branches.find(b => b.branch_id.toString() === vlcId);
       const vlcName = selectedBranch?.name || 'VLC Center';
       const dairyName = selectedBranch?.name || selectedBranch?.username || 'Dairy';
-      const fromDate = format(startDate, 'yyyy-MM-dd');
-      const toDate = format(endDate, 'yyyy-MM-dd');
+      const fromDateApi = format(startDate, 'yyyy-MM-dd');
+      const toDateApi = format(endDate, 'yyyy-MM-dd');
+      const fromDateDisplay = format(startDate, 'dd MMM yyyy');
+      const toDateDisplay = format(endDate, 'dd MMM yyyy');
 
       // Fetch collection data from the same API as FarmerBillInvoiceReport
       const apiUrl = '/report/shift-collection-report';
       const params = {
         dairyid: selectedBranch?.branch_id,
-        startDate: fromDate,
+        startDate: fromDateApi,
         startShift: 'Morning',
-        endDate: toDate,
+        endDate: toDateApi,
         endShift: 'Evening',
         milkType: 'All'
       };
@@ -812,8 +842,8 @@ const DynamicBillCycle = () => {
       try {
         const bankResponse = await bankSummaryApi.getBankSummary({
           dairy_id: vlcId,
-          start_date: fromDate,
-          end_date: toDate
+          start_date: fromDateApi,
+          end_date: toDateApi
         });
         
         (bankResponse.data || []).forEach((farmer: any) => {
@@ -863,10 +893,11 @@ const DynamicBillCycle = () => {
         const htmlContent = generateTemplateDetailedHorizontal({
           dairyName: dairyName,
           branchName: vlcName,
+          dairyPhone: userPhone,
           farmerCode: farmerId,
           farmerName: farmerName,
-          fromDate: fromDate,
-          toDate: toDate,
+          fromDate: fromDateDisplay,
+          toDate: toDateDisplay,
           milkType: 'All',
           data: templateData,
           current_bill: farmerBills.find((b: any) => b.farmer_id === farmerId),
@@ -950,7 +981,7 @@ const DynamicBillCycle = () => {
         }
       }
 
-      pdf.save(`Farmer_Bill_${fromDate}_to_${toDate}.pdf`);
+      pdf.save(`Farmer_Bill_${fromDateApi}_to_${toDateApi}.pdf`);
       toast.success('PDF downloaded successfully');
     } catch (error: any) {
       console.error('PDF Error:', error);
@@ -972,14 +1003,16 @@ const DynamicBillCycle = () => {
       const selectedBranch = branches.find(b => b.branch_id.toString() === vlcId);
       const vlcName = selectedBranch?.name || 'VLC Center';
       const dairyName = selectedBranch?.name || selectedBranch?.username || 'Dairy';
-      const fromDate = format(currentFarmer.periodStart, 'yyyy-MM-dd');
-      const toDate = format(currentFarmer.periodEnd, 'yyyy-MM-dd');
+      const fromDateApi = format(currentFarmer.periodStart, 'yyyy-MM-dd');
+      const toDateApi = format(currentFarmer.periodEnd, 'yyyy-MM-dd');
+      const fromDateDisplay = format(currentFarmer.periodStart, 'dd MMM yyyy');
+      const toDateDisplay = format(currentFarmer.periodEnd, 'dd MMM yyyy');
 
       console.log('PDF Export - Request params:', {
         dairyid: selectedBranch?.branch_id,
-        startDate: fromDate,
+        startDate: fromDateApi,
         startShift: 'Morning',
-        endDate: toDate,
+        endDate: toDateApi,
         endShift: 'Evening',
         milkType: 'All'
       });
@@ -988,9 +1021,9 @@ const DynamicBillCycle = () => {
       const apiUrl = '/report/shift-collection-report';
       const params = {
         dairyid: selectedBranch?.branch_id,
-        startDate: fromDate,
+        startDate: fromDateApi,
         startShift: 'Morning',
-        endDate: toDate,
+        endDate: toDateApi,
         endShift: 'Evening',
         milkType: 'All'
       };
@@ -1021,8 +1054,8 @@ const DynamicBillCycle = () => {
       try {
         const bankResponse = await bankSummaryApi.getBankSummary({
           dairy_id: vlcId,
-          start_date: fromDate,
-          end_date: toDate
+          start_date: fromDateApi,
+          end_date: toDateApi
         });
         
         console.log('PDF Export - Bank Response:', bankResponse.data);
@@ -1062,10 +1095,11 @@ const DynamicBillCycle = () => {
       const htmlContent = generateTemplateDetailedHorizontal({
         dairyName: dairyName,
         branchName: vlcName,
+        dairyPhone: userPhone,
         farmerCode: farmerId,
         farmerName: farmerName,
-        fromDate: fromDate,
-        toDate: toDate,
+        fromDate: fromDateDisplay,
+        toDate: toDateDisplay,
         milkType: 'All',
         data: templateData,
         current_bill: farmerBills.find((b: any) => b.farmer_id === farmerId),
@@ -1137,7 +1171,7 @@ const DynamicBillCycle = () => {
           pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
         }
         
-        pdf.save(`Farmer_Bill_${farmerId}_${fromDate}_to_${toDate}.pdf`);
+        pdf.save(`Farmer_Bill_${farmerId}_${fromDateApi}_to_${toDateApi}.pdf`);
         toast.success('PDF downloaded successfully');
       } finally {
         document.body.removeChild(tempDiv);
@@ -1181,26 +1215,12 @@ const DynamicBillCycle = () => {
 
                 <div className="w-full sm:w-48">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Select Date</label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start text-left font-normal"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {anchorDate ? format(anchorDate, "dd-MM-yyyy") : "Select Date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 bg-white" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={anchorDate}
-                        onSelect={handleStartDateChange}
-                        initialFocus
-                        className={cn("p-3 bg-white")}
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <Input
+                    type="date"
+                    value={format(selectedDate, 'yyyy-MM-dd')}
+                    onChange={(e) => handleDateChange(e.target.value)}
+                    className="w-full"
+                  />
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
@@ -1318,11 +1338,18 @@ const DynamicBillCycle = () => {
                         </div>
                       </div>
                     </div>
-                    {currentFarmer.modified && (
-                      <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs font-medium rounded-full">
-                        Modified
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {billStatus[currentFarmer.farmer_id] && (
+                        <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                          Bill Generated
+                        </span>
+                      )}
+                      {currentFarmer.modified && (
+                        <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs font-medium rounded-full">
+                          Modified
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="p-4 space-y-3">
@@ -1547,10 +1574,10 @@ const DynamicBillCycle = () => {
                       </div>
                     </div>
 
-                    {/* Other1 Row */}
+                    {/* Kirana Row */}
                     <div className="grid grid-cols-3 gap-4 items-start">
                       <div>
-                        <p className="text-xs font-medium text-gray-700">Other 1:</p>
+                        <p className="text-xs font-medium text-gray-700">Kirana:</p>
                         <p className="text-sm font-bold text-gray-800">₹{currentFarmer.other1Amount?.toFixed(2) || "0.00"}</p>
                         {currentFarmer.other1_remaining > 0 && (
                           <p className="text-xs text-red-500">Rem: ₹{currentFarmer.other1_remaining?.toFixed(2)}</p>
@@ -1626,11 +1653,15 @@ const DynamicBillCycle = () => {
                       <div className="flex gap-2">
                         <Button 
                           onClick={handleSave} 
-                          disabled={saving || !currentFarmer.modified}
-                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 h-9"
+                          disabled={saving}
+                          className={`px-4 py-2 h-9 text-white ${
+                            billStatus[currentFarmer.farmer_id] 
+                              ? 'bg-gray-500 hover:bg-gray-600' 
+                              : 'bg-green-600 hover:bg-green-700'
+                          }`}
                         >
                           {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                          Generate Bill
+                          {billStatus[currentFarmer.farmer_id] ? 'Already Freezed' : 'Freeze'}
                         </Button>
                         <Button 
                           onClick={exportSingleFarmerPDF} 
