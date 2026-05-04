@@ -11,19 +11,18 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 
-import { Calendar } from "@/components/ui/calendar";
+import { AppDatePicker } from "@/components/ui/date-picker";
+import { X, ChevronRight, ChevronLeft, CalendarIcon, Download } from "lucide-react";
+import { useState } from "react";
+import { format, parseISO, isValid } from "date-fns";
+import { useTranslation } from "react-i18next";
+import { generateFarmerCollectionPDF } from "@/templates/FarmerCollectionTemplate";
+import { generateFarmerCollectionExcel } from "@/templates/FarmerCollectionExcelTemplate";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { CalendarIcon, X, ChevronRight, ChevronLeft } from "lucide-react";
-import { useState } from "react";
-import { format } from "date-fns";
-import { useTranslation } from "react-i18next";
-import { generateFarmerCollectionPDF } from "@/templates/FarmerCollectionTemplate";
-import { generateFarmerCollectionExcel } from "@/templates/FarmerCollectionExcelTemplate";
-import { Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/redux/store";
 import { toast } from "react-toastify";
@@ -301,64 +300,24 @@ const FarmerCollection = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">{t('from_date')}</label>
-                    <Popover open={isFromCalendarOpen} onOpenChange={setIsFromCalendarOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal bg-gray-50 border-gray-200 hover:bg-gray-100",
-                            !fromDate && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {fromDate ? format(fromDate, "dd-MM-yyyy") : "Select date"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 bg-white z-50" align="start" sideOffset={5}>
-                        <Calendar
-                          mode="single"
-                          selected={fromDate}
-                          onSelect={(date) => {
-                            if (date) {
-                              setFromDate(date);
-                              setIsFromCalendarOpen(false);
-                            }
-                          }}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <AppDatePicker
+                      date={fromDate}
+                      onChange={(dateStr) => {
+                        const parsed = parseISO(dateStr);
+                        if (isValid(parsed)) setFromDate(parsed);
+                      }}
+                    />
                   </div>
 
                   <div className="space-y-2">
                     <label className="text-sm font-medium">{t('to_date')}</label>
-                    <Popover open={isToCalendarOpen} onOpenChange={setIsToCalendarOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal bg-gray-50 border-gray-200 hover:bg-gray-100",
-                            !toDate && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {toDate ? format(toDate, "dd-MM-yyyy") : "Select date"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 bg-white z-50" align="start" sideOffset={5}>
-                        <Calendar
-                          mode="single"
-                          selected={toDate}
-                          onSelect={(date) => {
-                            if (date) {
-                              setToDate(date);
-                              setIsToCalendarOpen(false);
-                            }
-                          }}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <AppDatePicker
+                      date={toDate}
+                      onChange={(dateStr) => {
+                        const parsed = parseISO(dateStr);
+                        if (isValid(parsed)) setToDate(parsed);
+                      }}
+                    />
                   </div>
                 </div>
                 <Button onClick={handleSubmit} disabled={loading} className="bg-blue-600 hover:bg-blue-700 w-full h-11 text-white">

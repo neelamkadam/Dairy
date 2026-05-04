@@ -835,11 +835,28 @@ const FarmerBillInvoiceReport = () => {
           bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary || null
         };
 
-        const html = generateTemplateDetailedHorizontal(templateData as any, reportLang);
-        const { imgData, imgWidth, imgHeight } = await generatePage(html);
-        
-        if (i > 0) pdf.addPage();
-        pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+        const hasCow = farmerBillData.some(d => d.type === 'Cow');
+        const hasBuffalo = farmerBillData.some(d => d.type === 'Buffalo' || d.type === 'Buffaloes');
+
+        if (hasCow && hasBuffalo) {
+          // Page 1: Cow only, hide summary
+          const cowHtml = generateTemplateDetailedHorizontal({ ...templateData, renderOnly: 'Cow', hideSummary: true } as any, reportLang);
+          const cowPage = await generatePage(cowHtml);
+          if (i > 0) pdf.addPage();
+          pdf.addImage(cowPage.imgData, 'JPEG', 0, 0, cowPage.imgWidth, cowPage.imgHeight);
+
+          // Page 2: Buffalo only, show summary
+          const buffHtml = generateTemplateDetailedHorizontal({ ...templateData, renderOnly: 'Buffalo', hideSummary: false } as any, reportLang);
+          const buffPage = await generatePage(buffHtml);
+          pdf.addPage();
+          pdf.addImage(buffPage.imgData, 'JPEG', 0, 0, buffPage.imgWidth, buffPage.imgHeight);
+        } else {
+          const html = generateTemplateDetailedHorizontal(templateData as any, reportLang);
+          const { imgData, imgWidth, imgHeight } = await generatePage(html);
+          
+          if (i > 0) pdf.addPage();
+          pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+        }
       }
       pdf.save(`Detailed_Horizontal_Bills_${fromDate}_${toDate}.pdf`);
       toast.success(t('detailed_pdf_downloaded_successfully'));

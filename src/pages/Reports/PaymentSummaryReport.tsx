@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { AppDatePicker } from "@/components/ui/date-picker";
 import { Calendar, Download, Loader2, FileSpreadsheet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAppSelector } from "@/redux/store";
@@ -588,22 +589,17 @@ const PaymentSummaryReport = () => {
               </div>
               
               <div className="flex-1 min-w-[150px]">
-                <label className="block text-sm font-medium text-gray-700 mb-2">From Date</label>
-                <input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => handleDateFromChange(e.target.value)}
-                  className="w-full border rounded px-3 py-2"
+                <AppDatePicker
+                  date={dateFrom}
+                  onChange={handleDateFromChange}
                 />
               </div>
               
               <div className="flex-1 min-w-[150px]">
-                <label className="block text-sm font-medium text-gray-700 mb-2">To Date</label>
-                <input
-                  type="date"
-                  value={dateTo}
-                  disabled
-                  className="w-full border rounded px-3 py-2 bg-gray-100 cursor-not-allowed"
+                <AppDatePicker
+                  date={dateTo}
+                  onChange={setDateTo}
+                  disabled={true}
                 />
               </div>
               

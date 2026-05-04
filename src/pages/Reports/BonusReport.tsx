@@ -28,6 +28,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Search, Plus, Calendar as CalendarIcon, Loader2 } from "lucide-react";
+import { AppDatePicker } from "@/components/ui/date-picker";
 import { format } from "date-fns";
 import { toast } from "react-toastify";
 import { useAppSelector } from "@/redux/store";
@@ -267,20 +268,16 @@ const BonusReport = () => {
             </div>
 
             <div className="flex-1 min-w-[150px]">
-              <Label>From Date</Label>
-              <Input 
-                type="date" 
-                value={fromDate} 
-                onChange={(e) => setFromDate(e.target.value)} 
+              <AppDatePicker
+                date={fromDate}
+                onChange={setFromDate}
               />
             </div>
 
             <div className="flex-1 min-w-[150px]">
-              <Label>To Date</Label>
-              <Input 
-                type="date" 
-                value={toDate} 
-                onChange={(e) => setToDate(e.target.value)} 
+              <AppDatePicker
+                date={toDate}
+                onChange={setToDate}
               />
             </div>
 

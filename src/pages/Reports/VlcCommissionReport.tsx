@@ -14,23 +14,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { ChevronLeft, ChevronRight, CalendarIcon, FileDown } from "lucide-react";
-import { useState } from "react";
-import { cn } from "@/lib/utils";
-import { Label } from "@/components/ui/label";
-import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
+import { AppDatePicker } from "@/components/ui/date-picker";
+import { format, parseISO, isValid } from "date-fns";
 import { useAppSelector } from "@/redux/store";
 import { reportsApi } from "@/services/reportsApi";
 import { toast } from "react-toastify";
 import { generateVlcCommissionReportPDF } from "@/templates/VlcCommissionReportTemplate";
 import { generateVlcCommissionReportExcel } from "@/templates/VlcCommissionReportExcelTemplate";
 import { useTranslation } from 'react-i18next';
+import { useState } from "react";
+import { Label } from "@/components/ui/label";
+import { ChevronLeft, ChevronRight, FileDown } from "lucide-react";
 
 const VlcCommissionReport = () => {
   const { i18n } = useTranslation();
@@ -150,55 +144,23 @@ const VlcCommissionReport = () => {
         </div>
         <div className="space-y-2 text-left ">
           <Label>From Date</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-full bg-white justify-between font-normal border-gray-200 ",
-                  !fromDate && "text-muted-foreground"
-                )}
-              >
-                {fromDate ? format(fromDate, "dd-MM-yyyy") : "Select date"}
-                <CalendarIcon className="mr-1 h-4 w-4 text-gray-400" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={fromDate}
-                onSelect={setFromDate}
-                initialFocus
-                className="p-3 pointer-events-auto bg-white"
-              />
-            </PopoverContent>
-          </Popover>
+          <AppDatePicker
+            date={fromDate}
+            onChange={(dateStr) => {
+              const parsed = parseISO(dateStr);
+              if (isValid(parsed)) setFromDate(parsed);
+            }}
+          />
         </div>
         <div className="space-y-2 text-left ">
           <Label>To Date</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-full bg-white justify-between font-normal border-gray-200 ",
-                  !toDate && "text-muted-foreground"
-                )}
-              >
-                {toDate ? format(toDate, "dd-MM-yyyy") : "Select date"}
-                <CalendarIcon className="mr-1 h-4 w-4 text-gray-400" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={toDate}
-                onSelect={setToDate}
-                initialFocus
-                className="p-3 pointer-events-auto bg-white"
-              />
-            </PopoverContent>
-          </Popover>
+          <AppDatePicker
+            date={toDate}
+            onChange={(dateStr) => {
+              const parsed = parseISO(dateStr);
+              if (isValid(parsed)) setToDate(parsed);
+            }}
+          />
         </div>
         <Button onClick={handleShowReport} disabled={loading} className="text-white bg-blue-600 w-[90px] mt-4.5">
           {loading ? "Loading..." : "Show"}

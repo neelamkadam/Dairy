@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Users, Droplets, TrendingUp, Activity, Calendar, Clock, Sun, Moon, IndianRupee } from "lucide-react";
+import { Users, Droplets, TrendingUp, Activity, Clock, Sun, Moon, IndianRupee } from "lucide-react";
+import { AppDatePicker } from "@/components/ui/date-picker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import KPICard from "@/components/KPICard";
@@ -167,13 +168,10 @@ const Dashboard = () => {
               <CardContent className="p-3 lg:p-2">
                 <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 w-full justify-center sm:justify-start">
                   <div className="flex items-center gap-2 min-w-0 flex-shrink">
-                    <Calendar className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                    <input
-                      type="date"
-                      value={selectedDate}
-                      onChange={(e) => setSelectedDate(e.target.value)}
-                      max={new Date().toISOString().split('T')[0]}
-                      className="text-xs sm:text-sm font-medium border-none outline-none bg-transparent min-w-0 flex-shrink cursor-pointer"
+                    <AppDatePicker
+                      date={selectedDate}
+                      onChange={setSelectedDate}
+                      className="border-none shadow-none p-0"
                     />
                   </div>
                   

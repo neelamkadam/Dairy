@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cattleFeedApi, CattleFeedStock } from "@/services/cattleFeedApi";
 import { toast } from "react-toastify";
 import { useAppSelector } from "@/redux/store";
-import { format } from "date-fns";
+import { format, parseISO, isValid } from "date-fns";
 import { Pencil, Trash2, Plus, FileText, Search, Package, IndianRupee, Calendar as CalendarIcon } from "lucide-react";
 import {
   Dialog,
@@ -16,9 +16,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { AppDatePicker } from "@/components/ui/date-picker";
 
 const CattleFeedStockSettings: React.FC = () => {
   const { branches } = useAppSelector((state) => state.branch);
@@ -388,36 +387,13 @@ const CattleFeedStockSettings: React.FC = () => {
 
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-slate-700">Date</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full pl-3 text-left font-normal h-11 bg-slate-50 border-slate-200",
-                            !purchaseDate && "text-muted-foreground"
-                          )}
-                        >
-                          {purchaseDate ? (
-                            format(purchaseDate, "PPP")
-                          ) : (
-                            <span>Pick a date</span>
-                          )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 bg-white" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={purchaseDate}
-                          onSelect={setPurchaseDate}
-                          disabled={(date) =>
-                            date > new Date() || date < new Date("1900-01-01")
-                          }
-                          initialFocus
-                          className="bg-white"
-                        />
-                      </PopoverContent>
-                    </Popover>
+                  <AppDatePicker
+                    date={purchaseDate}
+                    onChange={(dateStr) => {
+                      const parsed = parseISO(dateStr);
+                      if (isValid(parsed)) setPurchaseDate(parsed);
+                    }}
+                  />
                   </div>
                 </div>
 
@@ -569,36 +545,13 @@ const CattleFeedStockSettings: React.FC = () => {
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-semibold text-slate-700">Purchase Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full pl-3 text-left font-normal h-11 bg-slate-50 border-slate-200",
-                      !restockDate && "text-muted-foreground"
-                    )}
-                  >
-                    {restockDate ? (
-                      format(restockDate, "PPP")
-                    ) : (
-                      <span>Pick a date</span>
-                    )}
-                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-white" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={restockDate}
-                    onSelect={setRestockDate}
-                    disabled={(date) =>
-                      date > new Date() || date < new Date("1900-01-01")
-                    }
-                    initialFocus
-                    className="bg-white"
-                  />
-                </PopoverContent>
-              </Popover>
+              <AppDatePicker
+                date={restockDate}
+                onChange={(dateStr) => {
+                  const parsed = parseISO(dateStr);
+                  if (isValid(parsed)) setRestockDate(parsed);
+                }}
+              />
             </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0 bg-white">
@@ -680,21 +633,21 @@ const CattleFeedStockSettings: React.FC = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4 mb-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
             <div className="space-y-2">
-              <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Start Date</Label>
-              <Input 
-                type="date" 
-                value={startDate} 
-                onChange={(e) => setStartDate(e.target.value)}
-                className="bg-white border-slate-200 h-10" 
+              <AppDatePicker
+                date={startDate}
+                onChange={(dateStr) => {
+                  const parsed = parseISO(dateStr);
+                  if (isValid(parsed)) setStartDate(parsed);
+                }}
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">End Date</Label>
-              <Input 
-                type="date" 
-                value={endDate} 
-                onChange={(e) => setEndDate(e.target.value)}
-                className="bg-white border-slate-200 h-10" 
+              <AppDatePicker
+                date={endDate}
+                onChange={(dateStr) => {
+                  const parsed = parseISO(dateStr);
+                  if (isValid(parsed)) setEndDate(parsed);
+                }}
               />
             </div>
           </div>

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
+import { AppDatePicker } from "@/components/ui/date-picker";
+import { format, parseISO, isValid } from "date-fns";
 import { generateShiftReportPDF } from "@/templates/ShiftReportTemplate";
 import { generateShiftReportExcel } from "@/templates/ShiftReportExcelTemplate";
 import PdfLoader from "@/components/PdfLoader";
@@ -213,33 +213,13 @@ const ShiftReports:React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4 mt-5">
           <div className="space-y-2 text-left ">
             <Label>Date From</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full bg-white justify-between font-normal border-gray-200 ",
-                    !formData.date && "text-muted-foreground"
-                  )}
-                >
-                  {formData.date
-                    ? format(formData.date, "yyyy/MM/dd")
-                    : format(new Date(), "yyyy/MM/dd")}
-                  <CalendarIcon className="mr-2 h-4 w-4 " />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={formData.date}
-                  onSelect={(date) =>
-                    setFormData({ ...formData, date: date })
-                  }
-                  initialFocus
-                  className="p-3 pointer-events-auto bg-white"
-                />
-              </PopoverContent>
-            </Popover>
+            <AppDatePicker
+              date={formData.date}
+              onChange={(dateStr) => {
+                const parsed = parseISO(dateStr);
+                if (isValid(parsed)) setFormData({ ...formData, date: parsed });
+              }}
+            />
           </div>
 
           <div className="space-y-2">

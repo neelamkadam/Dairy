@@ -3,11 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Download } from "lucide-react";
+import { AppDatePicker } from "@/components/ui/date-picker";
+import { Download } from "lucide-react";
 import * as XLSX from "xlsx";
-import { format, lastDayOfMonth } from "date-fns";
+import { format, lastDayOfMonth, parseISO, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/redux/store";
 import { bankSummaryApi, BankSummaryData } from "@/services/bankSummaryApi";
@@ -218,30 +217,20 @@ const BankSummary: React.FC = () => {
               </div>
 
               <div>
-                <Label className="text-sm font-medium text-gray-700 mb-2">Select Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal")}>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {format(startDate, "dd-MM-yyyy")} to {format(endDate, "dd-MM-yyyy")}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-white pointer-events-auto" align="start">
-                    <Calendar 
-                      mode="single" 
-                      selected={startDate} 
-                      onDayClick={(date) => {
-                        if (date) {
-                          const { startDate: start, endDate: end } = calculateDateRange(date);
-                          setStartDate(start);
-                          setEndDate(end);
-                        }
-                      }}
-                      defaultMonth={startDate}
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
+                <AppDatePicker
+                  date={startDate}
+                  onChange={(dateStr) => {
+                    const parsed = parseISO(dateStr);
+                    if (isValid(parsed)) {
+                      const { startDate: start, endDate: end } = calculateDateRange(parsed);
+                      setStartDate(start);
+                      setEndDate(end);
+                    }
+                  }}
+                />
+                <div className="mt-2 text-xs text-gray-500 text-left">
+                  Range: {format(startDate, "dd-MM-yyyy")} to {format(endDate, "dd-MM-yyyy")}
+                </div>
               </div>
 
               <div className="flex items-end">

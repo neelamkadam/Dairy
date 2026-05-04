@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar as CalendarIcon, Loader2, Search, ChevronLeft, ChevronRight, Save, FileDown } from "lucide-react";
-import { Calendar } from "@/components/ui/calendar";
+import { AppDatePicker } from "@/components/ui/date-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAppSelector, RootState } from "@/redux/store";
 import { useSelector } from "react-redux";
@@ -1156,26 +1156,10 @@ const ShubhamMilkProduct = () => {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">{t("start_date")}</label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start text-left font-normal"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {startDate ? format(startDate, "dd-MM-yyyy") : t("start_date")}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 bg-white" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={startDate}
-                        onSelect={handleStartDateChange}
-                        initialFocus
-                        className={cn("p-3 bg-white")}
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <AppDatePicker
+                    date={startDate}
+                    onChange={handleStartDateChange}
+                  />
                 </div>
 
                 <div>

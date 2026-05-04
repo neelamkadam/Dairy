@@ -5,10 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { CalendarIcon, Plus, Trash2, Eye } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
+import { AppDatePicker } from "@/components/ui/date-picker";
+import { format, parseISO, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/redux/store";
 import { toast } from "react-toastify";
@@ -243,18 +241,13 @@ const ManualRateChart = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700 text-left">Effective Date</label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("w-full h-10 justify-start text-left font-normal bg-gray-50", !effectiveDate && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {effectiveDate ? format(effectiveDate, "dd MMM yyyy") : "Select date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-white" align="start">
-                    <Calendar mode="single" selected={effectiveDate} onSelect={setEffectiveDate} initialFocus />
-                  </PopoverContent>
-                </Popover>
+                <AppDatePicker
+                  date={effectiveDate}
+                  onChange={(dateStr) => {
+                    const parsed = parseISO(dateStr);
+                    if (isValid(parsed)) setEffectiveDate(parsed);
+                  }}
+                />
               </div>
             </div>
 

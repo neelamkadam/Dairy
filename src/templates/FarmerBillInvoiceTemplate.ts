@@ -44,6 +44,7 @@ export interface Template2Data {
   hideRateAmount?: boolean;
   hideHeader?: boolean;
   hideSummary?: boolean;
+  renderOnly?: 'Cow' | 'Buffalo';
   collections_summary?: {
     total_quantity: number;
     weighted_avg_fat: number;
@@ -778,7 +779,7 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
   templateData.data.forEach(item => {
     const itemDate = new Date(item.date);
     const dateStr = itemDate.toLocaleDateString("en-GB");
-    const mType = item.type === 'Buffalo' ? 'Buffalo' : 'Cow';
+    const mType = (item.type === 'Buffalo' || item.type === 'Buffaloes') ? 'Buffalo' : 'Cow';
     
     if (!groupedData.has(dateStr)) {
       groupedData.set(dateStr, {});
@@ -790,8 +791,8 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
     else dayData[mType]!.evening = item;
   });
 
-  const hasCow = templateData.data.some(d => d.type === 'Cow');
-  const hasBuffalo = templateData.data.some(d => d.type === 'Buffalo');
+  const hasCow = (templateData.renderOnly === 'Cow' || !templateData.renderOnly) && templateData.data.some(d => d.type === 'Cow');
+  const hasBuffalo = (templateData.renderOnly === 'Buffalo' || !templateData.renderOnly) && templateData.data.some(d => d.type === 'Buffalo');
 
   const startDate = new Date(templateData.fromDate);
   const endDate = new Date(templateData.toDate);
@@ -1029,6 +1030,7 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
     </thead>
     <tbody>
       ${getTablesContent()}
+      ${!templateData.hideSummary ? `
       <tr style="font-weight: bold; background: #f2f2f2; height: 30px;">
         <td class="text-center">${labels.total} :</td>
         <td class="text-right">${totalMLtr.toFixed(1)}</td>
@@ -1040,9 +1042,11 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
         <td class="text-right">${(totalMLtr + totalELtr).toFixed(1)}</td>
         <td class="text-right">${(totalMAmt + totalEAmt).toFixed(2)}</td>
       </tr>
+      ` : ''}
     </tbody>
   </table>
 
+  ${!templateData.hideSummary ? `
   <div style="margin-top: 10px;">
     <table class="summary-grid">
       <tr class="bold text-center" style="background: #f2f2f2; font-size: 10px;">
@@ -1114,6 +1118,7 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
       <span>${labels.totalBonusTillDate}: ${parseFloat(String(totalBonusTillDate)).toFixed(2)}</span>
     </div>` : ''}
   </div>
+  ` : ''}
 
   </div>
 </body>
