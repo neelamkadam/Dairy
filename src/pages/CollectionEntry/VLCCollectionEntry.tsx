@@ -9,19 +9,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
-import { Calendar as CalendarIcon, HelpCircle, Upload, Download } from "lucide-react";
+import { format, isValid } from "date-fns";
+import { HelpCircle, Upload, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import LastEntryDetails from "@/components/LastEntryDetails";
 import { Input } from "@/components/ui/input";
@@ -70,7 +64,6 @@ const VLCCollectionEntry = () => {
   });
   const { branches } = useAppSelector((state) => state.branch);
   const [lastEntries, setLastEntries] = useState([]);
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -483,33 +476,16 @@ const VLCCollectionEntry = () => {
               <Label htmlFor="date" className="text-sm font-medium text-gray-700">
                 {t('date')}
               </Label>
-              <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal bg-gray-50 border-gray-200 hover:bg-gray-100",
-                      !formData.date && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.date ? format(formData.date, "dd-MM-yyyy") : <span>Pick a date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-white z-50" align="start" sideOffset={5}>
-                  <Calendar
-                    mode="single"
-                    selected={formData.date}
-                    onSelect={(date) => {
-                      if (date) {
-                        handleInputChange("date", date);
-                        setIsCalendarOpen(false);
-                      }
-                    }}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              <Input
+                type="date"
+                id="date"
+                value={formData.date ? format(formData.date, "yyyy-MM-dd") : ""}
+                onChange={(e) => {
+                  const d = new Date(e.target.value);
+                  if (isValid(d)) handleInputChange("date", d);
+                }}
+                className="bg-gray-50 border-gray-200 hover:bg-gray-100 w-full h-10"
+              />
             </div>
 
             <div className="space-y-2">
@@ -745,21 +721,15 @@ const VLCCollectionEntry = () => {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-sm font-medium text-gray-700">Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start bg-gray-50 border-gray-200 hover:bg-gray-100">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {bulkFormData.date ? format(bulkFormData.date, "dd-MM-yyyy") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-white z-50" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={bulkFormData.date}
-                      onSelect={(date) => date && setBulkFormData(prev => ({ ...prev, date }))}
-                    />
-                  </PopoverContent>
-                </Popover>
+                <Input
+                  type="date"
+                  value={bulkFormData.date ? format(bulkFormData.date, "yyyy-MM-dd") : ""}
+                  onChange={(e) => {
+                    const d = new Date(e.target.value);
+                    if (isValid(d)) setBulkFormData(prev => ({ ...prev, date: d }));
+                  }}
+                  className="bg-gray-50 border-gray-200 hover:bg-gray-100 w-full h-10"
+                />
               </div>
 
               <div className="space-y-2">

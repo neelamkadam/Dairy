@@ -542,33 +542,60 @@ const GenerateBill = () => {
 
   const calculatePreviousBillCycle = (currentStartDate: Date) => {
     const [year, month, day] = format(currentStartDate, 'yyyy-MM-dd').split('-').map(Number);
+    const cycleDays = selectedVlc?.days || 10;
     
     let prevStartDay: number, prevEndDay: number;
-    if (day === 1) {
-      // If current cycle starts on 1st, previous is 21st to last day of previous month
-      const prevMonth = month === 1 ? 12 : month - 1;
-      const prevYear = month === 1 ? year - 1 : year;
-      prevStartDay = 21;
-      prevEndDay = new Date(prevYear, prevMonth, 0).getDate();
-      return {
-        from: new Date(prevYear, prevMonth - 1, prevStartDay),
-        to: new Date(prevYear, prevMonth - 1, prevEndDay)
-      };
-    } else if (day === 11) {
-      // If current cycle starts on 11th, previous is 1st to 10th
-      prevStartDay = 1;
-      prevEndDay = 10;
-    } else if (day === 21) {
-      // If current cycle starts on 21st, previous is 11th to 20th
-      prevStartDay = 11;
-      prevEndDay = 20;
+    let prevMonth = month;
+    let prevYear = year;
+
+    if (cycleDays === 15) {
+      if (day === 1) {
+        // If current is 1st-15th, previous is 16th to end of previous month
+        prevMonth = month === 1 ? 12 : month - 1;
+        prevYear = month === 1 ? year - 1 : year;
+        prevStartDay = 16;
+        prevEndDay = new Date(prevYear, prevMonth, 0).getDate();
+      } else if (day === 16) {
+        // If current is 16th to end, previous is 1st to 15th
+        prevStartDay = 1;
+        prevEndDay = 15;
+      } else {
+        return null;
+      }
+    } else if (cycleDays >= 28) {
+      // Monthly cycle. If current is 1st, previous is 1st to end of previous month
+      if (day === 1) {
+        prevMonth = month === 1 ? 12 : month - 1;
+        prevYear = month === 1 ? year - 1 : year;
+        prevStartDay = 1;
+        prevEndDay = new Date(prevYear, prevMonth, 0).getDate();
+      } else {
+        return null;
+      }
     } else {
-      return null;
+      // Default 10-day cycle
+      if (day === 1) {
+        // If current cycle starts on 1st, previous is 21st to last day of previous month
+        prevMonth = month === 1 ? 12 : month - 1;
+        prevYear = month === 1 ? year - 1 : year;
+        prevStartDay = 21;
+        prevEndDay = new Date(prevYear, prevMonth, 0).getDate();
+      } else if (day === 11) {
+        // If current cycle starts on 11th, previous is 1st to 10th
+        prevStartDay = 1;
+        prevEndDay = 10;
+      } else if (day === 21) {
+        // If current cycle starts on 21st, previous is 11th to 20th
+        prevStartDay = 11;
+        prevEndDay = 20;
+      } else {
+        return null;
+      }
     }
     
     return {
-      from: new Date(year, month - 1, prevStartDay),
-      to: new Date(year, month - 1, prevEndDay)
+      from: new Date(prevYear, prevMonth - 1, prevStartDay),
+      to: new Date(prevYear, prevMonth - 1, prevEndDay)
     };
   };
 

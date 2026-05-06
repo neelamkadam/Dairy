@@ -14,7 +14,10 @@ import { deductionApi } from "@/services/deductionApi";
 import { api } from "@/services/config";
 import { bankSummaryApi } from "@/services/bankSummaryApi";
 import { paymentApi } from "@/services/paymentApi";
-import { generateTemplateDetailedHorizontal, Template2Data, BankDetails, FarmerBillData } from "@/templates/FarmerBillInvoiceTemplate";
+import { billApi } from "@/services/billApi";
+import { bonusApi } from "@/services/bonusApi";
+import { settingsApi } from "@/services/settingsApi";
+import { generateTemplateDetailedHorizontal, Template2Data, BankDetails, FarmerBillData, FarmerReportData } from "@/templates/FarmerBillInvoiceTemplate";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import PdfLoader from "@/components/PdfLoader";
@@ -38,6 +41,8 @@ const DynamicBillCycle = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedFarmerIndex, setSelectedFarmerIndex] = useState(0);
   const [billStatus, setBillStatus] = useState<{[key: string]: boolean}>({});
+  const [bonusDeductionInfo, setBonusDeductionInfo] = useState<any>(null);
+  const [globalCycle, setGlobalCycle] = useState<number>(10);
 
   useEffect(() => {
     const today = new Date();
@@ -57,8 +62,21 @@ const DynamicBillCycle = () => {
   useEffect(() => {
     if (vlcId && startDate) {
       handleShow();
+      fetchBonusInfo();
     }
   }, [vlcId]);
+
+  const fetchBonusInfo = async () => {
+    if (!vlcId) return;
+    try {
+      const response = await bonusApi.getBonusDeduction(parseInt(vlcId));
+      if (response.data && response.data.success) {
+        setBonusDeductionInfo(response.data.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch bonus info:", error);
+    }
+  };
   
   const calculateDateRange = (dateStr: string, cycle: number = 10) => {
     const date = new Date(dateStr);
@@ -102,10 +120,17 @@ const DynamicBillCycle = () => {
     if (dateString) {
       const date = new Date(dateString);
       setSelectedDate(date);
-      const dates = calculateDateRange(dateString, 10);
+      const dates = calculateDateRange(dateString, globalCycle);
       setStartDate(dates.from);
       setEndDate(dates.to);
     }
+  };
+
+  const handleGlobalCycleChange = (cycle: number) => {
+    setGlobalCycle(cycle);
+    const dates = calculateDateRange(format(selectedDate, 'yyyy-MM-dd'), cycle);
+    setStartDate(dates.from);
+    setEndDate(dates.to);
   };
 
   const handleCycleChange = (cycle: string) => {
@@ -139,6 +164,18 @@ const DynamicBillCycle = () => {
     
     // Aggregate data from relevant days
     let quantity = 0, milk_total = 0, received_total = 0;
+    
+    // Treat bill as non-existent if it's just zeroed out data
+    const bd = farmer.bill_details || {};
+    const hasSavedBill = !!(bd && (
+      (parseFloat(bd.milk_total) || 0) !== 0 || 
+      (parseFloat(bd.advance_total) || 0) !== 0 ||
+      (parseFloat(bd.cattlefeed_total) || 0) !== 0 ||
+      (parseFloat(bd.other1_total) || 0) !== 0 ||
+      (parseFloat(bd.other2_total) || 0) !== 0 ||
+      bd.is_finalized === 1
+    ));
+
     let advance_sum = 0, cf_sum = 0, o1_sum = 0, o2_sum = 0;
     let fat_sum = 0, snf_sum = 0, water_sum = 0, records_with_fat = 0;
 
@@ -146,10 +183,12 @@ const DynamicBillCycle = () => {
       quantity += parseFloat(r.quantity) || 0;
       milk_total += parseFloat(r.milk_total) || 0;
       received_total += parseFloat(r.total_received) || 0;
-      advance_sum += r.deductions?.advance || 0;
-      cf_sum += r.deductions?.cattle_feed || 0;
-      o1_sum += r.deductions?.other1 || 0;
-      o2_sum += r.deductions?.other2 || 0;
+      if (!hasSavedBill) {
+        advance_sum += r.deductions?.advance || 0;
+        cf_sum += r.deductions?.cattle_feed || 0;
+        o1_sum += r.deductions?.other1 || 0;
+        o2_sum += r.deductions?.other2 || 0;
+      }
       
       if (r.fat > 0) {
         fat_sum += (parseFloat(r.fat) || 0) * (parseFloat(r.quantity) || 0);
@@ -192,22 +231,37 @@ const DynamicBillCycle = () => {
     const cow_data = aggregateType(filteredTypeEntries.filter(r => r.type?.toLowerCase() === 'cow'));
     const buffalo_data = aggregateType(filteredTypeEntries.filter(r => r.type?.toLowerCase() === 'buffalo'));
 
-    // Use monthly remaining from bill_details
-    const bd = farmer.bill_details || {};
+    // Total available = (Deduction already in bill + Remaining in bill)
+    
+    // Total available = (Deduction already in bill + Remaining in bill)
+    // We strictly use from_bills fields as requested
+    const prev_advance = (parseFloat(bd.advance_total) || 0) + (parseFloat(bd.advance_remaining) || 0);
+    const prev_cattlefeed = (parseFloat(bd.cattlefeed_total) || 0) + (parseFloat(bd.cattlefeed_remaining) || 0);
+    const prev_other1 = (parseFloat(bd.other1_total) || 0) + (parseFloat(bd.other1_remaining) || 0);
+    const prev_other2 = (parseFloat(bd.other2_total) || 0) + (parseFloat(bd.other2_remaining) || 0);
     
     return {
       ...farmer,
       quantity,
       milk_total,
       received_total,
-      advance: (parseFloat(bd.advance_total) || 0) + (parseFloat(bd.advance_remaining) || 0),
-      advance_remaining: parseFloat(bd.advance_remaining) || 0,
-      cattleFeedAmount: (parseFloat(bd.cattlefeed_total) || 0) + (parseFloat(bd.cattlefeed_remaining) || 0),
-      cattlefeed_remaining: parseFloat(bd.cattlefeed_remaining) || 0,
-      other1Amount: (parseFloat(bd.other1_total) || 0) + (parseFloat(bd.other1_remaining) || 0),
-      other1_remaining: parseFloat(bd.other1_remaining) || 0,
-      other2Amount: (parseFloat(bd.other2_total) || 0) + (parseFloat(bd.other2_remaining) || 0),
-      other2_remaining: parseFloat(bd.other2_remaining) || 0,
+      // In this mode, we show previous balance from bill record
+      advance_prev: prev_advance,
+      advance_pay: advance_sum,
+      advance_total_avail: prev_advance + advance_sum,
+      
+      cattlefeed_prev: prev_cattlefeed,
+      cattlefeed_pay: cf_sum,
+      cattlefeed_total_avail: prev_cattlefeed + cf_sum,
+      
+      other1_prev: prev_other1,
+      other1_pay: o1_sum,
+      other1_total_avail: prev_other1 + o1_sum,
+      
+      other2_prev: prev_other2,
+      other2_pay: o2_sum,
+      other2_total_avail: prev_other2 + o2_sum,
+
       avg_fat,
       avg_snf,
       avg_water,
@@ -232,17 +286,16 @@ const DynamicBillCycle = () => {
 
     setLoading(true);
     try {
-      // Fetch for the entire month to enable dynamic cycle billing
-      const monthStart = startOfMonth(startDate);
-      const monthEnd = endOfMonth(startDate);
+      const fromStr = format(startDate, "yyyy-MM-dd");
+      const toStr = format(endDate, "yyyy-MM-dd");
 
       const { data } = await deductionApi.getAllFarmersBalance(
         parseInt(vlcId),
-        format(monthStart, "yyyy-MM-dd"),
-        format(monthEnd, "yyyy-MM-dd")
+        fromStr,
+        toStr
       );
 
-      console.log("getAllFarmersBalance response for full month:", data);
+      console.log("getAllFarmersBalance response:", { fromStr, toStr }, data);
 
       // Store separate collection data - grouped by farmer and type
       let typeSpecificEntries = new Map<string, any[]>();
@@ -251,8 +304,8 @@ const DynamicBillCycle = () => {
         const collectionResponse = await api.get('/collections/by-dairy-date-range', {
           params: {
             dairy_id: vlcId,
-            start_date: format(monthStart, "yyyy-MM-dd"),
-            end_date: format(monthEnd, "yyyy-MM-dd")
+            start_date: fromStr,
+            end_date: toStr
           }
         });
         
@@ -265,72 +318,53 @@ const DynamicBillCycle = () => {
         console.error('Failed to fetch collection data:', error);
       }
 
+      // Track bill generation status
+      const statusMap: {[key: string]: boolean} = {};
+      
       // Initialize farmer map with daily entries
       const farmerMap = new Map();
       
       (data.data || []).forEach((dateEntry: any) => {
-        const entryDate = dateEntry.date;
         dateEntry.farmers.forEach((farmer: any) => {
           const farmerId = farmer.farmer_id;
           if (!farmerMap.has(farmerId)) {
+            // Strictly use from_bills data as requested
+            const fb = farmer.from_bills || {};
+            
             farmerMap.set(farmerId, {
               farmer_id: farmerId,
               name: farmer.farmer_name || `Farmer ${farmerId}`,
               daily_records: [],
               type_records: typeSpecificEntries.get(farmerId) || [],
-              bill_cycle: 10, // Initial default cycle
+              bill_cycle: globalCycle,
               paymentAdvance: "",
               paymentCattleFeed: "",
               paymentOther1: "",
               paymentOther2: "",
-              advanceDeduction: 0,
-              cattleFeedDeduction: 0,
-              other1Deduction: 0,
-              other2Deduction: 0
+              advanceDeduction: parseFloat(fb.advance_total) || 0,
+              cattleFeedDeduction: parseFloat(fb.cattlefeed_total) || 0,
+              other1Deduction: parseFloat(fb.other1_total) || 0,
+              other2Deduction: parseFloat(fb.other2_total) || 0,
+              bill_details: fb // Store from_bills as bill_details
             });
+
+            // Set bill status from is_finalized
+            statusMap[farmerId] = !!(fb.is_finalized === 1 || fb.status === 'finalized');
           }
           
           const record = farmerMap.get(farmerId);
           record.daily_records.push({
             ...farmer,
-            date: entryDate
+            date: dateEntry.date
           });
         });
       });
       
-      const processedData = Array.from(farmerMap.values());
-
-      // Fetch initial bill details for all farmers
-      if (processedData.length > 0) {
-        const farmerIds = processedData.map(f => f.farmer_id);
-        const billDetailsResponse = await deductionApi.getBillDetailsByFarmers(
-          parseInt(vlcId),
-          farmerIds,
-          format(monthStart, "yyyy-MM-dd"),
-          format(monthEnd, "yyyy-MM-dd")
-        );
-
-        const billDetailsMap = new Map(
-          (billDetailsResponse.data.data || []).map((detail: any) => [detail.farmer_id, detail])
-        );
-
-        // Track bill generation status
-        const statusMap: {[key: string]: boolean} = {};
-        
-        processedData.forEach(farmer => {
-          const billDetail = billDetailsMap.get(farmer.farmer_id);
-          farmer.bill_details = billDetail || null;
-          // Check if bill is already generated (has is_finalized = 1 or status = 'finalized')
-          statusMap[farmer.farmer_id] = !!(billDetail && (billDetail.is_finalized === 1 || billDetail.status === 'finalized'));
-        });
-        
-        setBillStatus(statusMap);
-      }
-
-      setFarmersData(processedData);
+      setBillStatus(statusMap);
+      setFarmersData(Array.from(farmerMap.values()));
       setSelectedFarmerIndex(0);
       setSearchTerm("");
-      toast.success("Data loaded for the selected month");
+      toast.success(`Data loaded for ${fromStr} to ${toStr}`);
     } catch (error: any) {
       console.error("API Error:", error);
       toast.error(error?.response?.data?.message || t("failed_to_fetch_collections"));
@@ -468,25 +502,25 @@ const DynamicBillCycle = () => {
     
     // Validate deduction fields don't exceed available amounts
     if (field === 'advanceDeduction' && typeof numValue === 'number') {
-      const maxValue = currentFarmer.advance;
+      const maxValue = currentFarmer.advance_total_avail;
       if (numValue > maxValue) {
         toast.warning(`Advance deduction cannot exceed ₹${maxValue.toFixed(2)}`);
         numValue = maxValue;
       }
     } else if (field === 'cattleFeedDeduction' && typeof numValue === 'number') {
-      const maxValue = currentFarmer.cattleFeedAmount;
+      const maxValue = currentFarmer.cattlefeed_total_avail;
       if (numValue > maxValue) {
         toast.warning(`Cattle Feed deduction cannot exceed ₹${maxValue.toFixed(2)}`);
         numValue = maxValue;
       }
     } else if (field === 'other1Deduction' && typeof numValue === 'number') {
-      const maxValue = currentFarmer.other1Amount;
+      const maxValue = currentFarmer.other1_total_avail;
       if (numValue > maxValue) {
-        toast.warning(`Other 1 deduction cannot exceed ₹${maxValue.toFixed(2)}`);
+        toast.warning(`Kirana deduction cannot exceed ₹${maxValue.toFixed(2)}`);
         numValue = maxValue;
       }
     } else if (field === 'other2Deduction' && typeof numValue === 'number') {
-      const maxValue = currentFarmer.other2Amount;
+      const maxValue = currentFarmer.other2_total_avail;
       if (numValue > maxValue) {
         toast.warning(`Other 2 deduction cannot exceed ₹${maxValue.toFixed(2)}`);
         numValue = maxValue;
@@ -605,15 +639,15 @@ const DynamicBillCycle = () => {
       return;
     }
 
-    const currentFarmer = filteredFarmers[selectedFarmerIndex];
-    if (!currentFarmer) {
+    const farmerRaw = filteredFarmers[selectedFarmerIndex];
+    if (!farmerRaw) {
       toast.error("No farmer selected");
       return;
     }
 
     // Check if bill is already generated
-    if (billStatus[currentFarmer.farmer_id]) {
-      toast.info(`Bill already generated for farmer ${currentFarmer.farmer_id}`);
+    if (billStatus[farmerRaw.farmer_id]) {
+      toast.info(`Bill already generated for farmer ${farmerRaw.farmer_id}`);
       return;
     }
 
@@ -624,57 +658,57 @@ const DynamicBillCycle = () => {
       const dateStr = format(startDate, "yyyy-MM-dd");
       const selectedBranch = branches.find(b => b.branch_id.toString() === vlcId);
       
-      if (currentFarmer.paymentAdvance && parseFloat(currentFarmer.paymentAdvance) > 0) {
+      if (farmerRaw.paymentAdvance && parseFloat(farmerRaw.paymentAdvance) > 0) {
         paymentPromises.push(
           paymentApi.create({
             date: dateStr,
             dairy_id: selectedBranch?.dairy_id || vlcId,
-            farmer_id: currentFarmer.farmer_id,
-            farmer_name: currentFarmer.name,
+            farmer_id: farmerRaw.farmer_id,
+            farmer_name: farmerRaw.name,
             payment_type: "Advance",
-            amount_taken: parseFloat(currentFarmer.paymentAdvance),
+            amount_taken: parseFloat(farmerRaw.paymentAdvance),
             received: 0
           })
         );
       }
       
-      if (currentFarmer.paymentCattleFeed && parseFloat(currentFarmer.paymentCattleFeed) > 0) {
+      if (farmerRaw.paymentCattleFeed && parseFloat(farmerRaw.paymentCattleFeed) > 0) {
         paymentPromises.push(
           paymentApi.create({
             date: dateStr,
             dairy_id: selectedBranch?.dairy_id || vlcId,
-            farmer_id: currentFarmer.farmer_id,
-            farmer_name: currentFarmer.name,
+            farmer_id: farmerRaw.farmer_id,
+            farmer_name: farmerRaw.name,
             payment_type: "Cattle Feed",
-            amount_taken: parseFloat(currentFarmer.paymentCattleFeed),
+            amount_taken: parseFloat(farmerRaw.paymentCattleFeed),
             received: 0
           })
         );
       }
       
-      if (currentFarmer.paymentOther1 && parseFloat(currentFarmer.paymentOther1) > 0) {
+      if (farmerRaw.paymentOther1 && parseFloat(farmerRaw.paymentOther1) > 0) {
         paymentPromises.push(
           paymentApi.create({
             date: dateStr,
             dairy_id: selectedBranch?.dairy_id || vlcId,
-            farmer_id: currentFarmer.farmer_id,
-            farmer_name: currentFarmer.name,
+            farmer_id: farmerRaw.farmer_id,
+            farmer_name: farmerRaw.name,
             payment_type: "Other1",
-            amount_taken: parseFloat(currentFarmer.paymentOther1),
+            amount_taken: parseFloat(farmerRaw.paymentOther1),
             received: 0
           })
         );
       }
       
-      if (currentFarmer.paymentOther2 && parseFloat(currentFarmer.paymentOther2) > 0) {
+      if (farmerRaw.paymentOther2 && parseFloat(farmerRaw.paymentOther2) > 0) {
         paymentPromises.push(
           paymentApi.create({
             date: dateStr,
             dairy_id: selectedBranch?.dairy_id || vlcId,
-            farmer_id: currentFarmer.farmer_id,
-            farmer_name: currentFarmer.name,
+            farmer_id: farmerRaw.farmer_id,
+            farmer_name: farmerRaw.name,
             payment_type: "Other2",
-            amount_taken: parseFloat(currentFarmer.paymentOther2),
+            amount_taken: parseFloat(farmerRaw.paymentOther2),
             received: 0
           })
         );
@@ -720,18 +754,20 @@ const DynamicBillCycle = () => {
         dairy_id: parseInt(vlcId),
         period_start: format(startDate, "yyyy-MM-dd"),
         period_end: format(endDate, "yyyy-MM-dd"),
-        milk_total: currentFarmer.milk_total,
-        advance_total: currentFarmer.advanceDeduction,
-        cattlefeed_total: currentFarmer.cattleFeedDeduction,
-        other1_total: currentFarmer.other1Deduction,
-        other2_total: currentFarmer.other2Deduction,
-        received_total: currentFarmer.received_total,
-        net_payable: currentFarmer.milk_total - (currentFarmer.advanceDeduction + currentFarmer.cattleFeedDeduction + currentFarmer.other1Deduction + currentFarmer.other2Deduction),
-        advance_remaining: currentFarmer.advance - currentFarmer.advanceDeduction,
-        cattlefeed_remaining: currentFarmer.cattleFeedAmount - currentFarmer.cattleFeedDeduction,
-        other1_remaining: currentFarmer.other1Amount - currentFarmer.other1Deduction,
-        other2_remaining: currentFarmer.other2Amount - currentFarmer.other2Deduction
+        milk_total: Number(currentFarmer.milk_total.toFixed(2)),
+        advance_total: Number(currentFarmer.advanceDeduction.toFixed(2)),
+        cattlefeed_total: Number(currentFarmer.cattleFeedDeduction.toFixed(2)),
+        other1_total: Number(currentFarmer.other1Deduction.toFixed(2)),
+        other2_total: Number(currentFarmer.other2Deduction.toFixed(2)),
+        received_total: Number(currentFarmer.received_total.toFixed(2)),
+        net_payable: Number(calculateNetPayable(currentFarmer).toFixed(2)),
+        advance_remaining: Number(Math.max(0, currentFarmer.advance_total_avail - currentFarmer.advanceDeduction).toFixed(2)),
+        cattlefeed_remaining: Number(Math.max(0, currentFarmer.cattlefeed_total_avail - currentFarmer.cattleFeedDeduction).toFixed(2)),
+        other1_remaining: Number(Math.max(0, currentFarmer.other1_total_avail - currentFarmer.other1Deduction).toFixed(2)),
+        other2_remaining: Number(Math.max(0, currentFarmer.other2_total_avail - currentFarmer.other2Deduction).toFixed(2))
       };
+
+      console.log("FREEZE PAYLOAD:", billData);
 
       await deductionApi.updateFarmerBillWeb(billData);
       
@@ -758,15 +794,53 @@ const DynamicBillCycle = () => {
           : farmer
       ));
       
-      toast.success("Farmer bill updated successfully");
+      toast.success("Bill freezed and saved successfully!");
     } catch (error: any) {
       console.error("Save Error:", error);
-      toast.error(error?.response?.data?.message || "Failed to save changes");
+      toast.error(error?.response?.data?.message || "Failed to save bill");
     } finally {
       setSaving(false);
     }
   };
 
+  const handleUpdateBill = async () => {
+    if (!vlcId || !startDate || !endDate || !currentFarmer) return;
+    
+    setSaving(true);
+    try {
+      const billData = {
+        farmer_id: currentFarmer.farmer_id,
+        dairy_id: parseInt(vlcId),
+        period_start: format(startDate, "yyyy-MM-dd"),
+        period_end: format(endDate, "yyyy-MM-dd"),
+        milk_total: Number(currentFarmer.milk_total.toFixed(2)),
+        advance_total: Number(currentFarmer.advanceDeduction.toFixed(2)),
+        cattlefeed_total: Number(currentFarmer.cattleFeedDeduction.toFixed(2)),
+        other1_total: Number(currentFarmer.other1Deduction.toFixed(2)),
+        other2_total: Number(currentFarmer.other2Deduction.toFixed(2)),
+        received_total: Number(currentFarmer.received_total.toFixed(2)),
+        net_payable: Number(calculateNetPayable(currentFarmer).toFixed(2)),
+        advance_remaining: Number(Math.max(0, currentFarmer.advance_total_avail - currentFarmer.advanceDeduction).toFixed(2)),
+        cattlefeed_remaining: Number(Math.max(0, currentFarmer.cattlefeed_total_avail - currentFarmer.cattleFeedDeduction).toFixed(2)),
+        other1_remaining: Number(Math.max(0, currentFarmer.other1_total_avail - currentFarmer.other1Deduction).toFixed(2)),
+        other2_remaining: Number(Math.max(0, currentFarmer.other2_total_avail - currentFarmer.other2Deduction).toFixed(2))
+      };
+
+      await deductionApi.updateFarmerBillWeb(billData);
+      toast.success("Bill data updated successfully!");
+      
+      // Update local farmersData to clear 'modified' flag
+      setFarmersData(prev => prev.map(f => 
+        f.farmer_id === currentFarmer.farmer_id ? { ...f, modified: false } : f
+      ));
+      
+    } catch (error: any) {
+      console.error("Update Error:", error);
+      toast.error(error?.response?.data?.message || "Failed to update bill data");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const goToPrevious = () => {
     if (selectedFarmerIndex > 0) {
@@ -796,7 +870,90 @@ const DynamicBillCycle = () => {
     const o1 = parseFloat(farmer.other1Deduction) || 0;
     const o2 = parseFloat(farmer.other2Deduction) || 0;
     const rec = parseFloat(farmer.received_total) || 0;
-    return milk - adv - cf - o1 - o2 + rec;
+    
+    // Safety check for bonusDeductionInfo
+    const bonusRate = bonusDeductionInfo?.bonus_deduction || 0;
+    const fixedAmount = bonusDeductionInfo?.fixed_deduction || 0;
+    const bonusDeduction = bonusRate * (farmer.quantity || 0);
+    
+    return milk - adv - cf - o1 - o2 - bonusDeduction - fixedAmount + rec;
+  };
+
+  // ── Shared helper: fetch report language from settings ──
+  const fetchReportLanguage = async (vlc: string): Promise<string> => {
+    try {
+      const { data } = await settingsApi.get(vlc);
+      if (data.success && data.data && data.data.report_language) {
+        const lang = data.data.report_language.toLowerCase();
+        if (lang === 'hindi') return 'hi';
+        if (lang === 'english') return 'en';
+        if (lang === 'marathi') return 'mr';
+      }
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    }
+    return 'mr'; // fallback default
+  };
+
+  // ── Shared helper: fetch bonus deductions and build a map keyed by farmer_id ──
+  const fetchBonusMap = async (dairyId: number, fromDate: string, toDate: string): Promise<Map<string, any>> => {
+    try {
+      const bonusResponse = await bonusApi.getBonusDeductions({
+        dairy_id: dairyId,
+        start_date: fromDate,
+        end_date: toDate,
+      });
+      const bonusMap = new Map<string, any>();
+      (bonusResponse.data.data || []).forEach((entry: any) => {
+        const existing = bonusMap.get(entry.farmer_id);
+        if (!existing || entry.id > existing.id) {
+          bonusMap.set(entry.farmer_id, entry);
+        }
+      });
+      return bonusMap;
+    } catch {
+      return new Map();
+    }
+  };
+
+  const attachBonus = (farmer: any, bonusMap: Map<string, any>, totalQty: number, toDate: string) => {
+    const entry = bonusMap.get(farmer.farmer_id);
+    if (!entry) return { ...farmer, bonus_deduction_info: null };
+    const periodEnd = new Date(toDate);
+    const effectiveFrom = new Date(entry.effective_from);
+    if (periodEnd <= effectiveFrom) return { ...farmer, bonus_deduction_info: null };
+    return {
+      ...farmer,
+      bonus_deduction_info: {
+        bonus_amount: parseFloat(entry.bonus_deduction || 0),
+        fixed_amount: parseFloat(entry.fixed_deduction || 0),
+        remark: entry.remark || 'इमारत निधी',
+        total_bonus_till_date: 0
+      }
+    };
+  };
+
+  const generatePage = async (htmlContent: string) => {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = htmlContent;
+    tempDiv.style.position = 'absolute';
+    tempDiv.style.left = '-9999px';
+    tempDiv.style.width = '210mm';
+    document.body.appendChild(tempDiv);
+    try {
+      const canvas = await html2canvas(tempDiv, {
+        scale: 1.5,
+        useCORS: true,
+        logging: false,
+        windowWidth: 794,
+      });
+      const imgData = canvas.toDataURL('image/jpeg', 0.85);
+      const imgWidth = 210;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      return { imgData, imgWidth, imgHeight };
+    } finally {
+      document.body.removeChild(tempDiv);
+    }
   };
 
   const exportToPDF = async () => {
@@ -808,180 +965,124 @@ const DynamicBillCycle = () => {
     setPdfLoading(true);
     try {
       const selectedBranch = branches.find(b => b.branch_id.toString() === vlcId);
-      const vlcName = selectedBranch?.name || 'VLC Center';
-      const dairyName = selectedBranch?.name || selectedBranch?.username || 'Dairy';
+      const dairyName = selectedBranch?.name || 'Dairy';
+      const dairyCode = selectedBranch?.username || '';
+      const branchName = selectedBranch?.branchName || '';
+      const dairyId = parseInt(vlcId);
       const fromDateApi = format(startDate, 'yyyy-MM-dd');
       const toDateApi = format(endDate, 'yyyy-MM-dd');
-      const fromDateDisplay = format(startDate, 'dd MMM yyyy');
-      const toDateDisplay = format(endDate, 'dd MMM yyyy');
 
-      // Fetch collection data from the same API as FarmerBillInvoiceReport
-      const apiUrl = '/report/shift-collection-report';
-      const params = {
-        dairyid: selectedBranch?.branch_id,
-        startDate: fromDateApi,
-        startShift: 'Morning',
-        endDate: toDateApi,
-        endShift: 'Evening',
-        milkType: 'All'
-      };
+      const [response, bonusMap, reportLang] = await Promise.all([
+        billApi.getFarmerReport({ dairy_id: dairyId, start_date: fromDateApi, end_date: toDateApi }),
+        fetchBonusMap(dairyId, fromDateApi, toDateApi),
+        fetchReportLanguage(vlcId)
+      ]);
 
-      const collectionResponse = await api.get(apiUrl, { params });
-      const collectionData = collectionResponse.data.report || [];
-      const farmerBills = collectionResponse.data.farmerwise_bills || [];
-      const farmerPayments = collectionResponse.data.farmer_payments || [];
-
-      if (collectionData.length === 0) {
-        toast.error("No collection data found for the selected period");
-        setPdfLoading(false);
+      if (!response.data.success) {
+        toast.error('Failed to fetch farmer report data');
         return;
       }
 
-      // Remove separate payment fetching - use API response
-      // Fetch bank details
-      let bankDetailsMap = new Map<string, BankDetails>();
-      try {
-        const bankResponse = await bankSummaryApi.getBankSummary({
-          dairy_id: vlcId,
-          start_date: fromDateApi,
-          end_date: toDateApi
-        });
-        
-        (bankResponse.data || []).forEach((farmer: any) => {
-          bankDetailsMap.set(farmer.farmer_id, {
-            accountNumber: farmer.accountNumber,
-            ifscCode: farmer.ifscCode,
-            bankName: farmer.bankName,
-            branchName: farmer.branchName
-          });
-        });
-      } catch (error) {
-        console.error('Failed to fetch bank details:', error);
-      }
+      console.log("DEBUG: Full API Response Data:", response.data);
 
-      // Group by farmer
-      const grouped: { [key: string]: any[] } = {};
-      collectionData.forEach((item: any) => {
-        if (!grouped[item.farmer_id]) grouped[item.farmer_id] = [];
-        grouped[item.farmer_id].push(item);
+      const cowData: FarmerReportData[] = response.data.cow || [];
+      const buffaloData: FarmerReportData[] = response.data.buffalo || [];
+      const farmerData = [...cowData, ...buffaloData];
+      
+      const farmerMap = new Map<string, FarmerReportData>();
+      farmerData.forEach(farmer => {
+        if (farmerMap.has(farmer.farmer_id)) {
+          const existing = farmerMap.get(farmer.farmer_id)!;
+          existing.collections = [...existing.collections, ...farmer.collections];
+        } else {
+          farmerMap.set(farmer.farmer_id, { ...farmer });
+        }
       });
 
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const farmerIds = Object.keys(grouped);
+      const sortedFarmers = Array.from(farmerMap.values())
+        .sort((a, b) => parseInt(a.farmer_id) - parseInt(b.farmer_id));
 
-      for (let i = 0; i < farmerIds.length; i++) {
-        const farmerId = farmerIds[i];
-        const farmerData = grouped[farmerId];
-        const farmerName = farmerData[0].farmer_name;
-        
-        const farmerPaymentsFiltered = farmerPayments.filter((p: any) => p.farmer_id === farmerId);
-        
-        const templateData: FarmerBillData[] = farmerData.map((item: any) => ({
-          date: item.date,
-          shift: item.shift,
-          type: item.type,
-          liters: parseFloat(item.liters),
-          fat: parseFloat(item.fat),
-          snf: parseFloat(item.snf),
-          clr: parseFloat(item.clr),
-          water: item.water ? parseFloat(item.water) : null,
-          rate: parseFloat(item.rate),
-          amount: parseFloat(item.amount),
-          farmer_id: item.farmer_id,
-          farmer_name: item.farmer_name
-        }));
-
-        const htmlContent = generateTemplateDetailedHorizontal({
-          dairyName: dairyName,
-          branchName: vlcName,
-          dairyPhone: userPhone,
-          farmerCode: farmerId,
-          farmerName: farmerName,
-          fromDate: fromDateDisplay,
-          toDate: toDateDisplay,
-          milkType: 'All',
-          data: templateData,
-          current_bill: farmerBills.find((b: any) => b.farmer_id === farmerId),
-          payments: farmerPaymentsFiltered,
-          bankDetails: bankDetailsMap.get(farmerId),
-          hideRateAmount: hideRateAmount
-        });
-
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = htmlContent;
-        tempDiv.style.position = 'absolute';
-        tempDiv.style.left = '-9999px';
-        tempDiv.style.width = '210mm';
-        document.body.appendChild(tempDiv);
-
-        try {
-          // Check if both milk types exist by looking for page-break elements
-          const pageBreaks = tempDiv.querySelectorAll('.page-break');
-          
-          if (pageBreaks.length > 0) {
-            // Multi-page: capture each section separately
-            const bodyElement = tempDiv.querySelector('body');
-            if (!bodyElement) throw new Error('Body element not found');
-            
-            const sections = [];
-            let currentSection = document.createElement('div');
-            currentSection.style.width = '210mm';
-            
-            Array.from(bodyElement.children).forEach((child: any) => {
-              if (child.classList && child.classList.contains('page-break')) {
-                sections.push(currentSection);
-                currentSection = document.createElement('div');
-                currentSection.style.width = '210mm';
-              } else {
-                currentSection.appendChild(child.cloneNode(true));
-              }
-            });
-            sections.push(currentSection);
-            
-            for (let s = 0; s < sections.length; s++) {
-              const sectionDiv = document.createElement('div');
-              sectionDiv.style.position = 'absolute';
-              sectionDiv.style.left = '-9999px';
-              sectionDiv.style.width = '210mm';
-              sectionDiv.innerHTML = `<html><head>${tempDiv.querySelector('head')?.innerHTML || ''}</head><body></body></html>`;
-              sectionDiv.querySelector('body')?.appendChild(sections[s]);
-              document.body.appendChild(sectionDiv);
-              
-              const canvas = await html2canvas(sectionDiv, { 
-                scale: 1.5,
-                useCORS: true,
-                logging: false,
-                windowWidth: 794
-              });
-              const imgData = canvas.toDataURL('image/png');
-              const imgWidth = 210;
-              const imgHeight = (canvas.height * imgWidth) / canvas.width;
-              
-              if (i > 0 || s > 0) pdf.addPage();
-              pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-              
-              document.body.removeChild(sectionDiv);
-            }
-          } else {
-            // Single page
-            const canvas = await html2canvas(tempDiv, { 
-              scale: 1.5,
-              useCORS: true,
-              logging: false,
-              windowWidth: 794
-            });
-            const imgData = canvas.toDataURL('image/png');
-            const imgWidth = 210;
-            const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-            if (i > 0) pdf.addPage();
-            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-          }
-        } finally {
-          document.body.removeChild(tempDiv);
-        }
+      if (sortedFarmers.length === 0) {
+        toast.info('No data found for selected criteria');
+        return;
       }
 
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      for (let i = 0; i < sortedFarmers.length; i++) {
+        const farmer = sortedFarmers[i];
+        const farmerBillData: FarmerBillData[] = farmer.collections.map((c: any) => ({
+          date: c.created_at,
+          shift: c.shift as 'Morning' | 'Evening',
+          type: c.type as 'Cow' | 'Buffalo',
+          liters: Number(c.quantity),
+          fat: Number(c.fat),
+          snf: Number(c.snf),
+          clr: Number(c.clr || 0),
+          rate: Number(c.rate),
+          amount: Number(c.amount),
+          water: Number(c.water || 0)
+        }));
+
+        const templateData = {
+          dairyName,
+          branchName,
+          dairyCode,
+          farmerCode: farmer.farmer_id,
+          farmerName: farmer.farmer_details?.fullName || 'Unknown',
+          fromDate: fromDateApi,
+          toDate: toDateApi,
+          milkType: 'All',
+          data: farmerBillData,
+          bankDetails: {
+            accountNumber: farmer.farmer_details?.accountNumber || '',
+            ifscCode: farmer.farmer_details?.ifscCode || '',
+            bankName: farmer.farmer_details?.bankName || '',
+            branchName: (farmer.farmer_details as any)?.branchName || ''
+          },
+          current_bill: farmer.current_bill,
+          previous_bill: (farmer as any).previous_bill,
+          payments: (farmer.payments || []).map((p: any) => {
+            const logs = (farmer as any).payment_logs?.data || [];
+            const logMatch = logs.find((l: any) => 
+              l.payment_type.toLowerCase().trim().replace(/\s/g, '') === p.payment_type.toLowerCase().trim().replace(/\s/g, '') &&
+              parseFloat(l.amount_taken) === parseFloat(p.amount_taken)
+            );
+            const merged = logMatch ? { ...p, ...logMatch } : p;
+            return {
+              ...merged,
+              stock_name: merged.stock_name,
+              stock: merged.stock,
+              date: merged.date || merged.created_at
+            };
+          }),
+          bonus_deduction_info: attachBonus(farmer, bonusMap, farmer.collections_summary?.total_quantity || 0, toDateApi).bonus_deduction_info,
+          bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary || null,
+          hideRateAmount: hideRateAmount
+        };
+
+        console.log(`DEBUG: Template data for farmer ${farmer.farmer_id}:`, templateData);
+        console.log(`DEBUG: current_bill from API for ${farmer.farmer_id}:`, farmer.current_bill);
+
+        const hasCow = farmerBillData.some(d => d.type === 'Cow');
+        const hasBuffalo = farmerBillData.some(d => d.type === 'Buffalo' || d.type === 'Buffaloes');
+
+        if (hasCow && hasBuffalo) {
+          const cowHtml = generateTemplateDetailedHorizontal({ ...templateData, renderOnly: 'Cow', hideSummary: true } as any, reportLang);
+          const cowPage = await generatePage(cowHtml);
+          if (i > 0) pdf.addPage();
+          pdf.addImage(cowPage.imgData, 'JPEG', 0, 0, cowPage.imgWidth, cowPage.imgHeight);
+
+          const buffHtml = generateTemplateDetailedHorizontal({ ...templateData, renderOnly: 'Buffalo', hideSummary: false } as any, reportLang);
+          const buffPage = await generatePage(buffHtml);
+          pdf.addPage();
+          pdf.addImage(buffPage.imgData, 'JPEG', 0, 0, buffPage.imgWidth, buffPage.imgHeight);
+        } else {
+          const html = generateTemplateDetailedHorizontal(templateData as any, reportLang);
+          const { imgData, imgWidth, imgHeight } = await generatePage(html);
+          if (i > 0) pdf.addPage();
+          pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+        }
+      }
       pdf.save(`Farmer_Bill_${fromDateApi}_to_${toDateApi}.pdf`);
       toast.success('PDF downloaded successfully');
     } catch (error: any) {
@@ -1002,181 +1103,118 @@ const DynamicBillCycle = () => {
     setPdfLoading(true);
     try {
       const selectedBranch = branches.find(b => b.branch_id.toString() === vlcId);
-      const vlcName = selectedBranch?.name || 'VLC Center';
-      const dairyName = selectedBranch?.name || selectedBranch?.username || 'Dairy';
+      const dairyName = selectedBranch?.name || 'Dairy';
+      const dairyCode = selectedBranch?.username || '';
+      const branchName = selectedBranch?.branchName || '';
+      const dairyId = parseInt(vlcId);
       const fromDateApi = format(currentFarmer.periodStart, 'yyyy-MM-dd');
       const toDateApi = format(currentFarmer.periodEnd, 'yyyy-MM-dd');
-      const fromDateDisplay = format(currentFarmer.periodStart, 'dd MMM yyyy');
-      const toDateDisplay = format(currentFarmer.periodEnd, 'dd MMM yyyy');
-
-      console.log('PDF Export - Request params:', {
-        dairyid: selectedBranch?.branch_id,
-        startDate: fromDateApi,
-        startShift: 'Morning',
-        endDate: toDateApi,
-        endShift: 'Evening',
-        milkType: 'All'
-      });
-
-      // Fetch collection data from the same API as FarmerBillInvoiceReport
-      const apiUrl = '/report/shift-collection-report';
-      const params = {
-        dairyid: selectedBranch?.branch_id,
-        startDate: fromDateApi,
-        startShift: 'Morning',
-        endDate: toDateApi,
-        endShift: 'Evening',
-        milkType: 'All'
-      };
-
-      const collectionResponse = await api.get(apiUrl, { params });
-      const allCollectionData = collectionResponse.data.report || [];
-      const farmerBills = collectionResponse.data.farmerwise_bills || [];
-      const allFarmerPayments = collectionResponse.data.farmer_payments || [];
-
-      console.log('PDF Export - Farmer Bills:', farmerBills);
-
-      // Filter to only current farmer's data
       const farmerId = currentFarmer.farmer_id;
-      const farmerData = allCollectionData.filter((item: any) => item.farmer_id === farmerId);
 
-      console.log('PDF Export - Filtered Farmer Data:', farmerData);
+      const [response, bonusMap, reportLang] = await Promise.all([
+        billApi.getFarmerReport({ dairy_id: dairyId, start_date: fromDateApi, end_date: toDateApi }),
+        fetchBonusMap(dairyId, fromDateApi, toDateApi),
+        fetchReportLanguage(vlcId)
+      ]);
 
-      if (farmerData.length === 0) {
-        toast.error("No collection data found for this farmer");
-        setPdfLoading(false);
+      if (!response.data.success) {
+        toast.error('Failed to fetch farmer report data');
         return;
       }
 
-      const farmerPaymentsFiltered = allFarmerPayments.filter((p: any) => p.farmer_id === farmerId);
+      console.log("DEBUG SINGLE: API Response for farmer:", farmerId, response.data);
 
-      // Fetch bank details for this farmer
-      let bankDetails: BankDetails | undefined;
-      try {
-        const bankResponse = await bankSummaryApi.getBankSummary({
-          dairy_id: vlcId,
-          start_date: fromDateApi,
-          end_date: toDateApi
-        });
-        
-        console.log('PDF Export - Bank Response:', bankResponse.data);
-        
-        const farmerBankData = (bankResponse.data || []).find((f: any) => f.farmer_id === farmerId);
-        if (farmerBankData) {
-          bankDetails = {
-            accountNumber: farmerBankData.accountNumber,
-            ifscCode: farmerBankData.ifscCode,
-            bankName: farmerBankData.bankName,
-            branchName: farmerBankData.branchName
-          };
-        }
-      } catch (error) {
-        console.error('Failed to fetch bank details:', error);
+      const cowData: FarmerReportData[] = response.data.cow || [];
+      const buffaloData: FarmerReportData[] = response.data.buffalo || [];
+      const allData = [...cowData, ...buffaloData];
+      
+      const farmerRecords = allData.filter(f => f.farmer_id === farmerId);
+      if (farmerRecords.length === 0) {
+        toast.error("No data found for this farmer");
+        return;
       }
 
-      const farmerName = farmerData[0].farmer_name;
-      
-      const templateData: FarmerBillData[] = farmerData.map((item: any) => ({
-        date: item.date,
-        shift: item.shift,
-        type: item.type,
-        liters: parseFloat(item.liters),
-        fat: parseFloat(item.fat),
-        snf: parseFloat(item.snf),
-        clr: parseFloat(item.clr),
-        water: item.water ? parseFloat(item.water) : null,
-        rate: parseFloat(item.rate),
-        amount: parseFloat(item.amount),
-        farmer_id: item.farmer_id,
-        farmer_name: item.farmer_name
+      // Merge collections if farmer has both
+      const mergedFarmer = { ...farmerRecords[0] };
+      if (farmerRecords.length > 1) {
+        mergedFarmer.collections = [...farmerRecords[0].collections, ...farmerRecords[1].collections];
+      }
+
+      const farmerBillData: FarmerBillData[] = mergedFarmer.collections.map((c: any) => ({
+        date: c.created_at,
+        shift: c.shift as 'Morning' | 'Evening',
+        type: c.type as 'Cow' | 'Buffalo',
+        liters: Number(c.quantity),
+        fat: Number(c.fat),
+        snf: Number(c.snf),
+        clr: Number(c.clr || 0),
+        rate: Number(c.rate),
+        amount: Number(c.amount),
+        water: Number(c.water || 0)
       }));
 
-      console.log('PDF Export - Template Data:', templateData);
-
-      const htmlContent = generateTemplateDetailedHorizontal({
-        dairyName: dairyName,
-        branchName: vlcName,
-        dairyPhone: userPhone,
-        farmerCode: farmerId,
-        farmerName: farmerName,
-        fromDate: fromDateDisplay,
-        toDate: toDateDisplay,
+      const templateData = {
+        dairyName,
+        branchName,
+        dairyCode,
+        farmerCode: mergedFarmer.farmer_id,
+        farmerName: mergedFarmer.farmer_details?.fullName || 'Unknown',
+        fromDate: fromDateApi,
+        toDate: toDateApi,
         milkType: 'All',
-        data: templateData,
-        current_bill: farmerBills.find((b: any) => b.farmer_id === farmerId),
-        payments: farmerPaymentsFiltered,
-        bankDetails: bankDetails,
+        data: farmerBillData,
+        bankDetails: {
+          accountNumber: mergedFarmer.farmer_details?.accountNumber || '',
+          ifscCode: mergedFarmer.farmer_details?.ifscCode || '',
+          bankName: mergedFarmer.farmer_details?.bankName || '',
+          branchName: (mergedFarmer.farmer_details as any)?.branchName || ''
+        },
+        current_bill: mergedFarmer.current_bill,
+        previous_bill: (mergedFarmer as any).previous_bill,
+        payments: (mergedFarmer.payments || []).map((p: any) => {
+          const logs = (mergedFarmer as any).payment_logs?.data || [];
+          const logMatch = logs.find((l: any) => 
+            l.payment_type.toLowerCase().trim().replace(/\s/g, '') === p.payment_type.toLowerCase().trim().replace(/\s/g, '') &&
+            parseFloat(l.amount_taken) === parseFloat(p.amount_taken)
+          );
+          const merged = logMatch ? { ...p, ...logMatch } : p;
+          return {
+            ...merged,
+            stock_name: merged.stock_name,
+            stock: merged.stock,
+            date: merged.date || merged.created_at
+          };
+        }),
+        bonus_deduction_info: attachBonus(mergedFarmer, bonusMap, mergedFarmer.collections_summary?.total_quantity || 0, toDateApi).bonus_deduction_info,
+        bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary || null,
         hideRateAmount: hideRateAmount
-      });
+      };
 
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = htmlContent;
-      tempDiv.style.position = 'absolute';
-      tempDiv.style.left = '-9999px';
-      tempDiv.style.width = '210mm';
-      document.body.appendChild(tempDiv);
+      console.log(`DEBUG SINGLE: Final template data for ${farmerId}:`, templateData);
+      console.log(`DEBUG SINGLE: mergedFarmer.current_bill:`, mergedFarmer.current_bill);
 
-      try {
-        const pageBreaks = tempDiv.querySelectorAll('.page-break');
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        
-        if (pageBreaks.length > 0) {
-          const sections = [];
-          let currentSection = document.createElement('div');
-          currentSection.style.width = '210mm';
-          
-          Array.from(tempDiv.children).forEach((child: any) => {
-            if (child.classList && child.classList.contains('page-break')) {
-              sections.push(currentSection);
-              currentSection = document.createElement('div');
-              currentSection.style.width = '210mm';
-            } else {
-              currentSection.appendChild(child.cloneNode(true));
-            }
-          });
-          sections.push(currentSection);
-          
-          for (let s = 0; s < sections.length; s++) {
-            const sectionDiv = document.createElement('div');
-            sectionDiv.style.position = 'absolute';
-            sectionDiv.style.left = '-9999px';
-            sectionDiv.style.width = '210mm';
-            sectionDiv.appendChild(sections[s]);
-            document.body.appendChild(sectionDiv);
-            
-            const canvas = await html2canvas(sectionDiv, { 
-              scale: 1.5,
-              useCORS: true,
-              logging: false,
-              windowWidth: 794
-            });
-            const imgData = canvas.toDataURL('image/png');
-            const imgWidth = 210;
-            const imgHeight = (canvas.height * imgWidth) / canvas.width;
-            
-            if (s > 0) pdf.addPage();
-            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-            
-            document.body.removeChild(sectionDiv);
-          }
-        } else {
-          const canvas = await html2canvas(tempDiv, { 
-            scale: 1.5,
-            useCORS: true,
-            logging: false,
-            windowWidth: 794
-          });
-          const imgData = canvas.toDataURL('image/png');
-          const imgWidth = 210;
-          const imgHeight = (canvas.height * imgWidth) / canvas.width;
-          pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-        }
-        
-        pdf.save(`Farmer_Bill_${farmerId}_${fromDateApi}_to_${toDateApi}.pdf`);
-        toast.success('PDF downloaded successfully');
-      } finally {
-        document.body.removeChild(tempDiv);
+      const hasCow = farmerBillData.some(d => d.type === 'Cow');
+      const hasBuffalo = farmerBillData.some(d => d.type === 'Buffalo' || d.type === 'Buffaloes');
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+
+      if (hasCow && hasBuffalo) {
+        const cowHtml = generateTemplateDetailedHorizontal({ ...templateData, renderOnly: 'Cow', hideSummary: true } as any, reportLang);
+        const cowPage = await generatePage(cowHtml);
+        pdf.addImage(cowPage.imgData, 'JPEG', 0, 0, cowPage.imgWidth, cowPage.imgHeight);
+
+        const buffHtml = generateTemplateDetailedHorizontal({ ...templateData, renderOnly: 'Buffalo', hideSummary: false } as any, reportLang);
+        const buffPage = await generatePage(buffHtml);
+        pdf.addPage();
+        pdf.addImage(buffPage.imgData, 'JPEG', 0, 0, buffPage.imgWidth, buffPage.imgHeight);
+      } else {
+        const html = generateTemplateDetailedHorizontal(templateData as any, reportLang);
+        const { imgData, imgWidth, imgHeight } = await generatePage(html);
+        pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
       }
+
+      pdf.save(`Farmer_Bill_${farmerId}_${fromDateApi}_to_${toDateApi}.pdf`);
+      toast.success('PDF downloaded successfully');
     } catch (error: any) {
       console.error('PDF Error:', error);
       toast.error(error?.response?.data?.message || 'Failed to generate PDF');
@@ -1222,6 +1260,25 @@ const DynamicBillCycle = () => {
                     onChange={(e) => handleDateChange(e.target.value)}
                     className="w-full"
                   />
+                </div>
+
+                <div className="w-full sm:w-auto">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Cycle (Days)</label>
+                  <div className="flex bg-white rounded-md border border-gray-300 p-1 h-10">
+                    {[10, 15, 30].map((cycle) => (
+                      <button
+                        key={cycle}
+                        onClick={() => handleGlobalCycleChange(cycle)}
+                        className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                          globalCycle === cycle 
+                            ? 'bg-blue-600 text-white shadow-sm' 
+                            : 'text-gray-600 hover:bg-gray-100'
+                        }`}
+                      >
+                        {cycle}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
@@ -1502,35 +1559,39 @@ const DynamicBillCycle = () => {
                   )}
 
                   {/* Payment and Deduction Fields - Combined in 3 Columns */}
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-3 gap-4 mb-2">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Deductions Summary</h4>
+                      <Button
+                        size="sm"
+                        onClick={handleUpdateBill}
+                        disabled={saving}
+                        className="h-7 px-3 bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                      >
+                        {saving ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Save className="w-3 h-3 mr-1" />}
+                        Save Bill
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 border-b pb-2 mb-2">
                       <h3 className="text-sm font-semibold text-gray-700">Type / Amount</h3>
                       <h3 className="text-sm font-semibold text-gray-700">Payments</h3>
-                      <h3 className="text-sm font-semibold text-gray-700">Deductions</h3>
+                      <h3 className="text-sm font-semibold text-gray-700">Deduction</h3>
                     </div>
                     
                     {/* Kirana Row */}
                     <div className="grid grid-cols-3 gap-4 items-start">
-                      <div>
-                        <p className="text-xs font-medium text-gray-700">Kirana:</p>
-                        <p className="text-sm font-bold text-gray-800">₹{currentFarmer.other1Amount?.toFixed(2) || "0.00"}</p>
-                        {currentFarmer.other1_remaining > 0 && (
-                          <p className="text-xs text-red-500">Rem: ₹{currentFarmer.other1_remaining?.toFixed(2)}</p>
-                        )}
-                      </div>
-                      <Input
-                        type="number"
-                        placeholder="0.00"
-                        value={currentFarmer.paymentOther1 || ""}
-                        onChange={(e) => handleDeductionChange('paymentOther1', e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handlePaymentSubmit('Other1', currentFarmer.paymentOther1);
-                          }
-                        }}
-                        className="h-7 text-sm"
-                      />
                       <div className="space-y-1">
+                        <p className="text-xs font-medium text-gray-700">Kirana Balance:</p>
+                        <div className="flex flex-col text-[10px] text-gray-500">
+                          <span>Prev: ₹{currentFarmer.other1_prev?.toFixed(2)}</span>
+                          <span>Pay: ₹{currentFarmer.other1_pay?.toFixed(2)}</span>
+                        </div>
+                        <p className="text-sm font-bold text-gray-800 border-t pt-1">Total: ₹{currentFarmer.other1_total_avail?.toFixed(2)}</p>
+                      </div>
+                      <div className="flex items-center pt-6">
+                        <p className="text-sm font-semibold text-gray-700">₹{currentFarmer.other1_pay?.toFixed(2) || "0.00"}</p>
+                      </div>
+                      <div className="space-y-1 pt-4">
                         <Input
                           type="number"
                           placeholder="0.00"
@@ -1538,32 +1599,24 @@ const DynamicBillCycle = () => {
                           onChange={(e) => handleDeductionChange('other1Deduction', e.target.value)}
                           className="h-7 text-sm"
                         />
-                        <p className="text-xs text-green-600">After: ₹{((currentFarmer.other1Amount || 0) - (currentFarmer.other1Deduction || 0)).toFixed(2)}</p>
+                        <p className="text-[10px] font-bold text-red-500">Rem: ₹{(currentFarmer.other1_total_avail - (currentFarmer.other1Deduction || 0)).toFixed(2)}</p>
                       </div>
                     </div>
 
                     {/* Cattle Feed Row */}
                     <div className="grid grid-cols-3 gap-4 items-start">
-                      <div>
-                        <p className="text-xs font-medium text-gray-700">Cattle Feed:</p>
-                        <p className="text-sm font-bold text-gray-800">₹{currentFarmer.cattleFeedAmount?.toFixed(2) || "0.00"}</p>
-                        {currentFarmer.cattlefeed_remaining > 0 && (
-                          <p className="text-xs text-red-500">Rem: ₹{currentFarmer.cattlefeed_remaining?.toFixed(2)}</p>
-                        )}
-                      </div>
-                      <Input
-                        type="number"
-                        placeholder="0.00"
-                        value={currentFarmer.paymentCattleFeed || ""}
-                        onChange={(e) => handleDeductionChange('paymentCattleFeed', e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handlePaymentSubmit('Cattle Feed', currentFarmer.paymentCattleFeed);
-                          }
-                        }}
-                        className="h-7 text-sm"
-                      />
                       <div className="space-y-1">
+                        <p className="text-xs font-medium text-gray-700">Cattle Feed Balance:</p>
+                        <div className="flex flex-col text-[10px] text-gray-500">
+                          <span>Prev: ₹{currentFarmer.cattlefeed_prev?.toFixed(2)}</span>
+                          <span>Pay: ₹{currentFarmer.cattlefeed_pay?.toFixed(2)}</span>
+                        </div>
+                        <p className="text-sm font-bold text-gray-800 border-t pt-1">Total: ₹{currentFarmer.cattlefeed_total_avail?.toFixed(2)}</p>
+                      </div>
+                      <div className="flex items-center pt-6">
+                        <p className="text-sm font-semibold text-gray-700">₹{currentFarmer.cattlefeed_pay?.toFixed(2) || "0.00"}</p>
+                      </div>
+                      <div className="space-y-1 pt-4">
                         <Input
                           type="number"
                           placeholder="0.00"
@@ -1571,32 +1624,24 @@ const DynamicBillCycle = () => {
                           onChange={(e) => handleDeductionChange('cattleFeedDeduction', e.target.value)}
                           className="h-7 text-sm"
                         />
-                        <p className="text-xs text-green-600">After: ₹{((currentFarmer.cattleFeedAmount || 0) - (currentFarmer.cattleFeedDeduction || 0)).toFixed(2)}</p>
+                        <p className="text-[10px] font-bold text-red-500">Rem: ₹{(currentFarmer.cattlefeed_total_avail - (currentFarmer.cattleFeedDeduction || 0)).toFixed(2)}</p>
                       </div>
                     </div>
 
                     {/* Advance Row */}
                     <div className="grid grid-cols-3 gap-4 items-start">
-                      <div>
-                        <p className="text-xs font-medium text-gray-700">Advance:</p>
-                        <p className="text-sm font-bold text-gray-800">₹{currentFarmer.advance?.toFixed(2) || "0.00"}</p>
-                        {currentFarmer.advance_remaining > 0 && (
-                          <p className="text-xs text-red-500">Rem: ₹{currentFarmer.advance_remaining?.toFixed(2)}</p>
-                        )}
-                      </div>
-                      <Input
-                        type="number"
-                        placeholder="0.00"
-                        value={currentFarmer.paymentAdvance || ""}
-                        onChange={(e) => handleDeductionChange('paymentAdvance', e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handlePaymentSubmit('Advance', currentFarmer.paymentAdvance);
-                          }
-                        }}
-                        className="h-7 text-sm"
-                      />
                       <div className="space-y-1">
+                        <p className="text-xs font-medium text-gray-700">Advance Balance:</p>
+                        <div className="flex flex-col text-[10px] text-gray-500">
+                          <span>Prev: ₹{currentFarmer.advance_prev?.toFixed(2)}</span>
+                          <span>Pay: ₹{currentFarmer.advance_pay?.toFixed(2)}</span>
+                        </div>
+                        <p className="text-sm font-bold text-gray-800 border-t pt-1">Total: ₹{currentFarmer.advance_total_avail?.toFixed(2)}</p>
+                      </div>
+                      <div className="flex items-center pt-6">
+                        <p className="text-sm font-semibold text-gray-700">₹{currentFarmer.advance_pay?.toFixed(2) || "0.00"}</p>
+                      </div>
+                      <div className="space-y-1 pt-4">
                         <Input
                           type="number"
                           placeholder="0.00"
@@ -1604,32 +1649,24 @@ const DynamicBillCycle = () => {
                           onChange={(e) => handleDeductionChange('advanceDeduction', e.target.value)}
                           className="h-7 text-sm"
                         />
-                        <p className="text-xs text-green-600">After: ₹{((currentFarmer.advance || 0) - (currentFarmer.advanceDeduction || 0)).toFixed(2)}</p>
+                        <p className="text-[10px] font-bold text-red-500">Rem: ₹{(currentFarmer.advance_total_avail - (currentFarmer.advanceDeduction || 0)).toFixed(2)}</p>
                       </div>
                     </div>
 
-                    {/* Other2 Row */}
+                    {/* Other 2 Row */}
                     <div className="grid grid-cols-3 gap-4 items-start">
-                      <div>
-                        <p className="text-xs font-medium text-gray-700">Other 2:</p>
-                        <p className="text-sm font-bold text-gray-800">₹{currentFarmer.other2Amount?.toFixed(2) || "0.00"}</p>
-                        {currentFarmer.other2_remaining > 0 && (
-                          <p className="text-xs text-red-500">Rem: ₹{currentFarmer.other2_remaining?.toFixed(2)}</p>
-                        )}
-                      </div>
-                      <Input
-                        type="number"
-                        placeholder="0.00"
-                        value={currentFarmer.paymentOther2 || ""}
-                        onChange={(e) => handleDeductionChange('paymentOther2', e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handlePaymentSubmit('Other2', currentFarmer.paymentOther2);
-                          }
-                        }}
-                        className="h-7 text-sm"
-                      />
                       <div className="space-y-1">
+                        <p className="text-xs font-medium text-gray-700">Other 2 Balance:</p>
+                        <div className="flex flex-col text-[10px] text-gray-500">
+                          <span>Prev: ₹{currentFarmer.other2_prev?.toFixed(2)}</span>
+                          <span>Pay: ₹{currentFarmer.other2_pay?.toFixed(2)}</span>
+                        </div>
+                        <p className="text-sm font-bold text-gray-800 border-t pt-1">Total: ₹{currentFarmer.other2_total_avail?.toFixed(2)}</p>
+                      </div>
+                      <div className="flex items-center pt-6">
+                        <p className="text-sm font-semibold text-gray-700">₹{currentFarmer.other2_pay?.toFixed(2) || "0.00"}</p>
+                      </div>
+                      <div className="space-y-1 pt-4">
                         <Input
                           type="number"
                           placeholder="0.00"
@@ -1637,10 +1674,24 @@ const DynamicBillCycle = () => {
                           onChange={(e) => handleDeductionChange('other2Deduction', e.target.value)}
                           className="h-7 text-sm"
                         />
-                        <p className="text-xs text-green-600">After: ₹{((currentFarmer.other2Amount || 0) - (currentFarmer.other2Deduction || 0)).toFixed(2)}</p>
+                        <p className="text-[10px] font-bold text-red-500">Rem: ₹{(currentFarmer.other2_total_avail - (currentFarmer.other2Deduction || 0)).toFixed(2)}</p>
                       </div>
                     </div>
-                  </div>
+
+                      {/* Bonus & Fixed Deduction Summary */}
+                      {(bonusDeductionInfo?.bonus_deduction > 0 || bonusDeductionInfo?.fixed_deduction > 0) && (
+                        <div className="pt-2 mt-2 border-t border-dashed border-gray-200">
+                          <div className="flex justify-between text-xs text-gray-500 mb-1">
+                            <span>Bonus Deduction ({bonusDeductionInfo.bonus_deduction}/L):</span>
+                            <span className="font-semibold text-red-500">- ₹{(bonusDeductionInfo.bonus_deduction * (currentFarmer.quantity || 0)).toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between text-xs text-gray-500">
+                            <span>{bonusDeductionInfo.remark || 'इमारत निधी'}:</span>
+                            <span className="font-semibold text-red-500">- ₹{(bonusDeductionInfo.fixed_deduction || 0).toFixed(2)}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
                   {/* Net Payable */}
                   <div className="bg-gradient-to-r from-emerald-50 to-green-50 p-3 rounded-lg border border-green-200">

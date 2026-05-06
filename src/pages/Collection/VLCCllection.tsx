@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useAppSelector } from "@/redux/store";
 import { usePostApi } from "@/services/use-api";
 import { toast } from "react-toastify";
-import { format as formatDate } from "date-fns";
+
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,16 +17,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { format, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
 import {
-  CalendarIcon,
   FileSpreadsheet,
   Search,
   Users,
@@ -165,8 +163,8 @@ const VLCCllection = () => {
         branches: selectedBranches,
         type: selectedType === "all" ? "All" : selectedType.charAt(0).toUpperCase() + selectedType.slice(1),
         shift: selectedShift === "all" ? "All" : selectedShift.charAt(0).toUpperCase() + selectedShift.slice(1),
-        from_date: formatDate(fromDate, "yyyy-MM-dd"),
-        to_date: formatDate(toDate, "yyyy-MM-dd")
+        from_date: format(fromDate, "yyyy-MM-dd"),
+        to_date: format(toDate, "yyyy-MM-dd")
       };
 
       console.log('📤 VLC Collection API Request:', payload);
@@ -400,47 +398,29 @@ const VLCCllection = () => {
               <Label className="text-sm font-medium text-gray-700">
                 {t('from_date')}
               </Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left font-normal bg-gray-50 border-gray-200"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {fromDate ? format(fromDate, "dd-MM-yyyy") : t('select_date')}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-white z-50" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={fromDate}
-                    onSelect={handleFromDateChange}
-                  />
-                </PopoverContent>
-              </Popover>
+              <Input
+                type="date"
+                value={fromDate ? format(fromDate, "yyyy-MM-dd") : ""}
+                onChange={(e) => {
+                  const d = new Date(e.target.value);
+                  if (isValid(d)) handleFromDateChange(d);
+                }}
+                className="bg-gray-50 border-gray-200 w-full h-10"
+              />
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-medium text-gray-700">
                 {t('to_date')}
               </Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left font-normal bg-gray-50 border-gray-200"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {toDate ? format(toDate, "dd-MM-yyyy") : t('select_date')}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-white z-50" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={toDate}
-                    onSelect={setToDate}
-                  />
-                </PopoverContent>
-              </Popover>
+              <Input
+                type="date"
+                value={toDate ? format(toDate, "yyyy-MM-dd") : ""}
+                onChange={(e) => {
+                  const d = new Date(e.target.value);
+                  if (isValid(d)) setToDate(d);
+                }}
+                className="bg-gray-50 border-gray-200 w-full h-10"
+              />
             </div>
           </div>
           <Button 

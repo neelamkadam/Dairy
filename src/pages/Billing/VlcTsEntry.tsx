@@ -13,15 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CalendarIcon } from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { format, isValid } from "date-fns";
 
 const VlcTsEntry: React.FC = () => {
   const { branches } = useAppSelector((state) => state.branch);
@@ -146,33 +138,15 @@ const VlcTsEntry: React.FC = () => {
 
             <div className="space-y-2">
               <Label className="text-sm font-medium text-gray-700">Effective Date From <span className="text-red-500">*</span></Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start font-normal bg-gray-50 border-gray-200",
-                      !formData.effectiveDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.effectiveDate
-                      ? format(formData.effectiveDate, "dd-MM-yyyy")
-                      : "Select date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={formData.effectiveDate}
-                    onSelect={(date) =>
-                      setFormData({ ...formData, effectiveDate: date })
-                    }
-                    initialFocus
-                    className="p-3 pointer-events-auto bg-white"
-                  />
-                </PopoverContent>
-              </Popover>
+              <Input
+                type="date"
+                value={formData.effectiveDate ? format(formData.effectiveDate, "yyyy-MM-dd") : ""}
+                onChange={(e) => {
+                  const d = new Date(e.target.value);
+                  if (isValid(d)) setFormData({ ...formData, effectiveDate: d });
+                }}
+                className="bg-gray-50 border-gray-200 w-full h-10"
+              />
             </div>
 
             <Button

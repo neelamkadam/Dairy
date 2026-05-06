@@ -683,38 +683,31 @@ const FarmerDeduction = () => {
             </Select>
           </div>
           <div className="flex items-center justify-between mb-5 pl-4 pr-4">
-            <div className="flex items-center gap-2">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-36 justify-start text-left font-normal"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {startDate ? format(startDate, "dd-MM-yyyy") : "Start date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-white border border-gray-300 shadow-lg" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={startDate}
-                    onSelect={handleStartDateChange}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto bg-white")}
-                  />
-                </PopoverContent>
-              </Popover>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-gray-700">Start Date:</label>
+                <Input
+                  type="date"
+                  value={startDate ? format(startDate, "yyyy-MM-dd") : ""}
+                  onChange={(e) => {
+                    const newDateStr = e.target.value;
+                    if (newDateStr) {
+                      handleStartDateChange(new Date(newDateStr));
+                    }
+                  }}
+                  className="border-gray-300"
+                />
+              </div>
 
-              <span className="text-gray-500 ">-</span>
-
-              <Button
-                variant="outline"
-                disabled
-                className="w-36 justify-start text-left font-normal bg-gray-100 cursor-not-allowed"
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {endDate ? format(endDate, "dd-MM-yyyy") : "End date"}
-              </Button>
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-gray-700">End Date:</label>
+                <Input
+                  type="date"
+                  value={endDate ? format(endDate, "yyyy-MM-dd") : ""}
+                  disabled
+                  className="border-gray-300 bg-gray-100 cursor-not-allowed"
+                />
+              </div>
               
               <Button 
                 onClick={fetchDeductions}

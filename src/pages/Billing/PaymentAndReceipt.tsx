@@ -9,17 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Bell, CircleUserRound, ChevronRight, ChevronLeft, Search, Trash2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { CalendarIcon, Bell, CircleUserRound,ChevronRight, ChevronLeft, Search, Trash2 } from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { format, isValid } from "date-fns";
 import { paymentApi } from "@/services/paymentApi";
 import { normalizeFarmerId, formatFarmerIdForDisplay } from "@/utils/farmerIdUtils";
 import { toast } from "react-toastify";
@@ -394,33 +387,15 @@ const PaymentAndReceipt: React.FC = () => {
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">
                     From Date
                   </Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !formData.fromDate && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.fromDate
-                          ? format(formData.fromDate, "dd-MM-yyyy")
-                          : "21-04-2025"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 " align="start">
-                      <Calendar
-                        mode="single"
-                        selected={formData.fromDate}
-                        onSelect={(date) =>
-                          setFormData({ ...formData, fromDate: date || new Date() })
-                        }
-                        initialFocus
-                        className="p-3 pointer-events-auto bg-white"
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <Input
+                    type="date"
+                    value={formData.fromDate ? format(formData.fromDate, "yyyy-MM-dd") : ""}
+                    onChange={(e) => {
+                      const d = new Date(e.target.value);
+                      if (isValid(d)) setFormData({ ...formData, fromDate: d });
+                    }}
+                    className="w-full h-10 border-gray-200"
+                  />
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">

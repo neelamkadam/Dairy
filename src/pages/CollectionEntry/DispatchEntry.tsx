@@ -4,14 +4,8 @@ import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { format } from "date-fns";
-import { CalendarIcon, HelpCircle } from "lucide-react";
+import { format, isValid } from "date-fns";
+import { HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePostApi } from "@/services/use-api";
 import { toast } from "react-toastify";
@@ -23,7 +17,6 @@ const DispatchEntry = () => {
   });
 
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [formData, setFormData] = useState({
     weight: "",
     avgFat: "",
@@ -115,35 +108,15 @@ const DispatchEntry = () => {
             <Label className="text-sm font-medium text-gray-700">
               {t('dispatch_date')}
             </Label>
-            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal bg-gray-50 border-gray-200 hover:bg-gray-100",
-                    !selectedDate && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {selectedDate
-                    ? format(selectedDate, "dd-MM-yyyy")
-                    : "Pick a date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 bg-white z-50" align="start" sideOffset={5}>
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(date) => {
-                    if (date) {
-                      setSelectedDate(date);
-                      setIsCalendarOpen(false);
-                    }
-                  }}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+            <Input
+              type="date"
+              value={selectedDate ? format(selectedDate, "yyyy-MM-dd") : ""}
+              onChange={(e) => {
+                const d = new Date(e.target.value);
+                if (isValid(d)) setSelectedDate(d);
+              }}
+              className="bg-gray-50 border-gray-200 hover:bg-gray-100 w-full h-10"
+            />
           </div>
 
           <div className="space-y-2">

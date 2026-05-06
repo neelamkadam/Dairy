@@ -965,7 +965,7 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
     otherDeductions: parseFloat(templateData.current_bill?.other1_total || '0') + parseFloat(templateData.current_bill?.other2_total || '0'),
     totalAmount: totalMAmt + totalEAmt,
     totalDeductions: parseFloat(templateData.current_bill?.advance_total || '0') + parseFloat(templateData.current_bill?.cattlefeed_total || '0') + parseFloat(templateData.current_bill?.other1_total || '0') + parseFloat(templateData.current_bill?.other2_total || '0') + bonusFixedTotal,
-    receivedAmount: parseFloat(templateData.current_bill?.net_payable || '0'),
+    receivedAmount: (totalMAmt + totalEAmt) - (parseFloat(templateData.current_bill?.advance_total || '0') + parseFloat(templateData.current_bill?.cattlefeed_total || '0') + parseFloat(templateData.current_bill?.other1_total || '0') + parseFloat(templateData.current_bill?.other2_total || '0') + bonusFixedTotal),
   };
 
   // Check if we need to show Other2 row (Kirana always shows)

@@ -695,36 +695,20 @@ const FarmerCollectionEntry = () => {
                   </Label>
                   <div className="flex gap-2">
                     <Input
-                      type="text"
-                      value={dateInput}
+                      type="date"
+                      value={format(date, "yyyy-MM-dd")}
                       data-enter-next="shift-select"
-                      placeholder="DD-MM-YYYY"
-                      onChange={(e) => setDateInput(formatDateInputWithHyphen(e.target.value))}
-                      onBlur={() => {
-                        void handleDateInputCommit();
+                      onChange={(e) => {
+                        const newDateStr = e.target.value;
+                        if (newDateStr) {
+                          const newDate = new Date(newDateStr);
+                          if (isValid(newDate)) {
+                            void handleDateChange(newDate);
+                          }
+                        }
                       }}
-                      className="border-gray-200"
+                      className="border-gray-200 w-full h-10"
                     />
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="border-gray-200 px-3"
-                        >
-                          <CalendarIcon className="h-4 w-4" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 bg-white" align="end">
-                        <Calendar
-                          mode="single"
-                          selected={date}
-                          onSelect={handleDateChange}
-                          initialFocus
-                          className="pointer-events-auto"
-                        />
-                      </PopoverContent>
-                    </Popover>
                   </div>
                 </div>
                 <div>
