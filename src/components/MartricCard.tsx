@@ -30,7 +30,6 @@ export function MetricCard({
             "text-sm font-medium mt-2",
             changeType === "positive" ? "text-green-600" : "text-red-600"
           )}>
-            {change} vs last month
           </p>
         </div>
         <div className={cn("p-3 rounded-lg", iconColor)}>
