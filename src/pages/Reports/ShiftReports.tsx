@@ -169,7 +169,7 @@ const ShiftReports:React.FC = () => {
 
       const selectedBranch = branches?.find(b => b.branch_id.toString() === formData.selectedDairy);
       const vlcName = selectedBranch ? selectedBranch.name : "";
-      const dateStr = formData.date ? format(formData.date, "yyyy-MM-dd") : "";
+      const dateStr = formData.date ? format(formData.date, "dd-MM-yyyy") : "";
       
       pdf.save(`Shift_Report_${vlcName}_${dateStr}_${formData.shift}.pdf`);
       toast.success("PDF exported successfully");
@@ -188,7 +188,7 @@ const ShiftReports:React.FC = () => {
     }
     const selectedBranch = branches?.find(b => b.branch_id.toString() === formData.selectedDairy);
     const vlcName = selectedBranch ? selectedBranch.name : "";
-    const dateStr = formData.date ? format(formData.date, "yyyy-MM-dd") : "";
+    const dateStr = formData.date ? format(formData.date, "dd-MM-yyyy") : "";
     generateShiftReportExcel(farmerData, vlcName, dateStr, formData.shift, formData.milkType, totals);
     toast.success("Excel exported successfully");
   };
@@ -517,14 +517,14 @@ const ShiftReports:React.FC = () => {
             </div>
             <div className="flex-1 text-right">
               <p className="text-sm text-gray-600">
-                Date: {format(new Date(), "d - MMMM - yyyy")}
+                Date: {format(new Date(), "dd-MM-yyyy")}
               </p>
             </div>
           </div>
 
           <h1 className="text-2xl font-bold text-center mb-4">Daily Shift Report</h1>
           <p className="text-center text-sm text-gray-600 mb-8">
-            Date: {formData.date ? format(formData.date, "yyyy-MM-dd") : ""} | Shift: {formData.shift} | Milk Type: {formData.milkType || 'All'}
+            Date: {formData.date ? format(formData.date, "dd-MM-yyyy") : ""} | Shift: {formData.shift} | Milk Type: {formData.milkType || "All"}
           </p>
 
           <table className="w-full border-collapse mb-8">
@@ -606,14 +606,14 @@ const ShiftReports:React.FC = () => {
             </div>
             <div className="flex-1 text-right">
               <p className="text-xs font-medium">
-                Date: {format(new Date(), "d - MMM - yyyy")}
+                Date: {format(new Date(), "dd-MM-yyyy")}
               </p>
             </div>
           </div>
 
           <h1 className="text-2xl font-bold text-center mb-1">Daily Shift Report</h1>
           <p className="text-center text-xs font-medium text-[#4b5563] mb-4">
-            Date: {formData.date ? format(formData.date, "yyyy-MM-dd") : ""} | Shift: {formData.shift} | Milk Type: {formData.milkType || 'All'}
+            Date: {formData.date ? format(formData.date, "dd-MM-yyyy") : ""} | Shift: {formData.shift} | Milk Type: {formData.milkType || "All"}
           </p>
 
           <table className="w-full border-collapse border border-[#9ca3af]">

@@ -15,11 +15,10 @@ export const generateShiftReportPDF = (
   totals: any
 ) => {
   const formatDate = (date: Date) => {
-    const day = date.getDate();
-    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    const month = months[date.getMonth()];
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
     const year = date.getFullYear();
-    return `${day} - ${month} - ${year}`;
+    return `${day}-${month}-${year}`;
   };
 
   const tableBody = [
@@ -63,7 +62,7 @@ export const generateShiftReportPDF = (
       },
       { text: "Daily Shift Report", style: "header" },
       {
-        text: `Date: ${date} | Shift: ${shift} | Milk Type: ${milkType || 'All'}`,
+        text: `Date: ${date.split("-").reverse().join("-")} | Shift: ${shift} | Milk Type: ${milkType || "All"}`,
         style: "subheader",
         margin: [0, 0, 0, 20],
       },

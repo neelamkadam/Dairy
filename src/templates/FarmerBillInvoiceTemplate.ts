@@ -392,28 +392,29 @@ const getLabels = (language: string = 'mr') => {
 export const generateTemplate2 = (templateData: Template2Data, language: string = 'mr'): string => {
   const labels = getLabels(language);
   
-  // Parse bill cycle dates
-  const fromDateParts = templateData.fromDate.includes("/")
-    ? templateData.fromDate.split("/")
-    : templateData.fromDate.split("-");
-  const toDateParts = templateData.toDate.includes("/")
-    ? templateData.toDate.split("/")
-    : templateData.toDate.split("-");
+  const parseDate = (dateStr: string) => {
+    if (!dateStr) return new Date();
+    if (dateStr.includes("/")) {
+      const parts = dateStr.split("/");
+      return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+    }
+    if (dateStr.includes("-")) {
+      const parts = dateStr.split("-");
+      if (parts[0].length === 4) return new Date(dateStr); // YYYY-MM-DD
+      return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0])); // DD-MM-YYYY
+    }
+    return new Date(dateStr);
+  };
 
-  const fromDate = templateData.fromDate.includes("/")
-    ? new Date(
-        parseInt(fromDateParts[2]),
-        parseInt(fromDateParts[1]) - 1,
-        parseInt(fromDateParts[0])
-      )
-    : new Date(templateData.fromDate);
-  const toDate = templateData.toDate.includes("/")
-    ? new Date(
-        parseInt(toDateParts[2]),
-        parseInt(toDateParts[1]) - 1,
-        parseInt(toDateParts[0])
-      )
-    : new Date(templateData.toDate);
+  const fromDate = parseDate(templateData.fromDate);
+  const toDate = parseDate(templateData.toDate);
+
+  const formatDisplayDate = (date: Date) => {
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
 
   // Group data by date, shift, and milk type
   const groupedData = new Map<string, FarmerBillData>();
@@ -656,7 +657,7 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
     </div>
     <div>
       <strong>${labels.invoice} No.</strong> 1<br>
-      <strong>${labels.bill} ${labels.date}</strong> ${templateData.fromDate} <strong>${labels.to}</strong> ${templateData.toDate}
+      <strong>${labels.bill} ${labels.date}</strong> ${formatDisplayDate(fromDate)} <strong>${labels.to}</strong> ${formatDisplayDate(toDate)}
     </div>
   </div>` : '<div style="height: 30px;"></div>'}
 
@@ -794,8 +795,29 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
   const hasCow = (templateData.renderOnly === 'Cow' || !templateData.renderOnly) && templateData.data.some(d => d.type === 'Cow');
   const hasBuffalo = (templateData.renderOnly === 'Buffalo' || !templateData.renderOnly) && templateData.data.some(d => d.type === 'Buffalo');
 
-  const startDate = new Date(templateData.fromDate);
-  const endDate = new Date(templateData.toDate);
+  const parseDate = (dateStr: string) => {
+    if (!dateStr) return new Date();
+    if (dateStr.includes("/")) {
+      const parts = dateStr.split("/");
+      return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+    }
+    if (dateStr.includes("-")) {
+      const parts = dateStr.split("-");
+      if (parts[0].length === 4) return new Date(dateStr); // YYYY-MM-DD
+      return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0])); // DD-MM-YYYY
+    }
+    return new Date(dateStr);
+  };
+
+  const startDate = parseDate(templateData.fromDate);
+  const endDate = parseDate(templateData.toDate);
+
+  const formatDisplayDate = (date: Date) => {
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
   const allDates: string[] = [];
   let currentDate = new Date(startDate);
   while (currentDate <= endDate) {
@@ -803,16 +825,33 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
     currentDate.setDate(currentDate.getDate() + 1);
   }
 
-  let cowMLtr = 0, cowMAmt = 0, cowELtr = 0, cowEAmt = 0;
-  let buffMLtr = 0, buffMAmt = 0, buffELtr = 0, buffEAmt = 0;
+  let cowMLtr = 0, cowMAmt = 0, cowMFatTot = 0, cowMSnfTot = 0;
+  let cowELtr = 0, cowEAmt = 0, cowEFatTot = 0, cowESnfTot = 0;
+  let buffMLtr = 0, buffMAmt = 0, buffMFatTot = 0, buffMSnfTot = 0;
+  let buffELtr = 0, buffEAmt = 0, buffEFatTot = 0, buffESnfTot = 0;
 
   templateData.data.forEach(d => {
+    const ltrs = Number(d.liters || 0);
+    const fat = Number(d.fat || 0);
+    const snf = Number(d.snf || 0);
+    const amt = Number(d.amount || 0);
+
     if (d.type === 'Cow') {
-      if (d.shift === 'Morning') { cowMLtr += d.liters; cowMAmt += d.amount; }
-      else { cowELtr += d.liters; cowEAmt += d.amount; }
+      if (d.shift === 'Morning') { 
+        cowMLtr += ltrs; cowMAmt += amt; 
+        cowMFatTot += ltrs * fat; cowMSnfTot += ltrs * snf;
+      } else { 
+        cowELtr += ltrs; cowEAmt += amt; 
+        cowEFatTot += ltrs * fat; cowESnfTot += ltrs * snf;
+      }
     } else if (d.type === 'Buffalo' || d.type === 'Buffaloes') {
-      if (d.shift === 'Morning') { buffMLtr += d.liters; buffMAmt += d.amount; }
-      else { buffELtr += d.liters; buffEAmt += d.amount; }
+      if (d.shift === 'Morning') { 
+        buffMLtr += ltrs; buffMAmt += amt; 
+        buffMFatTot += ltrs * fat; buffMSnfTot += ltrs * snf;
+      } else { 
+        buffELtr += ltrs; buffEAmt += amt; 
+        buffEFatTot += ltrs * fat; buffESnfTot += ltrs * snf;
+      }
     }
   });
 
@@ -848,15 +887,19 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
         `;
       }).join('');
       
-      if (hasCow && hasBuffalo) {
+      if (hasCow) {
         content += `
           <tr style="font-weight: bold; background: #fdfdfd; border-top: 1px solid black; border-bottom: 1px solid black;">
             <td class="text-center" style="padding: 4px;">${labels.total} (${labels.cow}):</td>
             <td class="text-right" style="padding: 4px;">${cowMLtr.toFixed(1)}</td>
-            <td style="padding: 4px;"></td><td style="padding: 4px;"></td><td style="padding: 4px;"></td>
+            <td class="text-right" style="padding: 4px;">${cowMLtr > 0 ? (cowMFatTot / cowMLtr).toFixed(1) : ''}</td>
+            <td class="text-right" style="padding: 4px;">${cowMLtr > 0 ? (cowMSnfTot / cowMLtr).toFixed(1) : ''}</td>
+            <td class="text-right" style="padding: 4px;">${cowMLtr > 0 ? (cowMAmt / cowMLtr).toFixed(2) : ''}</td>
             <td class="text-right">${cowMAmt.toFixed(2)}</td>
             <td class="text-right">${cowELtr.toFixed(1)}</td>
-            <td></td><td></td><td></td>
+            <td class="text-right" style="padding: 4px;">${cowELtr > 0 ? (cowEFatTot / cowELtr).toFixed(1) : ''}</td>
+            <td class="text-right" style="padding: 4px;">${cowELtr > 0 ? (cowESnfTot / cowELtr).toFixed(1) : ''}</td>
+            <td class="text-right" style="padding: 4px;">${cowELtr > 0 ? (cowEAmt / cowELtr).toFixed(2) : ''}</td>
             <td class="text-right">${cowEAmt.toFixed(2)}</td>
             <td class="text-right">${(cowMLtr + cowELtr).toFixed(1)}</td>
             <td class="text-right">${(cowMAmt + cowEAmt).toFixed(2)}</td>
@@ -894,15 +937,19 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
         `;
       }).join('');
       
-      if (hasCow && hasBuffalo) {
+      if (hasBuffalo) {
         content += `
-          <tr style="font-weight: bold; background: #fdfdfd; border-top: 1px solid #ddd;">
-            <td class="text-center">एकूण (म्हैस):</td>
-            <td class="text-right">${buffMLtr.toFixed(1)}</td>
-            <td></td><td></td><td></td>
+          <tr style="font-weight: bold; background: #fdfdfd; border-top: 1px solid black; border-bottom: 1px solid black;">
+            <td class="text-center" style="padding: 4px;">${labels.total} (${labels.buffalo}):</td>
+            <td class="text-right" style="padding: 4px;">${buffMLtr.toFixed(1)}</td>
+            <td class="text-right" style="padding: 4px;">${buffMLtr > 0 ? (buffMFatTot / buffMLtr).toFixed(1) : ''}</td>
+            <td class="text-right" style="padding: 4px;">${buffMLtr > 0 ? (buffMSnfTot / buffMLtr).toFixed(1) : ''}</td>
+            <td class="text-right" style="padding: 4px;">${buffMLtr > 0 ? (buffMAmt / buffMLtr).toFixed(2) : ''}</td>
             <td class="text-right">${buffMAmt.toFixed(2)}</td>
             <td class="text-right">${buffELtr.toFixed(1)}</td>
-            <td></td><td></td><td></td>
+            <td class="text-right" style="padding: 4px;">${buffELtr > 0 ? (buffEFatTot / buffELtr).toFixed(1) : ''}</td>
+            <td class="text-right" style="padding: 4px;">${buffELtr > 0 ? (buffESnfTot / buffELtr).toFixed(1) : ''}</td>
+            <td class="text-right" style="padding: 4px;">${buffELtr > 0 ? (buffEAmt / buffELtr).toFixed(2) : ''}</td>
             <td class="text-right">${buffEAmt.toFixed(2)}</td>
             <td class="text-right">${(buffMLtr + buffELtr).toFixed(1)}</td>
             <td class="text-right">${(buffMAmt + buffEAmt).toFixed(2)}</td>
@@ -924,14 +971,24 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
     return content;
   };
 
-  let totalMLtr = 0, totalMAmt = 0, totalELtr = 0, totalEAmt = 0;
+  let totalMLtr = 0, totalMAmt = 0, totalMFatTot = 0, totalMSnfTot = 0;
+  let totalELtr = 0, totalEAmt = 0, totalEFatTot = 0, totalESnfTot = 0;
   templateData.data.forEach(d => {
+    const ltrs = Number(d.liters || 0);
+    const fat = Number(d.fat || 0);
+    const snf = Number(d.snf || 0);
+    const amt = Number(d.amount || 0);
+
     if (d.shift === 'Morning') {
-      totalMLtr += d.liters;
-      totalMAmt += d.amount;
+      totalMLtr += ltrs;
+      totalMAmt += amt;
+      totalMFatTot += ltrs * fat;
+      totalMSnfTot += ltrs * snf;
     } else {
-      totalELtr += d.liters;
-      totalEAmt += d.amount;
+      totalELtr += ltrs;
+      totalEAmt += amt;
+      totalEFatTot += ltrs * fat;
+      totalESnfTot += ltrs * snf;
     }
   });
 
@@ -1008,7 +1065,7 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
       </tr>
       <tr style="height: 20px;">
         <td style="font-size: 11px; vertical-align: middle;"><strong>${labels.bankDetail} :</strong> ${templateData.bankDetails?.accountNumber || ''}</td>
-        <td style="text-align: center; font-size: 11px; vertical-align: middle;"><strong>${labels.period} :</strong> ${templateData.fromDate} To ${templateData.toDate}</td>
+        <td style="text-align: center; font-size: 11px; vertical-align: middle;"><strong>${labels.period} :</strong> ${formatDisplayDate(startDate)} To ${formatDisplayDate(endDate)}</td>
         <td></td>
       </tr>
     </table>
@@ -1030,14 +1087,18 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
     </thead>
     <tbody>
       ${getTablesContent()}
-      ${!templateData.hideSummary ? `
+      ${(hasCow && hasBuffalo) && !templateData.hideSummary ? `
       <tr style="font-weight: bold; background: #f2f2f2; height: 30px;">
         <td class="text-center">${labels.total} :</td>
         <td class="text-right">${totalMLtr.toFixed(1)}</td>
-        <td></td><td></td><td></td>
+        <td class="text-right">${totalMLtr > 0 ? (totalMFatTot / totalMLtr).toFixed(1) : ''}</td>
+        <td class="text-right">${totalMLtr > 0 ? (totalMSnfTot / totalMLtr).toFixed(1) : ''}</td>
+        <td class="text-right">${totalMLtr > 0 ? (totalMAmt / totalMLtr).toFixed(2) : ''}</td>
         <td class="text-right">${totalMAmt.toFixed(2)}</td>
         <td class="text-right">${totalELtr.toFixed(1)}</td>
-        <td></td><td></td><td></td>
+        <td class="text-right">${totalELtr > 0 ? (totalEFatTot / totalELtr).toFixed(1) : ''}</td>
+        <td class="text-right">${totalELtr > 0 ? (totalESnfTot / totalELtr).toFixed(1) : ''}</td>
+        <td class="text-right">${totalELtr > 0 ? (totalEAmt / totalELtr).toFixed(2) : ''}</td>
         <td class="text-right">${totalEAmt.toFixed(2)}</td>
         <td class="text-right">${(totalMLtr + totalELtr).toFixed(1)}</td>
         <td class="text-right">${(totalMAmt + totalEAmt).toFixed(2)}</td>
@@ -1201,7 +1262,25 @@ export const generateTemplate3Farmers = (templateData: Template3Data, language: 
         <div style="text-align: center; font-size: 12px; font-weight: bold; margin-bottom: 8px;">${templateData.dairyPhone || templateData.dairyCode || ''}</div>
         <div style="display: flex; justify-content: space-between; font-size: 10px; font-weight: bold; margin-bottom: 5px;">
            <div>${labels.code}: ${templateData.dairyCode || ''}</div>
-           <div>${templateData.fromDate} - ${templateData.toDate}</div>
+           <div>${(() => {
+             const parseDate = (d: string) => {
+               if (!d) return new Date();
+               if (d.includes("/")) {
+                 const p = d.split("/");
+                 return new Date(parseInt(p[2]), parseInt(p[1]) - 1, parseInt(p[0]));
+               }
+               if (d.includes("-")) {
+                 const p = d.split("-");
+                 if (p[0].length === 4) return new Date(d);
+                 return new Date(parseInt(p[2]), parseInt(p[1]) - 1, parseInt(p[0]));
+               }
+               return new Date(d);
+             };
+             const fD = parseDate(templateData.fromDate);
+             const tD = parseDate(templateData.toDate);
+             const fmt = (date: Date) => `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
+             return `${fmt(fD)} - ${fmt(tD)}`;
+           })()}</div>
         </div>
         <div style="font-size: 11px; margin-bottom: 8px; background: #f0f0f0; padding: 4px 10px; border: 1px solid #000;">
           <div style="display: flex; justify-content: space-between;">

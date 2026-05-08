@@ -11,7 +11,7 @@ export const generateShiftReportExcel = (
   const worksheetData = [
     ['Daily Shift Report'],
     [`VLC: ${vlcName}`],
-    [`Date: ${date} | Shift: ${shift} | Milk Type: ${milkType || 'All'}`],
+    [`Date: ${date} | Shift: ${shift} | Milk Type: ${milkType || "All"}`],
     [],
     ['Farmer ID', 'Quantity', 'Fat', 'SNF', 'Milk Type', 'Rate', 'Total Amount'],
     ...reportData.map(row => [
