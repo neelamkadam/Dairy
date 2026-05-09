@@ -41,6 +41,18 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
     });
   }
 
+  if(access?.collection_entry){
+    items.push({
+      title: t('cc_collection'),
+      icon: "🩸", 
+      children: [
+        {title: t('cc_dashboard'), icon: "", href: ROUTES.CC_COLLECTION.CHILLING_CENTER},
+        {title : t('weight_collection'), icon:"", href: ROUTES.CC_COLLECTION.WEIGHT_COLLECTION},
+        {title : t('analyser_collection'), icon:"", href: ROUTES.CC_COLLECTION.ANALYSER_COLLECTION}
+      ]
+    })  
+  }
+
   if (access?.collection) {
     items.push({
       title: t('collection'),
@@ -172,7 +184,7 @@ interface SidebarProps {
 
 const AppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
   const { t } = useTranslation();
-  const authState = useAppSelector((state: RootState) => state.authData);
+  const authState = useAppSelector((state) => state.authData);
   const userData = authState?.userData;
   const [showCompany, setShowCompany] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);

@@ -15,8 +15,13 @@ export const ROUTES = {
   COLLECTION:{
     VLC_COLLECTION:`/dashboard/vlc-collection`,
     BMC_COLLECTION:`/dashboard/bmc-collection`,
-    CHILLING_CENTER:`/dashboard/chilling-center`,
     FARMER_MANAGEMENT:`/dashboard/farmer-management`,
+  },
+  CC_COLLECTION:{
+    CC_COLLECTION_ENTRY:`/dashboard/cc-collection-entry`,
+    WEIGHT_COLLECTION: `/dashboard/weight-collection`,
+    ANALYSER_COLLECTION: `/dashboard/analyser-collection`,
+    CHILLING_CENTER:`/dashboard/chilling-center`,
   },
   MASTER:{
     ADD_FARMER:`/dashboard/add-farmer`,

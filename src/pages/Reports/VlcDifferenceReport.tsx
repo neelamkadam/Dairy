@@ -271,6 +271,31 @@ const VlcDifferenceReport = () => {
         useCORS: true,
         logging: false,
         windowWidth: 1123, // A4 landscape pixels at 96 DPI
+        onclone: (clonedDoc) => {
+          const style = clonedDoc.createElement('style');
+          style.innerHTML = `
+            * {
+              --color-gray-50: #f9fafb !important;
+              --color-gray-100: #f3f4f6 !important;
+              --color-gray-200: #e5e7eb !important;
+              --color-blue-50: #eff6ff !important;
+              --color-blue-100: #dbeafe !important;
+              --color-blue-800: #1e40af !important;
+              --color-blue-900: #1e3a8a !important;
+              --color-green-50: #f0fdf4 !important;
+              --color-green-100: #dcfce7 !important;
+              --color-green-800: #166534 !important;
+              --color-green-900: #14532d !important;
+              --color-purple-50: #faf5ff !important;
+              --color-purple-100: #f3e8ff !important;
+              --color-purple-800: #6b21a8 !important;
+              --color-purple-900: #581c87 !important;
+              --color-amber-50: #fffbeb !important;
+              --color-amber-100: #fef3c7 !important;
+            }
+          `;
+          clonedDoc.head.appendChild(style);
+        }
       });
       const imgData = canvas.toDataURL('image/jpeg', 0.95);
       const imgWidth = 297;

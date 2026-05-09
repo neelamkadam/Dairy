@@ -1,3 +1,4 @@
+import axios from "axios";
 import { api } from "./config";
 
 export const adminApi = {
@@ -12,4 +13,23 @@ export const adminApi = {
   getTrialStartDate: (username: string) => api.get(`/auth/trial-start-date?username=${username}`),
   updateTrialDays: (username: string, days: number) => api.put("/auth/update-trial-days", { username, days }),
   getTrialDetails: (payload: { usernames?: string[], username?: string }) => api.post("/auth/get-trial-details", payload),
+  uploadImage: (formData: FormData) => axios.post("https://api.neodairysales.com/dairy/images/upload", formData),
+  getImages: (params: { dairy_id?: string; ref_id?: string; ref_type?: string }) => 
+    api.get("/dairy/images", { params }),
+  getSignedUrl: (key: string) => api.get(`/dairy/images/url?key=${key}`),
+  
+  // Activation Records
+  createActivation: (data: { 
+    dairy_id?: string; 
+    dairy_name?: string; 
+    web_user_id?: string; 
+    web_name?: string; 
+    activation_date: string; 
+    image_url: string; 
+    remark?: string;
+  }) => api.post("/activations", data),
+  getActivations: (params: { dairy_id?: string; web_user_id?: string }) => 
+    api.get("/activations", { params }),
+  updateActivation: (id: string, data: any) => api.put(`/activations/${id}`, data),
+  deleteActivation: (id: string) => api.delete(`/activations/${id}`),
 };

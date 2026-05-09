@@ -25,7 +25,7 @@ interface SidebarAccess {
 }
 
 const SidebarAccessManagement = () => {
-  const authState = useAppSelector((state: RootState) => state.authData);
+  const authState = useAppSelector((state) => state.authData);
   const loggedInUserId = authState?.userData?.id;
   const userRole = authState?.userRole;
   

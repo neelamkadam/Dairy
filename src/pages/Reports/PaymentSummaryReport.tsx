@@ -524,7 +524,33 @@ const PaymentSummaryReport = () => {
       const canvas = await html2canvas(exportElement, {
         scale: 2,
         useCORS: true,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        onclone: (clonedDoc) => {
+          const style = clonedDoc.createElement('style');
+          style.innerHTML = `
+            * {
+              /* Override Tailwind v4 oklch colors with safe hex equivalents for html2canvas */
+              --color-gray-50: #f9fafb !important;
+              --color-gray-100: #f3f4f6 !important;
+              --color-gray-200: #e5e7eb !important;
+              --color-gray-300: #d1d5db !important;
+              --color-gray-400: #9ca3af !important;
+              --color-gray-500: #6b7280 !important;
+              --color-gray-600: #4b5563 !important;
+              --color-gray-700: #374151 !important;
+              --color-gray-800: #1f2937 !important;
+              --color-gray-900: #111827 !important;
+              --color-blue-50: #eff6ff !important;
+              --color-blue-100: #dbeafe !important;
+              --color-blue-600: #2563eb !important;
+              --color-blue-700: #1d4ed8 !important;
+              --color-green-600: #16a34a !important;
+              --color-red-600: #dc2626 !important;
+              --color-orange-600: #ea580c !important;
+            }
+          `;
+          clonedDoc.head.appendChild(style);
+        }
       });
 
       const doc = new jsPDF('l', 'mm', 'a4');

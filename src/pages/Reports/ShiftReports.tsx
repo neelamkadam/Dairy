@@ -145,6 +145,19 @@ const ShiftReports:React.FC = () => {
         scale: 2,
         useCORS: true,
         backgroundColor: "#ffffff",
+        onclone: (clonedDoc) => {
+          const style = clonedDoc.createElement('style');
+          style.innerHTML = `
+            * {
+              --color-gray-50: #f9fafb !important;
+              --color-gray-100: #f3f4f6 !important;
+              --color-gray-200: #e5e7eb !important;
+              --color-blue-600: #2563eb !important;
+              --color-blue-700: #1d4ed8 !important;
+            }
+          `;
+          clonedDoc.head.appendChild(style);
+        }
       });
 
       const imgData = canvas.toDataURL("image/png");

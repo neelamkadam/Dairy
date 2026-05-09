@@ -23,6 +23,9 @@ import VlcCommissionEntry from "@/pages/Billing/VlcCommissionEntry";
 import VlcTsEntry from "@/pages/Billing/VlcTsEntry";
 import BMCCollection from "@/pages/Collection/BMCCollection";
 import ChillingCenter from "@/pages/Collection/ChillingCenter";
+import CCCollectionEntry from "@/pages/CC_Collection/CC_Collection_Entry";
+import WeightCollection from "@/pages/CC_Collection/WeightCollection";
+import AnalyserCollection from "@/pages/CC_Collection/AnalyserCollection";
 import FarmerManagement from "@/pages/Collection/FarmerManagement";
 import VLCCllection from "@/pages/Collection/VLCCllection";
 import DispatchEntry from "@/pages/CollectionEntry/DispatchEntry";
@@ -119,6 +122,18 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "chilling-center",
         element: <ChillingCenter />,
+      },
+      {
+        path: "cc-collection-entry",
+        element: <CCCollectionEntry />,
+      },
+      {
+        path: "weight-collection",
+        element: <WeightCollection />,
+      },
+      {
+        path: "analyser-collection",
+        element: <AnalyserCollection />,
       },
       {
         path: "farmer-management",

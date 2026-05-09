@@ -6,8 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Calendar as CalendarIcon, Loader2, Search, ChevronLeft, ChevronRight, Save, FileDown } from "lucide-react";
 import { AppDatePicker } from "@/components/ui/date-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useAppSelector, RootState } from "@/redux/store";
-import { useSelector } from "react-redux";
+import { useAppSelector } from "@/redux/store";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "react-toastify";
@@ -23,8 +22,8 @@ import PdfLoader from "@/components/PdfLoader";
 
 const ShubhamMilkProduct = () => {
   const { t } = useTranslation();
-  const { branches } = useAppSelector((state) => state.branch);
-  const userId = useSelector((state: RootState) => state.authData?.userData?.id);
+  const branches = useAppSelector((state) => state.branch.branches);
+  const userId = useAppSelector((state) => state.authData?.userData?.id);
   const hideRateAmount = userId === '7';
   const [vlcId, setVlcId] = useState("");
   
@@ -893,7 +892,20 @@ const ShubhamMilkProduct = () => {
                 scale: 1.5,
                 useCORS: true,
                 logging: false,
-                windowWidth: 794
+                windowWidth: 794,
+                onclone: (clonedDoc) => {
+                  const style = clonedDoc.createElement('style');
+                  style.innerHTML = `
+                    * {
+                      --color-gray-50: #f9fafb !important;
+                      --color-gray-100: #f3f4f6 !important;
+                      --color-gray-200: #e5e7eb !important;
+                      --color-blue-600: #2563eb !important;
+                      --color-blue-700: #1d4ed8 !important;
+                    }
+                  `;
+                  clonedDoc.head.appendChild(style);
+                }
               });
               const imgData = canvas.toDataURL('image/png');
               const imgWidth = 210;
@@ -910,7 +922,20 @@ const ShubhamMilkProduct = () => {
               scale: 1.5,
               useCORS: true,
               logging: false,
-              windowWidth: 794
+              windowWidth: 794,
+              onclone: (clonedDoc) => {
+                const style = clonedDoc.createElement('style');
+                style.innerHTML = `
+                  * {
+                    --color-gray-50: #f9fafb !important;
+                    --color-gray-100: #f3f4f6 !important;
+                    --color-gray-200: #e5e7eb !important;
+                    --color-blue-600: #2563eb !important;
+                    --color-blue-700: #1d4ed8 !important;
+                  }
+                `;
+                clonedDoc.head.appendChild(style);
+              }
             });
             const imgData = canvas.toDataURL('image/png');
             const imgWidth = 210;
@@ -1087,7 +1112,20 @@ const ShubhamMilkProduct = () => {
               scale: 1.5,
               useCORS: true,
               logging: false,
-              windowWidth: 794
+              windowWidth: 794,
+              onclone: (clonedDoc) => {
+                const style = clonedDoc.createElement('style');
+                style.innerHTML = `
+                  * {
+                    --color-gray-50: #f9fafb !important;
+                    --color-gray-100: #f3f4f6 !important;
+                    --color-gray-200: #e5e7eb !important;
+                    --color-blue-600: #2563eb !important;
+                    --color-blue-700: #1d4ed8 !important;
+                  }
+                `;
+                clonedDoc.head.appendChild(style);
+              }
             });
             const imgData = canvas.toDataURL('image/png');
             const imgWidth = 210;
@@ -1103,7 +1141,20 @@ const ShubhamMilkProduct = () => {
             scale: 1.5,
             useCORS: true,
             logging: false,
-            windowWidth: 794
+            windowWidth: 794,
+            onclone: (clonedDoc) => {
+              const style = clonedDoc.createElement('style');
+              style.innerHTML = `
+                * {
+                  --color-gray-50: #f9fafb !important;
+                  --color-gray-100: #f3f4f6 !important;
+                  --color-gray-200: #e5e7eb !important;
+                  --color-blue-600: #2563eb !important;
+                  --color-blue-700: #1d4ed8 !important;
+                }
+              `;
+              clonedDoc.head.appendChild(style);
+            }
           });
           const imgData = canvas.toDataURL('image/png');
           const imgWidth = 210;

@@ -7,8 +7,7 @@ import { Label } from '@/components/ui/label';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { api } from '@/services/config';
-import { useSelector } from 'react-redux';
-import { RootState } from '@/redux/store';
+import { useAppSelector } from '@/redux/store';
 import { toast } from 'react-toastify';
 
 interface PassbookRow {
@@ -26,7 +25,7 @@ interface PassbookRow {
 }
 
 const FarmerPassbook = () => {
-  const branches = useSelector((state: RootState) => state.branch.branches);
+  const branches = useAppSelector((state) => state.branch.branches);
   const [selectedVLC, setSelectedVLC] = useState<string>('');
   const [fromDate, setFromDate] = useState<string>('');
   const [toDate, setToDate] = useState<string>('');

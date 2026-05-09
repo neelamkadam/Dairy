@@ -4,8 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar as CalendarIcon, Loader2, Search, ChevronLeft, ChevronRight, Save, FileDown } from "lucide-react";
-import { useAppSelector, RootState } from "@/redux/store";
-import { useSelector } from "react-redux";
+import { useAppSelector } from "@/redux/store";
 import { format, startOfMonth, endOfMonth, isWithinInterval, addDays, startOfDay, endOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "react-toastify";
@@ -25,8 +24,8 @@ import PdfLoader from "@/components/PdfLoader";
 const DynamicBillCycle = () => {
   const { t } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
-  const userId = useSelector((state: RootState) => state.authData?.userData?.id);
-  const userPhone = useSelector((state: RootState) => state.authData?.userData?.phone);
+  const userId = useAppSelector((state) => state.authData?.userData?.id);
+  const userPhone = useAppSelector((state) => state.authData?.userData?.phone);
   const hideRateAmount = userId === '7';
   
   // State definitions (must be at top)
@@ -946,6 +945,19 @@ const DynamicBillCycle = () => {
         useCORS: true,
         logging: false,
         windowWidth: 794,
+        onclone: (clonedDoc) => {
+          const style = clonedDoc.createElement('style');
+          style.innerHTML = `
+            * {
+              --color-gray-50: #f9fafb !important;
+              --color-gray-100: #f3f4f6 !important;
+              --color-gray-200: #e5e7eb !important;
+              --color-blue-600: #2563eb !important;
+              --color-blue-700: #1d4ed8 !important;
+            }
+          `;
+          clonedDoc.head.appendChild(style);
+        }
       });
       const imgData = canvas.toDataURL('image/jpeg', 0.85);
       const imgWidth = 210;

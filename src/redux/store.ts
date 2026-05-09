@@ -5,13 +5,13 @@ import dashboardReducer from "./dashboardSlice";
 import { persistReducer, persistStore } from "redux-persist";
 import storage from "redux-persist/lib/storage"; // Import storage from redux-persist
 import { TypedUseSelectorHook, useSelector, useDispatch } from "react-redux";
-import { themeSlice } from "./themeSlice";
+import themeReducer from "./themeSlice";
 
 const rootReducer = combineReducers({
   authData: authDataReducer,
   branch: branchReducer,
   dashboard: dashboardReducer,
-  theme: themeSlice,
+  theme: themeReducer,
 });
 
 const persistConfig = {
@@ -32,7 +32,7 @@ export const store = configureStore({
 export const persistor = persistStore(store);
 
 // Infer the `RootState` and `AppDispatch` types from the store itself
-export type RootState = ReturnType<typeof store.getState>;
+export type RootState = ReturnType<typeof rootReducer>;
 // Inferred type: {posts: PostsState, comments: CommentsState, users: UsersState}
 export type AppDispatch = typeof store.dispatch;
 

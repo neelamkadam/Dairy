@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { useSelector } from "react-redux";
-import { RootState } from "@/redux/store";
+import { useAppSelector } from "@/redux/store";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -37,9 +36,10 @@ import {
 import { settingsApi } from "@/services/settingsApi";
 import { passwordApiService } from "@/services/passwordApiService";
 import { toast } from "react-toastify";
+import { cn } from "@/lib/utils";
 
 const GeneralSettings = () => {
-  const branches = useSelector((state: RootState) => state.branch.branches);
+  const branches = useAppSelector((state) => state.branch.branches);
   const [selectedVlc, setSelectedVlc] = useState("");
   const [addFarmer, setAddFarmer] = useState(0);
   const [rateChart, setRateChart] = useState(0);
@@ -73,12 +73,22 @@ const GeneralSettings = () => {
   const [showBonusDeduction, setShowBonusDeduction] = useState(0);
   const [showCollectionHistory, setShowCollectionHistory] = useState(0);
   const [showCattleFeed, setShowCattleFeed] = useState(0);
+  
+  // CC Specific Settings (Stored in localStorage per VLC)
+  const [ccSearchType, setCcSearchType] = useState(0); // 0: Farmer ID, 1: Sample ID
+  const [ccAnalysisType, setCcAnalysisType] = useState(0); // 0: FAT/SNF, 1: FAT/CLR
 
   useEffect(() => {
     if (selectedVlc) {
       fetchSettings();
       fetchReportSettings();
       checkPassword();
+      
+      // Load CC settings from localStorage
+      const savedSearch = localStorage.getItem(`cc_search_type_${selectedVlc}`);
+      const savedAnalysis = localStorage.getItem(`cc_analysis_type_${selectedVlc}`);
+      setCcSearchType(savedSearch ? parseInt(savedSearch) : 0);
+      setCcAnalysisType(savedAnalysis ? parseInt(savedAnalysis) : 0);
     }
   }, [selectedVlc]);
 
@@ -210,6 +220,10 @@ const GeneralSettings = () => {
         show_collection_history: showCollectionHistory,
         show_cattle_feed: showCattleFeed,
       });
+
+      // Save CC settings to localStorage
+      localStorage.setItem(`cc_search_type_${selectedVlc}`, ccSearchType.toString());
+      localStorage.setItem(`cc_analysis_type_${selectedVlc}`, ccAnalysisType.toString());
 
       // Don't refetch settings automatically to prevent resetting values
       // fetchSettings(); // Removed this line
@@ -724,6 +738,71 @@ const GeneralSettings = () => {
                 <span className="text-xs text-gray-700 font-medium">
                   {multipleModal === 1 ? "ON" : "OFF"}
                 </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* CC Collection Specific Settings */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <Layers className="h-5 w-5 text-blue-600" />
+            <h2 className="text-lg font-semibold text-gray-900">
+              CC Collection Settings
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+              <div>
+                <h3 className="text-sm font-medium text-gray-900">Search Preference</h3>
+                <p className="text-xs text-gray-500">Method used for record lookup</p>
+              </div>
+              <div className="flex items-center gap-3 bg-gray-100 p-1 rounded-lg">
+                <button 
+                  onClick={() => setCcSearchType(0)}
+                  className={cn(
+                    "px-3 py-1.5 text-[10px] font-bold rounded-md transition-all",
+                    ccSearchType === 0 ? "bg-white text-blue-600 shadow-sm" : "text-gray-400"
+                  )}
+                >
+                  Farmer ID
+                </button>
+                <button 
+                  onClick={() => setCcSearchType(1)}
+                  className={cn(
+                    "px-3 py-1.5 text-[10px] font-bold rounded-md transition-all",
+                    ccSearchType === 1 ? "bg-white text-blue-600 shadow-sm" : "text-gray-400"
+                  )}
+                >
+                  Sample ID
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+              <div>
+                <h3 className="text-sm font-medium text-gray-900">Analysis Mode</h3>
+                <p className="text-xs text-gray-500">Collection quality parameters</p>
+              </div>
+              <div className="flex items-center gap-3 bg-gray-100 p-1 rounded-lg">
+                <button 
+                  onClick={() => setCcAnalysisType(0)}
+                  className={cn(
+                    "px-3 py-1.5 text-[10px] font-bold rounded-md transition-all",
+                    ccAnalysisType === 0 ? "bg-white text-blue-600 shadow-sm" : "text-gray-400"
+                  )}
+                >
+                  FAT / SNF
+                </button>
+                <button 
+                  onClick={() => setCcAnalysisType(1)}
+                  className={cn(
+                    "px-3 py-1.5 text-[10px] font-bold rounded-md transition-all",
+                    ccAnalysisType === 1 ? "bg-white text-blue-600 shadow-sm" : "text-gray-400"
+                  )}
+                >
+                  FAT / CLR
+                </button>
               </div>
             </div>
           </div>
