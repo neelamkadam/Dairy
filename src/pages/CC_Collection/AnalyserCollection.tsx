@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
-import { FlaskConical, Search, Save, Loader2, Calculator, CheckCircle2, AlertCircle, TrendingUp, Droplets, Gauge, Calendar as CalendarIcon, MapPin } from "lucide-react";
+import { FlaskConical, Search, Save, Loader2, Calculator, CheckCircle2, AlertCircle, TrendingUp, Droplets, Gauge, Calendar as CalendarIcon, MapPin, RefreshCcw } from "lucide-react";
 import { useAppSelector } from "@/redux/store";
 import { ccCollectionApi } from "@/services/ccCollectionApi";
 import { userApi as reportsUserApi } from "@/services/reportsApi";
@@ -108,7 +108,30 @@ const AnalyserCollection = () => {
         shift
       });
       if (response.success) {
-        setRecentFullCollections(response.data || []);
+        const rawGroups = response.data || [];
+        const flatEntries = Array.isArray(rawGroups) 
+          ? rawGroups.flatMap((group: any) => group.collections || [])
+          : [];
+        
+        const mappedEntries = flatEntries.map((e: any) => {
+          let entryDate = e.date || e.created_at || new Date().toISOString();
+          
+          // Fix for DD-MM-YYYY format which is common in the backend but invalid for JS Date constructor
+          if (typeof entryDate === 'string' && /^\d{2}-\d{2}-\d{4}/.test(entryDate)) {
+             const [d, m, y] = entryDate.split('-');
+             entryDate = `${y}-${m}-${d}`;
+          }
+
+          return {
+            ...e,
+            farmer_id: e.uname || e.farmer_id,
+            farmer_name: e.fname || e.farmer_name || 'Farmer',
+            quantity: e.qty || e.quantity || 0,
+            date: entryDate
+          };
+        });
+        
+        setRecentFullCollections(mappedEntries);
       }
     } catch (error) {
       console.error("Error fetching recent full collections:", error);
@@ -578,15 +601,24 @@ const AnalyserCollection = () => {
         <div className="w-80 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 flex flex-col shadow-xl">
           <div className="p-6 border-b border-gray-100 dark:border-gray-800">
             <h2 className="text-sm font-bold text-gray-900 dark:text-white flex items-center justify-between">
-              FINALIZED LOGS
-              <Badge variant="secondary" className="bg-purple-50 text-purple-600 text-[10px] h-5">{recentFullCollections.length}</Badge>
+              <div className="flex items-center gap-2">
+                FINALIZED LOGS
+                <Badge variant="secondary" className="bg-purple-50 text-purple-600 text-[10px] h-5">{recentFullCollections.length}</Badge>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-7 w-7 text-gray-400 hover:text-purple-600 hover:bg-purple-50 transition-colors"
+                onClick={fetchRecentFullCollections}
+              >
+                <RefreshCcw className="h-4 w-4" />
+              </Button>
             </h2>
-            <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-tighter">Completed Analyses</p>
           </div>
           
           <div className="flex-1 overflow-y-auto custom-scrollbar">
             {recentFullCollections.length > 0 ? (
-              <div className="divide-y divide-gray-50 dark:divide-gray-800">
+              <div className="divide-y divide-gray-50 dark:divide-gray-800 pb-20">
                 {recentFullCollections.map((entry, idx) => (
                   <div key={entry.id || idx} className="p-4 hover:bg-purple-50/50 dark:hover:bg-purple-900/10 transition-colors group">
                     <div className="flex items-center justify-between mb-1.5">
@@ -594,13 +626,12 @@ const AnalyserCollection = () => {
                         <span className="text-xs font-black text-gray-900 dark:text-white">{entry.farmer_id}</span>
                         <span className="text-[10px] text-gray-400 truncate max-w-[120px] font-bold uppercase">{entry.farmer_name || 'Farmer'}</span>
                       </div>
-                      <div className="flex gap-1">
-                         <Badge variant="outline" className="text-[8px] h-4 px-1 border-purple-100 dark:border-purple-800 font-bold">F: {entry.fat}</Badge>
-                         <Badge variant="outline" className="text-[8px] h-4 px-1 border-purple-100 dark:border-purple-800 font-bold">S: {entry.snf}</Badge>
+                      <div className="flex gap-1.5">
+                         <Badge variant="outline" className="text-[11px] h-7 px-2 border-purple-100 dark:border-purple-800 font-black bg-purple-50/30 text-purple-700">F: {entry.fat}</Badge>
+                         <Badge variant="outline" className="text-[11px] h-7 px-2 border-purple-100 dark:border-purple-800 font-black bg-purple-50/30 text-purple-700">S: {entry.snf}</Badge>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between">
-                       <span className="text-[9px] text-gray-400 uppercase font-medium">{format(new Date(entry.date), 'dd MMM')} • {entry.shift}</span>
+                    <div className="flex items-center justify-end">
                        <span className="text-sm font-black text-purple-600 group-hover:scale-110 transition-transform">₹{parseFloat(entry.amount || "0").toFixed(2)}</span>
                     </div>
                   </div>
