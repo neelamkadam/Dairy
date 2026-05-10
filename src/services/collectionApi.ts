@@ -13,6 +13,7 @@ export interface CollectionPayload {
   amount: number;
   shift: 'Morning' | 'Evening';
   date: string;
+  cc_collection_id?: number;
 }
 
 export const collectionApi = {

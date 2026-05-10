@@ -213,10 +213,17 @@ const AnalyserCollection = () => {
         date,
         shift
       );
-      if (response.success) {
-        setRate(response.data.rate.toString());
-        const calculatedAmount = response.data.rate * weightRecord.quantity;
+      // Check for price or rate directly as the API might not return a success wrapper
+      const fetchedRate = response.price || response.rate || response.data?.price || response.data?.rate;
+      
+      if (fetchedRate !== undefined && fetchedRate !== null) {
+        setRate(fetchedRate.toString());
+        const calculatedAmount = Number(fetchedRate) * weightRecord.quantity;
         setAmount(calculatedAmount);
+      } else {
+        toast.error("Rate not found for this quality");
+        setRate("0");
+        setAmount(0);
       }
     } catch (error) {
       console.error("Rate error:", error);
@@ -235,10 +242,11 @@ const AnalyserCollection = () => {
 
     setLoading(true);
     try {
+      const time = new Date().toLocaleTimeString('en-IN', { hour12: false });
       const payload = {
         farmer_id: weightRecord.farmer_id,
         dairy_id: selectedBranch!,
-        type: weightRecord.type,
+        type: (weightRecord.type.charAt(0).toUpperCase() + weightRecord.type.slice(1)) as 'Cow' | 'Buffalo',
         quantity: weightRecord.quantity,
         fat: parseFloat(fat),
         snf: parseFloat(snf),
@@ -246,11 +254,11 @@ const AnalyserCollection = () => {
         rate: parseFloat(rate),
         amount: Number(amount.toFixed(2)),
         shift,
-        date,
+        date: `${date} ${time}`,
         cc_collection_id: weightRecord.id
       };
 
-      const response = await ccCollectionApi.createAnalysis(payload);
+      const response = await collectionApi.create(payload);
       if (response.success) {
         toast.success("Analysis recorded successfully!");
         
