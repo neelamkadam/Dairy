@@ -8,6 +8,7 @@ import { format } from "date-fns";
 import { FlaskConical, Search, Save, Loader2, Calculator, CheckCircle2, AlertCircle, TrendingUp, Droplets, Gauge, Calendar as CalendarIcon, MapPin } from "lucide-react";
 import { useAppSelector } from "@/redux/store";
 import { ccCollectionApi } from "@/services/ccCollectionApi";
+import { userApi as reportsUserApi } from "@/services/reportsApi";
 import { collectionApi } from "@/services/collectionApi";
 import { rateChartApi } from "@/services/rateChartApi";
 import { settingsApi } from "@/services/settingsApi";
@@ -15,7 +16,7 @@ import { toast } from "react-toastify";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { calculateSNFFromFatAndCLR } from "@/utils/milkCalculations";
+import { calculateSNFFromFatAndCLR, calculateCLRFromFatAndSNF } from "@/utils/milkCalculations";
 
 const AnalyserCollection = () => {
   const { t } = useTranslation();
@@ -41,6 +42,8 @@ const AnalyserCollection = () => {
   const [calculatingRate, setCalculatingRate] = useState(false);
   const [showCLR, setShowCLR] = useState(true);
   const [searchMethod, setSearchMethod] = useState<'farmer_id' | 'sample_id'>('sample_id');
+  const [allFarmers, setAllFarmers] = useState<any[]>([]);
+  const [pendingRecords, setPendingRecords] = useState<any[]>([]);
   const [recentFullCollections, setRecentFullCollections] = useState<any[]>([]);
 
   const lookupRef = useRef<HTMLInputElement>(null);
@@ -80,8 +83,21 @@ const AnalyserCollection = () => {
     if (selectedBranch) {
       fetchRecentFullCollections();
       fetchSettings(selectedBranch);
+      fetchAllFarmers();
     }
   }, [selectedBranch, date, shift]);
+
+  const fetchAllFarmers = async () => {
+    if (!selectedBranch) return;
+    try {
+      const response = await reportsUserApi.getFarmers(selectedBranch.toString());
+      if (response.success && Array.isArray(response.data)) {
+        setAllFarmers(response.data);
+      }
+    } catch (error) {
+      console.error("Error fetching all farmers:", error);
+    }
+  };
 
   const fetchRecentFullCollections = async () => {
     if (!selectedBranch) return;
@@ -111,19 +127,28 @@ const AnalyserCollection = () => {
         shift
       };
       if (searchMethod === 'sample_id') {
-        payload.sample_id = parseInt(lookupValue);
+        payload.sample_id = lookupValue;
       } else {
         payload.farmer_id = lookupValue;
+        payload.sample_id = "all";
       }
 
       const response = await ccCollectionApi.get(payload);
       if (response.success && response.data) {
-        if (response.data.is_completed) {
-          toast.info("Analysis already completed for this entry");
-          setLookupValue("");
+        const records = Array.isArray(response.data) ? response.data : [response.data];
+        const nonCompleted = records.filter(r => !r.is_completed);
+        
+        if (nonCompleted.length === 0) {
+          if (records.some(r => r.is_completed)) {
+            toast.info("All entries for this farmer are already completed");
+          } else {
+            toast.error("No pending records found");
+          }
           return;
         }
-        setWeightRecord(response.data);
+
+        setPendingRecords(nonCompleted);
+        setWeightRecord(nonCompleted[0]);
         setTimeout(() => fatRef.current?.focus(), 100);
       } else {
         toast.error("No record found");
@@ -137,32 +162,53 @@ const AnalyserCollection = () => {
 
   const handleFatChange = (val: string) => {
     setFat(val);
-    if (val && (snf || clr)) calculateRate(val, snf, clr);
+    if (showCLR) {
+      if (val && clr) {
+        const calculatedSNF = calculateSNFFromFatAndCLR(val, clr);
+        setSnf(calculatedSNF);
+        calculateRate(val, calculatedSNF, clr);
+      }
+    } else {
+      if (val && snf) {
+        const calculatedCLR = calculateCLRFromFatAndSNF(val, snf);
+        setClr(calculatedCLR);
+        calculateRate(val, snf, calculatedCLR);
+      }
+    }
   };
 
   const handleCLRChange = (val: string) => {
     setClr(val);
     if (fat && val) {
-      const calculatedSNF = calculateSNFFromFatAndCLR(parseFloat(fat), parseFloat(val));
-      setSnf(calculatedSNF.toFixed(2));
-      calculateRate(fat, calculatedSNF.toFixed(2), val);
+      const calculatedSNF = calculateSNFFromFatAndCLR(fat, val);
+      setSnf(calculatedSNF);
+      calculateRate(fat, calculatedSNF, val);
     }
   };
 
   const handleSNFChange = (val: string) => {
     setSnf(val);
-    if (fat && val) calculateRate(fat, val, clr);
+    if (fat && val) {
+      const calculatedCLR = calculateCLRFromFatAndSNF(fat, val);
+      setClr(calculatedCLR);
+      calculateRate(fat, val, calculatedCLR);
+    }
   };
 
   const calculateRate = async (f: string, s: string, c: string) => {
     if (!weightRecord || !selectedBranch || !f || (!s && !c)) return;
+    
+    // Find the farmer to get their assigned Rate Chart name
+    const farmer = allFarmers.find(far => far.username === weightRecord.farmer_id);
+    const rateChartName = farmer?.rateChart || weightRecord.rate_chart || "default";
+
     setCalculatingRate(true);
     try {
       const response = await rateChartApi.getRate(
         parseFloat(f),
         parseFloat(s),
         selectedBranch,
-        weightRecord.rate_chart || "default",
+        rateChartName,
         weightRecord.type,
         date,
         shift
@@ -204,18 +250,32 @@ const AnalyserCollection = () => {
         cc_collection_id: weightRecord.id
       };
 
-      const response = await collectionApi.create(payload as any);
+      const response = await ccCollectionApi.createAnalysis(payload);
       if (response.success) {
-        toast.success("Collection finalized!");
-        setLookupValue("");
-        setWeightRecord(null);
+        toast.success("Analysis recorded successfully!");
+        
+        // Reset form
         setFat("");
         setSnf("");
         setClr("");
         setRate("");
         setAmount(0);
+        
+        // Check if there are more pending records for the same farmer/sample lookup
+        const remaining = pendingRecords.filter(r => r.id !== weightRecord.id);
+        if (remaining.length > 0) {
+          setPendingRecords(remaining);
+          setWeightRecord(remaining[0]);
+          toast.info(`Moving to next variety: ${remaining[0].type.toUpperCase()}`);
+          setTimeout(() => fatRef.current?.focus(), 100);
+        } else {
+          setWeightRecord(null);
+          setPendingRecords([]);
+          setLookupValue("");
+          lookupRef.current?.focus();
+        }
+        
         fetchRecentFullCollections();
-        lookupRef.current?.focus();
       } else {
         toast.error(response.message || "Failed to save");
       }
@@ -351,18 +411,42 @@ const AnalyserCollection = () => {
 
                 {weightRecord && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
+                    {/* Selection Tabs if multiple pending */}
+                    {pendingRecords.length > 1 && (
+                      <div className="flex p-1 bg-purple-50 dark:bg-purple-900/10 rounded-xl border border-purple-100 dark:border-purple-900/20">
+                        {pendingRecords.map((r) => (
+                          <button
+                            key={r.id}
+                            type="button"
+                            onClick={() => setWeightRecord(r)}
+                            className={cn(
+                              "flex-1 flex items-center justify-center gap-2 h-9 rounded-lg text-[10px] font-black transition-all duration-200",
+                              weightRecord.id === r.id
+                                ? "bg-white dark:bg-gray-800 text-purple-600 shadow-sm"
+                                : "text-purple-400 hover:text-purple-600"
+                            )}
+                          >
+                            {r.type === 'cow' ? '🐄' : '🐃'} {r.type.toUpperCase()} (SAMPLE #{r.sample_id})
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
                     {/* Farmer Info Bar */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-5 bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
                       <div className="space-y-1">
                         <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Farmer</span>
-                        <p className="text-sm font-bold text-gray-900 dark:text-white uppercase truncate">{weightRecord.farmer_name || weightRecord.farmer_id}</p>
+                        <p className="text-sm font-bold text-gray-900 dark:text-white uppercase truncate">
+                          {allFarmers.find(f => f.username === weightRecord.farmer_id)?.fullName || 'Farmer'}
+                        </p>
+                        <p className="text-[9px] font-bold text-purple-500">ID: {weightRecord.farmer_id}</p>
                       </div>
                       <div className="space-y-1">
                         <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Quantity</span>
-                        <p className="text-sm font-black text-purple-600 dark:text-purple-400">{weightRecord.quantity} <small className="text-[10px] font-normal">KG</small></p>
+                        <p className="text-sm font-black text-purple-600 dark:text-purple-400">{weightRecord.quantity} <small className="text-[10px] font-normal">L</small></p>
                       </div>
                       <div className="space-y-1">
-                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Type</span>
+                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Variety</span>
                         <div><Badge className="bg-purple-100 text-purple-700 text-[8px] h-4 uppercase">{weightRecord.type}</Badge></div>
                       </div>
                       <div className="space-y-1">
@@ -423,13 +507,22 @@ const AnalyserCollection = () => {
                               </div>
                             )}
 
-                            {showCLR && (
+                            {showCLR ? (
                               <div className="space-y-2.5">
                                 <Label className="text-xs font-bold uppercase tracking-widest text-gray-400 flex items-center gap-2">
                                   <Droplets className="h-3 w-3 text-purple-500" /> CALC SNF
                                 </Label>
                                 <div className="h-12 flex items-center px-4 bg-gray-100 dark:bg-gray-800/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700 font-black text-xl text-gray-400">
                                   {snf || '0.00'}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="space-y-2.5">
+                                <Label className="text-xs font-bold uppercase tracking-widest text-gray-400 flex items-center gap-2">
+                                  <Gauge className="h-3 w-3 text-purple-500" /> CALC CLR
+                                </Label>
+                                <div className="h-12 flex items-center px-4 bg-gray-100 dark:bg-gray-800/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700 font-black text-xl text-gray-400">
+                                  {clr || '0.00'}
                                 </div>
                               </div>
                             )}

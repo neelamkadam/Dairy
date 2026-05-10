@@ -5,10 +5,10 @@ export interface CCCollectionWeightPayload {
   farmer_id: string;
   dairy_id: number;
   quantity: number;
-  type: 'Cow' | 'Buffalo';
-  sample_id?: number;
+  type: string; // "cow" or "buffalo" (lowercase)
+  sample_id: string | number;
   date: string;
-  shift: 'Morning' | 'Evening';
+  shift: string;
 }
 
 export const ccCollectionApi = {
@@ -21,7 +21,7 @@ export const ccCollectionApi = {
     return response.data;
   },
 
-  get: async (payload: { sample_id?: number; farmer_id?: string; dairy_id: number; date: string; shift: string }) => {
+  get: async (payload: { sample_id: string | number; farmer_id?: string; dairy_id: number; date: string; shift: string }) => {
     if (payload.farmer_id) {
       payload.farmer_id = normalizeFarmerId(payload.farmer_id);
     }
