@@ -159,19 +159,30 @@ const AnalyserCollection = () => {
       const response = await ccCollectionApi.get(payload);
       if (response.success && response.data) {
         const records = Array.isArray(response.data) ? response.data : [response.data];
-        const nonCompleted = records.filter(r => !r.is_completed);
+        // Check both the is_completed flag and the finalized logs sidebar
+        const nonFinalized = records.filter(r => {
+          const isDoneInLogs = recentFullCollections.some(finalized => 
+            String(finalized.cc_collection_id) === String(r.id) ||
+            (finalized.farmer_id === r.farmer_id && 
+             Math.abs(parseFloat(finalized.quantity) - parseFloat(r.quantity)) < 0.01 && 
+             finalized.type.toLowerCase() === r.type.toLowerCase())
+          );
+          return !isDoneInLogs && !r.is_completed;
+        });
         
-        if (nonCompleted.length === 0) {
-          if (records.some(r => r.is_completed)) {
-            toast.info("All entries for this farmer are already completed");
+        if (nonFinalized.length === 0) {
+          if (records.length > 0) {
+            toast.warning(searchMethod === 'sample_id' 
+              ? `Collection already done for Sample ID: ${lookupValue}` 
+              : "All entries for this farmer are already completed");
           } else {
-            toast.error("No pending records found");
+            toast.error("No pending records found for today");
           }
           return;
         }
 
-        setPendingRecords(nonCompleted);
-        setWeightRecord(nonCompleted[0]);
+        setPendingRecords(nonFinalized);
+        setWeightRecord(nonFinalized[0]);
         setTimeout(() => fatRef.current?.focus(), 100);
       } else {
         toast.error("No record found");

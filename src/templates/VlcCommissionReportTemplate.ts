@@ -27,6 +27,7 @@ export const generateVlcCommissionReportPDF = (
       { text: "Type", style: "tableHeader", alignment: "left" },
       { text: "Rate (₹)", style: "tableHeader", alignment: "right" },
       { text: "Amount (₹)", style: "tableHeader", alignment: "right" },
+      { text: "Travel Commission (₹)", style: "tableHeader", alignment: "right" },
     ],
     ...reportData.map((row) => {
       const branch = branches.find(b => b.branch_id.toString() === row.vlc_id);
@@ -37,6 +38,7 @@ export const generateVlcCommissionReportPDF = (
         { text: row.type, alignment: "left" },
         { text: parseFloat(row.rate).toFixed(2), alignment: "right" },
         { text: amount.toFixed(2), alignment: "right", bold: true },
+        { text: row.travel_commission || (row.type === 'Commission' ? amount.toFixed(2) : parseFloat(row.rate).toFixed(2)), alignment: "right" },
       ];
     }),
   ];
@@ -66,7 +68,7 @@ export const generateVlcCommissionReportPDF = (
       {
         table: {
           headerRows: 1,
-          widths: ["*", "auto", "*", "auto", "auto"],
+          widths: ["*", "auto", "*", "auto", "auto", "auto"],
           body: tableBody,
         },
         layout: {

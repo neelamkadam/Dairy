@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, Fragment } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next';
 import { billApi } from '@/services/billApi';
 import { bonusApi } from '@/services/bonusApi';
 import { settingsApi } from '@/services/settingsApi';
+import { reportsApi } from '@/services/reportsApi';
 import { generateTemplate3Farmers, FarmerReportData } from '@/templates/FarmerBillInvoiceTemplate';
 import {
   Dialog,
@@ -79,7 +80,28 @@ const FarmerBillInvoiceReport = () => {
   const selectedVlcObj = branches.find((b: any) => b.branch_id.toString() === selectedVLC);
 
   const calculateDateRange = (dateStr: string) => {
-    const [year, month, day] = dateStr.split('-').map(Number);
+    if (!dateStr) return { from: '', to: '' };
+    
+    let year: number, month: number, day: number;
+    if (dateStr.includes('-')) {
+      const parts = dateStr.split('-');
+      if (parts[0].length === 4) {
+        // YYYY-MM-DD
+        [year, month, day] = parts.map(Number);
+      } else {
+        // DD-MM-YYYY
+        [day, month, year] = parts.map(Number);
+      }
+    } else {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return { from: '', to: '' };
+      year = d.getFullYear();
+      month = d.getMonth() + 1;
+      day = d.getDate();
+    }
+
+    if (isNaN(year) || isNaN(month) || isNaN(day)) return { from: '', to: '' };
+
     const cycleDays = selectedVlcObj?.days || 10;
     const lastDayOfMonth = new Date(year, month, 0).getDate();
     
@@ -143,8 +165,9 @@ const FarmerBillInvoiceReport = () => {
 
   const [farmerCode, setFarmerCode] = useState<string>('');
   const [collectionData, setCollectionData] = useState<CollectionRecord[]>([]);
-  const [farmerBills, setFarmerBills] = useState<FarmerBill[]>([]);
-  const [farmerPayments, setFarmerPayments] = useState<FarmerPayment[]>([]);
+  const [farmerBills, setFarmerBills] = useState<any[]>([]);
+  const [farmerPayments, setFarmerPayments] = useState<any[]>([]);
+  const [vlcCommission, setVlcCommission] = useState<any>(null);
   const [bankDetailsMap, setBankDetailsMap] = useState<Map<string, BankDetails>>(new Map());
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -162,10 +185,12 @@ const FarmerBillInvoiceReport = () => {
     setLoading(true);
     try {
       const selectedBranch = branches.find(b => b.branch_id.toString() === selectedVLC);
+      // @ts-ignore
+      const dairyId = selectedBranch?.branch_id || selectedBranch?.id;
 
       const apiUrl = '/report/shift-collection-report';
       const params = {
-        dairyid: selectedBranch?.branch_id,
+        dairyid: dairyId,
         startDate: fromDate,
         startShift: 'Morning',
         endDate: toDate,
@@ -173,22 +198,25 @@ const FarmerBillInvoiceReport = () => {
         milkType: milkTypeFilter
       };
 
-      const collectionResponse = await api.get(apiUrl, { params });
+      const [collectionResponse, billsRes, commSettings, bankResponse] = await Promise.all([
+        api.get(apiUrl, { params }),
+        billApi.getFarmerReport({ dairy_id: dairyId, start_date: fromDate, end_date: toDate }),
+        fetchVlcCommissionSettings(selectedVLC),
+        bankSummaryApi.getBankSummary({
+          dairy_id: selectedVLC,
+          start_date: format(new Date(fromDate), 'yyyy-MM-dd'),
+          end_date: format(new Date(toDate), 'yyyy-MM-dd')
+        })
+      ]);
 
       let filteredData = collectionResponse.data.report || [];
-      console.log('Collection data sample:', filteredData.slice(0, 2));
-
       if (farmerCode.trim()) {
         const paddedCode = farmerCode.padStart(4, '0');
         filteredData = filteredData.filter((item: CollectionRecord) => item.farmer_id === paddedCode);
       }
       
-      // Sort filteredData by farmer_id
-      filteredData.sort((a: CollectionRecord, b: CollectionRecord) => {
-        return parseInt(a.farmer_id) - parseInt(b.farmer_id);
-      });
+      filteredData.sort((a: CollectionRecord, b: CollectionRecord) => parseInt(a.farmer_id) - parseInt(b.farmer_id));
 
-      // Apply milk type filter to collection data
       let finalFilteredData = filteredData;
       if (milkTypeFilter !== 'All') {
         finalFilteredData = filteredData.filter((item: CollectionRecord) => item.type === milkTypeFilter);
@@ -196,38 +224,31 @@ const FarmerBillInvoiceReport = () => {
 
       setCollectionData(finalFilteredData);
       
-      // Filter farmer bills based on milk type
-      let filteredBills = collectionResponse.data;
+      let filteredBills = billsRes.data;
       if (milkTypeFilter === 'Cow' && filteredBills.cow) {
         filteredBills = filteredBills.cow;
       } else if (milkTypeFilter === 'Buffalo' && filteredBills.buffalo) {
         filteredBills = filteredBills.buffalo;
+      } else if (milkTypeFilter === 'All') {
+        const cowBills = filteredBills.cow || [];
+        const buffBills = filteredBills.buffalo || [];
+        filteredBills = [...cowBills, ...buffBills];
       }
       
       setFarmerBills(filteredBills as any);
-      setFarmerPayments(collectionResponse.data.farmer_payments || []);
+      setFarmerPayments(billsRes.data.farmer_payments || []);
+      setVlcCommission(commSettings);
       
-      // Fetch bank details
-      try {
-        const bankResponse = await bankSummaryApi.getBankSummary({
-          dairy_id: selectedVLC,
-          start_date: format(new Date(fromDate), 'yyyy-MM-dd'),
-          end_date: format(new Date(toDate), 'yyyy-MM-dd')
+      const bankMap = new Map<string, BankDetails>();
+      (bankResponse.data || []).forEach((farmer: any) => {
+        bankMap.set(farmer.farmer_id, {
+          accountNumber: farmer.accountNumber,
+          ifscCode: farmer.ifscCode,
+          bankName: farmer.bankName,
+          branchName: farmer.branchName
         });
-        
-        const bankMap = new Map<string, BankDetails>();
-        (bankResponse.data || []).forEach((farmer: any) => {
-          bankMap.set(farmer.farmer_id, {
-            accountNumber: farmer.accountNumber,
-            ifscCode: farmer.ifscCode,
-            bankName: farmer.bankName,
-            branchName: farmer.branchName
-          });
-        });
-        setBankDetailsMap(bankMap);
-      } catch (error) {
-        console.error('Failed to fetch bank details:', error);
-      }
+      });
+      setBankDetailsMap(bankMap);
       
       setCurrentPage(0);
     } catch (error: any) {
@@ -387,6 +408,33 @@ const FarmerBillInvoiceReport = () => {
     };
   };
 
+  // Helper: Fetch VLC Commission settings
+  const fetchVlcCommissionSettings = async (vlcId: string) => {
+    if (!vlcId || !fromDate || !toDate) return null;
+    try {
+      const response = await reportsApi.getVlcCommissionReport({
+        vlc_id: vlcId,
+        start_date: fromDate,
+        end_date: toDate
+      });
+      if (response.success && response.data && response.data.length > 0) {
+        const vlc = response.data[0];
+        // Find if there's a Travel commission setting
+        const travelComm = vlc.commissions.find((c: any) => c.type === 'Commission' || c.type === 'Fixed' || c.type === 'Travel');
+        if (travelComm) {
+          return {
+            ...travelComm,
+            effective_from: travelComm.effective_from
+          };
+        }
+        return null;
+      }
+    } catch (error) {
+      console.error('Error fetching VLC commission:', error);
+    }
+    return null;
+  };
+
   const exportToPDF = async () => {
     setPdfLoading(true);
     try {
@@ -398,10 +446,11 @@ const FarmerBillInvoiceReport = () => {
       const dairyId = selectedBranch?.branch_id || selectedBranch?.id;
 
       // Fetch farmer data, bonus data, and report language in parallel
-      const [response, bonusMap, reportLang] = await Promise.all([
+      const [response, bonusMap, reportLang, vlcComm] = await Promise.all([
         billApi.getFarmerReport({ dairy_id: dairyId, start_date: fromDate, end_date: toDate }),
         fetchBonusMap(dairyId),
-        fetchReportLanguage(selectedVLC)
+        fetchReportLanguage(selectedVLC),
+        fetchVlcCommissionSettings(selectedVLC)
       ]);
 
       if (!response.data.success) {
@@ -494,6 +543,14 @@ const FarmerBillInvoiceReport = () => {
           previous_bill: farmerInfo.previous_bill,
           bonus_deduction_info: attachBonus(farmerInfo, bonusMap, templateDataItems.reduce((s, i) => s + i.liters, 0)).bonus_deduction_info,
           bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary,
+          travel_commission: vlcComm ? {
+            type: vlcComm.type,
+            rate: parseFloat(vlcComm.amount),
+            amount: vlcComm.type === 'Commission' 
+              ? templateDataItems.reduce((s, i) => s + i.liters, 0) * parseFloat(vlcComm.amount) 
+              : parseFloat(vlcComm.amount),
+            effective_from: vlcComm.effective_from
+          } : undefined,
           bankDetails: farmerInfo.farmer_details ? {
             accountNumber: farmerInfo.farmer_details.accountNumber,
             ifscCode: farmerInfo.farmer_details.ifscCode,
@@ -574,10 +631,11 @@ const FarmerBillInvoiceReport = () => {
       const dairyId = selectedBranch?.branch_id || selectedBranch?.id;
 
       // Fetch farmer data, bonus data, and report language in parallel
-      const [response, bonusMap, reportLang] = await Promise.all([
+      const [response, bonusMap, reportLang, vlcComm] = await Promise.all([
         billApi.getFarmerReport({ dairy_id: dairyId, start_date: fromDate, end_date: toDate }),
         fetchBonusMap(dairyId),
-        fetchReportLanguage(selectedVLC)
+        fetchReportLanguage(selectedVLC),
+        fetchVlcCommissionSettings(selectedVLC)
       ]);
 
       if (!response.data.success) {
@@ -635,25 +693,12 @@ const FarmerBillInvoiceReport = () => {
 
       // Enrich payments with payment_logs data (same as detailed horizontal format)
       const enrichedData = allData.map((farmer) => {
-        console.log(`Processing Farmer ${farmer.farmer_id}:`, {
-          payments: farmer.payments,
-          payment_logs: (farmer as any).payment_logs,
-          collections: farmer.collections.length,
-          current_bill: farmer.current_bill,
-          previous_bill: farmer.previous_bill
-        });
-
         const enrichedPayments = (farmer.payments || []).map((p: any) => {
           const logs = (farmer as any).payment_logs?.data || [];
-          console.log(`  Payment Type: ${p.payment_type}, Amount: ${p.amount_taken}`);
-          console.log(`  Available Logs:`, logs);
-          
           const logMatch = logs.find((l: any) => 
             l.payment_type.toLowerCase().trim().replace(/\s/g, '') === p.payment_type.toLowerCase().trim().replace(/\s/g, '') &&
             parseFloat(l.amount_taken) === parseFloat(p.amount_taken)
           );
-          
-          console.log(`  Log Match Found:`, logMatch);
           
           const merged = logMatch ? { ...p, ...logMatch } : p;
           const enriched = {
@@ -663,14 +708,12 @@ const FarmerBillInvoiceReport = () => {
             date: merged.date || merged.created_at || ''
           };
           
-          console.log(`  Enriched Payment:`, enriched);
           return enriched;
         });
 
         return { 
           ...farmer, 
           payments: enrichedPayments
-          // bonus_deduction_info already attached via attachBonus above
         };
       });
 
@@ -689,33 +732,41 @@ const FarmerBillInvoiceReport = () => {
       for (let i = 0; i < filteredData.length; i += chunkSize) {
         const chunk = filteredData.slice(i, i + chunkSize);
         
+        const farmersWithComm = chunk.map(farmer => ({
+          ...farmer,
+          travel_commission: vlcComm ? {
+            type: vlcComm.type,
+            rate: parseFloat(vlcComm.amount),
+            amount: vlcComm.type === 'Commission' 
+              ? (farmer.collections_summary?.total_quantity || 0) * parseFloat(vlcComm.amount) 
+              : parseFloat(vlcComm.amount),
+            effective_from: vlcComm.effective_from
+          } : undefined
+        }));
+
         let htmlContent = "";
         if (chunkSize === 3) {
           htmlContent = generateTemplate3Farmers({
             dairyName: dairyName,
             dairyCode: dairyCode,
             branchName: branchName,
-            farmers: chunk,
+            farmers: farmersWithComm,
             fromDate: formatDate(fromDate),
             toDate: formatDate(toDate),
-            hideRateAmount: hideRateAmount
+            hideRateAmount: hideRateAmount,
+            bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary
           }, reportLang);
         } else {
-          const templateData = {
+          htmlContent = generateFarmer2PerPage({
             dairyName: dairyName,
             branchName: branchName,
-            farmers: chunk,
+            farmers: farmersWithComm,
             fromDate: formatDate(fromDate),
             toDate: formatDate(toDate),
             hideRateAmount: hideRateAmount,
             language: reportLang,
             bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary || null
-          };
-          
-          console.log('Template Data for 2-per-page:', templateData);
-          console.log('First Farmer Full Data:', chunk[0]);
-          
-          htmlContent = generateFarmer2PerPage(templateData);
+          });
         }
 
         const { imgData, imgWidth, imgHeight } = await generatePage(htmlContent);
@@ -745,10 +796,11 @@ const FarmerBillInvoiceReport = () => {
       const dairyId = selectedBranch?.branch_id || selectedBranch?.id;
 
       // Fetch farmer data, bonus data, and report language in parallel
-      const [response, bonusMap, reportLang] = await Promise.all([
+      const [response, bonusMap, reportLang, vlcComm] = await Promise.all([
         billApi.getFarmerReport({ dairy_id: dairyId, start_date: fromDate, end_date: toDate }),
         fetchBonusMap(dairyId),
-        fetchReportLanguage(selectedVLC)
+        fetchReportLanguage(selectedVLC),
+        fetchVlcCommissionSettings(selectedVLC)
       ]);
 
       if (!response.data.success) {
@@ -845,7 +897,15 @@ const FarmerBillInvoiceReport = () => {
             };
           }),
           bonus_deduction_info: attachBonus(farmer, bonusMap, farmer.collections_summary?.total_quantity || 0).bonus_deduction_info,
-          bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary || null
+          bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary || null,
+          travel_commission: vlcComm ? {
+            type: vlcComm.type,
+            rate: parseFloat(vlcComm.amount),
+            amount: vlcComm.type === 'Commission' 
+              ? farmerBillData.reduce((s, i) => s + i.liters, 0) * parseFloat(vlcComm.amount) 
+              : parseFloat(vlcComm.amount),
+            effective_from: vlcComm.effective_from
+          } : undefined
         };
 
         const hasCow = farmerBillData.some(d => d.type === 'Cow');
@@ -1150,7 +1210,7 @@ const FarmerBillInvoiceReport = () => {
                         );
 
                         return (
-                          <>
+                          <Fragment key={type}>
                             <tr key={`${type}-header`} className="bg-gray-50 font-semibold">
                               <td className="border p-2" colSpan={hideRateAmount ? 8 : 13}>
                                 {type}
@@ -1192,7 +1252,7 @@ const FarmerBillInvoiceReport = () => {
                               <td className="border p-2 text-right">{typeTotals.totalLiters.toFixed(1)}</td>
                               {!hideRateAmount && <td className="border p-2 text-right">{typeTotals.totalAmount.toFixed(2)}</td>}
                             </tr>
-                          </>
+                          </Fragment>
                         );
                       })}
                     </tbody>
@@ -1221,7 +1281,7 @@ const FarmerBillInvoiceReport = () => {
                           <tr key={payment.id} className="hover:bg-gray-50">
                             <td className="border p-2">{formatDate(payment.date)}</td>
                             <td className="border p-2">{payment.payment_type}</td>
-                            <td className="border p-2 text-right">₹{parseFloat(payment.amount_taken).toFixed(2)}</td>
+                            <td className="border p-2 text-right">₹{parseFloat(payment.amount_taken || '0').toFixed(2)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1231,7 +1291,7 @@ const FarmerBillInvoiceReport = () => {
               </Card>
             )}
 
-            {bill && (
+            {bill && bill.current_bill && (
               <Card>
                 <CardHeader>
                   <CardTitle>{t('bill_summary')}</CardTitle>
@@ -1240,23 +1300,38 @@ const FarmerBillInvoiceReport = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 bg-gray-50 rounded">
                       <p className="text-sm text-gray-600">{t('total_milk_amount')}</p>
-                      <p className="text-xl font-bold">₹{bill.milk_total.toFixed(2)}</p>
+                      <p className="text-xl font-bold">₹{parseFloat(bill.current_bill.milk_total || '0').toFixed(2)}</p>
                     </div>
                     <div className="p-4 bg-gray-50 rounded">
                       <p className="text-sm text-gray-600">{t('advance')}</p>
-                      <p className="text-xl font-bold">₹{bill.deductions.advance.toFixed(2)}</p>
+                      <p className="text-xl font-bold">₹{parseFloat(bill.current_bill.advance_total || '0').toFixed(2)}</p>
                     </div>
-                    <div className="p-4 bg-gray-50 rounded">
-                      <p className="text-sm text-gray-600">{t('cattle_feed')}</p>
-                      <p className="text-xl font-bold">₹{bill.deductions.cattle_feed.toFixed(2)}</p>
+                    {vlcCommission && (new Date(toDate) >= new Date(vlcCommission.effective_from)) && (
+                      <div className="p-4 bg-gray-50 rounded">
+                        <p className="text-sm text-gray-600">{t('travel_commission')}</p>
+                        <p className="text-xl font-bold">
+                          ₹{(vlcCommission.type === 'Commission' 
+                            ? (farmerData.reduce((acc, curr) => acc + parseFloat(curr.liters || '0'), 0) * parseFloat(vlcCommission.amount))
+                            : parseFloat(vlcCommission.amount)
+                          ).toFixed(2)}
+                        </p>
+                      </div>
+                    )}
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded">
+                      <p className="text-sm text-blue-600 font-semibold">{t('net_payable')}</p>
+                      <p className="text-2xl font-bold text-blue-700">
+                        ₹{(parseFloat(bill.current_bill.net_payable || '0') + (vlcCommission && (new Date(toDate) >= new Date(vlcCommission.effective_from)) ? (vlcCommission.type === 'Commission' 
+                            ? (farmerData.reduce((acc, curr) => acc + parseFloat(curr.liters || '0'), 0) * parseFloat(vlcCommission.amount))
+                            : parseFloat(vlcCommission.amount)) : 0)).toFixed(2)}
+                      </p>
                     </div>
                     <div className="p-4 bg-gray-50 rounded">
                       <p className="text-sm text-gray-600">{t('other_deductions')}</p>
-                      <p className="text-xl font-bold">₹{(bill.deductions.other1 + bill.deductions.other2).toFixed(2)}</p>
+                      <p className="text-xl font-bold">₹{(parseFloat(bill.current_bill.other1_total || '0') + parseFloat(bill.current_bill.other2_total || '0')).toFixed(2)}</p>
                     </div>
                     <div className="p-4 bg-green-50 rounded col-span-2">
                       <p className="text-sm text-gray-600">{t('net_payable')}</p>
-                      <p className="text-2xl font-bold text-green-600">₹{(bill.milk_total - bill.deductions.advance - bill.deductions.cattle_feed - bill.deductions.other1 - bill.deductions.other2).toFixed(2)}</p>
+                      <p className="text-2xl font-bold text-green-600">₹{parseFloat(bill.current_bill.net_payable || '0').toFixed(2)}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -1289,10 +1364,12 @@ const FarmerBillInvoiceReport = () => {
                 <RadioGroupItem value="2-per-page" id="2-per-page" />
                 <Label htmlFor="2-per-page" className="flex-1 font-semibold cursor-pointer">{t('export_option_2_per_page')}</Label>
               </div>
+{/* 
               <div className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExportFormat('3-per-page')}>
                 <RadioGroupItem value="3-per-page" id="3-per-page" />
                 <Label htmlFor="3-per-page" className="flex-1 font-semibold cursor-pointer">{t('export_option_3_per_page')}</Label>
               </div>
+*/}
               <div className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExportFormat('detailed-horizontal' as any)}>
                 <RadioGroupItem value="detailed-horizontal" id="detailed-horizontal" />
                 <Label htmlFor="detailed-horizontal" className="flex-1 font-semibold cursor-pointer">{t('export_option_detailed_horizontal')}</Label>

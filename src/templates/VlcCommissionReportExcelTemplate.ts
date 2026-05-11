@@ -19,7 +19,7 @@ export const generateVlcCommissionReportExcel = (
     ["VLCC Commission Report"],
     [`Period: ${formatDate(fromDate)} to ${formatDate(toDate)}`],
     [],
-    ["VLC ID", "Total Quantity (L)", "Type", "Rate (₹)", "Amount (₹)"],
+    ["VLC ID", "Total Quantity (L)", "Type", "Rate (₹)", "Amount (₹)", "Travel Commission (₹)"],
     ...reportData.map((row) => {
       const branch = branches.find(b => b.branch_id.toString() === row.vlc_id);
       const amount = parseFloat(row.total_quantity) * parseFloat(row.rate);
@@ -29,6 +29,7 @@ export const generateVlcCommissionReportExcel = (
         row.type,
         parseFloat(row.rate).toFixed(2),
         amount.toFixed(2),
+        row.travel_commission || (row.type === 'Commission' ? amount.toFixed(2) : parseFloat(row.rate).toFixed(2)),
       ];
     }),
   ];

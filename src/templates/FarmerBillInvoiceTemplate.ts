@@ -102,6 +102,12 @@ export interface Template2Data {
       total_bonus_deduction: string;
     }[];
   } | null;
+  travel_commission?: {
+    type: string;
+    rate: number;
+    amount: number;
+    effective_from?: string;
+  };
 }
 
 export interface BillCollection {
@@ -182,6 +188,12 @@ export interface FarmerReportData {
     remark?: string;
     total_bonus_till_date: number | string;
   } | null;
+  travel_commission?: {
+    type: string;
+    rate: number;
+    amount: number;
+    effective_from?: string;
+  };
 }
 
 export interface Template3Data {
@@ -260,6 +272,7 @@ const getLabels = (language: string = 'mr') => {
       pashuKhady: 'Cattle Feed',
       otherDeduction: 'Other Deduction',
       transportDeduction: 'Transport Deduction',
+      travelCommission: 'Travel Commission',
       details: 'Details',
       noDetails: 'No details available'
     },
@@ -317,6 +330,7 @@ const getLabels = (language: string = 'mr') => {
       pashuKhady: 'पशु आहार',
       otherDeduction: 'अन्य कटौती',
       transportDeduction: 'परिवहन कटौती',
+      travelCommission: 'यात्रा कमीशन',
       details: 'विवरण',
       noDetails: 'कोई विवरण उपलब्ध नहीं है'
     },
@@ -375,6 +389,7 @@ const getLabels = (language: string = 'mr') => {
       pashuKhady: 'पशुखाद्य',
       otherDeduction: 'इतर कपात',
       transportDeduction: 'वाह कपात',
+      travelCommission: 'वहातुक कमिशन',
       details: 'तपशील',
       noDetails: 'तपशील उपलब्ध नाही'
     }
@@ -596,7 +611,14 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
     }
   }
 
-  const netPayable = parseFloat(templateData.current_bill?.net_payable || '0');
+  let netPayable = parseFloat(templateData.current_bill?.net_payable || '0');
+  const travelComm = templateData.travel_commission;
+  const isTravelValid = travelComm && travelComm.effective_from && (new Date(toDate) >= new Date(travelComm.effective_from));
+  const travelAmount = isTravelValid ? travelComm.amount : 0;
+  
+  if (isTravelValid) {
+    netPayable += travelAmount;
+  }
 
   const totalWater = processedData.reduce((sum, item) => sum + (item.water || 0), 0);
   const avgWater = recordCount > 0 ? (totalWater / recordCount).toFixed(1) : "0.0";
@@ -720,7 +742,7 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
               <td>${totalBal.toFixed(2)}</td>
             </tr>
           </table>
-          ${(templateData.bonus_deduction_info || parseFloat(String(totalBonusTillDate)) > 0) ? `
+          ${(templateData.bonus_deduction_info || parseFloat(String(totalBonusTillDate)) > 0 || isTravelValid) ? `
           <div style="margin-top: 10px; padding: 8px; background-color: #f9f9f9; border: 1px solid #ddd; border-radius: 4px; line-height: 1.4;">
             <div style="font-weight: bold; margin-bottom: 4px;">${labels.additionalDeductions}:</div>
             ${bonusAmount > 0 ? `
@@ -737,8 +759,17 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
               <span>${labels.totalBonusTillDate}:</span>
               <span>₹${parseFloat(String(totalBonusTillDate)).toFixed(2)}</span>
             </div>
+            ${isTravelValid ? `
+            <div style="display: flex; justify-content: space-between; margin-top: 4px; border-top: 1px solid #ddd; padding-top: 4px; font-weight: bold;">
+              <span>${labels.travelCommission} :</span>
+              <span>₹${travelAmount.toFixed(2)}</span>
+            </div>` : ''}
           </div>
           ` : ''}
+          <div style="margin-top: 15px; font-size: 20px; font-weight: bold; padding: 12px; background-color: #2563eb; color: white; border-radius: 4px; display: flex; justify-content: space-between;">
+            <span>${labels.netPayable}:</span>
+            <span>₹${netPayable.toFixed(2)}</span>
+          </div>
         </td>
         <td class="summary-right">
           <div class="payment-details">
@@ -796,17 +827,20 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
   const hasBuffalo = (templateData.renderOnly === 'Buffalo' || !templateData.renderOnly) && templateData.data.some(d => d.type === 'Buffalo');
 
   const parseDate = (dateStr: string) => {
-    if (!dateStr) return new Date();
+    if (!dateStr || typeof dateStr !== 'string') return new Date();
     if (dateStr.includes("/")) {
       const parts = dateStr.split("/");
+      if (parts.length < 3) return new Date();
       return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
     }
     if (dateStr.includes("-")) {
       const parts = dateStr.split("-");
+      if (parts.length < 3) return new Date();
       if (parts[0].length === 4) return new Date(dateStr); // YYYY-MM-DD
       return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0])); // DD-MM-YYYY
     }
-    return new Date(dateStr);
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? new Date() : d;
   };
 
   const startDate = parseDate(templateData.fromDate);
@@ -1009,6 +1043,10 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
     }
   }
 
+  const travelComm = templateData.travel_commission;
+  const isTravelValid = travelComm && travelComm.effective_from && (new Date(endDate) >= new Date(travelComm.effective_from));
+  const travelAmount = isTravelValid ? travelComm.amount : 0;
+
   const summary = {
     prevAdvance: parseFloat(templateData.previous_bill?.advance_remaining || '0'),
     prevFeed: parseFloat(templateData.previous_bill?.cattlefeed_remaining || '0'),
@@ -1024,6 +1062,8 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
     totalDeductions: parseFloat(templateData.current_bill?.advance_total || '0') + parseFloat(templateData.current_bill?.cattlefeed_total || '0') + parseFloat(templateData.current_bill?.other1_total || '0') + parseFloat(templateData.current_bill?.other2_total || '0') + bonusFixedTotal,
     receivedAmount: (totalMAmt + totalEAmt) - (parseFloat(templateData.current_bill?.advance_total || '0') + parseFloat(templateData.current_bill?.cattlefeed_total || '0') + parseFloat(templateData.current_bill?.other1_total || '0') + parseFloat(templateData.current_bill?.other2_total || '0') + bonusFixedTotal),
   };
+
+  const netPayable = summary.receivedAmount - travelAmount;
 
   // Check if we need to show Other2 row (Kirana always shows)
   const showOther2 = (parseFloat(templateData.previous_bill?.other2_remaining || '0') > 0 || 
@@ -1121,9 +1161,11 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
           <table style="width: 100%; border: none; height: 100%;" class="no-border">
             ${bonusAmount > 0 ? `<tr><td style="padding-left: 8px; font-size: 9px;">${labels.bonusDeduction} : </td><td class="text-right bold" style="padding-right: 8px; font-size: 9px;">${bonusAmount.toFixed(2)}</td></tr>` : ''}
             ${fixedAmount > 0 ? `<tr><td style="padding-left: 8px; font-size: 9px;">${templateData.bonus_deduction_info?.remark || 'इमारत निधी'} : </td><td class="text-right bold" style="padding-right: 8px; font-size: 9px;">${fixedAmount.toFixed(2)}</td></tr>` : ''}
+            ${(templateData.travel_commission && templateData.travel_commission.effective_from && new Date(templateData.toDate) >= new Date(templateData.travel_commission.effective_from)) ? 
+              `<tr><td style="padding-left: 8px; font-size: 9px;">${labels.travelCommission} : </td><td class="text-right bold" style="padding-right: 8px; font-size: 9px;">${templateData.travel_commission.amount.toFixed(2)}</td></tr>` : ''}
             <tr class="bold"><td style="padding-left: 8px; font-size: 10px;">बिल रक्कम : </td><td class="text-right" style="padding-right: 8px; font-size: 10px;">${summary.totalAmount.toFixed(2)}</td></tr>
-            <tr class="bold"><td style="padding-left: 8px; font-size: 10px;">${labels.ekunKapat} : </td><td class="text-right" style="padding-right: 8px; font-size: 10px;">${summary.totalDeductions.toFixed(2)}</td></tr>
-            <tr class="bold" style="font-size: 11px; border-top: 1px solid black; background: #eee;"><td style="padding-left: 8px; padding-top: 4px; padding-bottom: 4px;">${labels.adaRakkam} : </td><td class="text-right" style="padding-right: 8px;">${(summary.receivedAmount).toFixed(2)}</td></tr>
+            <tr class="bold"><td style="padding-left: 8px; font-size: 10px;">${labels.ekunKapat} : </td><td class="text-right" style="padding-right: 8px; font-size: 10px;">${(summary.totalDeductions).toFixed(2)}</td></tr>
+            <tr class="bold" style="font-size: 11px; border-top: 1px solid black; background: #eee;"><td style="padding-left: 8px; padding-top: 4px; padding-bottom: 4px;">${labels.adaRakkam} : </td><td class="text-right" style="padding-right: 8px;">${(summary.receivedAmount + ((templateData.travel_commission && templateData.travel_commission.effective_from && new Date(templateData.toDate) >= new Date(templateData.travel_commission.effective_from)) ? templateData.travel_commission.amount : 0)).toFixed(2)}</td></tr>
           </table>
         </td>
       </tr>
@@ -1243,7 +1285,11 @@ export const generateTemplate3Farmers = (templateData: Template3Data, language: 
     const bonusFixedTotal = bonusAmount + fixedAmount;
 
     const currentDeductions = currentBill ? (Number(currentBill.advance_total) + Number(currentBill.cattlefeed_total) + Number(currentBill.other1_total) + Number(currentBill.other2_total) + bonusFixedTotal) : bonusFixedTotal;
-    const netPayable = currentBill?.net_payable || 0;
+    
+    const travelComm = farmer.travel_commission;
+    const isTravelValid = travelComm && travelComm.effective_from && (new Date(templateData.toDate) >= new Date(travelComm.effective_from));
+    const travelAmount = isTravelValid ? travelComm.amount : 0;
+    const netPayable = (currentBill?.net_payable || 0) + travelAmount;
 
     const bonusRemark = farmer.bonus_deduction_info?.remark || 'इमारत निधी';
 
@@ -1255,6 +1301,10 @@ export const generateTemplate3Farmers = (templateData: Template3Data, language: 
       );
       if (farmerBonus) totalBonusTillDate = farmerBonus.total_bonus_deduction;
     }
+
+    const showOther2 = (parseFloat(farmer.previous_bill?.other2_remaining || '0') > 0 || 
+                       parseFloat(farmer.current_bill?.other2_total || '0') > 0 ||
+                       (farmer.payments || []).some(p => p.payment_type.toLowerCase().includes('other2')));
 
     return `
       <div class="invoice-container" style="height: 33.33%; border-bottom: 2px dashed #000; padding: 40px 80px; box-sizing: border-box; overflow: hidden; line-height: 1.3; font-family: Arial, sans-serif;">
@@ -1322,17 +1372,16 @@ export const generateTemplate3Farmers = (templateData: Template3Data, language: 
                <b>${labels.deduction}:</b> ${labels.other1}:${Number(currentBill?.other1_total || 0).toFixed(0)} | ${labels.feed}:${Number(currentBill?.cattlefeed_total || 0).toFixed(0)} | ${labels.advance}:${Number(currentBill?.advance_total || 0).toFixed(0)}${showOther2 ? ` | ${labels.other2}:${Number(currentBill?.other2_total || 0).toFixed(0)}` : ''}
             </td>
             <td style="padding: 6px 2px; border-right: 1px solid black;" colspan="2">
-              ${(bonusAmount > 0 || fixedAmount > 0 || parseFloat(String(totalBonusTillDate)) > 0) ? `
-                <div style="font-size: 10px;">
+              ${(bonusAmount > 0 || fixedAmount > 0 || parseFloat(String(totalBonusTillDate)) > 0 || isTravelValid) ? `
                   ${bonusAmount > 0 ? `<b>${labels.bonusDeduction}</b> (${bonusRate} x ${Number(summary.total_quantity).toFixed(1)}): ${bonusAmount.toFixed(2)} | ` : ''}
                   ${fixedAmount > 0 ? `<b>${bonusRemark}</b>: ${fixedAmount.toFixed(2)} | ` : ''}
+                  ${isTravelValid ? `<b>${labels.travelCommission}</b>: ${travelAmount.toFixed(2)} | ` : ''}
                   <b>${labels.totalBonusTillDate}</b>: ${parseFloat(String(totalBonusTillDate)).toFixed(2)}
-                </div>
               ` : ''}
             </td>
           </tr>
           <tr style="background: #f0f0f0;">
-            <td style="padding: 6px 2px; border-right: 1px solid black;"><b>${labels.total} ${labels.deduction}:</b> ${Number(currentDeductions).toFixed(0)}</td>
+            <td style="padding: 6px 2px; border-right: 1px solid black;"><b>${labels.total} ${labels.deduction}:</b> ${(currentDeductions).toFixed(0)}</td>
             <td style="padding: 6px 2px; background: #e0e0e0;" colspan="2"><b>${labels.netPayable}:</b> <span style="font-size:16px;">${Number(netPayable).toFixed(0)}</span></td>
           </tr>
         </table>

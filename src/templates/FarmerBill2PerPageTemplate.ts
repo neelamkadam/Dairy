@@ -75,6 +75,12 @@ export interface FarmerReportData {
     remark?: string;
     total_bonus_till_date?: number | string;
   } | null;
+  travel_commission?: {
+    type: string;
+    rate: number;
+    amount: number;
+    effective_from?: string;
+  };
 }
 
 export interface Template2PerPageData {
@@ -123,7 +129,8 @@ const translations = {
     advance: 'Advance',
     total: 'Total',
     bonus: 'Bonus',
-    totalBonusTillDate: 'Total Bonus Till Date'
+    totalBonusTillDate: 'Total Bonus Till Date',
+    travelCommission: 'Travel Commission'
   },
   mr: {
     branch: 'शाखा',
@@ -154,7 +161,8 @@ const translations = {
     advance: 'शेड्डाम',
     total: 'एकूण',
     bonus: 'बोनस',
-    totalBonusTillDate: 'आजपर्यंतचा एकूण बोनस'
+    totalBonusTillDate: 'आजपर्यंतचा एकूण बोनस',
+    travelCommission: 'वहातुक कमिशन'
   },
   hi: {
     branch: 'शाखा',
@@ -185,9 +193,10 @@ const translations = {
     advance: 'अग्रिम',
     total: 'कुल',
     bonus: 'बोनस',
-    totalBonusTillDate: 'अब तक का कुल बोनस'
+    totalBonusTillDate: 'अब तक का कुल बोनस',
+    travelCommission: 'यात्रा कमीशन'
   }
-};
+}
 
 export const generateFarmer2PerPage = (templateData: Template2PerPageData): string => {
   console.log('=== TEMPLATE FUNCTION CALLED ===');
@@ -438,9 +447,17 @@ export const generateFarmer2PerPage = (templateData: Template2PerPageData): stri
     const combinedTotalAmount = Number((farmer as any)._combinedTotalAmount || 0);
     const displayTotalAmount = combinedTotalAmount > 0 ? combinedTotalAmount : summaryTotalAmount;
     // Use server-computed net_payable (already accounts for bonus/fixed deductions)
-    const netPayable = farmer.current_bill?.net_payable != null
+    let netPayable = farmer.current_bill?.net_payable != null
       ? Number(farmer.current_bill.net_payable)
       : Number(summaryTotalAmount - totalDeductions);
+
+    const travelComm = farmer.travel_commission;
+    const isTravelValid = travelComm && travelComm.effective_from && (new Date(templateData.toDate) >= new Date(travelComm.effective_from));
+    const travelAmount = isTravelValid ? travelComm.amount : 0;
+
+    if (isTravelValid) {
+      netPayable += travelAmount;
+    }
 
     // Generate HTML with new unified table format matching the image
     return `
@@ -511,6 +528,7 @@ export const generateFarmer2PerPage = (templateData: Template2PerPageData): stri
           <div style="display: flex; justify-content: space-between;">
             <div><b>${displayTotalLiters.toFixed(1)}</b> ${t.totalLiter}</div>
             <div>${t.totalAmount} <b>${displayTotalAmount.toFixed(2)}</b></div>
+            ${isTravelValid ? `<div>${t.travelCommission}: <b>${travelAmount.toFixed(2)}</b></div>` : ''}
             <div>${t.netPayable} <b>${netPayable.toFixed(2)}</b></div>
           </div>
         </div>

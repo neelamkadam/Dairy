@@ -25,6 +25,7 @@ import { useTranslation } from 'react-i18next';
 import { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { ChevronLeft, ChevronRight, FileDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const VlcCommissionReport = () => {
   const { i18n } = useTranslation();
@@ -77,13 +78,19 @@ const VlcCommissionReport = () => {
               date: format(fromDate, 'yyyy-MM-dd')
             }];
           }
-          return vlc.commissions.map((comm: any) => ({
-            vlc_id: vlc.vlc_id,
-            total_quantity: vlc.total_quantity,
-            type: comm.type,
-            rate: comm.amount,
-            date: comm.effective_from ? format(new Date(comm.effective_from), 'dd-MM-yyyy') : format(fromDate, 'dd-MM-yyyy')
-          }));
+          return vlc.commissions.map((comm: any) => {
+            const totalQty = parseFloat(vlc.total_quantity) || 0;
+            const rate = parseFloat(comm.amount) || 0;
+            const travelComm = comm.type === 'Commission' ? totalQty * rate : rate;
+            return {
+              vlc_id: vlc.vlc_id,
+              total_quantity: vlc.total_quantity,
+              type: comm.type,
+              rate: comm.amount,
+              travel_commission: travelComm.toFixed(2),
+              date: comm.effective_from ? format(new Date(comm.effective_from), 'dd-MM-yyyy') : format(fromDate, 'dd-MM-yyyy')
+            };
+          });
         });
         console.log('Flattened Report Data:', flatData);
         setReportData(flatData);
@@ -193,13 +200,15 @@ const VlcCommissionReport = () => {
                     <TableHead className="border border-gray-50 text-gray-700">TYPE</TableHead>
                     <TableHead className="border border-gray-50 text-gray-700">RATE (₹)</TableHead>
                     <TableHead className="border border-gray-50 text-gray-700">AMOUNT (₹)</TableHead>
+                    <TableHead className="border border-gray-50 text-gray-700">TRAVEL COMMISSION (₹)</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {paginatedData.length > 0 ? (
                     paginatedData.map((row, index) => {
-                      const branch = branches.find(b => b.branch_id.toString() === row.vlc_id);
-                      const amount = parseFloat(row.total_quantity) * parseFloat(row.rate);
+                    const branch = branches.find(b => b.branch_id.toString() === row.vlc_id);
+                    const amount = parseFloat(row.total_quantity) * parseFloat(row.rate);
+                    const travelComm = row.type === 'Commission' ? amount : parseFloat(row.rate);
                       return (
                       <TableRow key={index} className="hover:bg-gray-50">
                         <TableCell className="font-medium text-left border border-gray-50">
@@ -216,6 +225,9 @@ const VlcCommissionReport = () => {
                         </TableCell>
                         <TableCell className="font-medium text-left border border-gray-50">
                           {amount.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="font-medium text-left border border-gray-50">
+                          {row.travel_commission}
                         </TableCell>
                       </TableRow>
                     );
