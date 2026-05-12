@@ -16,10 +16,22 @@ import { paymentApi } from "@/services/paymentApi";
 import { billApi } from "@/services/billApi";
 import { bonusApi } from "@/services/bonusApi";
 import { settingsApi } from "@/services/settingsApi";
-import { generateTemplateDetailedHorizontal, Template2Data, BankDetails, FarmerBillData, FarmerReportData } from "@/templates/FarmerBillInvoiceTemplate";
+import { generateTemplateDetailedHorizontal, Template2Data, BankDetails, FarmerBillData, FarmerReportData, generateTemplate3Farmers } from "@/templates/FarmerBillInvoiceTemplate";
+import { generateFarmer2PerPage } from '@/templates/FarmerBill2PerPageTemplate';
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import PdfLoader from "@/components/PdfLoader";
+import { reportsApi } from "@/services/reportsApi";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 
 const DynamicBillCycle = () => {
   const { t } = useTranslation();
@@ -41,7 +53,10 @@ const DynamicBillCycle = () => {
   const [selectedFarmerIndex, setSelectedFarmerIndex] = useState(0);
   const [billStatus, setBillStatus] = useState<{[key: string]: boolean}>({});
   const [bonusDeductionInfo, setBonusDeductionInfo] = useState<any>(null);
+  const [vlcCommission, setVlcCommission] = useState<any>(null);
   const [globalCycle, setGlobalCycle] = useState<number>(10);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'1-per-page' | '2-per-page' | '3-per-page' | 'detailed-horizontal'>('detailed-horizontal');
 
   useEffect(() => {
     const today = new Date();
@@ -75,6 +90,33 @@ const DynamicBillCycle = () => {
     } catch (error) {
       console.error("Failed to fetch bonus info:", error);
     }
+  };
+
+  // Helper: Fetch VLC Commission settings
+  const fetchVlcCommissionSettings = async (vlcId: string) => {
+    if (!vlcId || !startDate || !endDate) return null;
+    try {
+      const response = await reportsApi.getVlcCommissionReport({
+        vlc_id: vlcId,
+        start_date: format(startDate, 'yyyy-MM-dd'),
+        end_date: format(endDate, 'yyyy-MM-dd')
+      });
+      if (response.success && response.data && response.data.length > 0) {
+        const vlc = response.data[0];
+        // Find if there's a Travel commission setting
+        const travelComm = vlc.commissions.find((c: any) => c.type === 'Commission' || c.type === 'Fixed' || c.type === 'Travel');
+        if (travelComm) {
+          return {
+            ...travelComm,
+            effective_from: travelComm.effective_from
+          };
+        }
+        return null;
+      }
+    } catch (error) {
+      console.error('Error fetching VLC commission:', error);
+    }
+    return null;
   };
   
   const calculateDateRange = (dateStr: string, cycle: number = 10) => {
@@ -288,11 +330,13 @@ const DynamicBillCycle = () => {
       const fromStr = format(startDate, "yyyy-MM-dd");
       const toStr = format(endDate, "yyyy-MM-dd");
 
-      const { data } = await deductionApi.getAllFarmersBalance(
-        parseInt(vlcId),
-        fromStr,
-        toStr
-      );
+      const [balanceRes, vlcComm] = await Promise.all([
+        deductionApi.getAllFarmersBalance(parseInt(vlcId), fromStr, toStr),
+        fetchVlcCommissionSettings(vlcId)
+      ]);
+
+      const data = balanceRes.data;
+      setVlcCommission(vlcComm);
 
       console.log("getAllFarmersBalance response:", { fromStr, toStr }, data);
 
@@ -968,6 +1012,133 @@ const DynamicBillCycle = () => {
     }
   };
 
+  const handleExport = () => {
+    if (exportFormat === 'detailed-horizontal') {
+      exportToPDF();
+    } else if (exportFormat === '2-per-page') {
+      exportMultiPerPagePDF(2);
+    } else if (exportFormat === '3-per-page') {
+      exportMultiPerPagePDF(3);
+    }
+  };
+
+  const exportMultiPerPagePDF = async (chunkSize: number) => {
+    if (!vlcId || !startDate || !endDate) {
+      toast.error("Please select VLC and date range first");
+      return;
+    }
+
+    setPdfLoading(true);
+    try {
+      const selectedBranch = branches.find(b => b.branch_id.toString() === vlcId);
+      const dairyName = selectedBranch?.name || 'Dairy';
+      const dairyCode = selectedBranch?.username || '';
+      const branchName = selectedBranch?.branchName || '';
+      const dairyId = parseInt(vlcId);
+      const fromDateApi = format(startDate, 'yyyy-MM-dd');
+      const toDateApi = format(endDate, 'yyyy-MM-dd');
+
+      const [response, bonusMap, reportLang, vlcComm] = await Promise.all([
+        billApi.getFarmerReport({ dairy_id: dairyId, start_date: fromDateApi, end_date: toDateApi }),
+        fetchBonusMap(dairyId, fromDateApi, toDateApi),
+        fetchReportLanguage(vlcId),
+        fetchVlcCommissionSettings(vlcId)
+      ]);
+
+      if (!response.data.success) {
+        toast.error('Failed to fetch farmer report data');
+        return;
+      }
+
+      const cowData: FarmerReportData[] = response.data.cow || [];
+      const buffaloData: FarmerReportData[] = response.data.buffalo || [];
+      const farmerData = [...cowData, ...buffaloData];
+      
+      const farmerMap = new Map<string, FarmerReportData>();
+      farmerData.forEach(farmer => {
+        if (farmerMap.has(farmer.farmer_id)) {
+          const existing = farmerMap.get(farmer.farmer_id)!;
+          existing.collections = [...existing.collections, ...farmer.collections];
+          // Update summary for mixed
+          if (existing.collections_summary && farmer.collections_summary) {
+            existing.collections_summary.total_quantity += farmer.collections_summary.total_quantity;
+            existing.collections_summary.total_amount += farmer.collections_summary.total_amount;
+          }
+        } else {
+          farmerMap.set(farmer.farmer_id, { ...farmer });
+        }
+      });
+
+      const sortedFarmers = Array.from(farmerMap.values())
+        .sort((a, b) => parseInt(a.farmer_id) - parseInt(b.farmer_id));
+
+      if (sortedFarmers.length === 0) {
+        toast.info('No data found for selected criteria');
+        return;
+      }
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      
+      for (let i = 0; i < sortedFarmers.length; i += chunkSize) {
+        const chunk = sortedFarmers.slice(i, i + chunkSize);
+        
+        const farmersWithComm = chunk.map(farmer => ({
+          ...attachBonus(farmer, bonusMap, farmer.collections_summary?.total_quantity || 0, toDateApi),
+          travel_commission: vlcComm ? {
+            type: vlcComm.type,
+            rate: parseFloat(vlcComm.amount),
+            amount: vlcComm.type === 'Commission' 
+              ? (farmer.collections_summary?.total_quantity || 0) * parseFloat(vlcComm.amount) 
+              : parseFloat(vlcComm.amount),
+            effective_from: vlcComm.effective_from
+          } : undefined
+        }));
+
+        let htmlContent = "";
+        const fmtDate = (d: string | Date) => {
+            const date = new Date(d);
+            return format(date, 'dd-MM-yyyy');
+        };
+
+        if (chunkSize === 3) {
+          htmlContent = generateTemplate3Farmers({
+            dairyName,
+            dairyCode,
+            branchName,
+            farmers: farmersWithComm as any,
+            fromDate: fmtDate(startDate),
+            toDate: fmtDate(endDate),
+            hideRateAmount: hideRateAmount,
+            bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary
+          }, reportLang);
+        } else {
+          htmlContent = generateFarmer2PerPage({
+            dairyName,
+            branchName,
+            farmers: farmersWithComm as any,
+            fromDate: fmtDate(startDate),
+            toDate: fmtDate(endDate),
+            hideRateAmount: hideRateAmount,
+            language: reportLang,
+            bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary || null
+          });
+        }
+
+        const { imgData, imgWidth, imgHeight } = await generatePage(htmlContent);
+        if (i > 0) pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+      }
+
+      pdf.save(`Farmer_Bill_${chunkSize}perPage_${fromDateApi}_to_${toDateApi}.pdf`);
+      toast.success('PDF downloaded successfully');
+    } catch (error: any) {
+      console.error('Export error:', error);
+      toast.error('Failed to generate PDF');
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
   const exportToPDF = async () => {
     if (!vlcId || !startDate || !endDate) {
       toast.error("Please select VLC and date range first");
@@ -1069,6 +1240,14 @@ const DynamicBillCycle = () => {
           }),
           bonus_deduction_info: attachBonus(farmer, bonusMap, farmer.collections_summary?.total_quantity || 0, toDateApi).bonus_deduction_info,
           bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary || null,
+          travel_commission: vlcCommission ? {
+            type: vlcCommission.type,
+            rate: parseFloat(vlcCommission.amount),
+            amount: vlcCommission.type === 'Commission' 
+              ? (farmer.collections_summary?.total_quantity || 0) * parseFloat(vlcCommission.amount) 
+              : parseFloat(vlcCommission.amount),
+            effective_from: vlcCommission.effective_from
+          } : undefined,
           hideRateAmount: hideRateAmount
         };
 
@@ -1199,6 +1378,14 @@ const DynamicBillCycle = () => {
         }),
         bonus_deduction_info: attachBonus(mergedFarmer, bonusMap, mergedFarmer.collections_summary?.total_quantity || 0, toDateApi).bonus_deduction_info,
         bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary || null,
+        travel_commission: vlcCommission ? {
+          type: vlcCommission.type,
+          rate: parseFloat(vlcCommission.amount),
+          amount: vlcCommission.type === 'Commission' 
+            ? (mergedFarmer.collections_summary?.total_quantity || 0) * parseFloat(vlcCommission.amount) 
+            : parseFloat(vlcCommission.amount),
+          effective_from: vlcCommission.effective_from
+        } : undefined,
         hideRateAmount: hideRateAmount
       };
 
@@ -1302,7 +1489,7 @@ const DynamicBillCycle = () => {
                     {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Show"}
                   </Button>
                   <Button 
-                    onClick={exportToPDF} 
+                    onClick={() => setShowExportModal(true)} 
                     disabled={pdfLoading || !vlcId} 
                     className="flex-1 sm:w-32 bg-red-600 hover:bg-red-700"
                   >
@@ -1691,16 +1878,29 @@ const DynamicBillCycle = () => {
                     </div>
 
                       {/* Bonus & Fixed Deduction Summary */}
-                      {(bonusDeductionInfo?.bonus_deduction > 0 || bonusDeductionInfo?.fixed_deduction > 0) && (
+                      {(bonusDeductionInfo?.bonus_deduction > 0 || bonusDeductionInfo?.fixed_deduction > 0 || (vlcCommission && (new Date(endDate || new Date()) >= new Date(vlcCommission.effective_from)))) && (
                         <div className="pt-2 mt-2 border-t border-dashed border-gray-200">
-                          <div className="flex justify-between text-xs text-gray-500 mb-1">
-                            <span>Bonus Deduction ({bonusDeductionInfo.bonus_deduction}/L):</span>
-                            <span className="font-semibold text-red-500">- ₹{(bonusDeductionInfo.bonus_deduction * (currentFarmer.quantity || 0)).toFixed(2)}</span>
-                          </div>
-                          <div className="flex justify-between text-xs text-gray-500">
-                            <span>{bonusDeductionInfo.remark || 'इमारत निधी'}:</span>
-                            <span className="font-semibold text-red-500">- ₹{(bonusDeductionInfo.fixed_deduction || 0).toFixed(2)}</span>
-                          </div>
+                          {bonusDeductionInfo?.bonus_deduction > 0 && (
+                            <div className="flex justify-between text-xs text-gray-500 mb-1">
+                              <span>Bonus Deduction ({bonusDeductionInfo.bonus_deduction}/L):</span>
+                              <span className="font-semibold text-red-500">- ₹{(bonusDeductionInfo.bonus_deduction * (currentFarmer.quantity || 0)).toFixed(2)}</span>
+                            </div>
+                          )}
+                          {bonusDeductionInfo?.fixed_deduction > 0 && (
+                            <div className="flex justify-between text-xs text-gray-500 mb-1">
+                              <span>{bonusDeductionInfo.remark || 'इमारत निधी'}:</span>
+                              <span className="font-semibold text-red-500">- ₹{(bonusDeductionInfo.fixed_deduction || 0).toFixed(2)}</span>
+                            </div>
+                          )}
+                          {vlcCommission && (new Date(endDate || new Date()) >= new Date(vlcCommission.effective_from)) && (
+                            <div className="flex justify-between text-xs text-blue-600 mb-1">
+                              <span>{t('travel_commission')}:</span>
+                              <span className="font-semibold text-blue-600">+ ₹{(vlcCommission.type === 'Commission' 
+                                ? (currentFarmer.quantity * parseFloat(vlcCommission.amount))
+                                : parseFloat(vlcCommission.amount)
+                              ).toFixed(2)}</span>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1710,8 +1910,22 @@ const DynamicBillCycle = () => {
                     <div className="flex justify-between items-center">
                       <div>
                         <p className="text-xs text-gray-600">Net Payable</p>
-                        <p className={`text-xl font-bold ${calculateNetPayable(currentFarmer) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          ₹{calculateNetPayable(currentFarmer).toFixed(2)}
+                        <p className={`text-xl font-bold ${(() => {
+                          const net = calculateNetPayable(currentFarmer);
+                          const travel = (vlcCommission && (new Date(endDate || new Date()) >= new Date(vlcCommission.effective_from))) ? (vlcCommission.type === 'Commission' 
+                            ? (currentFarmer.quantity * parseFloat(vlcCommission.amount))
+                            : parseFloat(vlcCommission.amount)
+                          ) : 0;
+                          return (net + travel) >= 0 ? 'text-green-600' : 'text-red-600';
+                        })()}`}>
+                          ₹{(() => {
+                            const net = calculateNetPayable(currentFarmer);
+                            const travel = (vlcCommission && (new Date(endDate || new Date()) >= new Date(vlcCommission.effective_from))) ? (vlcCommission.type === 'Commission' 
+                              ? (currentFarmer.quantity * parseFloat(vlcCommission.amount))
+                              : parseFloat(vlcCommission.amount)
+                            ) : 0;
+                            return (net + travel).toFixed(2);
+                          })()}
                         </p>
                       </div>
                       <div className="flex gap-2">
@@ -1752,6 +1966,61 @@ const DynamicBillCycle = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Export Format Modal */}
+      <Dialog open={showExportModal} onOpenChange={setShowExportModal}>
+        <DialogContent className="sm:max-w-md bg-white">
+          <DialogHeader>
+            <DialogTitle>{t('export_options')}</DialogTitle>
+            <DialogDescription>
+              {t('choose_your_preferred_pdf_format')}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <RadioGroup 
+              value={exportFormat} 
+              onValueChange={(val: any) => setExportFormat(val)}
+              className="grid grid-cols-1 gap-4"
+            >
+              <div className="flex items-center space-x-2 border p-3 rounded-md hover:bg-gray-50 cursor-pointer">
+                <RadioGroupItem value="detailed-horizontal" id="detailed-horizontal" />
+                <Label htmlFor="detailed-horizontal" className="flex-1 cursor-pointer">
+                  <div className="font-medium">1 Farmer Per Page (Horizontal)</div>
+                  <div className="text-xs text-gray-500">Full details with date-wise split</div>
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2 border p-3 rounded-md hover:bg-gray-50 cursor-pointer">
+                <RadioGroupItem value="2-per-page" id="2-per-page" />
+                <Label htmlFor="2-per-page" className="flex-1 cursor-pointer">
+                  <div className="font-medium">2 Farmers Per Page</div>
+                  <div className="text-xs text-gray-500">Compact format, saves paper</div>
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2 border p-3 rounded-md hover:bg-gray-50 cursor-pointer">
+                <RadioGroupItem value="3-per-page" id="3-per-page" />
+                <Label htmlFor="3-per-page" className="flex-1 cursor-pointer">
+                  <div className="font-medium">3 Farmers Per Page (Format 3)</div>
+                  <div className="text-xs text-gray-500">Ultra compact vertical format</div>
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowExportModal(false)}>
+              {t('cancel')}
+            </Button>
+            <Button 
+              className="bg-blue-600 hover:bg-blue-700" 
+              onClick={() => {
+                setShowExportModal(false);
+                handleExport();
+              }}
+            >
+              {t('export')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
