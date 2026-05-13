@@ -976,6 +976,66 @@ const DynamicBillCycle = () => {
     };
   };
 
+  const getNormalizedPayments = (farmer: any) => {
+    const logs = farmer.payment_logs?.data || [];
+    const payments = [...(farmer.payments || [])];
+    const matchedLogIds = new Set<number>();
+    
+    console.log(`[DEBUG] Normalizing payments for Farmer ${farmer.farmer_id}:`, {
+      originalPayments: payments,
+      logsCount: logs.length,
+      logs: logs
+    });
+
+    const isCattleFeed = (type: string) => {
+      const normalized = type?.toLowerCase().trim().replace(/\s/g, '');
+      return normalized === 'cattlefeed' || normalized === 'pashukhady' || normalized === 'पशुखाद्य';
+    };
+
+    // First, mark logs that are already represented in payments
+    payments.forEach((p: any) => {
+      const pType = p.payment_type?.toLowerCase().trim().replace(/\s/g, '');
+      const logMatch = logs.find((l: any) => 
+        !matchedLogIds.has(l.id) &&
+        l.payment_type?.toLowerCase().trim().replace(/\s/g, '') === pType &&
+        parseFloat(l.amount_taken || '0') === parseFloat(p.amount_taken || '0')
+      );
+      if (logMatch) matchedLogIds.add(logMatch.id);
+    });
+
+    // Add remaining logs to payments (especially stock-based ones like cattlefeed)
+    logs.forEach((log: any) => {
+      if (!matchedLogIds.has(log.id)) {
+        payments.push(log);
+        matchedLogIds.add(log.id);
+      }
+    });
+
+    // Re-initialize matched IDs for the final mapping to ensure correct merging
+    const finalMatchedIds = new Set<number>();
+    const result = payments.map((p: any) => {
+      const pType = p.payment_type?.toLowerCase().trim().replace(/\s/g, '');
+      const logMatch = logs.find((l: any) => 
+        !finalMatchedIds.has(l.id) &&
+        l.payment_type?.toLowerCase().trim().replace(/\s/g, '') === pType &&
+        parseFloat(l.amount_taken || '0') === parseFloat(p.amount_taken || '0')
+      );
+      
+      const merged = logMatch ? { ...p, ...logMatch } : p;
+      if (logMatch) finalMatchedIds.add(logMatch.id);
+
+      return {
+        ...merged,
+        stock_name: merged.stock_name,
+        stock: merged.stock,
+        date: merged.date || merged.created_at
+      };
+    });
+
+    console.log(`[DEBUG] Resulting payments for Farmer ${farmer.farmer_id}:`, result);
+    return result;
+  };
+
   const generatePage = async (htmlContent: string) => {
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = htmlContent;
@@ -1084,6 +1144,7 @@ const DynamicBillCycle = () => {
         
         const farmersWithComm = chunk.map(farmer => ({
           ...attachBonus(farmer, bonusMap, farmer.collections_summary?.total_quantity || 0, toDateApi),
+          payments: getNormalizedPayments(farmer),
           travel_commission: vlcComm ? {
             type: vlcComm.type,
             rate: parseFloat(vlcComm.amount),
@@ -1224,20 +1285,7 @@ const DynamicBillCycle = () => {
           },
           current_bill: farmer.current_bill,
           previous_bill: (farmer as any).previous_bill,
-          payments: (farmer.payments || []).map((p: any) => {
-            const logs = (farmer as any).payment_logs?.data || [];
-            const logMatch = logs.find((l: any) => 
-              l.payment_type.toLowerCase().trim().replace(/\s/g, '') === p.payment_type.toLowerCase().trim().replace(/\s/g, '') &&
-              parseFloat(l.amount_taken) === parseFloat(p.amount_taken)
-            );
-            const merged = logMatch ? { ...p, ...logMatch } : p;
-            return {
-              ...merged,
-              stock_name: merged.stock_name,
-              stock: merged.stock,
-              date: merged.date || merged.created_at
-            };
-          }),
+          payments: getNormalizedPayments(farmer),
           bonus_deduction_info: attachBonus(farmer, bonusMap, farmer.collections_summary?.total_quantity || 0, toDateApi).bonus_deduction_info,
           bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary || null,
           travel_commission: vlcCommission ? {
@@ -1362,20 +1410,7 @@ const DynamicBillCycle = () => {
         },
         current_bill: mergedFarmer.current_bill,
         previous_bill: (mergedFarmer as any).previous_bill,
-        payments: (mergedFarmer.payments || []).map((p: any) => {
-          const logs = (mergedFarmer as any).payment_logs?.data || [];
-          const logMatch = logs.find((l: any) => 
-            l.payment_type.toLowerCase().trim().replace(/\s/g, '') === p.payment_type.toLowerCase().trim().replace(/\s/g, '') &&
-            parseFloat(l.amount_taken) === parseFloat(p.amount_taken)
-          );
-          const merged = logMatch ? { ...p, ...logMatch } : p;
-          return {
-            ...merged,
-            stock_name: merged.stock_name,
-            stock: merged.stock,
-            date: merged.date || merged.created_at
-          };
-        }),
+        payments: getNormalizedPayments(mergedFarmer),
         bonus_deduction_info: attachBonus(mergedFarmer, bonusMap, mergedFarmer.collections_summary?.total_quantity || 0, toDateApi).bonus_deduction_info,
         bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary || null,
         travel_commission: vlcCommission ? {

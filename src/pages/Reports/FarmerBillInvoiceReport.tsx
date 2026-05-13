@@ -408,7 +408,52 @@ const FarmerBillInvoiceReport = () => {
     };
   };
 
-  // Helper: Fetch VLC Commission settings
+  const getNormalizedPayments = (farmer: any) => {
+    const logs = farmer.payment_logs?.data || [];
+    const payments = [...(farmer.payments || [])];
+    const matchedLogIds = new Set<number>();
+    
+    // First, mark logs that are already represented in payments
+    payments.forEach((p: any) => {
+      const pType = p.payment_type?.toLowerCase().trim().replace(/\s/g, '');
+      const logMatch = logs.find((l: any) => 
+        !matchedLogIds.has(l.id) &&
+        l.payment_type?.toLowerCase().trim().replace(/\s/g, '') === pType &&
+        parseFloat(l.amount_taken || '0') === parseFloat(p.amount_taken || '0')
+      );
+      if (logMatch) matchedLogIds.add(logMatch.id);
+    });
+
+    // Add remaining logs to payments (especially stock-based ones like cattlefeed)
+    logs.forEach((log: any) => {
+      if (!matchedLogIds.has(log.id)) {
+        payments.push(log);
+        matchedLogIds.add(log.id);
+      }
+    });
+
+    // Re-initialize matched IDs for the final mapping to ensure correct merging
+    const finalMatchedIds = new Set<number>();
+    return payments.map((p: any) => {
+      const pType = p.payment_type?.toLowerCase().trim().replace(/\s/g, '');
+      const logMatch = logs.find((l: any) => 
+        !finalMatchedIds.has(l.id) &&
+        l.payment_type?.toLowerCase().trim().replace(/\s/g, '') === pType &&
+        parseFloat(l.amount_taken || '0') === parseFloat(p.amount_taken || '0')
+      );
+      
+      const merged = logMatch ? { ...p, ...logMatch } : p;
+      if (logMatch) finalMatchedIds.add(logMatch.id);
+
+      return {
+        ...merged,
+        stock_name: merged.stock_name,
+        stock: merged.stock,
+        date: merged.date || merged.created_at
+      };
+    });
+  };
+
   const fetchVlcCommissionSettings = async (vlcId: string) => {
     if (!vlcId || !fromDate || !toDate) return null;
     try {
@@ -538,7 +583,7 @@ const FarmerBillInvoiceReport = () => {
           toDate: toDate,
           milkType: milkTypeFilter,
           data: templateDataItems,
-          payments: farmerInfo.payments,
+          payments: getNormalizedPayments(farmerInfo),
           current_bill: farmerInfo.current_bill,
           previous_bill: farmerInfo.previous_bill,
           bonus_deduction_info: attachBonus(farmerInfo, bonusMap, templateDataItems.reduce((s, i) => s + i.liters, 0)).bonus_deduction_info,
@@ -693,27 +738,9 @@ const FarmerBillInvoiceReport = () => {
 
       // Enrich payments with payment_logs data (same as detailed horizontal format)
       const enrichedData = allData.map((farmer) => {
-        const enrichedPayments = (farmer.payments || []).map((p: any) => {
-          const logs = (farmer as any).payment_logs?.data || [];
-          const logMatch = logs.find((l: any) => 
-            l.payment_type.toLowerCase().trim().replace(/\s/g, '') === p.payment_type.toLowerCase().trim().replace(/\s/g, '') &&
-            parseFloat(l.amount_taken) === parseFloat(p.amount_taken)
-          );
-          
-          const merged = logMatch ? { ...p, ...logMatch } : p;
-          const enriched = {
-            ...merged,
-            stock_name: merged.stock_name || '',
-            stock: merged.stock || '',
-            date: merged.date || merged.created_at || ''
-          };
-          
-          return enriched;
-        });
-
         return { 
           ...farmer, 
-          payments: enrichedPayments
+          payments: getNormalizedPayments(farmer)
         };
       });
 
@@ -882,20 +909,7 @@ const FarmerBillInvoiceReport = () => {
           },
           current_bill: farmer.current_bill,
           previous_bill: (farmer as any).previous_bill,
-          payments: (farmer.payments || []).map((p: any) => {
-            const logs = (farmer as any).payment_logs?.data || [];
-            const logMatch = logs.find((l: any) => 
-              l.payment_type.toLowerCase().trim().replace(/\s/g, '') === p.payment_type.toLowerCase().trim().replace(/\s/g, '') &&
-              parseFloat(l.amount_taken) === parseFloat(p.amount_taken)
-            );
-            const merged = logMatch ? { ...p, ...logMatch } : p;
-            return {
-              ...merged,
-              stock_name: merged.stock_name,
-              stock: merged.stock,
-              date: merged.date || merged.created_at
-            };
-          }),
+          payments: getNormalizedPayments(farmer),
           bonus_deduction_info: attachBonus(farmer, bonusMap, farmer.collections_summary?.total_quantity || 0).bonus_deduction_info,
           bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary || null,
           travel_commission: vlcComm ? {

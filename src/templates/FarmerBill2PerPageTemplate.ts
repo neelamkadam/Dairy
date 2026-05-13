@@ -248,7 +248,7 @@ export const generateFarmer2PerPage = (templateData: Template2PerPageData): stri
     // Filter payments with proper type matching (including pashukhady)
     const cattleFeedPayments = farmer.payments?.filter((p) => {
       const pType = p.payment_type.toLowerCase().trim().replace(/\s/g, '');
-      return pType === 'cattlefeed' || pType === 'pashukhady';
+      return pType === 'cattlefeed' || pType === 'pashukhady' || pType === 'पशुखाद्य';
     }) || [];
     
     const advancePayments = farmer.payments?.filter((p) => {

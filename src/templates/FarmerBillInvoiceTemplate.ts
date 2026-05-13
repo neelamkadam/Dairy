@@ -542,8 +542,15 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
 
   // --- DEDUCTION LOGIC ---
   const getSumOfPayments = (type: string) => {
+    const searchType = type.toLowerCase().trim().replace(/\s/g, '');
+    const isCattleFeed = searchType === 'cattlefeed' || searchType === 'pashukhady' || searchType === 'पशुखाद्य';
+    
     return (templateData.payments || [])
-      .filter(p => p.payment_type.toLowerCase().trim() === type.toLowerCase().trim())
+      .filter(p => {
+        const pType = p.payment_type.toLowerCase().trim().replace(/\s/g, '');
+        if (isCattleFeed) return pType === 'cattlefeed' || pType === 'pashukhady' || pType === 'पशुखाद्य';
+        return pType === searchType;
+      })
       .reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0);
   };
 
@@ -1053,7 +1060,7 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
     currAdvance: (templateData.payments || []).filter(p => p.payment_type.toLowerCase().trim().replace(/\s/g, '') === 'advance').reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0),
     currFeed: (templateData.payments || []).filter(p => {
       const pType = p.payment_type.toLowerCase().trim().replace(/\s/g, '');
-      return pType === 'cattlefeed' || pType === 'pashukhady';
+      return pType === 'cattlefeed' || pType === 'pashukhady' || pType === 'पशुखाद्य';
     }).reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0),
     dedAdvance: parseFloat(templateData.current_bill?.advance_total || '0'),
     dedFeed: parseFloat(templateData.current_bill?.cattlefeed_total || '0'),
@@ -1284,12 +1291,30 @@ export const generateTemplate3Farmers = (templateData: Template3Data, language: 
     const bonusAmount = bonusRate * Number(summary.total_quantity || 0);
     const bonusFixedTotal = bonusAmount + fixedAmount;
 
-    const currentDeductions = currentBill ? (Number(currentBill.advance_total) + Number(currentBill.cattlefeed_total) + Number(currentBill.other1_total) + Number(currentBill.other2_total) + bonusFixedTotal) : bonusFixedTotal;
+    const getSumOfPayments = (type: string) => {
+      const searchType = type.toLowerCase().trim().replace(/\s/g, '');
+      const isCattleFeed = searchType === 'cattlefeed' || searchType === 'pashukhady' || searchType === 'पशुखाद्य';
+      
+      return (farmer.payments || [])
+        .filter(p => {
+          const pType = p.payment_type.toLowerCase().trim().replace(/\s/g, '');
+          if (isCattleFeed) return pType === 'cattlefeed' || pType === 'pashukhady' || pType === 'पशुखाद्य';
+          return pType === searchType;
+        })
+        .reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0);
+    };
+
+    const feedTotal = Number(currentBill?.cattlefeed_total || 0) || getSumOfPayments('cattle feed');
+    const advanceTotal = Number(currentBill?.advance_total || 0) || getSumOfPayments('advance');
+    const other1Total = Number(currentBill?.other1_total || 0) || getSumOfPayments('other1');
+    const other2Total = Number(currentBill?.other2_total || 0) || getSumOfPayments('other2');
+
+    const currentDeductions = (feedTotal + advanceTotal + other1Total + other2Total + bonusFixedTotal);
     
     const travelComm = farmer.travel_commission;
     const isTravelValid = travelComm && travelComm.effective_from && (new Date(templateData.toDate) >= new Date(travelComm.effective_from));
     const travelAmount = isTravelValid ? travelComm.amount : 0;
-    const netPayable = (currentBill?.net_payable || 0) + travelAmount;
+    const netPayable = (Number(currentBill?.net_payable || summary.total_amount) - (currentDeductions - bonusFixedTotal)) + travelAmount;
 
     const bonusRemark = farmer.bonus_deduction_info?.remark || 'इमारत निधी';
 
@@ -1369,7 +1394,7 @@ export const generateTemplate3Farmers = (templateData: Template3Data, language: 
             <td style="padding: 6px 2px; width: 15%; border-right: 1px solid black;"><b>${labels.prevRemaining}:</b> ${Number(prevBalance).toFixed(0)}</td>
           <tr style="background: #fdfdfd; border-bottom: 1px solid black; font-size: 11px;">
             <td style="padding: 6px 2px; width: 40%; border-right: 1px solid black;">
-               <b>${labels.deduction}:</b> ${labels.other1}:${Number(currentBill?.other1_total || 0).toFixed(0)} | ${labels.feed}:${Number(currentBill?.cattlefeed_total || 0).toFixed(0)} | ${labels.advance}:${Number(currentBill?.advance_total || 0).toFixed(0)}${showOther2 ? ` | ${labels.other2}:${Number(currentBill?.other2_total || 0).toFixed(0)}` : ''}
+               <b>${labels.deduction}:</b> ${labels.other1}:${Number(other1Total).toFixed(0)} | ${labels.feed}:${Number(feedTotal).toFixed(0)} | ${labels.advance}:${Number(advanceTotal).toFixed(0)}${showOther2 ? ` | ${labels.other2}:${Number(other2Total).toFixed(0)}` : ''}
             </td>
             <td style="padding: 6px 2px; border-right: 1px solid black;" colspan="2">
               ${(bonusAmount > 0 || fixedAmount > 0 || parseFloat(String(totalBonusTillDate)) > 0 || isTravelValid) ? `
