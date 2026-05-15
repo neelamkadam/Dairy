@@ -106,63 +106,65 @@ export const TrialCalendarModal: React.FC<TrialCalendarModalProps> = ({ isOpen, 
           </div>
         ) : (
           <div className="space-y-4 pt-2">
-            <div className="bg-blue-50 p-4 rounded-lg space-y-2 border border-blue-100">
-              <div className="flex justify-between text-sm">
-                <span className="text-blue-700 font-medium">Trial Start:</span>
-                <span className="text-blue-900">{trialStart ? format(trialStart, 'PPP') : 'N/A'}</span>
+            {/* Current Status Banner - Compact & Clean */}
+            <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                  <CalendarIcon size={18} />
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Current Expiry</p>
+                  <p className="text-sm font-bold text-slate-700">{currentExpiry ? format(currentExpiry, 'dd MMM yyyy') : 'No Trial Set'}</p>
+                </div>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-blue-700 font-medium font-semibold">Currently Ends On:</span>
-                <span className="text-blue-900 font-semibold">{currentExpiry ? format(currentExpiry, 'PPP') : 'N/A'}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-blue-700 font-medium">Current Trial Days:</span>
-                <span className="text-blue-900">{currentTrialDays} days</span>
+              <div className="text-right">
+                <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Days Left</p>
+                <p className={`text-sm font-bold ${currentExpiry && currentExpiry < new Date() ? 'text-rose-500' : 'text-emerald-500'}`}>
+                  {currentExpiry ? Math.max(0, differenceInDays(startOfDay(currentExpiry), startOfDay(new Date()))) : 0} Days
+                </p>
               </div>
             </div>
 
-            <div className="flex justify-center border rounded-lg p-2 bg-gray-50/50">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={(date) => date && setSelectedDate(date)}
-                initialFocus
-                disabled={(date) => trialStart ? date <= trialStart : date < new Date()}
-                className="rounded-md"
-              />
+            {/* Simple Calendar Selector */}
+            <div className="space-y-2">
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest px-1">Select New Expiry Date</label>
+              <div className="flex justify-center border border-slate-200 rounded-2xl p-2 bg-white shadow-sm">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => date && setSelectedDate(date)}
+                  initialFocus
+                  disabled={(date) => trialStart ? date < startOfDay(trialStart) : date < startOfDay(new Date())}
+                  className="p-3 pointer-events-auto"
+                />
+              </div>
             </div>
 
+            {/* Quick Extension Chips */}
             <div className="flex gap-2">
-              {[15, 30, 60, 90].map((days) => (
-                <Button
+              {[7, 15, 30, 90].map((days) => (
+                <button
                   key={days}
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
                   onClick={() => {
-                    if (trialStart) {
-                      const currentExp = currentExpiry || new Date();
-                      // If current expiry is in the past, add to today. If in future, add to current expiry.
-                      const baseDate = currentExp < new Date() ? new Date() : currentExp;
-                      setSelectedDate(addDays(baseDate, days));
-                    }
+                    const base = currentExpiry && currentExpiry > new Date() ? currentExpiry : new Date();
+                    setSelectedDate(addDays(base, days));
                   }}
+                  className="flex-1 py-2 px-1 text-[11px] font-bold rounded-xl border border-slate-200 text-slate-600 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all bg-white"
                 >
                   +{days} Days
-                </Button>
+                </button>
               ))}
             </div>
 
-            <div className="bg-gray-50 p-3 rounded-lg flex items-start gap-3 border border-gray-100">
-              <Info className="h-5 w-5 text-gray-400 mt-0.5" />
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-gray-900">
-                  New Setting: <span className="text-blue-600">{daysDifference} total days</span>
-                </p>
-                <p className="text-xs text-gray-500">
-                  This will extend/set the trial to end on <span className="font-semibold text-gray-700">{selectedDate ? format(selectedDate, 'PPP') : 'N/A'}</span>,
-                  which is roughly <span className="font-semibold text-gray-700">{remainingDaysFromToday} days</span> from today.
-                </p>
+            {/* Final Outcome Summary */}
+            <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800 shadow-xl">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-slate-400 text-xs font-medium">New Total Trial</span>
+                <span className="text-blue-400 text-sm font-bold">{daysDifference} Days</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400 text-xs font-medium">Extension Ends On</span>
+                <span className="text-white text-sm font-bold">{selectedDate ? format(selectedDate, 'dd MMMM yyyy') : '-'}</span>
               </div>
             </div>
           </div>

@@ -34,6 +34,8 @@ export const Activation: React.FC = () => {
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [remark, setRemark] = useState('');
+  const [selectedDairy, setSelectedDairy] = useState<any>(null);
+  
   
   // New Activation Form States
   const [saleType, setSaleType] = useState<'self' | 'dealer'>('self');
@@ -60,12 +62,28 @@ export const Activation: React.FC = () => {
         // Fetch activation records in bulk to get image URLs
         try {
           const { data: activationData } = await adminApi.getActivations({});
-          if (activationData.success && activationData.data) {
-            const activationMap = new Map(activationData.data.map((a: any) => [a.dairy_id, a]));
-            dairyData = dairyData.map((d: any) => ({
-              ...d,
-              activation_record: activationMap.get(d.username)
-            }));
+          
+          // Debug log to check API response structure
+          console.log('Activation Data Received:', activationData);
+
+          const rawList = activationData?.data || (Array.isArray(activationData) ? activationData : []);
+          
+          if (rawList && rawList.length > 0) {
+            const activationMap = new Map();
+            [...rawList].sort((a, b) => Number(a.id) - Number(b.id)).forEach((a: any) => {
+              activationMap.set(String(a.dairy_id).trim(), a);
+            });
+
+            console.log(`Mapped ${activationMap.size} unique activation records`);
+
+            dairyData = dairyData.map((d: any) => {
+              const username = String(d.username || '').trim();
+              const record = activationMap.get(username);
+              return {
+                ...d,
+                activation_record: record
+              };
+            });
           }
         } catch (actError) {
           console.error('Error fetching activations:', actError);
@@ -75,10 +93,10 @@ export const Activation: React.FC = () => {
           try {
             const { data: trialData } = await adminApi.getTrialDetails({ usernames });
             if (trialData.success && trialData.data) {
-              const trialMap = new Map(trialData.data.map((t: any) => [t.username, t]));
+              const trialMap = new Map(trialData.data.map((t: any) => [String(t.username).trim(), t]));
               dairyData = dairyData.map((d: any) => ({
                 ...d,
-                trial_info: trialMap.get(d.username)
+                trial_info: trialMap.get(String(d.username).trim())
               }));
             }
           } catch (e) {
@@ -249,6 +267,7 @@ export const Activation: React.FC = () => {
     const url = record.image_url || dairy.payment_url || dairy.receipt_url || dairy.payment_screenshot || dairy.screenshot_url || 
                 info.payment_url || info.receipt_url || info.payment_screenshot || info.screenshot_url;
     
+    setSelectedDairy(dairy);
     if (url) {
       setReceiptUrl(url);
       setIsReceiptModalOpen(true);
@@ -266,15 +285,16 @@ export const Activation: React.FC = () => {
 
       if (data.data && data.data.length > 0) {
         // Use the latest activation image
-        setReceiptUrl(data.data[0].image_url || data.data[0].url);
+        const latestUrl = data.data[0].image_url || data.data[0].url;
+        setReceiptUrl(latestUrl);
         setIsReceiptModalOpen(true);
       } else {
-        // Fallback to local url if just uploaded
-        if (dairy.payment_url) {
-          setReceiptUrl(dairy.payment_url);
+        // Fallback to local url if just uploaded or show modal with details even without image
+        if (dairy.payment_url || dairy.activation_record) {
+          setReceiptUrl(dairy.payment_url || null);
           setIsReceiptModalOpen(true);
         } else {
-          toast.info("No payment receipt found in records");
+          toast.info("No payment record found");
         }
       }
     } catch (error) {
@@ -283,6 +303,56 @@ export const Activation: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const getParsedValue = (key: string) => {
+    const record = selectedDairy?.activation_record;
+    if (!record) return null;
+
+    // Priority 1: Use structured field if it's not "0.00", 0, or null
+    const val = record[key];
+    if (val && val !== "0.00" && val !== 0 && val !== "null") return val;
+
+    // Priority 2: Parse from remark
+    const remark = record.remark || "";
+    if (!remark) return val || 0;
+
+    const regexMap: Record<string, RegExp> = {
+      sale_amount: /Amt:\s*(\d+)/i,
+      renewal_amount: /Renewal:\s*(\d+)/i,
+      dealer_commission: /Comm:\s*(\d+)/i,
+      dealer_name: /Dealer:\s*([^,.]+)/i,
+      duration_days: /Duration:\s*(\d+)/i,
+      sale_type: /\[(SELF|DEALER)\s+SALE\]/i
+    };
+
+    const match = remark.match(regexMap[key]);
+    if (match && match[1]) return match[1].trim();
+
+    return val || (key.includes('amount') || key.includes('commission') ? 0 : null);
+  };
+
+  const getCalculatedDates = () => {
+    const record = selectedDairy?.activation_record;
+    if (!record) return { activated: '-', expires: '-' };
+
+    let activated = record.activation_date || record.created_at?.split('T')[0] || '-';
+    let expires = record.expiry_date && record.expiry_date !== "null" ? record.expiry_date.split('T')[0] : null;
+
+    if (!expires && record.activation_date) {
+      try {
+        const [d, m, y] = record.activation_date.split('-').map(Number);
+        if (d && m && y) {
+          const actDate = new Date(y, m - 1, d);
+          const duration = Number(getParsedValue('duration_days') || record.duration_days || 365);
+          expires = format(addDays(actDate, duration), 'dd-MM-yyyy');
+        }
+      } catch (e) {
+        expires = '-';
+      }
+    }
+
+    return { activated, expires: expires || '-' };
   };
 
   const handleSearch = () => {
@@ -433,18 +503,18 @@ export const Activation: React.FC = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-center">
-                      {dairy.is_active === 1 ? (
+                      {dairy.is_active === 1 || dairy.activation_record ? (
                         <Button 
                           variant="ghost"
                           size="sm"
                           onClick={() => handleViewReceipt(dairy)}
                           className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all group"
-                          title="View Payment Receipt"
+                          title="View Activation Details"
                         >
                           <Eye size={16} className="group-hover:scale-110 transition-transform" />
                         </Button>
                       ) : (
-                        <span className="text-slate-300 text-xs italic">No Receipt</span>
+                        <span className="text-slate-300 text-xs italic">No Record</span>
                       )}
                     </div>
                   </TableCell>
@@ -732,30 +802,97 @@ export const Activation: React.FC = () => {
             </div>
 
             {/* Sidebar Details Area */}
-            <div className="bg-slate-900 p-6 flex flex-col justify-between border-l border-slate-800">
+            <div className="bg-slate-900 p-6 flex flex-col justify-between border-l border-slate-800 overflow-y-auto max-h-[85vh]">
               <div className="space-y-6">
                 <div>
                   <h3 className="text-white font-semibold flex items-center gap-2 mb-1">
                     <ImageIcon className="text-blue-400" size={18} />
-                    Payment Evidence
+                    Activation Details
                   </h3>
                   <p className="text-slate-400 text-xs leading-relaxed">
-                    Verified payment screenshot for user activation.
+                    Transaction and sale tracking information.
                   </p>
                 </div>
 
                 <div className="space-y-4">
-                  <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Status</p>
+                  {/* Payment Status */}
+                  <div className={`p-3 rounded-lg border ${receiptUrl ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-amber-500/10 border-amber-500/20'}`}>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Payment Status</p>
                     <div className="flex items-center gap-2">
-                      <Check className="text-emerald-500" size={14} />
-                      <span className="text-emerald-400 text-sm font-medium">Verified Payment</span>
+                      {receiptUrl ? (
+                        <>
+                          <Check className="text-emerald-500" size={14} />
+                          <span className="text-emerald-400 text-sm font-bold">PAID (Receipt Available)</span>
+                        </>
+                      ) : (
+                        <>
+                          <Loader2 className="text-amber-500 animate-spin" size={14} />
+                          <span className="text-amber-400 text-sm font-bold">PAYMENT PENDING</span>
+                        </>
+                      )}
                     </div>
                   </div>
 
+                  {/* Amount Grid */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Sale Amount</p>
+                      <p className={`text-lg font-bold ${!receiptUrl && Number(getParsedValue('sale_amount') || 0) === 0 ? 'text-amber-400' : 'text-white'}`}>
+                        {Number(getParsedValue('sale_amount') || 0) > 0 
+                          ? `₹${getParsedValue('sale_amount')}`
+                          : receiptUrl ? '₹0.00' : 'Payment Pending'}
+                      </p>
+                    </div>
+                    <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Renewal</p>
+                      <p className="text-white text-sm font-semibold">₹{getParsedValue('renewal_amount') || '0'}</p>
+                    </div>
+                  </div>
+
+                  {/* Sale Type & Dealer Info */}
                   <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Reference ID</p>
-                    <p className="text-white text-sm font-mono">{selectedUser}</p>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Sale Type</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-blue-400 text-sm font-bold uppercase">{getParsedValue('sale_type') || selectedDairy?.activation_record?.sale_type || 'SELF'}</span>
+                      {Number(getParsedValue('dealer_commission') || 0) > 0 && (
+                        <span className="text-xs text-slate-400">Comm: ₹{getParsedValue('dealer_commission')}</span>
+                      )}
+                    </div>
+                    {getParsedValue('dealer_name') && (
+                      <div className="mt-2 pt-2 border-t border-slate-700/50">
+                        <p className="text-[10px] text-slate-500 uppercase font-bold">Dealer Name</p>
+                        <p className="text-white text-sm">{getParsedValue('dealer_name')}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Duration & Remark */}
+                  <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Internal Remark</p>
+                    <p className="text-white text-xs leading-relaxed italic">
+                      {selectedDairy?.activation_record?.remark || 'No remarks provided.'}
+                    </p>
+                  </div>
+
+                  {/* Dates */}
+                  <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
+                    <div className="flex justify-between items-center">
+                      {(() => {
+                        const { activated, expires } = getCalculatedDates();
+                        return (
+                          <>
+                            <div>
+                              <p className="text-[10px] text-slate-500 uppercase font-bold">Activated On</p>
+                              <p className="text-white text-xs">{activated}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[10px] text-slate-500 uppercase font-bold">Expires On</p>
+                              <p className="text-rose-400 text-xs font-bold">{expires}</p>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
                   </div>
                 </div>
               </div>

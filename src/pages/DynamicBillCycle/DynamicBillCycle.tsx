@@ -922,6 +922,39 @@ const DynamicBillCycle = () => {
     return milk - adv - cf - o1 - o2 - bonusDeduction - fixedAmount + rec;
   };
 
+      const getTravelQuantity = (
+        farmer: {
+          cow_data?: { total_quantity?: number | string } | null;
+          buffalo_data?: { total_quantity?: number | string } | null;
+          collections_summary?: { total_quantity?: number | string } | null;
+          quantity?: number | string;
+        } | null | undefined
+      ) => {
+        if (!farmer) return 0;
+
+        const cowQty = parseFloat(String(farmer.cow_data?.total_quantity || 0)) || 0;
+        const buffaloQty = parseFloat(String(farmer.buffalo_data?.total_quantity || 0)) || 0;
+
+        if (cowQty > 0 || buffaloQty > 0) {
+          return cowQty + buffaloQty;
+        }
+
+        const summaryQty = parseFloat(String(farmer.collections_summary?.total_quantity || 0)) || 0;
+        if (summaryQty > 0) {
+          return summaryQty;
+        }
+
+        return parseFloat(String(farmer.quantity || 0)) || 0;
+      };
+
+      const getExportTravelQuantity = (collections: Array<{ quantity?: number | string }> | undefined) => {
+        if (!collections || collections.length === 0) return 0;
+
+        return collections.reduce((sum, item) => {
+          return sum + (parseFloat(String(item.quantity || 0)) || 0);
+        }, 0);
+      };
+
   // ── Shared helper: fetch report language from settings ──
   const fetchReportLanguage = async (vlc: string): Promise<string> => {
     try {
@@ -1149,7 +1182,7 @@ const DynamicBillCycle = () => {
             type: vlcComm.type,
             rate: parseFloat(vlcComm.amount),
             amount: vlcComm.type === 'Commission' 
-              ? (farmer.collections_summary?.total_quantity || 0) * parseFloat(vlcComm.amount) 
+              ? (getExportTravelQuantity(farmer.collections) * parseFloat(vlcComm.amount)) 
               : parseFloat(vlcComm.amount),
             effective_from: vlcComm.effective_from
           } : undefined
@@ -1292,7 +1325,7 @@ const DynamicBillCycle = () => {
             type: vlcCommission.type,
             rate: parseFloat(vlcCommission.amount),
             amount: vlcCommission.type === 'Commission' 
-              ? (farmer.collections_summary?.total_quantity || 0) * parseFloat(vlcCommission.amount) 
+              ? (getExportTravelQuantity(farmer.collections) * parseFloat(vlcCommission.amount)) 
               : parseFloat(vlcCommission.amount),
             effective_from: vlcCommission.effective_from
           } : undefined,
@@ -1417,7 +1450,7 @@ const DynamicBillCycle = () => {
           type: vlcCommission.type,
           rate: parseFloat(vlcCommission.amount),
           amount: vlcCommission.type === 'Commission' 
-            ? (mergedFarmer.collections_summary?.total_quantity || 0) * parseFloat(vlcCommission.amount) 
+            ? (getExportTravelQuantity(mergedFarmer.collections) * parseFloat(vlcCommission.amount)) 
             : parseFloat(vlcCommission.amount),
           effective_from: vlcCommission.effective_from
         } : undefined,
@@ -1931,7 +1964,7 @@ const DynamicBillCycle = () => {
                             <div className="flex justify-between text-xs text-blue-600 mb-1">
                               <span>{t('travel_commission')}:</span>
                               <span className="font-semibold text-blue-600">+ ₹{(vlcCommission.type === 'Commission' 
-                                ? (currentFarmer.quantity * parseFloat(vlcCommission.amount))
+                                ? (getTravelQuantity(currentFarmer) * parseFloat(vlcCommission.amount))
                                 : parseFloat(vlcCommission.amount)
                               ).toFixed(2)}</span>
                             </div>
@@ -1948,7 +1981,7 @@ const DynamicBillCycle = () => {
                         <p className={`text-xl font-bold ${(() => {
                           const net = calculateNetPayable(currentFarmer);
                           const travel = (vlcCommission && (new Date(endDate || new Date()) >= new Date(vlcCommission.effective_from))) ? (vlcCommission.type === 'Commission' 
-                            ? (currentFarmer.quantity * parseFloat(vlcCommission.amount))
+                            ? (getTravelQuantity(currentFarmer) * parseFloat(vlcCommission.amount))
                             : parseFloat(vlcCommission.amount)
                           ) : 0;
                           return (net + travel) >= 0 ? 'text-green-600' : 'text-red-600';
@@ -1956,7 +1989,7 @@ const DynamicBillCycle = () => {
                           ₹{(() => {
                             const net = calculateNetPayable(currentFarmer);
                             const travel = (vlcCommission && (new Date(endDate || new Date()) >= new Date(vlcCommission.effective_from))) ? (vlcCommission.type === 'Commission' 
-                              ? (currentFarmer.quantity * parseFloat(vlcCommission.amount))
+                              ? (getTravelQuantity(currentFarmer) * parseFloat(vlcCommission.amount))
                               : parseFloat(vlcCommission.amount)
                             ) : 0;
                             return (net + travel).toFixed(2);
