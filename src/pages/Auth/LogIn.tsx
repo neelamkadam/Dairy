@@ -132,7 +132,7 @@ const Login: React.FC = () => {
               <p className="text-lg xl:text-xl text-green-100">Pvt Ltd.</p>
             </div>
             <div className="space-y-2 xl:space-y-4">
-              <p className="text-base xl:text-lg text-green-50">Empowring Dairy with Technology</p>
+              <p className="text-base xl:text-lg text-green-50">Empowering Dairy with Technology</p>
             </div>
           </div>
         </div>

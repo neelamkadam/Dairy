@@ -164,9 +164,20 @@ const FarmerPayment: React.FC = () => {
       return;
     }
 
-    if (paymentType === "Cattle Feed" && (!selectedStock || !stockQuantity)) {
-      toast.error("Select stock and enter quantity");
-      return;
+    if (paymentType === "Cattle Feed") {
+      if (!selectedStock || !stockQuantity) {
+        toast.error("Select stock and enter quantity");
+        return;
+      }
+      const qty = parseFloat(stockQuantity);
+      if (isNaN(qty) || qty <= 0) {
+        toast.error("Please enter a valid quantity");
+        return;
+      }
+      if (qty > selectedStock.stock) {
+        toast.error(`Insufficient stock! Only ${selectedStock.stock} units available.`);
+        return;
+      }
     }
 
     setLoading(true);
@@ -470,14 +481,21 @@ const FarmerPayment: React.FC = () => {
                                  <Input 
                                   type="number" 
                                   value={stockQuantity} 
+                                  max={selectedStock.stock}
                                   onChange={(e) => {
                                     const qty = e.target.value;
                                     setStockQuantity(qty);
                                     if (stockRate && qty) setAmountTaken((parseFloat(qty) * parseFloat(stockRate)).toFixed(2));
                                   }}
-                                  className="pl-9 bg-white border-amber-200 h-11"
+                                  className={cn(
+                                    "pl-9 bg-white border-amber-200 h-11",
+                                    parseFloat(stockQuantity) > selectedStock.stock && "border-red-500 focus-visible:ring-red-500"
+                                  )}
                                  />
                                </div>
+                               {parseFloat(stockQuantity) > selectedStock.stock && (
+                                 <p className="text-[10px] text-red-500 font-bold mt-1">Exceeds available stock ({selectedStock.stock})</p>
+                               )}
                              </div>
                              <div className="space-y-2">
                                <Label className="text-xs font-bold text-amber-800">Unit Rate</Label>
@@ -533,7 +551,11 @@ const FarmerPayment: React.FC = () => {
 
                      <Button 
                       onClick={handleSubmit} 
-                      disabled={loading || !farmerName} 
+                      disabled={
+                        loading || 
+                        !farmerName || 
+                        (paymentType === "Cattle Feed" && selectedStock && parseFloat(stockQuantity) > selectedStock.stock)
+                      }
                       className="w-full bg-blue-600 hover:bg-blue-700 h-14 rounded-2xl text-xl font-black shadow-xl shadow-blue-100 transition-all active:scale-[0.98]"
                      >
                        {loading ? "COMMITTING TRANSACTION..." : "SUBMIT PAYMENT"}
