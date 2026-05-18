@@ -19,6 +19,7 @@ import { billApi } from '@/services/billApi';
 import { bonusApi } from '@/services/bonusApi';
 import { settingsApi } from '@/services/settingsApi';
 import { reportsApi } from '@/services/reportsApi';
+import { vlcCommissionApi } from '@/services/vlcCommissionApi';
 import { generateTemplate3Farmers, FarmerReportData } from '@/templates/FarmerBillInvoiceTemplate';
 import {
   Dialog,
@@ -464,13 +465,9 @@ const FarmerBillInvoiceReport = () => {
       });
       if (response.success && response.data && response.data.length > 0) {
         const vlc = response.data[0];
-        // Find if there's a Travel commission setting
         const travelComm = vlc.commissions.find((c: any) => c.type === 'Commission' || c.type === 'Fixed' || c.type === 'Travel');
         if (travelComm) {
-          return {
-            ...travelComm,
-            effective_from: travelComm.effective_from
-          };
+          return { ...travelComm, effective_from: travelComm.effective_from };
         }
         return null;
       }
@@ -478,6 +475,67 @@ const FarmerBillInvoiceReport = () => {
       console.error('Error fetching VLC commission:', error);
     }
     return null;
+  };
+
+  // ── Fetch all farmer-specific commissions for a VLC and return a map keyed by farmer_id ──
+  const fetchFarmerCommissionMap = async (vlcId: string): Promise<Map<string, any>> => {
+    try {
+      const res = await vlcCommissionApi.getByVlcc(vlcId);
+      const records: any[] = res.data?.data ?? [];
+      const map = new Map<string, any>();
+      // API returns DESC order → first occurrence is the latest (active) for each farmer
+      records.forEach((r) => {
+        if (r.farmer_id && !map.has(r.farmer_id)) {
+          map.set(r.farmer_id, r);
+        }
+      });
+      return map;
+    } catch {
+      return new Map();
+    }
+  };
+
+  // ── Resolve the commission to use for a farmer:
+  //    1. farmer-specific record (farmer_id match)  → preferred
+  //    2. VLC-level commission (vlcComm)             → fallback
+  // Returns a normalised object { type, amount, effective_from } or null.
+  const resolveFarmerCommission = (
+    farmerId: string,
+    farmerCommMap: Map<string, any>,
+    vlcComm: any | null
+  ): { type: string; amount: string; effective_from: string } | null => {
+    const farmerRecord = farmerCommMap.get(farmerId);
+    if (farmerRecord) {
+      return {
+        type: farmerRecord.type,          // 'Commission' | 'Fixed'
+        amount: farmerRecord.amount,
+        effective_from: farmerRecord.effective_from
+      };
+    }
+    if (vlcComm) {
+      return {
+        type: vlcComm.type,
+        amount: vlcComm.amount,
+        effective_from: vlcComm.effective_from
+      };
+    }
+    return null;
+  };
+
+  // ── Build the travel_commission payload for a template from a resolved commission + liters ──
+  const buildTravelCommission = (
+    comm: { type: string; amount: string; effective_from: string } | null,
+    totalLiters: number
+  ) => {
+    if (!comm) return undefined;
+    return {
+      type: comm.type,
+      rate: parseFloat(comm.amount),
+      amount: comm.type === 'Commission'
+        ? totalLiters * parseFloat(comm.amount)
+        : parseFloat(comm.amount),
+      effective_from: comm.effective_from
+    };
   };
 
   const exportToPDF = async () => {
@@ -490,12 +548,13 @@ const FarmerBillInvoiceReport = () => {
       // @ts-ignore
       const dairyId = selectedBranch?.branch_id || selectedBranch?.id;
 
-      // Fetch farmer data, bonus data, and report language in parallel
-      const [response, bonusMap, reportLang, vlcComm] = await Promise.all([
+      // Fetch farmer data, bonus data, report language, and commissions in parallel
+      const [response, bonusMap, reportLang, vlcComm, farmerCommMap] = await Promise.all([
         billApi.getFarmerReport({ dairy_id: dairyId, start_date: fromDate, end_date: toDate }),
         fetchBonusMap(dairyId),
         fetchReportLanguage(selectedVLC),
-        fetchVlcCommissionSettings(selectedVLC)
+        fetchVlcCommissionSettings(selectedVLC),
+        fetchFarmerCommissionMap(selectedVLC)
       ]);
 
       if (!response.data.success) {
@@ -588,14 +647,10 @@ const FarmerBillInvoiceReport = () => {
           previous_bill: farmerInfo.previous_bill,
           bonus_deduction_info: attachBonus(farmerInfo, bonusMap, templateDataItems.reduce((s, i) => s + i.liters, 0)).bonus_deduction_info,
           bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary,
-          travel_commission: vlcComm ? {
-            type: vlcComm.type,
-            rate: parseFloat(vlcComm.amount),
-            amount: vlcComm.type === 'Commission' 
-              ? templateDataItems.reduce((s, i) => s + i.liters, 0) * parseFloat(vlcComm.amount) 
-              : parseFloat(vlcComm.amount),
-            effective_from: vlcComm.effective_from
-          } : undefined,
+          travel_commission: buildTravelCommission(
+            resolveFarmerCommission(farmerId, farmerCommMap, vlcComm),
+            templateDataItems.reduce((s, i) => s + i.liters, 0)
+          ),
           bankDetails: farmerInfo.farmer_details ? {
             accountNumber: farmerInfo.farmer_details.accountNumber,
             ifscCode: farmerInfo.farmer_details.ifscCode,
@@ -675,12 +730,13 @@ const FarmerBillInvoiceReport = () => {
       // @ts-ignore
       const dairyId = selectedBranch?.branch_id || selectedBranch?.id;
 
-      // Fetch farmer data, bonus data, and report language in parallel
-      const [response, bonusMap, reportLang, vlcComm] = await Promise.all([
+      // Fetch farmer data, bonus data, report language, and commissions in parallel
+      const [response, bonusMap, reportLang, vlcComm, farmerCommMap] = await Promise.all([
         billApi.getFarmerReport({ dairy_id: dairyId, start_date: fromDate, end_date: toDate }),
         fetchBonusMap(dairyId),
         fetchReportLanguage(selectedVLC),
-        fetchVlcCommissionSettings(selectedVLC)
+        fetchVlcCommissionSettings(selectedVLC),
+        fetchFarmerCommissionMap(selectedVLC)
       ]);
 
       if (!response.data.success) {
@@ -761,14 +817,10 @@ const FarmerBillInvoiceReport = () => {
         
         const farmersWithComm = chunk.map(farmer => ({
           ...farmer,
-          travel_commission: vlcComm ? {
-            type: vlcComm.type,
-            rate: parseFloat(vlcComm.amount),
-            amount: vlcComm.type === 'Commission' 
-              ? (farmer.collections_summary?.total_quantity || 0) * parseFloat(vlcComm.amount) 
-              : parseFloat(vlcComm.amount),
-            effective_from: vlcComm.effective_from
-          } : undefined
+          travel_commission: buildTravelCommission(
+            resolveFarmerCommission(farmer.farmer_id, farmerCommMap, vlcComm),
+            farmer.collections_summary?.total_quantity || 0
+          )
         }));
 
         let htmlContent = "";
@@ -822,12 +874,13 @@ const FarmerBillInvoiceReport = () => {
       // @ts-ignore
       const dairyId = selectedBranch?.branch_id || selectedBranch?.id;
 
-      // Fetch farmer data, bonus data, and report language in parallel
-      const [response, bonusMap, reportLang, vlcComm] = await Promise.all([
+      // Fetch farmer data, bonus data, report language, and commissions in parallel
+      const [response, bonusMap, reportLang, vlcComm, farmerCommMap] = await Promise.all([
         billApi.getFarmerReport({ dairy_id: dairyId, start_date: fromDate, end_date: toDate }),
         fetchBonusMap(dairyId),
         fetchReportLanguage(selectedVLC),
-        fetchVlcCommissionSettings(selectedVLC)
+        fetchVlcCommissionSettings(selectedVLC),
+        fetchFarmerCommissionMap(selectedVLC)
       ]);
 
       if (!response.data.success) {
@@ -912,14 +965,10 @@ const FarmerBillInvoiceReport = () => {
           payments: getNormalizedPayments(farmer),
           bonus_deduction_info: attachBonus(farmer, bonusMap, farmer.collections_summary?.total_quantity || 0).bonus_deduction_info,
           bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary || null,
-          travel_commission: vlcComm ? {
-            type: vlcComm.type,
-            rate: parseFloat(vlcComm.amount),
-            amount: vlcComm.type === 'Commission' 
-              ? farmerBillData.reduce((s, i) => s + i.liters, 0) * parseFloat(vlcComm.amount) 
-              : parseFloat(vlcComm.amount),
-            effective_from: vlcComm.effective_from
-          } : undefined
+          travel_commission: buildTravelCommission(
+            resolveFarmerCommission(farmer.farmer_id, farmerCommMap, vlcComm),
+            farmerBillData.reduce((s, i) => s + i.liters, 0)
+          )
         };
 
         const hasCow = farmerBillData.some(d => d.type === 'Cow');

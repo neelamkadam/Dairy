@@ -22,6 +22,7 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import PdfLoader from "@/components/PdfLoader";
 import { reportsApi } from "@/services/reportsApi";
+import { vlcCommissionApi } from "@/services/vlcCommissionApi";
 import {
   Dialog,
   DialogContent,
@@ -117,6 +118,52 @@ const DynamicBillCycle = () => {
       console.error('Error fetching VLC commission:', error);
     }
     return null;
+  };
+
+  // ── Fetch all farmer-specific commissions for a VLC keyed by farmer_id ──
+  const fetchFarmerCommissionMap = async (vlcId: string): Promise<Map<string, any>> => {
+    try {
+      const res = await vlcCommissionApi.getByVlcc(vlcId);
+      const records: any[] = res.data?.data ?? [];
+      const map = new Map<string, any>();
+      // API returns DESC → first occurrence per farmer_id = latest active
+      records.forEach((r) => {
+        if (r.farmer_id && !map.has(r.farmer_id)) {
+          map.set(r.farmer_id, r);
+        }
+      });
+      return map;
+    } catch {
+      return new Map(); // graceful fallback
+    }
+  };
+
+  // ── Priority: farmer-specific → VLC-level → null (no commission) ──
+  const resolveFarmerCommission = (
+    farmerId: string,
+    farmerCommMap: Map<string, any>,
+    vlcComm: any | null
+  ): { type: string; amount: string; effective_from: string } | null => {
+    const rec = farmerCommMap.get(farmerId);
+    if (rec) return { type: rec.type, amount: rec.amount, effective_from: rec.effective_from };
+    if (vlcComm) return { type: vlcComm.type, amount: vlcComm.amount, effective_from: vlcComm.effective_from };
+    return null; // farmer has no commission at all
+  };
+
+  // ── Build the travel_commission template payload (returns undefined if no commission) ──
+  const buildTravelCommission = (
+    comm: { type: string; amount: string; effective_from: string } | null,
+    totalLiters: number
+  ) => {
+    if (!comm) return undefined;
+    return {
+      type: comm.type,
+      rate: parseFloat(comm.amount),
+      amount: comm.type === 'Commission'
+        ? totalLiters * parseFloat(comm.amount)
+        : parseFloat(comm.amount),
+      effective_from: comm.effective_from
+    };
   };
   
   const calculateDateRange = (dateStr: string, cycle: number = 10) => {
@@ -1131,11 +1178,12 @@ const DynamicBillCycle = () => {
       const fromDateApi = format(startDate, 'yyyy-MM-dd');
       const toDateApi = format(endDate, 'yyyy-MM-dd');
 
-      const [response, bonusMap, reportLang, vlcComm] = await Promise.all([
+      const [response, bonusMap, reportLang, vlcComm, farmerCommMap] = await Promise.all([
         billApi.getFarmerReport({ dairy_id: dairyId, start_date: fromDateApi, end_date: toDateApi }),
         fetchBonusMap(dairyId, fromDateApi, toDateApi),
         fetchReportLanguage(vlcId),
-        fetchVlcCommissionSettings(vlcId)
+        fetchVlcCommissionSettings(vlcId),
+        fetchFarmerCommissionMap(vlcId)
       ]);
 
       if (!response.data.success) {
@@ -1178,14 +1226,10 @@ const DynamicBillCycle = () => {
         const farmersWithComm = chunk.map(farmer => ({
           ...attachBonus(farmer, bonusMap, farmer.collections_summary?.total_quantity || 0, toDateApi),
           payments: getNormalizedPayments(farmer),
-          travel_commission: vlcComm ? {
-            type: vlcComm.type,
-            rate: parseFloat(vlcComm.amount),
-            amount: vlcComm.type === 'Commission' 
-              ? (getExportTravelQuantity(farmer.collections) * parseFloat(vlcComm.amount)) 
-              : parseFloat(vlcComm.amount),
-            effective_from: vlcComm.effective_from
-          } : undefined
+          travel_commission: buildTravelCommission(
+            resolveFarmerCommission(farmer.farmer_id, farmerCommMap, vlcComm),
+            getExportTravelQuantity(farmer.collections)
+          )
         }));
 
         let htmlContent = "";
@@ -1249,10 +1293,11 @@ const DynamicBillCycle = () => {
       const fromDateApi = format(startDate, 'yyyy-MM-dd');
       const toDateApi = format(endDate, 'yyyy-MM-dd');
 
-      const [response, bonusMap, reportLang] = await Promise.all([
+      const [response, bonusMap, reportLang, farmerCommMap] = await Promise.all([
         billApi.getFarmerReport({ dairy_id: dairyId, start_date: fromDateApi, end_date: toDateApi }),
         fetchBonusMap(dairyId, fromDateApi, toDateApi),
-        fetchReportLanguage(vlcId)
+        fetchReportLanguage(vlcId),
+        fetchFarmerCommissionMap(vlcId)
       ]);
 
       if (!response.data.success) {
@@ -1321,14 +1366,10 @@ const DynamicBillCycle = () => {
           payments: getNormalizedPayments(farmer),
           bonus_deduction_info: attachBonus(farmer, bonusMap, farmer.collections_summary?.total_quantity || 0, toDateApi).bonus_deduction_info,
           bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary || null,
-          travel_commission: vlcCommission ? {
-            type: vlcCommission.type,
-            rate: parseFloat(vlcCommission.amount),
-            amount: vlcCommission.type === 'Commission' 
-              ? (getExportTravelQuantity(farmer.collections) * parseFloat(vlcCommission.amount)) 
-              : parseFloat(vlcCommission.amount),
-            effective_from: vlcCommission.effective_from
-          } : undefined,
+          travel_commission: buildTravelCommission(
+            resolveFarmerCommission(farmer.farmer_id, farmerCommMap, vlcCommission),
+            getExportTravelQuantity(farmer.collections)
+          ),
           hideRateAmount: hideRateAmount
         };
 
@@ -1383,10 +1424,11 @@ const DynamicBillCycle = () => {
       const toDateApi = format(currentFarmer.periodEnd, 'yyyy-MM-dd');
       const farmerId = currentFarmer.farmer_id;
 
-      const [response, bonusMap, reportLang] = await Promise.all([
+      const [response, bonusMap, reportLang, farmerCommMap] = await Promise.all([
         billApi.getFarmerReport({ dairy_id: dairyId, start_date: fromDateApi, end_date: toDateApi }),
         fetchBonusMap(dairyId, fromDateApi, toDateApi),
-        fetchReportLanguage(vlcId)
+        fetchReportLanguage(vlcId),
+        fetchFarmerCommissionMap(vlcId)
       ]);
 
       if (!response.data.success) {
@@ -1446,14 +1488,10 @@ const DynamicBillCycle = () => {
         payments: getNormalizedPayments(mergedFarmer),
         bonus_deduction_info: attachBonus(mergedFarmer, bonusMap, mergedFarmer.collections_summary?.total_quantity || 0, toDateApi).bonus_deduction_info,
         bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary || null,
-        travel_commission: vlcCommission ? {
-          type: vlcCommission.type,
-          rate: parseFloat(vlcCommission.amount),
-          amount: vlcCommission.type === 'Commission' 
-            ? (getExportTravelQuantity(mergedFarmer.collections) * parseFloat(vlcCommission.amount)) 
-            : parseFloat(vlcCommission.amount),
-          effective_from: vlcCommission.effective_from
-        } : undefined,
+        travel_commission: buildTravelCommission(
+          resolveFarmerCommission(mergedFarmer.farmer_id, farmerCommMap, vlcCommission),
+          getExportTravelQuantity(mergedFarmer.collections)
+        ),
         hideRateAmount: hideRateAmount
       };
 

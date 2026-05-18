@@ -693,13 +693,13 @@ const FarmerCommissionEntry = () => {
 
       {/* ── Summary Dialog ───────────────────────────────── */}
       <Dialog open={summaryOpen} onOpenChange={setSummaryOpen}>
-        <DialogContent className="bg-white max-w-3xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="bg-white max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-gray-800">
               Farmer Commission Summary
             </DialogTitle>
             <p className="text-sm text-gray-500">
-              All existing commissions for the selected VLC — farmer wise
+              Active commissions — farmer wise
             </p>
           </DialogHeader>
 
@@ -714,87 +714,93 @@ const FarmerCommissionEntry = () => {
               <p className="text-sm">No commissions found for this VLC</p>
             </div>
           ) : (
-            <div className="space-y-4 mt-2">
-              {Object.entries(summaryData).map(([farmerId, records]) => {
-                const latest = records[0];
-                const isActive = (r: SummaryRecord) => r.id === latest.id;
-                return (
-                  <div
-                    key={farmerId}
-                    className="border border-gray-200 rounded-xl overflow-hidden"
-                  >
-                    {/* Farmer header */}
-                    <div className="flex items-center justify-between bg-gradient-to-r from-indigo-50 to-purple-50 px-4 py-2.5">
-                      <div>
-                        <p className="font-semibold text-gray-800 text-sm">
-                          {latest.farmer_name || farmerId}
-                        </p>
-                        <p className="text-xs text-gray-400">{farmerId}</p>
-                      </div>
-                      {/* Active commission badge */}
-                      <div className="text-right">
-                        <span
-                          className={cn(
-                            "text-xs font-semibold px-2 py-0.5 rounded-full",
-                            latest.type === "Commission"
-                              ? "bg-indigo-100 text-indigo-700"
-                              : "bg-purple-100 text-purple-700"
-                          )}
+            <div className="mt-2 border border-gray-200 rounded-xl overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-gradient-to-r from-indigo-50 to-purple-50">
+                    <TableHead className="font-semibold text-gray-700">Farmer ID</TableHead>
+                    <TableHead className="font-semibold text-gray-700">Type</TableHead>
+                    <TableHead className="font-semibold text-gray-700 text-right">Amount</TableHead>
+                    <TableHead className="font-semibold text-gray-700">Effective From</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Object.entries(summaryData).map(([farmerId, records]) => {
+                    const latest = records[0];
+                    return (
+                      <>
+                        <TableRow
+                          key={farmerId}
+                          className="hover:bg-gray-50 cursor-pointer"
+                          onClick={() =>
+                            setSummaryData((prev) => {
+                              const updated = { ...prev };
+                              (updated[farmerId] as any)._open = !(updated[farmerId] as any)._open;
+                              return updated;
+                            })
+                          }
                         >
-                          {latest.type === "Commission" ? "Per Liter" : "Fixed"}
-                        </span>
-                        <p className="text-sm font-bold text-green-600 mt-0.5">
-                          ₹{parseFloat(latest.amount).toFixed(2)}
-                          <span className="text-xs font-normal text-gray-400 ml-1">
-                            (active)
-                          </span>
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* History rows */}
-                    <div className="divide-y divide-gray-100">
-                      {records.map((r, idx) => {
-                        const effectiveFrom = new Date(r.effective_from);
-                        const endDate =
-                          idx > 0
-                            ? subDays(new Date(records[idx - 1].effective_from), 1)
-                            : null;
-                        return (
-                          <div
-                            key={r.id}
-                            className={cn(
-                              "flex items-center justify-between px-4 py-2 text-xs",
-                              idx === 0 ? "bg-green-50" : "bg-white"
-                            )}
-                          >
-                            <div className="flex items-center gap-2">
-                              {idx === 0 && (
-                                <span className="bg-green-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-                                  Active
-                                </span>
+                          <TableCell className="font-semibold text-gray-800">
+                            {farmerId}
+                          </TableCell>
+                          <TableCell>
+                            <span
+                              className={cn(
+                                "text-xs font-semibold px-2 py-0.5 rounded-full",
+                                latest.type === "Commission"
+                                  ? "bg-indigo-100 text-indigo-700"
+                                  : "bg-purple-100 text-purple-700"
                               )}
-                              <span className="text-gray-600">
-                                {r.type === "Commission" ? "Per Liter" : "Fixed"}
-                              </span>
-                            </div>
-                            <span className="font-semibold text-gray-800">
-                              ₹{parseFloat(r.amount).toFixed(2)}
+                            >
+                              {latest.type === "Commission" ? "Per Liter" : "Fixed"}
                             </span>
-                            <span className="text-gray-400">
-                              {idx === 0
-                                ? `From ${format(effectiveFrom, "dd-MM-yyyy")}`
-                                : endDate
-                                ? `${format(effectiveFrom, "dd-MM-yyyy")} → ${format(endDate, "dd-MM-yyyy")}`
-                                : format(effectiveFrom, "dd-MM-yyyy")}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
+                          </TableCell>
+                          <TableCell className="text-right font-bold text-green-600">
+                            ₹{parseFloat(latest.amount).toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-gray-600 text-sm">
+                            {format(new Date(latest.effective_from), "dd-MM-yyyy")}
+                          </TableCell>
+                      
+                        </TableRow>
+
+                        {/* Expanded history rows */}
+                        {(records as any)._open &&
+                          records.slice(1).map((r, idx) => {
+                            const effectiveFrom = new Date(r.effective_from);
+                            const endDate = subDays(
+                              new Date(records[idx].effective_from),
+                              1
+                            );
+                            return (
+                              <TableRow
+                                key={r.id}
+                                className="bg-gray-50 border-l-2 border-indigo-200"
+                              >
+                                <TableCell className="text-gray-400 text-xs pl-8">
+                                  ↳ prev
+                                </TableCell>
+                                <TableCell>
+                                  <span className="text-xs text-gray-500">
+                                    {r.type === "Commission" ? "Per Liter" : "Fixed"}
+                                  </span>
+                                </TableCell>
+                                <TableCell className="text-right text-xs text-gray-600 font-medium">
+                                  ₹{parseFloat(r.amount).toFixed(2)}
+                                </TableCell>
+                                <TableCell className="text-xs text-gray-400">
+                                  {format(effectiveFrom, "dd-MM-yyyy")} →{" "}
+                                  {format(endDate, "dd-MM-yyyy")}
+                                </TableCell>
+                                <TableCell />
+                              </TableRow>
+                            );
+                          })}
+                      </>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             </div>
           )}
         </DialogContent>
