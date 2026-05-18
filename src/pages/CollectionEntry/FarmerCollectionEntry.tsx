@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
+import { ROUTES } from "@/constatnts/routesConstants";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -58,6 +60,7 @@ interface Collection {
 
 const FarmerCollectionEntry = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const branches = useAppSelector((state) => state.branch.branches);
   const [selectedBranch, setSelectedBranch] = useState<number | null>(null);
   const [date, setDate] = useState<Date>(new Date());
@@ -657,6 +660,22 @@ const FarmerCollectionEntry = () => {
             <h1 className="md:text-2xl font-semibold text-gray-900">
               {t('farmer_collection_entry')}
             </h1>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button 
+              onClick={() => navigate(ROUTES.CC_COLLECTION.ANALYSER_COLLECTION)}
+              className="bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 shadow-sm transition-colors"
+              variant="outline"
+            >
+              Analyser
+            </Button>
+            <Button 
+              onClick={() => navigate(ROUTES.CC_COLLECTION.WEIGHT_COLLECTION)}
+              className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-200 shadow-sm transition-colors"
+              variant="outline"
+            >
+              Weight Collection
+            </Button>
           </div>
         </div>
 

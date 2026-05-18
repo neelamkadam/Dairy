@@ -33,6 +33,7 @@ export const ROUTES = {
     GENERATE_BILL:`/dashboard/generate-bill`,
     PAYMENTANDRECEIPT:`/dashboard/payment-and-receipt`,
     VLC_COMMISSION_ENTRY:`/dashboard/vlc-commission-entry`,
+    FARMER_COMMISSION_ENTRY:`/dashboard/farmer-commission-entry`,
     VLC_TS_ENTRY:`/dashboard/vlc-ts-entry`,
   },
   REPORTS:{

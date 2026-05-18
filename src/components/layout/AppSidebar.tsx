@@ -41,6 +41,7 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
     });
   }
 
+  /*
   if(access?.collection_entry){
     items.push({
       title: t('cc_collection'),
@@ -52,6 +53,7 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
       ]
     })  
   }
+  */
 
   if (access?.collection) {
     items.push({
@@ -71,8 +73,15 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
         { title: t('add_farmer'), icon: "", href:ROUTES.MASTER.ADD_FARMER },
         { title: t('add_rate_chart'), icon: "", href: ROUTES.MASTER.ADD_RATECHART },
         { title: t('cattle_feed_stock'), icon: "", href: ROUTES.SETTINGS.CATTLE_FEED_STOCK },
-        { title: t('bonus'), icon: "", href: ROUTES.MASTER.BONUS }
-        
+        { title: t('bonus'), icon: "", href: ROUTES.MASTER.BONUS },
+        {
+          title: "Commission Entry",
+          icon: "",
+          children: [
+            { title: t('vlc_commission_entry'), icon: "", href: ROUTES.BILLING.VLC_COMMISSION_ENTRY },
+            { title: "Farmer Commission Entry", icon: "", href: ROUTES.BILLING.FARMER_COMMISSION_ENTRY }
+          ]
+        }       
 
       ]
     });
@@ -86,7 +95,6 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
         { title: t('payment_receipt'), icon: "", href:ROUTES.BILLING.PAYMENTANDRECEIPT },
         { title: t('farmer_deduction'), icon: "", href:ROUTES.BILLING.FARMER_DEDUCTION },
         { title: t('generate_bill'), icon: "", href:ROUTES.BILLING.GENERATE_BILL},
-        { title: t('vlc_commission_entry'), icon: "", href: ROUTES.BILLING.VLC_COMMISSION_ENTRY},
         { title: t('vlc_ts_entry'), icon: "", href: ROUTES.BILLING.VLC_TS_ENTRY }
       ]
     });

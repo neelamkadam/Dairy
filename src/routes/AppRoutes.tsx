@@ -21,6 +21,7 @@ import GenerateBill from "@/pages/Billing/GenerateBill";
 import PaymentAndReceipt from "@/pages/Billing/PaymentAndReceipt";
 import VlcCommissionEntry from "@/pages/Billing/VlcCommissionEntry";
 import VlcTsEntry from "@/pages/Billing/VlcTsEntry";
+import FarmerCommissionEntry from "@/pages/Billing/FarmerCommissionEntry";
 import BMCCollection from "@/pages/Collection/BMCCollection";
 import ChillingCenter from "@/pages/Collection/ChillingCenter";
 import CCCollectionEntry from "@/pages/CC_Collection/CC_Collection_Entry";
@@ -166,6 +167,10 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "vlc-commission-entry",
         element: <VlcCommissionEntry />,
+      },
+      {
+        path: "farmer-commission-entry",
+        element: <FarmerCommissionEntry />,
       },
       {
         path: "vlc-ts-entry",
