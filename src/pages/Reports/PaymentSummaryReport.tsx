@@ -506,8 +506,6 @@ const PaymentSummaryReport = () => {
 
 
   const exportToPDF = async () => {
-    if (!data) return;
-
     setPdfLoading(true);
     try {
       const exportElement = pdfExportRef.current;
@@ -516,7 +514,11 @@ const PaymentSummaryReport = () => {
         return;
       }
 
-      // Wait for web fonts before rasterizing so Marathi glyphs are captured correctly.
+      if (!getAggregatedFarmers.length) {
+        toast.error('No data available');
+        return;
+      }
+
       if (document.fonts?.ready) {
         await document.fonts.ready;
       }
@@ -529,7 +531,6 @@ const PaymentSummaryReport = () => {
           const style = clonedDoc.createElement('style');
           style.innerHTML = `
             * {
-              /* Override Tailwind v4 oklch colors with safe hex equivalents for html2canvas */
               --color-gray-50: #f9fafb !important;
               --color-gray-100: #f3f4f6 !important;
               --color-gray-200: #e5e7eb !important;
@@ -559,20 +560,123 @@ const PaymentSummaryReport = () => {
       const margin = 5;
       const printableWidth = pageWidth - margin * 2;
       const printableHeight = pageHeight - margin * 2;
-      const imgHeight = (canvas.height * printableWidth) / canvas.width;
-      const imgData = canvas.toDataURL('image/png');
+      const pageCanvasHeight = Math.max(1, Math.floor((canvas.width * printableHeight) / printableWidth));
 
-      let heightLeft = imgHeight;
-      let positionY = margin;
+      const rootRect = exportElement.getBoundingClientRect();
+      const scaleFactor = canvas.width / rootRect.width;
+      const rowElements = Array.from(exportElement.querySelectorAll('tbody tr')) as HTMLTableRowElement[];
 
-      doc.addImage(imgData, 'PNG', margin, positionY, printableWidth, imgHeight);
-      heightLeft -= printableHeight;
+      // Create page boundaries every N rows using average row height to avoid per-row rounding issues
+      const rowsPerPage = 20;
+      const pageBoundaries: number[] = [];
+      const sampleCount = Math.min(5, rowElements.length);
+      let avgRowCanvasPx = 0;
+      if (sampleCount > 0) {
+        const sampleRows = rowElements.slice(0, sampleCount);
+        const totalRowPx = sampleRows.reduce((sum, r) => sum + (r.getBoundingClientRect().height || 0), 0);
+        const avgRowPx = totalRowPx / sampleCount;
+        avgRowCanvasPx = Math.max(1, Math.round(avgRowPx * scaleFactor));
+      } else {
+        avgRowCanvasPx = Math.max(1, Math.floor(pageCanvasHeight / rowsPerPage));
+      }
 
-      while (heightLeft > 0) {
-        positionY = margin - (imgHeight - heightLeft);
-        doc.addPage();
-        doc.addImage(imgData, 'PNG', margin, positionY, printableWidth, imgHeight);
-        heightLeft -= printableHeight;
+      const pageCanvasHeightFromRows = avgRowCanvasPx * rowsPerPage;
+      for (let y = pageCanvasHeightFromRows; y < canvas.height; y += pageCanvasHeightFromRows) {
+        pageBoundaries.push(Math.min(Math.floor(y), canvas.height));
+      }
+      if (pageBoundaries.length === 0 || pageBoundaries[pageBoundaries.length - 1] < canvas.height) {
+        pageBoundaries.push(canvas.height);
+      }
+      // Find footer boundaries so we can keep totals with previous page
+      const tfootEl = exportElement.querySelector('tfoot');
+      let footerTopBoundary: number | null = null;
+      let footerBottomBoundary: number | null = null;
+      if (tfootEl) {
+        const fRect = (tfootEl as HTMLElement).getBoundingClientRect();
+        footerTopBoundary = Math.floor((fRect.top - rootRect.top) * scaleFactor);
+        footerBottomBoundary = Math.ceil((fRect.bottom - rootRect.top) * scaleFactor);
+        if (footerTopBoundary < 0) footerTopBoundary = 0;
+        if (footerBottomBoundary > canvas.height) footerBottomBoundary = canvas.height;
+      }
+
+      const addSlice = (sourceY: number, sourceHeight: number) => {
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = sourceHeight;
+
+        const sliceContext = sliceCanvas.getContext('2d');
+        if (!sliceContext) {
+          throw new Error('Unable to create canvas context for PDF export');
+        }
+
+        sliceContext.drawImage(
+          canvas,
+          0,
+          sourceY,
+          canvas.width,
+          sourceHeight,
+          0,
+          0,
+          canvas.width,
+          sourceHeight
+        );
+
+        const sliceData = sliceCanvas.toDataURL('image/png');
+        const sliceHeightMm = (sourceHeight * printableWidth) / canvas.width;
+        doc.addImage(sliceData, 'PNG', margin, margin, printableWidth, sliceHeightMm);
+      };
+
+      let sourceY = 0;
+      const seamGap = 2;
+      while (sourceY < canvas.height) {
+        const pageLimit = Math.min(sourceY + pageCanvasHeight, canvas.height);
+        let sliceEnd = pageLimit;
+
+        // Prefer page boundaries (every N rows). Choose the last page boundary that fits.
+        let candidate: number | null = null;
+        for (const boundary of pageBoundaries) {
+          if (boundary <= sourceY) continue;
+          if (boundary <= pageLimit) candidate = boundary;
+          else break;
+        }
+        if (candidate !== null) {
+          sliceEnd = candidate;
+        }
+
+        if (sliceEnd <= sourceY) {
+          sliceEnd = Math.min(sourceY + pageCanvasHeight, canvas.height);
+        }
+
+        // If footer starts within this page limit but ends after it,
+        // extend the slice to include the footer so totals don't land alone on next page.
+        if (footerTopBoundary !== null && footerBottomBoundary !== null) {
+          const footerHeight = footerBottomBoundary - footerTopBoundary;
+          const distanceFooterAfterPage = footerTopBoundary - pageLimit;
+
+          // Case A: footer begins inside this page (should have been included already)
+          if (footerTopBoundary > sourceY && footerTopBoundary <= pageLimit && footerBottomBoundary > pageLimit) {
+            sliceEnd = Math.min(footerBottomBoundary, canvas.height);
+          }
+
+          // Case B: footer starts just after the page limit (tiny gap) — include it to keep totals with content
+          const smallGapThreshold = Math.max(10, Math.floor(pageCanvasHeight * 0.08));
+          if (distanceFooterAfterPage > 0 && distanceFooterAfterPage <= smallGapThreshold) {
+            sliceEnd = Math.min(footerBottomBoundary, canvas.height);
+          }
+
+          // Case C: only footer (or footer + very small content) remains after this page — include footer on this page
+          const remainingAfterPage = canvas.height - pageLimit;
+          if (remainingAfterPage <= footerHeight + 20) {
+            sliceEnd = Math.min(footerBottomBoundary, canvas.height);
+          }
+        }
+
+        if (sourceY > 0) {
+          doc.addPage();
+        }
+
+        addSlice(sourceY, sliceEnd - sourceY);
+        sourceY = sliceEnd + seamGap;
       }
 
       doc.save(`PaymentSummary_${dateFrom}_${dateTo}.pdf`);
