@@ -171,8 +171,9 @@ const BulkCollectionUpload = () => {
       } else {
         toast.warning(`${res.successful} saved, ${res.failed} failed. See details below.`);
       }
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Bulk upload failed.");
+    } catch (err) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || "Bulk upload failed.");
     } finally {
       setUploading(false);
     }
