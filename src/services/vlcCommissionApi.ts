@@ -8,6 +8,7 @@ export const vlcCommissionApi = {
     type: string;
     amount: number;
     effective_from: string;
+    milk_type?: string;
   }) => {
     return await api.post("/web/billing/vlc-commission", data);
   },

@@ -38,6 +38,7 @@ interface CommissionRecord {
   type: string;
   amount: string;
   effective_from: string;
+  milk_type?: string;
 }
 
 interface FarmerRow {
@@ -45,15 +46,20 @@ interface FarmerRow {
   fullName: string;
   mobile_number?: string;
   milkType: string;
-  // UI state
+  // Cow (or primary for single-type) commission
   commissionType: string;
   commissionAmount: string;
   effectiveDate: string;
+  // Buffalo commission — only used when milkType === "Both"
+  buffaloCommissionType: string;
+  buffaloCommissionAmount: string;
+  buffaloEffectiveDate: string;
+  // UI state
   history: CommissionRecord[];
   historyOpen: boolean;
   historyLoading: boolean;
   saving: boolean;
-  hasExisting: boolean; // true if pre-filled from API
+  hasExisting: boolean;
 }
 
 interface SummaryRecord {
@@ -63,6 +69,7 @@ interface SummaryRecord {
   type: string;
   amount: string;
   effective_from: string;
+  milk_type?: string;
 }
 
 const FarmerCommissionEntry = () => {
@@ -92,18 +99,31 @@ const FarmerCommissionEntry = () => {
     }
   }, [selectedVlc]);
 
+  useEffect(() => {
+    if (farmers.length === 0) return;
+    setFarmers((prev) =>
+      prev.map((f) => ({
+        ...f,
+        effectiveDate: bulkDate,
+        ...(f.milkType === "Both" ? { buffaloEffectiveDate: bulkDate } : {}),
+      }))
+    );
+  }, [bulkDate]);
+
   const fetchFarmers = async () => {
     setFetchingFarmers(true);
     try {
-      // Fetch farmers + existing commissions in parallel
       const [farmerData, commissionRes] = await Promise.allSettled([
         userApi.getFarmers(selectedVlc),
         vlcCommissionApi.getByVlcc(selectedVlc),
       ]);
 
-      // Build a map: farmer_id → latest commission record
+      // Build maps: farmer_id → latest record (overall, and per milk type)
       const existingMap: Record<string, SummaryRecord> = {};
+      const existingMapCow: Record<string, SummaryRecord> = {};
+      const existingMapBuffalo: Record<string, SummaryRecord> = {};
       const existingHistory: Record<string, SummaryRecord[]> = {};
+
       if (commissionRes.status === "fulfilled") {
         const records: SummaryRecord[] = commissionRes.value.data?.data ?? [];
         records.forEach((r) => {
@@ -113,8 +133,12 @@ const FarmerCommissionEntry = () => {
           existingHistory[key].push(r);
           // First occurrence = latest (API returns DESC)
           if (!existingMap[key]) existingMap[key] = r;
+          if (r.milk_type === "Cow" && !existingMapCow[key]) existingMapCow[key] = r;
+          if (r.milk_type === "Buffalo" && !existingMapBuffalo[key]) existingMapBuffalo[key] = r;
         });
       }
+
+      const today = format(new Date(), "yyyy-MM-dd");
 
       if (
         farmerData.status === "fulfilled" &&
@@ -123,24 +147,53 @@ const FarmerCommissionEntry = () => {
       ) {
         setFarmers(
           farmerData.value.data.map((f: any) => {
+            if (f.milkType === "Both") {
+              // For "Both" farmers, look for cow and buffalo records separately
+              const cowEx = existingMapCow[f.username] ?? existingMap[f.username];
+              const bufEx = existingMapBuffalo[f.username];
+              return {
+                username: f.username,
+                fullName: f.fullName,
+                mobile_number: f.mobile_number,
+                milkType: f.milkType,
+                commissionType: cowEx
+                  ? cowEx.type === "Commission" ? "per-liter" : "fixed"
+                  : "per-liter",
+                commissionAmount: cowEx ? parseFloat(cowEx.amount).toFixed(2) : "",
+                effectiveDate: cowEx
+                  ? format(new Date(cowEx.effective_from), "yyyy-MM-dd")
+                  : today,
+                buffaloCommissionType: bufEx
+                  ? bufEx.type === "Commission" ? "per-liter" : "fixed"
+                  : "per-liter",
+                buffaloCommissionAmount: bufEx ? parseFloat(bufEx.amount).toFixed(2) : "",
+                buffaloEffectiveDate: bufEx
+                  ? format(new Date(bufEx.effective_from), "yyyy-MM-dd")
+                  : today,
+                history: existingHistory[f.username] ?? [],
+                historyOpen: false,
+                historyLoading: false,
+                saving: false,
+                hasExisting: !!(cowEx || bufEx),
+              };
+            }
+
             const existing = existingMap[f.username];
             return {
               username: f.username,
               fullName: f.fullName,
               mobile_number: f.mobile_number,
               milkType: f.milkType,
-              // Pre-fill from existing commission if available
               commissionType: existing
-                ? existing.type === "Commission"
-                  ? "per-liter"
-                  : "fixed"
+                ? existing.type === "Commission" ? "per-liter" : "fixed"
                 : "per-liter",
-              commissionAmount: existing
-                ? parseFloat(existing.amount).toFixed(2)
-                : "",
+              commissionAmount: existing ? parseFloat(existing.amount).toFixed(2) : "",
               effectiveDate: existing
                 ? format(new Date(existing.effective_from), "yyyy-MM-dd")
-                : format(new Date(), "yyyy-MM-dd"),
+                : today,
+              buffaloCommissionType: "per-liter",
+              buffaloCommissionAmount: "",
+              buffaloEffectiveDate: today,
               history: existingHistory[f.username] ?? [],
               historyOpen: false,
               historyLoading: false,
@@ -162,22 +215,32 @@ const FarmerCommissionEntry = () => {
 
   // ─── Quick Apply ──────────────────────────────────────────────────────────
   const applyBulk = (milkTypeFilter: "All" | "Cow" | "Buffalo") => {
-    const amount =
-      milkTypeFilter === "All"
-        ? bulkAmount
-        : milkTypeFilter === "Cow"
-        ? cowAmount
-        : buffaloAmount;
-
     setFarmers((prev) =>
       prev.map((f) => {
+        if (f.milkType === "Both") {
+          const patch: Partial<FarmerRow> = {};
+          if (milkTypeFilter === "All" || milkTypeFilter === "Cow") {
+            patch.commissionType = bulkType;
+            patch.commissionAmount = milkTypeFilter === "All" ? bulkAmount : cowAmount;
+            patch.effectiveDate = bulkDate;
+          }
+          if (milkTypeFilter === "All" || milkTypeFilter === "Buffalo") {
+            patch.buffaloCommissionType = bulkType;
+            patch.buffaloCommissionAmount = milkTypeFilter === "All" ? bulkAmount : buffaloAmount;
+            patch.buffaloEffectiveDate = bulkDate;
+          }
+          return { ...f, ...patch };
+        }
+
+        // Single-type farmers
         if (milkTypeFilter !== "All" && f.milkType !== milkTypeFilter) return f;
-        return {
-          ...f,
-          commissionType: bulkType,
-          commissionAmount: amount,
-          effectiveDate: bulkDate,
-        };
+        const amount =
+          milkTypeFilter === "All"
+            ? bulkAmount
+            : milkTypeFilter === "Cow"
+            ? cowAmount
+            : buffaloAmount;
+        return { ...f, commissionType: bulkType, commissionAmount: amount, effectiveDate: bulkDate };
       })
     );
   };
@@ -208,29 +271,74 @@ const FarmerCommissionEntry = () => {
 
   // ─── Save single farmer ───────────────────────────────────────────────────
   const saveFarmer = async (farmer: FarmerRow) => {
-    if (!farmer.commissionAmount || !farmer.effectiveDate) {
-      toast.error("Enter amount and effective date before saving");
-      return;
-    }
     updateFarmer(farmer.username, { saving: true });
     try {
-      const payload = {
-        vlcc: selectedVlc,
-        farmer_id: farmer.username,
-        type: farmer.commissionType === "per-liter" ? "Commission" : "Fixed",
-        amount: parseFloat(farmer.commissionAmount),
-        effective_from: farmer.effectiveDate,
-      };
-      const res = await vlcCommissionApi.create(payload);
-      if (res.data.success) {
+      if (farmer.milkType === "Both") {
+        const hasCow = farmer.commissionAmount && parseFloat(farmer.commissionAmount) > 0 && farmer.effectiveDate;
+        const hasBuffalo = farmer.buffaloCommissionAmount && parseFloat(farmer.buffaloCommissionAmount) > 0 && farmer.buffaloEffectiveDate;
+
+        if (!hasCow && !hasBuffalo) {
+          toast.error("Enter at least one commission amount and effective date");
+          return;
+        }
+
+        const saves: Promise<any>[] = [];
+        if (hasCow) {
+          saves.push(
+            vlcCommissionApi.create({
+              vlcc: selectedVlc,
+              farmer_id: farmer.username,
+              type: farmer.commissionType === "per-liter" ? "Commission" : "Fixed",
+              amount: parseFloat(farmer.commissionAmount),
+              effective_from: farmer.effectiveDate,
+              milk_type: "Cow",
+            })
+          );
+        }
+        if (hasBuffalo) {
+          saves.push(
+            vlcCommissionApi.create({
+              vlcc: selectedVlc,
+              farmer_id: farmer.username,
+              type: farmer.buffaloCommissionType === "per-liter" ? "Commission" : "Fixed",
+              amount: parseFloat(farmer.buffaloCommissionAmount),
+              effective_from: farmer.buffaloEffectiveDate,
+              milk_type: "Buffalo",
+            })
+          );
+        }
+
+        await Promise.all(saves);
         toast.success(`Commission saved for ${farmer.fullName}`);
-        // Refresh history inline
         const histRes = await vlcCommissionApi.getByFarmer(selectedVlc, farmer.username);
         updateFarmer(farmer.username, {
           history: histRes.data?.data ?? [],
           historyOpen: true,
           commissionAmount: "",
+          buffaloCommissionAmount: "",
         });
+      } else {
+        if (!farmer.commissionAmount || !farmer.effectiveDate) {
+          toast.error("Enter amount and effective date before saving");
+          return;
+        }
+        const payload = {
+          vlcc: selectedVlc,
+          farmer_id: farmer.username,
+          type: farmer.commissionType === "per-liter" ? "Commission" : "Fixed",
+          amount: parseFloat(farmer.commissionAmount),
+          effective_from: farmer.effectiveDate,
+        };
+        const res = await vlcCommissionApi.create(payload);
+        if (res.data.success) {
+          toast.success(`Commission saved for ${farmer.fullName}`);
+          const histRes = await vlcCommissionApi.getByFarmer(selectedVlc, farmer.username);
+          updateFarmer(farmer.username, {
+            history: histRes.data?.data ?? [],
+            historyOpen: true,
+            commissionAmount: "",
+          });
+        }
       }
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "Failed to save commission");
@@ -241,7 +349,15 @@ const FarmerCommissionEntry = () => {
 
   // ─── Save ALL that have amounts filled ────────────────────────────────────
   const saveAll = async () => {
-    const toSave = farmers.filter((f) => f.commissionAmount && parseFloat(f.commissionAmount) > 0);
+    const toSave = farmers.filter((f) => {
+      if (f.milkType === "Both") {
+        return (
+          (f.commissionAmount && parseFloat(f.commissionAmount) > 0) ||
+          (f.buffaloCommissionAmount && parseFloat(f.buffaloCommissionAmount) > 0)
+        );
+      }
+      return f.commissionAmount && parseFloat(f.commissionAmount) > 0;
+    });
     if (toSave.length === 0) {
       toast.error("No commission amounts filled in");
       return;
@@ -258,10 +374,11 @@ const FarmerCommissionEntry = () => {
       f.fullName?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalEntered = farmers.reduce(
-    (s, f) => s + (parseFloat(f.commissionAmount) || 0),
-    0
-  );
+  const totalEntered = farmers.reduce((s, f) => {
+    const cow = parseFloat(f.commissionAmount) || 0;
+    const buffalo = f.milkType === "Both" ? parseFloat(f.buffaloCommissionAmount) || 0 : 0;
+    return s + cow + buffalo;
+  }, 0);
 
   const fetchSummary = async () => {
     if (!selectedVlc) {
@@ -274,7 +391,6 @@ const FarmerCommissionEntry = () => {
     try {
       const res = await vlcCommissionApi.getByVlcc(selectedVlc);
       const records: SummaryRecord[] = res.data?.data ?? [];
-      // Group by farmer_id
       const grouped: Record<string, SummaryRecord[]> = {};
       records.forEach((r) => {
         const key = r.farmer_id ?? "__vlc__";
@@ -288,6 +404,25 @@ const FarmerCommissionEntry = () => {
       setSummaryLoading(false);
     }
   };
+
+  // ─── Reusable commission type select ─────────────────────────────────────
+  const CommissionTypeSelect = ({
+    value,
+    onChange,
+  }: {
+    value: string;
+    onChange: (v: string) => void;
+  }) => (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className="h-8 border-gray-300 text-xs bg-white w-24 shrink-0">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent className="bg-white">
+        <SelectItem value="per-liter">Per Liter</SelectItem>
+        <SelectItem value="fixed">Fixed</SelectItem>
+      </SelectContent>
+    </Select>
+  );
 
   return (
     <div className="w-full px-4 mx-auto space-y-4 mt-6 pb-10">
@@ -502,115 +637,243 @@ const FarmerCommissionEntry = () => {
                     ) : (
                       filtered.map((farmer) => (
                         <>
-                          <TableRow
-                            key={farmer.username}
-                            className="hover:bg-gray-50 align-middle"
-                          >
-                            {/* Farmer name */}
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <div>
-                                  <p className="font-medium text-gray-800 text-sm">{farmer.fullName}</p>
-                                  <p className="text-xs text-gray-400">{farmer.username}</p>
-                                </div>
-                                {farmer.hasExisting && (
-                                  <span className="text-[10px] font-bold bg-green-100 text-green-700 border border-green-200 px-1.5 py-0.5 rounded-full whitespace-nowrap">
-                                    ✓ Existing
-                                  </span>
-                                )}
-                              </div>
-                            </TableCell>
-
-                            {/* Milk type badge */}
-                            <TableCell>
-                              <span
-                                className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                                  farmer.milkType === "Cow"
-                                    ? "bg-amber-100 text-amber-700"
-                                    : farmer.milkType === "Buffalo"
-                                    ? "bg-blue-100 text-blue-700"
-                                    : "bg-gray-100 text-gray-600"
-                                }`}
-                              >
-                                {farmer.milkType}
-                              </span>
-                            </TableCell>
-
-                            {/* Commission type */}
-                            <TableCell>
-                              <Select
-                                value={farmer.commissionType}
-                                onValueChange={(v) =>
-                                  updateFarmer(farmer.username, { commissionType: v })
-                                }
-                              >
-                                <SelectTrigger className="h-9 border-gray-300 text-xs bg-white">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent className="bg-white">
-                                  <SelectItem value="per-liter">Per Liter</SelectItem>
-                                  <SelectItem value="fixed">Fixed</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </TableCell>
-
-                            {/* Amount */}
-                            <TableCell>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                placeholder="0.00"
-                                value={farmer.commissionAmount}
-                                onChange={(e) =>
-                                  updateFarmer(farmer.username, {
-                                    commissionAmount: e.target.value,
-                                  })
-                                }
-                                className="h-9 border-gray-300 text-sm text-right w-full"
-                              />
-                            </TableCell>
-
-                            {/* Effective date */}
-                            <TableCell>
-                              <Input
-                                type="date"
-                                value={farmer.effectiveDate}
-                                onChange={(e) =>
-                                  updateFarmer(farmer.username, {
-                                    effectiveDate: e.target.value,
-                                  })
-                                }
-                                className="h-9 border-gray-300 text-sm w-full"
-                              />
-                            </TableCell>
-
-                            {/* Actions */}
-                            <TableCell className="text-center">
-                              <div className="flex items-center justify-center gap-1">
-                                <Button
-                                  size="sm"
-                                  onClick={() => saveFarmer(farmer)}
-                                  disabled={farmer.saving}
-                                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 h-8"
-                                >
-                                  {farmer.saving ? "..." : "Save"}
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => toggleHistory(farmer)}
-                                  className="text-xs px-2 h-8 border-gray-300"
-                                  title="View history"
-                                >
-                                  {farmer.historyOpen ? (
-                                    <ChevronDown className="w-3.5 h-3.5" />
-                                  ) : (
-                                    <History className="w-3.5 h-3.5" />
+                          {farmer.milkType === "Both" ? (
+                            /* ── Both-type: side-by-side Cow + Buffalo ── */
+                            <TableRow
+                              key={farmer.username}
+                              className="hover:bg-gray-50 align-middle"
+                            >
+                              {/* Farmer name */}
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <div>
+                                    <p className="font-medium text-gray-800 text-sm">{farmer.fullName}</p>
+                                    <p className="text-xs text-gray-400">{farmer.username}</p>
+                                  </div>
+                                  {farmer.hasExisting && (
+                                    <span className="text-[10px] font-bold bg-green-100 text-green-700 border border-green-200 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                                      ✓ Existing
+                                    </span>
                                   )}
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
+                                </div>
+                              </TableCell>
+
+                              {/* Milk badge */}
+                              <TableCell>
+                                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                                  Both
+                                </span>
+                              </TableCell>
+
+                              {/* Cow + Buffalo side-by-side spanning Type / Amount / Date columns */}
+                              <TableCell colSpan={3} className="py-2">
+                                <div className="flex gap-3 items-start">
+                                  {/* Cow fields */}
+                                  <div className="flex-1 space-y-1 min-w-0">
+                                    <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wide">
+                                      🐄 Cow
+                                    </p>
+                                    <div className="flex gap-1 flex-wrap">
+                                      <CommissionTypeSelect
+                                        value={farmer.commissionType}
+                                        onChange={(v) => updateFarmer(farmer.username, { commissionType: v })}
+                                      />
+                                      <Input
+                                        type="number"
+                                        step="0.01"
+                                        placeholder="0.00"
+                                        value={farmer.commissionAmount}
+                                        onChange={(e) =>
+                                          updateFarmer(farmer.username, { commissionAmount: e.target.value })
+                                        }
+                                        className="h-8 border-gray-300 text-xs text-right w-20 shrink-0"
+                                      />
+                                      <Input
+                                        type="date"
+                                        value={farmer.effectiveDate}
+                                        onChange={(e) =>
+                                          updateFarmer(farmer.username, { effectiveDate: e.target.value })
+                                        }
+                                        className="h-8 border-gray-300 text-xs w-36 shrink-0"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  {/* Divider */}
+                                  <div className="w-px bg-gray-200 self-stretch mt-5" />
+
+                                  {/* Buffalo fields */}
+                                  <div className="flex-1 space-y-1 min-w-0">
+                                    <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wide">
+                                      🐃 Buffalo
+                                    </p>
+                                    <div className="flex gap-1 flex-wrap">
+                                      <CommissionTypeSelect
+                                        value={farmer.buffaloCommissionType}
+                                        onChange={(v) => updateFarmer(farmer.username, { buffaloCommissionType: v })}
+                                      />
+                                      <Input
+                                        type="number"
+                                        step="0.01"
+                                        placeholder="0.00"
+                                        value={farmer.buffaloCommissionAmount}
+                                        onChange={(e) =>
+                                          updateFarmer(farmer.username, { buffaloCommissionAmount: e.target.value })
+                                        }
+                                        className="h-8 border-gray-300 text-xs text-right w-20 shrink-0"
+                                      />
+                                      <Input
+                                        type="date"
+                                        value={farmer.buffaloEffectiveDate}
+                                        onChange={(e) =>
+                                          updateFarmer(farmer.username, { buffaloEffectiveDate: e.target.value })
+                                        }
+                                        className="h-8 border-gray-300 text-xs w-36 shrink-0"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              </TableCell>
+
+                              {/* Actions */}
+                              <TableCell className="text-center">
+                                <div className="flex items-center justify-center gap-1">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => saveFarmer(farmer)}
+                                    disabled={farmer.saving}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 h-8"
+                                  >
+                                    {farmer.saving ? "..." : "Save"}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => toggleHistory(farmer)}
+                                    className="text-xs px-2 h-8 border-gray-300"
+                                    title="View history"
+                                  >
+                                    {farmer.historyOpen ? (
+                                      <ChevronDown className="w-3.5 h-3.5" />
+                                    ) : (
+                                      <History className="w-3.5 h-3.5" />
+                                    )}
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            /* ── Single-type (Cow or Buffalo) row ── */
+                            <TableRow
+                              key={farmer.username}
+                              className="hover:bg-gray-50 align-middle"
+                            >
+                              {/* Farmer name */}
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <div>
+                                    <p className="font-medium text-gray-800 text-sm">{farmer.fullName}</p>
+                                    <p className="text-xs text-gray-400">{farmer.username}</p>
+                                  </div>
+                                  {farmer.hasExisting && (
+                                    <span className="text-[10px] font-bold bg-green-100 text-green-700 border border-green-200 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                                      ✓ Existing
+                                    </span>
+                                  )}
+                                </div>
+                              </TableCell>
+
+                              {/* Milk type badge */}
+                              <TableCell>
+                                <span
+                                  className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                    farmer.milkType === "Cow"
+                                      ? "bg-amber-100 text-amber-700"
+                                      : farmer.milkType === "Buffalo"
+                                      ? "bg-blue-100 text-blue-700"
+                                      : "bg-gray-100 text-gray-600"
+                                  }`}
+                                >
+                                  {farmer.milkType}
+                                </span>
+                              </TableCell>
+
+                              {/* Commission type */}
+                              <TableCell>
+                                <Select
+                                  value={farmer.commissionType}
+                                  onValueChange={(v) =>
+                                    updateFarmer(farmer.username, { commissionType: v })
+                                  }
+                                >
+                                  <SelectTrigger className="h-9 border-gray-300 text-xs bg-white">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-white">
+                                    <SelectItem value="per-liter">Per Liter</SelectItem>
+                                    <SelectItem value="fixed">Fixed</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
+
+                              {/* Amount */}
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="0.00"
+                                  value={farmer.commissionAmount}
+                                  onChange={(e) =>
+                                    updateFarmer(farmer.username, {
+                                      commissionAmount: e.target.value,
+                                    })
+                                  }
+                                  className="h-9 border-gray-300 text-sm text-right w-full"
+                                />
+                              </TableCell>
+
+                              {/* Effective date */}
+                              <TableCell>
+                                <Input
+                                  type="date"
+                                  value={farmer.effectiveDate}
+                                  onChange={(e) =>
+                                    updateFarmer(farmer.username, {
+                                      effectiveDate: e.target.value,
+                                    })
+                                  }
+                                  className="h-9 border-gray-300 text-sm w-full"
+                                />
+                              </TableCell>
+
+                              {/* Actions */}
+                              <TableCell className="text-center">
+                                <div className="flex items-center justify-center gap-1">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => saveFarmer(farmer)}
+                                    disabled={farmer.saving}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 h-8"
+                                  >
+                                    {farmer.saving ? "..." : "Save"}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => toggleHistory(farmer)}
+                                    className="text-xs px-2 h-8 border-gray-300"
+                                    title="View history"
+                                  >
+                                    {farmer.historyOpen ? (
+                                      <ChevronDown className="w-3.5 h-3.5" />
+                                    ) : (
+                                      <History className="w-3.5 h-3.5" />
+                                    )}
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
 
                           {/* History sub-row */}
                           {farmer.historyOpen && (
@@ -645,6 +908,16 @@ const FarmerCommissionEntry = () => {
                                           {isActive && (
                                             <span className="block text-[10px] font-bold text-green-700 mb-1 uppercase tracking-wide">
                                               Active
+                                            </span>
+                                          )}
+                                          {h.milk_type && (
+                                            <span
+                                              className={cn(
+                                                "block text-[10px] font-semibold mb-0.5",
+                                                h.milk_type === "Cow" ? "text-amber-600" : "text-blue-600"
+                                              )}
+                                            >
+                                              {h.milk_type === "Cow" ? "🐄" : "🐃"} {h.milk_type}
                                             </span>
                                           )}
                                           <p className="font-semibold text-gray-700">
@@ -761,7 +1034,6 @@ const FarmerCommissionEntry = () => {
                           <TableCell className="text-gray-600 text-sm">
                             {format(new Date(latest.effective_from), "dd-MM-yyyy")}
                           </TableCell>
-                      
                         </TableRow>
 
                         {/* Expanded history rows */}
