@@ -485,9 +485,12 @@ const FarmerBillInvoiceReport = () => {
       const map = new Map<string, any>();
       // API returns DESC order → first occurrence is the latest (active) for each farmer
       records.forEach((r) => {
-        if (r.farmer_id && !map.has(r.farmer_id)) {
-          map.set(r.farmer_id, r);
-        }
+        if (!r.farmer_id) return;
+        // Store milk-type-specific record when milk_type is present (e.g. "F001_Cow")
+        const typedKey = r.milk_type ? `${r.farmer_id}_${r.milk_type}` : r.farmer_id;
+        if (!map.has(typedKey)) map.set(typedKey, r);
+        // Also keep a generic fallback keyed by farmer_id alone (first = latest, API DESC)
+        if (!map.has(r.farmer_id)) map.set(r.farmer_id, r);
       });
       return map;
     } catch {
@@ -501,10 +504,12 @@ const FarmerBillInvoiceReport = () => {
   // Returns a normalised object { type, amount, effective_from } or null.
   const resolveFarmerCommission = (
     farmerId: string,
+    milkType: string,
     farmerCommMap: Map<string, any>,
     vlcComm: any | null
   ): { type: string; amount: string; effective_from: string } | null => {
-    const farmerRecord = farmerCommMap.get(farmerId);
+    // Prefer milk-type-specific record (e.g. "F001_Cow"), fall back to generic farmer record
+    const farmerRecord = farmerCommMap.get(`${farmerId}_${milkType}`) ?? farmerCommMap.get(farmerId);
     if (farmerRecord) {
       return {
         type: farmerRecord.type,          // 'Commission' | 'Fixed'
@@ -647,10 +652,6 @@ const FarmerBillInvoiceReport = () => {
           previous_bill: farmerInfo.previous_bill,
           bonus_deduction_info: attachBonus(farmerInfo, bonusMap, templateDataItems.reduce((s, i) => s + i.liters, 0)).bonus_deduction_info,
           bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary,
-          travel_commission: buildTravelCommission(
-            resolveFarmerCommission(farmerId, farmerCommMap, vlcComm),
-            templateDataItems.reduce((s, i) => s + i.liters, 0)
-          ),
           bankDetails: farmerInfo.farmer_details ? {
             accountNumber: farmerInfo.farmer_details.accountNumber,
             ifscCode: farmerInfo.farmer_details.ifscCode,
@@ -665,33 +666,52 @@ const FarmerBillInvoiceReport = () => {
         const isMixed = milkTypeFilter === 'All' && hasCow && hasBuffalo;
 
         if (isMixed) {
+          const cowItems = templateDataItems.filter(i => i.type === 'Cow');
+          const buffaloItems = templateDataItems.filter(i => i.type === 'Buffalo');
+
           // 1. Cow Page (Header YES, Summary NO)
-          const cowHtml = generateTemplate2({ 
-            ...baseParams, 
+          const cowHtml = generateTemplate2({
+            ...baseParams,
             milkType: 'Cow',
             hideHeader: false,
-            hideSummary: true 
+            hideSummary: true,
+            travel_commission: buildTravelCommission(
+              resolveFarmerCommission(farmerId, 'Cow', farmerCommMap, vlcComm),
+              cowItems.reduce((s, i) => s + i.liters, 0)
+            )
           }, reportLang);
           const cowPage = await generatePage(cowHtml);
-          if (i > 0) pdf.addPage(); 
-          else if (pdf.getNumberOfPages() > 1) pdf.addPage(); 
-          
+          if (i > 0) pdf.addPage();
+          else if (pdf.getNumberOfPages() > 1) pdf.addPage();
+
           pdf.addImage(cowPage.imgData, 'JPEG', 0, 0, cowPage.imgWidth, cowPage.imgHeight);
 
           // 2. Buffalo Page (Header NO, Summary YES)
-          const buffaloHtml = generateTemplate2({ 
-            ...baseParams, 
+          const buffaloHtml = generateTemplate2({
+            ...baseParams,
             milkType: 'Buffalo',
             hideHeader: true,
-            hideSummary: false
+            hideSummary: false,
+            travel_commission: buildTravelCommission(
+              resolveFarmerCommission(farmerId, 'Buffalo', farmerCommMap, vlcComm),
+              buffaloItems.reduce((s, i) => s + i.liters, 0)
+            )
           }, reportLang);
           const buffaloPage = await generatePage(buffaloHtml);
           pdf.addPage();
           pdf.addImage(buffaloPage.imgData, 'JPEG', 0, 0, buffaloPage.imgWidth, buffaloPage.imgHeight);
 
         } else {
-          // Single type (standard)
-          const htmlContent = generateTemplate2({ ...baseParams, milkType: milkTypeFilter }, reportLang);
+          // Detect actual milk type for single-type farmers (milkTypeFilter may be 'All')
+          const actualMilkType = milkTypeFilter !== 'All' ? milkTypeFilter : (templateDataItems[0]?.type || 'Cow');
+          const htmlContent = generateTemplate2({
+            ...baseParams,
+            milkType: milkTypeFilter,
+            travel_commission: buildTravelCommission(
+              resolveFarmerCommission(farmerId, actualMilkType, farmerCommMap, vlcComm),
+              templateDataItems.reduce((s, i) => s + i.liters, 0)
+            )
+          }, reportLang);
           const page = await generatePage(htmlContent);
           
           if (i > 0) pdf.addPage();
@@ -818,7 +838,7 @@ const FarmerBillInvoiceReport = () => {
         const farmersWithComm = chunk.map(farmer => ({
           ...farmer,
           travel_commission: buildTravelCommission(
-            resolveFarmerCommission(farmer.farmer_id, farmerCommMap, vlcComm),
+            resolveFarmerCommission(farmer.farmer_id, farmer._displayMilkType || milkTypeFilter, farmerCommMap, vlcComm),
             farmer.collections_summary?.total_quantity || 0
           )
         }));
@@ -966,7 +986,12 @@ const FarmerBillInvoiceReport = () => {
           bonus_deduction_info: attachBonus(farmer, bonusMap, farmer.collections_summary?.total_quantity || 0).bonus_deduction_info,
           bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary || null,
           travel_commission: buildTravelCommission(
-            resolveFarmerCommission(farmer.farmer_id, farmerCommMap, vlcComm),
+            resolveFarmerCommission(
+              farmer.farmer_id,
+              milkTypeFilter !== 'All' ? milkTypeFilter : (farmerBillData[0]?.type || 'Cow'),
+              farmerCommMap,
+              vlcComm
+            ),
             farmerBillData.reduce((s, i) => s + i.liters, 0)
           )
         };
@@ -975,14 +1000,33 @@ const FarmerBillInvoiceReport = () => {
         const hasBuffalo = farmerBillData.some(d => d.type === 'Buffalo' || d.type === 'Buffaloes');
 
         if (hasCow && hasBuffalo) {
+          const cowBillData = farmerBillData.filter(d => d.type === 'Cow');
+          const buffaloBillData = farmerBillData.filter(d => d.type === 'Buffalo' || (d.type as string) === 'Buffaloes');
+
           // Page 1: Cow only, hide summary
-          const cowHtml = generateTemplateDetailedHorizontal({ ...templateData, renderOnly: 'Cow', hideSummary: true } as any, reportLang);
+          const cowHtml = generateTemplateDetailedHorizontal({
+            ...templateData,
+            renderOnly: 'Cow',
+            hideSummary: true,
+            travel_commission: buildTravelCommission(
+              resolveFarmerCommission(farmer.farmer_id, 'Cow', farmerCommMap, vlcComm),
+              cowBillData.reduce((s, i) => s + i.liters, 0)
+            )
+          } as any, reportLang);
           const cowPage = await generatePage(cowHtml);
           if (i > 0) pdf.addPage();
           pdf.addImage(cowPage.imgData, 'JPEG', 0, 0, cowPage.imgWidth, cowPage.imgHeight);
 
           // Page 2: Buffalo only, show summary
-          const buffHtml = generateTemplateDetailedHorizontal({ ...templateData, renderOnly: 'Buffalo', hideSummary: false } as any, reportLang);
+          const buffHtml = generateTemplateDetailedHorizontal({
+            ...templateData,
+            renderOnly: 'Buffalo',
+            hideSummary: false,
+            travel_commission: buildTravelCommission(
+              resolveFarmerCommission(farmer.farmer_id, 'Buffalo', farmerCommMap, vlcComm),
+              buffaloBillData.reduce((s, i) => s + i.liters, 0)
+            )
+          } as any, reportLang);
           const buffPage = await generatePage(buffHtml);
           pdf.addPage();
           pdf.addImage(buffPage.imgData, 'JPEG', 0, 0, buffPage.imgWidth, buffPage.imgHeight);

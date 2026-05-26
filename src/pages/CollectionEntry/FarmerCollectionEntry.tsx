@@ -36,6 +36,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { settingsApi } from "@/services/settingsApi";
+import BulkCollectionUpload from "@/pages/Collection/BulkCollectionUpload";
 
 interface Collection {
   id: number;
@@ -662,20 +663,21 @@ const FarmerCollectionEntry = () => {
             </h1>
           </div>
           <div className="flex items-center gap-3">
-            <Button 
+            <Button
               onClick={() => navigate(ROUTES.CC_COLLECTION.ANALYSER_COLLECTION)}
               className="bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 shadow-sm transition-colors"
               variant="outline"
             >
               Analyser
             </Button>
-            <Button 
+            <Button
               onClick={() => navigate(ROUTES.CC_COLLECTION.WEIGHT_COLLECTION)}
               className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-200 shadow-sm transition-colors"
               variant="outline"
             >
               Weight Collection
             </Button>
+            <BulkCollectionUpload />
           </div>
         </div>
 

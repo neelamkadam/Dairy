@@ -54,5 +54,24 @@ export const collectionApi = {
   delete: async (id: number) => {
     const response = await AxiosClient.delete(`/collections/${id}`);
     return response.data;
+  },
+
+  bulkCreate: async (collections: BulkCollectionItem[]) => {
+    const response = await AxiosClient.post('/collections/bulk', { collections });
+    return response.data;
   }
 };
+
+export interface BulkCollectionItem {
+  farmer_id: string;
+  dairy_id: string | number;
+  type: string;
+  quantity: number;
+  fat: number;
+  snf: number;
+  clr: number;
+  rate: number;
+  shift: string;
+  date?: string;
+  water?: number;
+}
