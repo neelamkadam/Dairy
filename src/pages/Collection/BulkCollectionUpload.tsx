@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { format } from "date-fns";
 import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -124,7 +125,12 @@ const BulkCollectionUpload = () => {
           clr: toNum(row["clr"]),
           rate: toNum(row["rate"]),
           shift: String(row["shift"] ?? "Morning").trim(),
-          date: row["date"] ? String(row["date"]).trim() : undefined,
+          date: (() => {
+            const d = row["date"] ? String(row["date"]).trim() : format(new Date(), "yyyy-MM-dd");
+            const shiftVal = String(row["shift"] ?? "Morning").trim().toLowerCase();
+            const time = shiftVal.startsWith("e") ? "18:00:00" : "06:00:00";
+            return d.includes(" ") ? d : `${d} ${time}`;
+          })(),
           water: row["water"] !== "" ? toNum(row["water"]) : 0,
         }));
 
