@@ -67,6 +67,10 @@ export const ROUTES = {
   GROUP_CATTLE_FEED_STOCK:`/dashboard/group-cattle-feed-stock`,
   FARMER_PAYMENT:`/dashboard/farmer-payment`,
   DYNAMIC_BILL_CYCLE: `/dashboard/dynamic-bill-cycle`,
+  ATTENDANCE: {
+    ATTENDANCE: `/admin/attendance`,
+    SUPERVISOR: `/admin/attendance/supervisor`,
+  },
   PROFILE:`/dashboard/profile`,
   AVATAR_SELECTOR:`/dashboard/avatar-selector`,
   ADMIN_DASHBOARD:`/admin/admin-dashboard`,

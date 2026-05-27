@@ -65,6 +65,8 @@ import Profile from "@/pages/Profile/Profile";
 import AvatarSelector from "@/pages/Profile/AvatarSelector";
 import GroupCattleFeedStock from "@/pages/Payment/GroupCattleFeedStock";
 import FarmerPayment from "@/pages/Payment/FarmerPayment";
+import Attendance from "@/pages/Attendance/Attendance";
+import Supervisor from "@/pages/Attendance/Supervisor";
 import { createBrowserRouter } from "react-router-dom";
 
 export const AppRoutes = createBrowserRouter([
@@ -345,6 +347,14 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "web-application-activation",
         element: <WebApplicationActivation />,
+      },
+      {
+        path: "attendance",
+        element: <Attendance />,
+      },
+      {
+        path: "attendance/supervisor",
+        element: <Supervisor />,
       },
     ],
   },

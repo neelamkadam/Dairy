@@ -56,6 +56,12 @@ const menuItems: MenuItem[] = [
     children: [
       { title: "Create Admin", icon: "🛡️", href: ROUTES.ADMIN_CREATE_ADMIN},
     ]
+  },
+
+  {
+    title: "Attendance & Supervisior",
+    icon: "🗓️",
+    href: ROUTES.ATTENDANCE.SUPERVISOR 
   }
 ];
 
