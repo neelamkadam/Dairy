@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { AppDatePicker } from "@/components/ui/date-picker";
 import { Calendar, Download, Loader2, FileSpreadsheet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +6,7 @@ import { useAppSelector } from "@/redux/store";
 import { api } from "@/services/config";
 import { toast } from "react-toastify";
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+import autoTable from "jspdf-autotable";
 import PdfLoader from "@/components/PdfLoader";
 import * as XLSX from "xlsx";
 import { userApi } from "@/services/reportsApi";
@@ -117,7 +117,6 @@ const PaymentSummaryReport = () => {
   const [farmerNamesMap, setFarmerNamesMap] = useState<Map<string, string>>(new Map());
   const [data, setData] = useState<PaymentSummaryData | null>(null);
   const [bonusData, setBonusData] = useState<Map<string, any>>(new Map());
-  const pdfExportRef = useRef<HTMLDivElement | null>(null);
   const authState = useAppSelector((state) => state.authData);
   const userData = authState?.userData;
 
@@ -506,178 +505,135 @@ const PaymentSummaryReport = () => {
 
 
   const exportToPDF = async () => {
+    const farmers = getAggregatedFarmers;
+    if (!farmers.length) {
+      toast.error('No data available');
+      return;
+    }
+
     setPdfLoading(true);
     try {
-      const exportElement = pdfExportRef.current;
-      if (!exportElement) {
-        toast.error('Report content is not ready for PDF export');
-        return;
-      }
-
-      if (!getAggregatedFarmers.length) {
-        toast.error('No data available');
-        return;
-      }
-
-      if (document.fonts?.ready) {
-        await document.fonts.ready;
-      }
-
-      const canvas = await html2canvas(exportElement, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        onclone: (clonedDoc) => {
-          const style = clonedDoc.createElement('style');
-          style.innerHTML = `
-            * {
-              --color-gray-50: #f9fafb !important;
-              --color-gray-100: #f3f4f6 !important;
-              --color-gray-200: #e5e7eb !important;
-              --color-gray-300: #d1d5db !important;
-              --color-gray-400: #9ca3af !important;
-              --color-gray-500: #6b7280 !important;
-              --color-gray-600: #4b5563 !important;
-              --color-gray-700: #374151 !important;
-              --color-gray-800: #1f2937 !important;
-              --color-gray-900: #111827 !important;
-              --color-blue-50: #eff6ff !important;
-              --color-blue-100: #dbeafe !important;
-              --color-blue-600: #2563eb !important;
-              --color-blue-700: #1d4ed8 !important;
-              --color-green-600: #16a34a !important;
-              --color-red-600: #dc2626 !important;
-              --color-orange-600: #ea580c !important;
-            }
-          `;
-          clonedDoc.head.appendChild(style);
-        }
-      });
+      const totals = calculateTotals;
+      const branchName = branches.find(b => b.branch_id === selectedBranch)?.name || '';
+      const showOther1 = totals.totalOther1 > 0;
+      const showOther2 = totals.totalOther2 > 0;
 
       const doc = new jsPDF('l', 'mm', 'a4');
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-      const margin = 5;
-      const printableWidth = pageWidth - margin * 2;
-      const printableHeight = pageHeight - margin * 2;
-      const pageCanvasHeight = Math.max(1, Math.floor((canvas.width * printableHeight) / printableWidth));
 
-      const rootRect = exportElement.getBoundingClientRect();
-      const scaleFactor = canvas.width / rootRect.width;
-      const rowElements = Array.from(exportElement.querySelectorAll('tbody tr')) as HTMLTableRowElement[];
-
-      // Create page boundaries every N rows using average row height to avoid per-row rounding issues
-      const rowsPerPage = 20;
-      const pageBoundaries: number[] = [];
-      const sampleCount = Math.min(5, rowElements.length);
-      let avgRowCanvasPx = 0;
-      if (sampleCount > 0) {
-        const sampleRows = rowElements.slice(0, sampleCount);
-        const totalRowPx = sampleRows.reduce((sum, r) => sum + (r.getBoundingClientRect().height || 0), 0);
-        const avgRowPx = totalRowPx / sampleCount;
-        avgRowCanvasPx = Math.max(1, Math.round(avgRowPx * scaleFactor));
-      } else {
-        avgRowCanvasPx = Math.max(1, Math.floor(pageCanvasHeight / rowsPerPage));
+      // ── Load Devanagari font so Marathi names render correctly ──
+      let devanagariFont = 'helvetica';
+      try {
+        const fontRes = await fetch('/fonts/NotoSansDevanagari-Regular.ttf');
+        if (fontRes.ok) {
+          const buffer = await fontRes.arrayBuffer();
+          const base64 = btoa(
+            new Uint8Array(buffer).reduce((s, b) => s + String.fromCharCode(b), '')
+          );
+          doc.addFileToVFS('NotoSansDevanagari-Regular.ttf', base64);
+          doc.addFont('NotoSansDevanagari-Regular.ttf', 'NotoSansDevanagari', 'normal');
+          devanagariFont = 'NotoSansDevanagari';
+        }
+      } catch {
+        // Font not available — fall back to Helvetica (Marathi may not render)
       }
 
-      const pageCanvasHeightFromRows = avgRowCanvasPx * rowsPerPage;
-      for (let y = pageCanvasHeightFromRows; y < canvas.height; y += pageCanvasHeightFromRows) {
-        pageBoundaries.push(Math.min(Math.floor(y), canvas.height));
-      }
-      if (pageBoundaries.length === 0 || pageBoundaries[pageBoundaries.length - 1] < canvas.height) {
-        pageBoundaries.push(canvas.height);
-      }
-      // Find footer boundaries so we can keep totals with previous page
-      const tfootEl = exportElement.querySelector('tfoot');
-      let footerTopBoundary: number | null = null;
-      let footerBottomBoundary: number | null = null;
-      if (tfootEl) {
-        const fRect = (tfootEl as HTMLElement).getBoundingClientRect();
-        footerTopBoundary = Math.floor((fRect.top - rootRect.top) * scaleFactor);
-        footerBottomBoundary = Math.ceil((fRect.bottom - rootRect.top) * scaleFactor);
-        if (footerTopBoundary < 0) footerTopBoundary = 0;
-        if (footerBottomBoundary > canvas.height) footerBottomBoundary = canvas.height;
-      }
+      const pageW = doc.internal.pageSize.getWidth();
 
-      const addSlice = (sourceY: number, sourceHeight: number) => {
-        const sliceCanvas = document.createElement('canvas');
-        sliceCanvas.width = canvas.width;
-        sliceCanvas.height = sourceHeight;
+      doc.setFontSize(13);
+      doc.setFont(devanagariFont, 'bold');
+      doc.text('Payment Summary Report', pageW / 2, 12, { align: 'center' });
+      doc.setFontSize(8);
+      doc.setFont(devanagariFont, 'normal');
+      doc.text(`Branch: ${branchName}   |   Period: ${dateFrom}  to  ${dateTo}`, pageW / 2, 18, { align: 'center' });
 
-        const sliceContext = sliceCanvas.getContext('2d');
-        if (!sliceContext) {
-          throw new Error('Unable to create canvas context for PDF export');
-        }
+      const head = [[
+        'Code', 'Name', 'Liter', 'Milk (₹)', 'Prev Bal', 'Advance', 'Feed',
+        ...(showOther1 ? ['Other1'] : []),
+        ...(showOther2 ? ['Other2'] : []),
+        'Received', 'Deduction', 'Bonus', 'Fixed', 'Net Pay', 'Remaining',
+      ]];
 
-        sliceContext.drawImage(
-          canvas,
-          0,
-          sourceY,
-          canvas.width,
-          sourceHeight,
-          0,
-          0,
-          canvas.width,
-          sourceHeight
-        );
+      const body = farmers.map(f => [
+        f.farmer_username,
+        f.farmer_name,
+        f.quantity.toFixed(2),
+        f.milk_total.toFixed(2),
+        f.previous_balance.toFixed(2),
+        f.advance.toFixed(2),
+        f.cattle_feed.toFixed(2),
+        ...(showOther1 ? [f.other1.toFixed(2)] : []),
+        ...(showOther2 ? [f.other2.toFixed(2)] : []),
+        f.received.toFixed(2),
+        formatDeduction(f),
+        f.bonusAmount.toFixed(2),
+        f.fixedAmount.toFixed(2),
+        Math.max(0, f.net_payable).toFixed(2),
+        f.remaining_balance.toFixed(2),
+      ]);
 
-        const sliceData = sliceCanvas.toDataURL('image/png');
-        const sliceHeightMm = (sourceHeight * printableWidth) / canvas.width;
-        doc.addImage(sliceData, 'PNG', margin, margin, printableWidth, sliceHeightMm);
-      };
+      const foot = [[
+        'Total', '',
+        totals.totalQuantity.toFixed(2),
+        totals.totalMilk.toFixed(2),
+        '',
+        totals.totalAdvance.toFixed(2),
+        totals.totalFeed.toFixed(2),
+        ...(showOther1 ? [totals.totalOther1.toFixed(2)] : []),
+        ...(showOther2 ? [totals.totalOther2.toFixed(2)] : []),
+        totals.totalReceived.toFixed(2),
+        totals.totalDeduction.toFixed(2),
+        totals.totalBonus.toFixed(2),
+        totals.totalFixed.toFixed(2),
+        Math.max(0, totals.totalNet).toFixed(2),
+        totals.totalRemaining.toFixed(2),
+      ]];
 
-      let sourceY = 0;
-      const seamGap = 2;
-      while (sourceY < canvas.height) {
-        const pageLimit = Math.min(sourceY + pageCanvasHeight, canvas.height);
-        let sliceEnd = pageLimit;
-
-        // Prefer page boundaries (every N rows). Choose the last page boundary that fits.
-        let candidate: number | null = null;
-        for (const boundary of pageBoundaries) {
-          if (boundary <= sourceY) continue;
-          if (boundary <= pageLimit) candidate = boundary;
-          else break;
-        }
-        if (candidate !== null) {
-          sliceEnd = candidate;
-        }
-
-        if (sliceEnd <= sourceY) {
-          sliceEnd = Math.min(sourceY + pageCanvasHeight, canvas.height);
-        }
-
-        // If footer starts within this page limit but ends after it,
-        // extend the slice to include the footer so totals don't land alone on next page.
-        if (footerTopBoundary !== null && footerBottomBoundary !== null) {
-          const footerHeight = footerBottomBoundary - footerTopBoundary;
-          const distanceFooterAfterPage = footerTopBoundary - pageLimit;
-
-          // Case A: footer begins inside this page (should have been included already)
-          if (footerTopBoundary > sourceY && footerTopBoundary <= pageLimit && footerBottomBoundary > pageLimit) {
-            sliceEnd = Math.min(footerBottomBoundary, canvas.height);
+      autoTable(doc, {
+        head,
+        body,
+        foot,
+        startY: 22,
+        theme: 'grid',
+        styles: { font: devanagariFont, fontSize: 6.5, cellPadding: 1.5, overflow: 'linebreak' },
+        headStyles: {
+          font: 'helvetica',
+          fillColor: [55, 65, 81],
+          textColor: 255,
+          fontStyle: 'bold',
+          halign: 'center',
+        },
+        footStyles: {
+          fillColor: [229, 231, 235],
+          textColor: [31, 41, 55],
+          fontStyle: 'bold',
+        },
+        columnStyles: {
+          0: { cellWidth: 12, halign: 'center' },
+          1: { cellWidth: 30 },
+          2: { halign: 'right' },
+          3: { halign: 'right' },
+          4: { halign: 'right' },
+          5: { halign: 'right' },
+          6: { halign: 'right' },
+          7: { halign: 'right' },
+          8: { halign: 'right' },
+          9: { halign: 'right' },
+          10: { halign: 'right' },
+          11: { halign: 'right', textColor: [220, 38, 38] },
+          12: { halign: 'right', textColor: [220, 38, 38] },
+          13: { halign: 'right', fontStyle: 'bold' },
+          14: { halign: 'right' },
+        },
+        alternateRowStyles: { fillColor: [249, 250, 251] },
+        didParseCell: (data) => {
+          // Highlight Net Pay column in green for body rows
+          const netPayColIdx = showOther1 && showOther2 ? 13 : showOther1 || showOther2 ? 12 : 11;
+          if (data.section === 'body' && data.column.index === netPayColIdx) {
+            data.cell.styles.textColor = [22, 163, 74];
+            data.cell.styles.fontStyle = 'bold';
           }
-
-          // Case B: footer starts just after the page limit (tiny gap) — include it to keep totals with content
-          const smallGapThreshold = Math.max(10, Math.floor(pageCanvasHeight * 0.08));
-          if (distanceFooterAfterPage > 0 && distanceFooterAfterPage <= smallGapThreshold) {
-            sliceEnd = Math.min(footerBottomBoundary, canvas.height);
-          }
-
-          // Case C: only footer (or footer + very small content) remains after this page — include footer on this page
-          const remainingAfterPage = canvas.height - pageLimit;
-          if (remainingAfterPage <= footerHeight + 20) {
-            sliceEnd = Math.min(footerBottomBoundary, canvas.height);
-          }
-        }
-
-        if (sourceY > 0) {
-          doc.addPage();
-        }
-
-        addSlice(sourceY, sliceEnd - sourceY);
-        sourceY = sliceEnd + seamGap;
-      }
+        },
+      });
 
       doc.save(`PaymentSummary_${dateFrom}_${dateTo}.pdf`);
       toast.success('PDF exported successfully');
@@ -827,7 +783,7 @@ const PaymentSummaryReport = () => {
           );
         })()}
 
-        <div ref={pdfExportRef}>
+        <div>
           <div className="mb-3 text-center">
             <h2 className="text-xl font-semibold">Payment Summary Report</h2>
             <p className="text-sm text-gray-600">
