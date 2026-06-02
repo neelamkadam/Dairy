@@ -107,6 +107,8 @@ export interface Template2Data {
     rate: number;
     amount: number;
     effective_from?: string;
+    cow_amount?: number;
+    buffalo_amount?: number;
   };
 }
 
@@ -193,6 +195,8 @@ export interface FarmerReportData {
     rate: number;
     amount: number;
     effective_from?: string;
+    cow_amount?: number;
+    buffalo_amount?: number;
   };
 }
 
@@ -766,7 +770,19 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
               <span>${labels.totalBonusTillDate}:</span>
               <span>₹${parseFloat(String(totalBonusTillDate)).toFixed(2)}</span>
             </div>
-            ${isTravelValid ? `
+            ${isTravelValid ? (travelComm!.cow_amount !== undefined && travelComm!.buffalo_amount !== undefined) ? `
+            <div style="display: flex; justify-content: space-between; margin-top: 4px; border-top: 1px solid #ddd; padding-top: 4px;">
+              <span>${labels.cow} ${labels.travelCommission} :</span>
+              <span>₹${travelComm!.cow_amount.toFixed(2)}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span>${labels.buffalo} ${labels.travelCommission} :</span>
+              <span>₹${travelComm!.buffalo_amount.toFixed(2)}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-weight: bold; border-top: 1px solid #ddd; padding-top: 2px; margin-top: 2px;">
+              <span>${labels.travelCommission} :</span>
+              <span>₹${travelAmount.toFixed(2)}</span>
+            </div>` : `
             <div style="display: flex; justify-content: space-between; margin-top: 4px; border-top: 1px solid #ddd; padding-top: 4px; font-weight: bold;">
               <span>${labels.travelCommission} :</span>
               <span>₹${travelAmount.toFixed(2)}</span>
@@ -1168,8 +1184,13 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
           <table style="width: 100%; border: none; height: 100%;" class="no-border">
             ${bonusAmount > 0 ? `<tr><td style="padding-left: 8px; font-size: 9px;">${labels.bonusDeduction} : </td><td class="text-right bold" style="padding-right: 8px; font-size: 9px;">${bonusAmount.toFixed(2)}</td></tr>` : ''}
             ${fixedAmount > 0 ? `<tr><td style="padding-left: 8px; font-size: 9px;">${templateData.bonus_deduction_info?.remark || 'इमारत निधी'} : </td><td class="text-right bold" style="padding-right: 8px; font-size: 9px;">${fixedAmount.toFixed(2)}</td></tr>` : ''}
-            ${(templateData.travel_commission && templateData.travel_commission.effective_from && new Date(templateData.toDate) >= new Date(templateData.travel_commission.effective_from)) ? 
-              `<tr><td style="padding-left: 8px; font-size: 9px;">${labels.travelCommission} : </td><td class="text-right bold" style="padding-right: 8px; font-size: 9px;">${templateData.travel_commission.amount.toFixed(2)}</td></tr>` : ''}
+            ${(templateData.travel_commission && templateData.travel_commission.effective_from && new Date(templateData.toDate) >= new Date(templateData.travel_commission.effective_from)) ?
+              (templateData.travel_commission.cow_amount !== undefined && templateData.travel_commission.buffalo_amount !== undefined) ?
+                `<tr><td style="padding-left: 8px; font-size: 9px;">${labels.cow} ${labels.travelCommission} : </td><td class="text-right bold" style="padding-right: 8px; font-size: 9px;">${templateData.travel_commission.cow_amount.toFixed(2)}</td></tr>
+                 <tr><td style="padding-left: 8px; font-size: 9px;">${labels.buffalo} ${labels.travelCommission} : </td><td class="text-right bold" style="padding-right: 8px; font-size: 9px;">${templateData.travel_commission.buffalo_amount.toFixed(2)}</td></tr>
+                 <tr><td style="padding-left: 8px; font-size: 9px;">${labels.travelCommission} : </td><td class="text-right bold" style="padding-right: 8px; font-size: 9px;">${templateData.travel_commission.amount.toFixed(2)}</td></tr>` :
+                `<tr><td style="padding-left: 8px; font-size: 9px;">${labels.travelCommission} : </td><td class="text-right bold" style="padding-right: 8px; font-size: 9px;">${templateData.travel_commission.amount.toFixed(2)}</td></tr>`
+              : ''}
             <tr class="bold"><td style="padding-left: 8px; font-size: 10px;">बिल रक्कम : </td><td class="text-right" style="padding-right: 8px; font-size: 10px;">${summary.totalAmount.toFixed(2)}</td></tr>
             <tr class="bold"><td style="padding-left: 8px; font-size: 10px;">${labels.ekunKapat} : </td><td class="text-right" style="padding-right: 8px; font-size: 10px;">${(summary.totalDeductions).toFixed(2)}</td></tr>
             <tr class="bold" style="font-size: 11px; border-top: 1px solid black; background: #eee;"><td style="padding-left: 8px; padding-top: 4px; padding-bottom: 4px;">${labels.adaRakkam} : </td><td class="text-right" style="padding-right: 8px;">${(summary.receivedAmount + ((templateData.travel_commission && templateData.travel_commission.effective_from && new Date(templateData.toDate) >= new Date(templateData.travel_commission.effective_from)) ? templateData.travel_commission.amount : 0)).toFixed(2)}</td></tr>

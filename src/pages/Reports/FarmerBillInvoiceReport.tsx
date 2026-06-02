@@ -669,16 +669,33 @@ const FarmerBillInvoiceReport = () => {
           const cowItems = templateDataItems.filter(i => i.type === 'Cow');
           const buffaloItems = templateDataItems.filter(i => i.type === 'Buffalo');
 
+          const cowComm = resolveFarmerCommission(farmerId, 'Cow', farmerCommMap, vlcComm);
+          const buffComm = resolveFarmerCommission(farmerId, 'Buffalo', farmerCommMap, vlcComm);
+          const cowLiters = cowItems.reduce((s, i) => s + i.liters, 0);
+          const buffLiters = buffaloItems.reduce((s, i) => s + i.liters, 0);
+
+          const cowTravelAmt = cowComm
+            ? (cowComm.type === 'Commission' ? cowLiters * parseFloat(cowComm.amount) : parseFloat(cowComm.amount))
+            : 0;
+          const buffTravelAmt = buffComm
+            ? (buffComm.type === 'Commission' ? buffLiters * parseFloat(buffComm.amount) : parseFloat(buffComm.amount))
+            : 0;
+          const combinedTravelComm = (cowComm || buffComm) ? {
+            type: 'Commission',
+            rate: 0,
+            amount: cowTravelAmt + buffTravelAmt,
+            effective_from: (buffComm ?? cowComm)!.effective_from,
+            cow_amount: cowTravelAmt,
+            buffalo_amount: buffTravelAmt
+          } : undefined;
+
           // 1. Cow Page (Header YES, Summary NO)
           const cowHtml = generateTemplate2({
             ...baseParams,
             milkType: 'Cow',
             hideHeader: false,
             hideSummary: true,
-            travel_commission: buildTravelCommission(
-              resolveFarmerCommission(farmerId, 'Cow', farmerCommMap, vlcComm),
-              cowItems.reduce((s, i) => s + i.liters, 0)
-            )
+            travel_commission: buildTravelCommission(cowComm, cowLiters)
           }, reportLang);
           const cowPage = await generatePage(cowHtml);
           if (i > 0) pdf.addPage();
@@ -686,16 +703,13 @@ const FarmerBillInvoiceReport = () => {
 
           pdf.addImage(cowPage.imgData, 'JPEG', 0, 0, cowPage.imgWidth, cowPage.imgHeight);
 
-          // 2. Buffalo Page (Header NO, Summary YES)
+          // 2. Buffalo Page (Header NO, Summary YES — combined cow+buffalo travel commission)
           const buffaloHtml = generateTemplate2({
             ...baseParams,
             milkType: 'Buffalo',
             hideHeader: true,
             hideSummary: false,
-            travel_commission: buildTravelCommission(
-              resolveFarmerCommission(farmerId, 'Buffalo', farmerCommMap, vlcComm),
-              buffaloItems.reduce((s, i) => s + i.liters, 0)
-            )
+            travel_commission: combinedTravelComm
           }, reportLang);
           const buffaloPage = await generatePage(buffaloHtml);
           pdf.addPage();
@@ -1003,29 +1017,43 @@ const FarmerBillInvoiceReport = () => {
           const cowBillData = farmerBillData.filter(d => d.type === 'Cow');
           const buffaloBillData = farmerBillData.filter(d => d.type === 'Buffalo' || (d.type as string) === 'Buffaloes');
 
+          const cowComm = resolveFarmerCommission(farmer.farmer_id, 'Cow', farmerCommMap, vlcComm);
+          const buffComm = resolveFarmerCommission(farmer.farmer_id, 'Buffalo', farmerCommMap, vlcComm);
+          const cowLiters = cowBillData.reduce((s, i) => s + i.liters, 0);
+          const buffLiters = buffaloBillData.reduce((s, i) => s + i.liters, 0);
+
+          const cowTravelAmt = cowComm
+            ? (cowComm.type === 'Commission' ? cowLiters * parseFloat(cowComm.amount) : parseFloat(cowComm.amount))
+            : 0;
+          const buffTravelAmt = buffComm
+            ? (buffComm.type === 'Commission' ? buffLiters * parseFloat(buffComm.amount) : parseFloat(buffComm.amount))
+            : 0;
+          const combinedTravelComm = (cowComm || buffComm) ? {
+            type: 'Commission',
+            rate: 0,
+            amount: cowTravelAmt + buffTravelAmt,
+            effective_from: (buffComm ?? cowComm)!.effective_from,
+            cow_amount: cowTravelAmt,
+            buffalo_amount: buffTravelAmt
+          } : undefined;
+
           // Page 1: Cow only, hide summary
           const cowHtml = generateTemplateDetailedHorizontal({
             ...templateData,
             renderOnly: 'Cow',
             hideSummary: true,
-            travel_commission: buildTravelCommission(
-              resolveFarmerCommission(farmer.farmer_id, 'Cow', farmerCommMap, vlcComm),
-              cowBillData.reduce((s, i) => s + i.liters, 0)
-            )
+            travel_commission: buildTravelCommission(cowComm, cowLiters)
           } as any, reportLang);
           const cowPage = await generatePage(cowHtml);
           if (i > 0) pdf.addPage();
           pdf.addImage(cowPage.imgData, 'JPEG', 0, 0, cowPage.imgWidth, cowPage.imgHeight);
 
-          // Page 2: Buffalo only, show summary
+          // Page 2: Buffalo only, show summary — combined cow+buffalo travel commission
           const buffHtml = generateTemplateDetailedHorizontal({
             ...templateData,
             renderOnly: 'Buffalo',
             hideSummary: false,
-            travel_commission: buildTravelCommission(
-              resolveFarmerCommission(farmer.farmer_id, 'Buffalo', farmerCommMap, vlcComm),
-              buffaloBillData.reduce((s, i) => s + i.liters, 0)
-            )
+            travel_commission: combinedTravelComm
           } as any, reportLang);
           const buffPage = await generatePage(buffHtml);
           pdf.addPage();

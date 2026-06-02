@@ -126,11 +126,14 @@ const DynamicBillCycle = () => {
       const res = await vlcCommissionApi.getByVlcc(vlcId);
       const records: any[] = res.data?.data ?? [];
       const map = new Map<string, any>();
-      // API returns DESC → first occurrence per farmer_id = latest active
+      // API returns DESC → first occurrence is latest active for each key
       records.forEach((r) => {
-        if (r.farmer_id && !map.has(r.farmer_id)) {
-          map.set(r.farmer_id, r);
-        }
+        if (!r.farmer_id) return;
+        // Store milk-type-specific record (e.g. "F001_Cow", "F001_Buffalo")
+        const typedKey = r.milk_type ? `${r.farmer_id}_${r.milk_type}` : r.farmer_id;
+        if (!map.has(typedKey)) map.set(typedKey, r);
+        // Also keep generic fallback keyed by farmer_id alone
+        if (!map.has(r.farmer_id)) map.set(r.farmer_id, r);
       });
       return map;
     } catch {
@@ -138,16 +141,17 @@ const DynamicBillCycle = () => {
     }
   };
 
-  // ── Priority: farmer-specific → VLC-level → null (no commission) ──
+  // ── Priority: farmer+type-specific → farmer-generic → VLC-level → null ──
   const resolveFarmerCommission = (
     farmerId: string,
+    milkType: string,
     farmerCommMap: Map<string, any>,
     vlcComm: any | null
   ): { type: string; amount: string; effective_from: string } | null => {
-    const rec = farmerCommMap.get(farmerId);
-    if (rec) return { type: rec.type, amount: rec.amount, effective_from: rec.effective_from };
+    const farmerRecord = farmerCommMap.get(`${farmerId}_${milkType}`) ?? farmerCommMap.get(farmerId);
+    if (farmerRecord) return { type: farmerRecord.type, amount: farmerRecord.amount, effective_from: farmerRecord.effective_from };
     if (vlcComm) return { type: vlcComm.type, amount: vlcComm.amount, effective_from: vlcComm.effective_from };
-    return null; // farmer has no commission at all
+    return null;
   };
 
   // ── Build the travel_commission template payload (returns undefined if no commission) ──
@@ -1193,42 +1197,49 @@ const DynamicBillCycle = () => {
 
       const cowData: FarmerReportData[] = response.data.cow || [];
       const buffaloData: FarmerReportData[] = response.data.buffalo || [];
-      const farmerData = [...cowData, ...buffaloData];
-      
-      const farmerMap = new Map<string, FarmerReportData>();
-      farmerData.forEach(farmer => {
-        if (farmerMap.has(farmer.farmer_id)) {
-          const existing = farmerMap.get(farmer.farmer_id)!;
-          existing.collections = [...existing.collections, ...farmer.collections];
-          // Update summary for mixed
-          if (existing.collections_summary && farmer.collections_summary) {
-            existing.collections_summary.total_quantity += farmer.collections_summary.total_quantity;
-            existing.collections_summary.total_amount += farmer.collections_summary.total_amount;
-          }
-        } else {
-          farmerMap.set(farmer.farmer_id, { ...farmer });
+
+      // Keep cow and buffalo as separate entries so each gets its own commission
+      const cowIds = new Set(cowData.map(f => f.farmer_id));
+      const buffaloIds = new Set(buffaloData.map(f => f.farmer_id));
+      const allIds = Array.from(new Set([...cowIds, ...buffaloIds])).sort((a, b) => parseInt(a) - parseInt(b));
+
+      const allData: Array<FarmerReportData & Record<string, unknown>> = [];
+      allIds.forEach(id => {
+        const cow = cowData.find(f => f.farmer_id === id);
+        const buffalo = buffaloData.find(f => f.farmer_id === id);
+        const isMixed = !!(cow && buffalo);
+        if (cow) {
+          const withBonus = attachBonus(cow, bonusMap, cow.collections_summary?.total_quantity || 0, toDateApi);
+          allData.push({ ...withBonus, _displayMilkType: 'Cow', _hideDeductions: isMixed });
+        }
+        if (buffalo) {
+          const withBonus = attachBonus(buffalo, bonusMap, buffalo.collections_summary?.total_quantity || 0, toDateApi);
+          const combinedLiters = isMixed
+            ? (cow!.collections_summary?.total_quantity || 0) + (buffalo.collections_summary?.total_quantity || 0)
+            : buffalo.collections_summary?.total_quantity || 0;
+          const combinedAmount = isMixed
+            ? (cow!.collections_summary?.total_amount || 0) + (buffalo.collections_summary?.total_amount || 0)
+            : 0;
+          allData.push({ ...withBonus, _displayMilkType: 'Buffalo', _hideDeductions: false, _combinedTotalQty: combinedLiters, _combinedTotalAmount: combinedAmount });
         }
       });
 
-      const sortedFarmers = Array.from(farmerMap.values())
-        .sort((a, b) => parseInt(a.farmer_id) - parseInt(b.farmer_id));
-
-      if (sortedFarmers.length === 0) {
+      if (allData.length === 0) {
         toast.info('No data found for selected criteria');
         return;
       }
 
       const pdf = new jsPDF('p', 'mm', 'a4');
-      
-      for (let i = 0; i < sortedFarmers.length; i += chunkSize) {
-        const chunk = sortedFarmers.slice(i, i + chunkSize);
-        
+
+      for (let i = 0; i < allData.length; i += chunkSize) {
+        const chunk = allData.slice(i, i + chunkSize);
+
         const farmersWithComm = chunk.map(farmer => ({
-          ...attachBonus(farmer, bonusMap, farmer.collections_summary?.total_quantity || 0, toDateApi),
+          ...farmer,
           payments: getNormalizedPayments(farmer),
           travel_commission: buildTravelCommission(
-            resolveFarmerCommission(farmer.farmer_id, farmerCommMap, vlcComm),
-            getExportTravelQuantity(farmer.collections)
+            resolveFarmerCommission(farmer.farmer_id, farmer._displayMilkType as string, farmerCommMap, vlcComm),
+            farmer.collections_summary?.total_quantity || 0
           )
         }));
 
@@ -1367,7 +1378,7 @@ const DynamicBillCycle = () => {
           bonus_deduction_info: attachBonus(farmer, bonusMap, farmer.collections_summary?.total_quantity || 0, toDateApi).bonus_deduction_info,
           bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary || null,
           travel_commission: buildTravelCommission(
-            resolveFarmerCommission(farmer.farmer_id, farmerCommMap, vlcCommission),
+            resolveFarmerCommission(farmer.farmer_id, farmerBillData[0]?.type || 'Cow', farmerCommMap, vlcCommission),
             getExportTravelQuantity(farmer.collections)
           ),
           hideRateAmount: hideRateAmount
@@ -1380,12 +1391,34 @@ const DynamicBillCycle = () => {
         const hasBuffalo = farmerBillData.some(d => d.type === 'Buffalo' || d.type === 'Buffaloes');
 
         if (hasCow && hasBuffalo) {
-          const cowHtml = generateTemplateDetailedHorizontal({ ...templateData, renderOnly: 'Cow', hideSummary: true } as any, reportLang);
+          const cowBillData = farmerBillData.filter(d => d.type === 'Cow');
+          const buffaloBillData = farmerBillData.filter(d => d.type === 'Buffalo' || (d.type as string) === 'Buffaloes');
+          const cowLiters = cowBillData.reduce((s, item) => s + item.liters, 0);
+          const buffLiters = buffaloBillData.reduce((s, item) => s + item.liters, 0);
+
+          const cowComm = resolveFarmerCommission(farmer.farmer_id, 'Cow', farmerCommMap, vlcCommission);
+          const buffComm = resolveFarmerCommission(farmer.farmer_id, 'Buffalo', farmerCommMap, vlcCommission);
+          const cowTravelAmt = cowComm
+            ? (cowComm.type === 'Commission' ? cowLiters * parseFloat(cowComm.amount) : parseFloat(cowComm.amount))
+            : 0;
+          const buffTravelAmt = buffComm
+            ? (buffComm.type === 'Commission' ? buffLiters * parseFloat(buffComm.amount) : parseFloat(buffComm.amount))
+            : 0;
+          const combinedTravelComm = (cowComm || buffComm) ? {
+            type: 'Commission',
+            rate: 0,
+            amount: cowTravelAmt + buffTravelAmt,
+            effective_from: (buffComm ?? cowComm)!.effective_from,
+            cow_amount: cowTravelAmt,
+            buffalo_amount: buffTravelAmt
+          } : undefined;
+
+          const cowHtml = generateTemplateDetailedHorizontal({ ...templateData, renderOnly: 'Cow', hideSummary: true, travel_commission: buildTravelCommission(cowComm, cowLiters) } as unknown as Template2Data, reportLang);
           const cowPage = await generatePage(cowHtml);
           if (i > 0) pdf.addPage();
           pdf.addImage(cowPage.imgData, 'JPEG', 0, 0, cowPage.imgWidth, cowPage.imgHeight);
 
-          const buffHtml = generateTemplateDetailedHorizontal({ ...templateData, renderOnly: 'Buffalo', hideSummary: false } as any, reportLang);
+          const buffHtml = generateTemplateDetailedHorizontal({ ...templateData, renderOnly: 'Buffalo', hideSummary: false, travel_commission: combinedTravelComm } as unknown as Template2Data, reportLang);
           const buffPage = await generatePage(buffHtml);
           pdf.addPage();
           pdf.addImage(buffPage.imgData, 'JPEG', 0, 0, buffPage.imgWidth, buffPage.imgHeight);
@@ -1489,7 +1522,7 @@ const DynamicBillCycle = () => {
         bonus_deduction_info: attachBonus(mergedFarmer, bonusMap, mergedFarmer.collections_summary?.total_quantity || 0, toDateApi).bonus_deduction_info,
         bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary || null,
         travel_commission: buildTravelCommission(
-          resolveFarmerCommission(mergedFarmer.farmer_id, farmerCommMap, vlcCommission),
+          resolveFarmerCommission(mergedFarmer.farmer_id, farmerBillData[0]?.type || 'Cow', farmerCommMap, vlcCommission),
           getExportTravelQuantity(mergedFarmer.collections)
         ),
         hideRateAmount: hideRateAmount
@@ -1504,11 +1537,33 @@ const DynamicBillCycle = () => {
       const pdf = new jsPDF('p', 'mm', 'a4');
 
       if (hasCow && hasBuffalo) {
-        const cowHtml = generateTemplateDetailedHorizontal({ ...templateData, renderOnly: 'Cow', hideSummary: true } as any, reportLang);
+        const cowBillData = farmerBillData.filter(d => d.type === 'Cow');
+        const buffaloBillData = farmerBillData.filter(d => d.type === 'Buffalo' || (d.type as string) === 'Buffaloes');
+        const cowLiters = cowBillData.reduce((s, item) => s + item.liters, 0);
+        const buffLiters = buffaloBillData.reduce((s, item) => s + item.liters, 0);
+
+        const cowComm = resolveFarmerCommission(mergedFarmer.farmer_id, 'Cow', farmerCommMap, vlcCommission);
+        const buffComm = resolveFarmerCommission(mergedFarmer.farmer_id, 'Buffalo', farmerCommMap, vlcCommission);
+        const cowTravelAmt = cowComm
+          ? (cowComm.type === 'Commission' ? cowLiters * parseFloat(cowComm.amount) : parseFloat(cowComm.amount))
+          : 0;
+        const buffTravelAmt = buffComm
+          ? (buffComm.type === 'Commission' ? buffLiters * parseFloat(buffComm.amount) : parseFloat(buffComm.amount))
+          : 0;
+        const combinedTravelComm = (cowComm || buffComm) ? {
+          type: 'Commission',
+          rate: 0,
+          amount: cowTravelAmt + buffTravelAmt,
+          effective_from: (buffComm ?? cowComm)!.effective_from,
+          cow_amount: cowTravelAmt,
+          buffalo_amount: buffTravelAmt
+        } : undefined;
+
+        const cowHtml = generateTemplateDetailedHorizontal({ ...templateData, renderOnly: 'Cow', hideSummary: true, travel_commission: buildTravelCommission(cowComm, cowLiters) } as unknown as Template2Data, reportLang);
         const cowPage = await generatePage(cowHtml);
         pdf.addImage(cowPage.imgData, 'JPEG', 0, 0, cowPage.imgWidth, cowPage.imgHeight);
 
-        const buffHtml = generateTemplateDetailedHorizontal({ ...templateData, renderOnly: 'Buffalo', hideSummary: false } as any, reportLang);
+        const buffHtml = generateTemplateDetailedHorizontal({ ...templateData, renderOnly: 'Buffalo', hideSummary: false, travel_commission: combinedTravelComm } as unknown as Template2Data, reportLang);
         const buffPage = await generatePage(buffHtml);
         pdf.addPage();
         pdf.addImage(buffPage.imgData, 'JPEG', 0, 0, buffPage.imgWidth, buffPage.imgHeight);
