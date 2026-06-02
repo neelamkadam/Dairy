@@ -323,36 +323,57 @@ const DynamicBillCycle = () => {
     const cow_data = aggregateType(filteredTypeEntries.filter(r => r.type?.toLowerCase() === 'cow'));
     const buffalo_data = aggregateType(filteredTypeEntries.filter(r => r.type?.toLowerCase() === 'buffalo'));
 
-    // Total available = (Deduction already in bill + Remaining in bill)
-    
-    // Total available = (Deduction already in bill + Remaining in bill)
-    // We strictly use from_bills fields as requested
-    const prev_advance = (parseFloat(bd.advance_total) || 0) + (parseFloat(bd.advance_remaining) || 0);
-    const prev_cattlefeed = (parseFloat(bd.cattlefeed_total) || 0) + (parseFloat(bd.cattlefeed_remaining) || 0);
-    const prev_other1 = (parseFloat(bd.other1_total) || 0) + (parseFloat(bd.other1_remaining) || 0);
-    const prev_other2 = (parseFloat(bd.other2_total) || 0) + (parseFloat(bd.other2_remaining) || 0);
-    
+    // Prev = carry-forward from the previous frozen bill's remaining balance
+    // Pay  = new purchases/payments in the current period
+    //
+    // When previous_bill exists:
+    //   Prev = previous_bill.X_remaining  (what was still outstanding after last bill)
+    //   Pay  = current_bill.X_remaining   (new in current period, when bill is already saved)
+    //          or daily-record accumulation (when no saved bill yet)
+    //
+    // When previous_bill is absent (first-ever period):
+    //   Fall back: Prev = current_bill.X_total + current_bill.X_remaining
+    const pb = farmer.previous_bill;
+
+    const prev_advance = pb
+      ? parseFloat(pb.advance_remaining || '0')
+      : (parseFloat(bd.advance_total || '0') + parseFloat(bd.advance_remaining || '0'));
+    const prev_cattlefeed = pb
+      ? parseFloat(pb.cattlefeed_remaining || '0')
+      : (parseFloat(bd.cattlefeed_total || '0') + parseFloat(bd.cattlefeed_remaining || '0'));
+    const prev_other1 = pb
+      ? parseFloat(pb.other1_remaining || '0')
+      : (parseFloat(bd.other1_total || '0') + parseFloat(bd.other1_remaining || '0'));
+    const prev_other2 = pb
+      ? parseFloat(pb.other2_remaining || '0')
+      : (parseFloat(bd.other2_total || '0') + parseFloat(bd.other2_remaining || '0'));
+
+    // Pay = new amounts in current period
+    const pay_advance    = (pb && hasSavedBill) ? parseFloat(bd.advance_remaining    || '0') : advance_sum;
+    const pay_cattlefeed = (pb && hasSavedBill) ? parseFloat(bd.cattlefeed_remaining || '0') : cf_sum;
+    const pay_other1     = (pb && hasSavedBill) ? parseFloat(bd.other1_remaining     || '0') : o1_sum;
+    const pay_other2     = (pb && hasSavedBill) ? parseFloat(bd.other2_remaining     || '0') : o2_sum;
+
     return {
       ...farmer,
       quantity,
       milk_total,
       received_total,
-      // In this mode, we show previous balance from bill record
       advance_prev: prev_advance,
-      advance_pay: advance_sum,
-      advance_total_avail: prev_advance + advance_sum,
-      
+      advance_pay: pay_advance,
+      advance_total_avail: prev_advance + pay_advance,
+
       cattlefeed_prev: prev_cattlefeed,
-      cattlefeed_pay: cf_sum,
-      cattlefeed_total_avail: prev_cattlefeed + cf_sum,
-      
+      cattlefeed_pay: pay_cattlefeed,
+      cattlefeed_total_avail: prev_cattlefeed + pay_cattlefeed,
+
       other1_prev: prev_other1,
-      other1_pay: o1_sum,
-      other1_total_avail: prev_other1 + o1_sum,
-      
+      other1_pay: pay_other1,
+      other1_total_avail: prev_other1 + pay_other1,
+
       other2_prev: prev_other2,
-      other2_pay: o2_sum,
-      other2_total_avail: prev_other2 + o2_sum,
+      other2_pay: pay_other2,
+      other2_total_avail: prev_other2 + pay_other2,
 
       avg_fat,
       avg_snf,
@@ -381,15 +402,36 @@ const DynamicBillCycle = () => {
       const fromStr = format(startDate, "yyyy-MM-dd");
       const toStr = format(endDate, "yyyy-MM-dd");
 
-      const [balanceRes, vlcComm] = await Promise.all([
+      const [balanceRes, vlcComm, billReport] = await Promise.all([
         deductionApi.getAllFarmersBalance(parseInt(vlcId), fromStr, toStr),
-        fetchVlcCommissionSettings(vlcId)
+        fetchVlcCommissionSettings(vlcId),
+        billApi.getFarmerReport({ dairy_id: parseInt(vlcId), start_date: fromStr, end_date: toStr })
       ]);
 
       const data = balanceRes.data;
       setVlcCommission(vlcComm);
 
-      console.log("getAllFarmersBalance response:", { fromStr, toStr }, data);
+      // Build bills map: farmer_id → { current_bill, previous_bill, payments, payment_logs }
+      const billsMap = new Map<string, { current_bill: any; previous_bill: any; payments: any[]; payment_logs: any }>();
+      if (billReport?.data?.success) {
+        const cowBills: any[] = billReport.data.cow || [];
+        const buffBills: any[] = billReport.data.buffalo || [];
+        [...cowBills, ...buffBills].forEach((f: any) => {
+          const existing = billsMap.get(f.farmer_id);
+          if (!existing) {
+            billsMap.set(f.farmer_id, {
+              current_bill: f.current_bill || null,
+              previous_bill: f.previous_bill || null,
+              payments: f.payments || [],
+              payment_logs: f.payment_logs || {}
+            });
+          } else {
+            if (!existing.current_bill && f.current_bill) existing.current_bill = f.current_bill;
+            if (!existing.previous_bill && f.previous_bill) existing.previous_bill = f.previous_bill;
+          }
+        });
+      }
+
 
       // Store separate collection data - grouped by farmer and type
       let typeSpecificEntries = new Map<string, any[]>();
@@ -424,7 +466,8 @@ const DynamicBillCycle = () => {
           if (!farmerMap.has(farmerId)) {
             // Strictly use from_bills data as requested
             const fb = farmer.from_bills || {};
-            
+            const billInfo = billsMap.get(farmerId);
+
             farmerMap.set(farmerId, {
               farmer_id: farmerId,
               name: farmer.farmer_name || `Farmer ${farmerId}`,
@@ -439,7 +482,11 @@ const DynamicBillCycle = () => {
               cattleFeedDeduction: parseFloat(fb.cattlefeed_total) || 0,
               other1Deduction: parseFloat(fb.other1_total) || 0,
               other2Deduction: parseFloat(fb.other2_total) || 0,
-              bill_details: fb // Store from_bills as bill_details
+              bill_details: fb,
+              current_bill: billInfo?.current_bill || null,
+              previous_bill: billInfo?.previous_bill || null,
+              payments: billInfo?.payments || [],
+              payment_logs: billInfo?.payment_logs || {}
             });
 
             // Set bill status from is_finalized
@@ -541,8 +588,6 @@ const DynamicBillCycle = () => {
         format(endDate, "yyyy-MM-dd")
       );
 
-      console.log('Refresh Bill Details Response:', billDetailsResponse.data);
-
       const billDetail = billDetailsResponse.data.data?.[0];
       if (billDetail) {
         const advTotal = parseFloat(billDetail.advance_total || 0);
@@ -554,14 +599,7 @@ const DynamicBillCycle = () => {
         const o2Total = parseFloat(billDetail.other2_total || 0);
         const o2Remaining = parseFloat(billDetail.other2_remaining || 0);
 
-        console.log('Parsed values:', {
-          advance: advTotal + advRemaining,
-          cattleFeed: cfTotal + cfRemaining,
-          other1: o1Total + o1Remaining,
-          other2: o2Total + o2Remaining
-        });
-
-        setFarmersData(prev => prev.map((farmer) => 
+        setFarmersData(prev => prev.map((farmer) =>
           farmer.farmer_id === currentFarmer.farmer_id
             ? {
                 ...farmer,
@@ -580,8 +618,6 @@ const DynamicBillCycle = () => {
               }
             : farmer
         ));
-      } else {
-        console.log('No bill detail found in response');
       }
     } catch (error) {
       console.error("Failed to refresh farmer data", error);
@@ -832,7 +868,6 @@ const DynamicBillCycle = () => {
         if (collections.length > 0) {
           try {
             await api.put('/collections/update-rates', { collections });
-            console.log('Rates updated successfully for collection IDs');
           } catch (error) {
             console.error('Failed to update rates:', error);
             toast.error('Failed to update rates');
@@ -861,7 +896,6 @@ const DynamicBillCycle = () => {
         other2_remaining: Number(Math.max(0, currentFarmer.other2_total_avail - currentFarmer.other2Deduction).toFixed(2))
       };
 
-      console.log("FREEZE PAYLOAD:", billData);
 
       await deductionApi.updateFarmerBillWeb(billData);
       
@@ -1065,17 +1099,6 @@ const DynamicBillCycle = () => {
     const payments = [...(farmer.payments || [])];
     const matchedLogIds = new Set<number>();
     
-    console.log(`[DEBUG] Normalizing payments for Farmer ${farmer.farmer_id}:`, {
-      originalPayments: payments,
-      logsCount: logs.length,
-      logs: logs
-    });
-
-    const isCattleFeed = (type: string) => {
-      const normalized = type?.toLowerCase().trim().replace(/\s/g, '');
-      return normalized === 'cattlefeed' || normalized === 'pashukhady' || normalized === 'पशुखाद्य';
-    };
-
     // First, mark logs that are already represented in payments
     payments.forEach((p: any) => {
       const pType = p.payment_type?.toLowerCase().trim().replace(/\s/g, '');
@@ -1116,7 +1139,6 @@ const DynamicBillCycle = () => {
       };
     });
 
-    console.log(`[DEBUG] Resulting payments for Farmer ${farmer.farmer_id}:`, result);
     return result;
   };
 
@@ -1316,8 +1338,6 @@ const DynamicBillCycle = () => {
         return;
       }
 
-      console.log("DEBUG: Full API Response Data:", response.data);
-
       const cowData: FarmerReportData[] = response.data.cow || [];
       const buffaloData: FarmerReportData[] = response.data.buffalo || [];
       const farmerData = [...cowData, ...buffaloData];
@@ -1325,8 +1345,11 @@ const DynamicBillCycle = () => {
       const farmerMap = new Map<string, FarmerReportData>();
       farmerData.forEach(farmer => {
         if (farmerMap.has(farmer.farmer_id)) {
-          const existing = farmerMap.get(farmer.farmer_id)!;
-          existing.collections = [...existing.collections, ...farmer.collections];
+          const existing = farmerMap.get(farmer.farmer_id)! as any;
+          existing.collections = [...existing.collections, ...(farmer as any).collections];
+          // Carry forward current_bill / previous_bill from the second type if first is missing
+          if (!existing.current_bill && (farmer as any).current_bill) existing.current_bill = (farmer as any).current_bill;
+          if (!existing.previous_bill && (farmer as any).previous_bill) existing.previous_bill = (farmer as any).previous_bill;
         } else {
           farmerMap.set(farmer.farmer_id, { ...farmer });
         }
@@ -1384,8 +1407,10 @@ const DynamicBillCycle = () => {
           hideRateAmount: hideRateAmount
         };
 
-        console.log(`DEBUG: Template data for farmer ${farmer.farmer_id}:`, templateData);
-        console.log(`DEBUG: current_bill from API for ${farmer.farmer_id}:`, farmer.current_bill);
+        console.log(`[EXPORT farmer=${farmer.farmer_id}]`, {
+          current_bill: templateData.current_bill,
+          previous_bill: templateData.previous_bill
+        });
 
         const hasCow = farmerBillData.some(d => d.type === 'Cow');
         const hasBuffalo = farmerBillData.some(d => d.type === 'Buffalo' || d.type === 'Buffaloes');
@@ -1469,8 +1494,6 @@ const DynamicBillCycle = () => {
         return;
       }
 
-      console.log("DEBUG SINGLE: API Response for farmer:", farmerId, response.data);
-
       const cowData: FarmerReportData[] = response.data.cow || [];
       const buffaloData: FarmerReportData[] = response.data.buffalo || [];
       const allData = [...cowData, ...buffaloData];
@@ -1481,10 +1504,12 @@ const DynamicBillCycle = () => {
         return;
       }
 
-      // Merge collections if farmer has both
-      const mergedFarmer = { ...farmerRecords[0] };
+      // Merge collections if farmer has both; also carry current_bill/previous_bill from second type if first is missing
+      const mergedFarmer: any = { ...farmerRecords[0] };
       if (farmerRecords.length > 1) {
         mergedFarmer.collections = [...farmerRecords[0].collections, ...farmerRecords[1].collections];
+        if (!mergedFarmer.current_bill && (farmerRecords[1] as any).current_bill) mergedFarmer.current_bill = (farmerRecords[1] as any).current_bill;
+        if (!mergedFarmer.previous_bill && (farmerRecords[1] as any).previous_bill) mergedFarmer.previous_bill = (farmerRecords[1] as any).previous_bill;
       }
 
       const farmerBillData: FarmerBillData[] = mergedFarmer.collections.map((c: any) => ({
@@ -1528,8 +1553,10 @@ const DynamicBillCycle = () => {
         hideRateAmount: hideRateAmount
       };
 
-      console.log(`DEBUG SINGLE: Final template data for ${farmerId}:`, templateData);
-      console.log(`DEBUG SINGLE: mergedFarmer.current_bill:`, mergedFarmer.current_bill);
+      console.log(`[SINGLE EXPORT farmer=${mergedFarmer.farmer_id}]`, {
+        current_bill: templateData.current_bill,
+        previous_bill: templateData.previous_bill
+      });
 
       const hasCow = farmerBillData.some(d => d.type === 'Cow');
       const hasBuffalo = farmerBillData.some(d => d.type === 'Buffalo' || d.type === 'Buffaloes');
@@ -2065,6 +2092,34 @@ const DynamicBillCycle = () => {
                         </div>
                       )}
                     </div>
+
+                  {/* Previous Bill Summary
+                  {currentFarmer.previous_bill && (
+                    <div className="pt-2 mt-1 border border-dashed border-orange-200 rounded-lg p-3 bg-orange-50">
+                      <p className="text-xs font-bold text-orange-700 uppercase tracking-wider mb-2">Previous Bill</p>
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <div>
+                          <p className="text-[10px] text-gray-500">Milk Total</p>
+                          <p className="text-sm font-bold text-gray-700">₹{parseFloat(currentFarmer.previous_bill.milk_total || 0).toFixed(2)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-gray-500">Deductions</p>
+                          <p className="text-sm font-bold text-red-600">
+                            ₹{(
+                              parseFloat(currentFarmer.previous_bill.advance_total || 0) +
+                              parseFloat(currentFarmer.previous_bill.cattlefeed_total || 0) +
+                              parseFloat(currentFarmer.previous_bill.other1_total || 0) +
+                              parseFloat(currentFarmer.previous_bill.other2_total || 0)
+                            ).toFixed(2)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-gray-500">Net Payable</p>
+                          <p className="text-sm font-bold text-green-700">₹{parseFloat(currentFarmer.previous_bill.net_payable || 0).toFixed(2)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )} */}
 
                   {/* Net Payable */}
                   <div className="bg-gradient-to-r from-emerald-50 to-green-50 p-3 rounded-lg border border-green-200">
