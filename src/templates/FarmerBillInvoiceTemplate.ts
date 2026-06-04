@@ -1102,7 +1102,7 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
     * { box-sizing: border-box; }
     body { font-family: 'Arial', sans-serif; font-size: 11px; margin: 0; padding: 0; line-height: 1.2; }
     table { width: 100%; border-collapse: collapse; border: 1px solid black; table-layout: fixed; }
-    th, td { border: 1px solid black; padding: 4px; overflow: hidden; word-wrap: break-word; }
+    th, td { border: 1px solid black; padding: 4px; overflow: hidden; white-space: nowrap; }
     th { background: #f2f2f2; font-weight: bold; }
     .header-info { margin-bottom: 8px; width: 100%; border: none; }
     .header-info table { border: none; }
@@ -1137,15 +1137,15 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
   <table>
     <thead>
       <tr>
-        <th rowspan="2" style="width: 60px;">${labels.date}</th>
+        <th rowspan="2" style="width: 52px;">${labels.date}</th>
         <th colspan="5">---------- ${labels.morning} ----------</th>
         <th colspan="5">---------- ${labels.evening} ----------</th>
         <th colspan="2">${labels.total}</th>
       </tr>
       <tr>
-        <th style="width: 45px;">${labels.quantity}</th><th style="width: 35px;">${labels.fat}</th><th style="width: 35px;">SNF</th><th style="width: 45px;">${labels.rate}</th><th style="width: 60px;">${labels.amount}</th>
-        <th style="width: 45px;">${labels.quantity}</th><th style="width: 35px;">${labels.fat}</th><th style="width: 35px;">SNF</th><th style="width: 45px;">${labels.rate}</th><th style="width: 60px;">${labels.amount}</th>
-        <th style="width: 50px;">${labels.quantity}</th><th style="width: 70px;">${labels.amount}</th>
+        <th style="width: 44px;">${labels.quantity}</th><th style="width: 27px;">${labels.fat}</th><th style="width: 27px;">SNF</th><th style="width: 44px;">${labels.rate}</th><th style="width: 69px;">${labels.amount}</th>
+        <th style="width: 44px;">${labels.quantity}</th><th style="width: 27px;">${labels.fat}</th><th style="width: 27px;">SNF</th><th style="width: 44px;">${labels.rate}</th><th style="width: 69px;">${labels.amount}</th>
+        <th style="width: 48px;">${labels.quantity}</th><th style="width: 95px;">${labels.amount}</th>
       </tr>
     </thead>
     <tbody>

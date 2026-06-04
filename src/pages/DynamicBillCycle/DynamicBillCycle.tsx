@@ -2080,7 +2080,7 @@ const DynamicBillCycle = () => {
                               <span className="font-semibold text-red-500">- ₹{(bonusDeductionInfo.fixed_deduction || 0).toFixed(2)}</span>
                             </div>
                           )}
-                          {vlcCommission && (new Date(endDate || new Date()) >= new Date(vlcCommission.effective_from)) && (
+                          {/* {vlcCommission && (new Date(endDate || new Date()) >= new Date(vlcCommission.effective_from)) && (
                             <div className="flex justify-between text-xs text-blue-600 mb-1">
                               <span>{t('travel_commission')}:</span>
                               <span className="font-semibold text-blue-600">+ ₹{(vlcCommission.type === 'Commission' 
@@ -2088,7 +2088,7 @@ const DynamicBillCycle = () => {
                                 : parseFloat(vlcCommission.amount)
                               ).toFixed(2)}</span>
                             </div>
-                          )}
+                          )} */}
                         </div>
                       )}
                     </div>
