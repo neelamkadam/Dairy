@@ -435,10 +435,65 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
     return `${day}-${month}-${year}`;
   };
 
-  // Group data by date, shift, and milk type
-  const groupedData = new Map<string, FarmerBillData>();
-  const cowData = new Map<string, FarmerBillData>();
-  const buffaloData = new Map<string, FarmerBillData>();
+  // Group data by date, shift, and milk type — aggregate multiple records for the same slot
+  interface AggEntry {
+    base: FarmerBillData;
+    liters: number;
+    amount: number;
+    fatWeighted: number;
+    snfWeighted: number;
+    clrWeighted: number;
+    rateWeighted: number;
+    water: number;
+  }
+  const groupedAgg = new Map<string, AggEntry>();
+  const cowAgg = new Map<string, AggEntry>();
+  const buffaloAgg = new Map<string, AggEntry>();
+
+  const aggregateInto = (map: Map<string, AggEntry>, key: string, item: FarmerBillData) => {
+    const liters = item.liters || 0;
+    const amount = item.amount || 0;
+    const fat = item.fat || 0;
+    const snf = item.snf || 0;
+    const clr = item.clr || 0;
+    const rate = item.rate || 0;
+    const water = item.water || 0;
+    if (map.has(key)) {
+      const agg = map.get(key)!;
+      agg.liters += liters;
+      agg.amount += amount;
+      agg.fatWeighted += fat * liters;
+      agg.snfWeighted += snf * liters;
+      agg.clrWeighted += clr * liters;
+      agg.rateWeighted += rate * liters;
+      agg.water += water;
+    } else {
+      map.set(key, {
+        base: item,
+        liters,
+        amount,
+        fatWeighted: fat * liters,
+        snfWeighted: snf * liters,
+        clrWeighted: clr * liters,
+        rateWeighted: rate * liters,
+        water,
+      });
+    }
+  };
+
+  const aggToFarmerBillData = (agg: AggEntry): FarmerBillData => {
+    const l = agg.liters;
+    return {
+      ...agg.base,
+      liters: l,
+      amount: agg.amount,
+      fat: l > 0 ? agg.fatWeighted / l : 0,
+      snf: l > 0 ? agg.snfWeighted / l : 0,
+      clr: l > 0 ? agg.clrWeighted / l : 0,
+      rate: l > 0 ? agg.rateWeighted / l : 0,
+      water: agg.water,
+    };
+  };
 
   for (const item of templateData.data) {
     const itemDate = new Date(item.date);
@@ -449,15 +504,25 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
       .padStart(2, "0")}/${itemDate.getFullYear()}`;
     const key = `${dateKey}_${item.shift}`;
     const milkType = (item.type || '').toString().toLowerCase().trim();
-    
-    groupedData.set(key, item);
-    
+
+    aggregateInto(groupedAgg, key, item);
+
     if (milkType === "cow") {
-      cowData.set(key, item);
+      aggregateInto(cowAgg, key, item);
     } else if (milkType === "buffalo") {
-      buffaloData.set(key, item);
+      aggregateInto(buffaloAgg, key, item);
     }
   }
+
+  const groupedData = new Map<string, FarmerBillData>(
+    Array.from(groupedAgg.entries()).map(([k, v]) => [k, aggToFarmerBillData(v)])
+  );
+  const cowData = new Map<string, FarmerBillData>(
+    Array.from(cowAgg.entries()).map(([k, v]) => [k, aggToFarmerBillData(v)])
+  );
+  const buffaloData = new Map<string, FarmerBillData>(
+    Array.from(buffaloAgg.entries()).map(([k, v]) => [k, aggToFarmerBillData(v)])
+  );
 
   // Pre-filter data if a specific milk type is requested
   let processedData = templateData.data;
