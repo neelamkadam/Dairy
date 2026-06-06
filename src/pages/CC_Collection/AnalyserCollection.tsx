@@ -50,6 +50,7 @@ const AnalyserCollection = () => {
   const fatRef = useRef<HTMLInputElement>(null);
   const clrRef = useRef<HTMLInputElement>(null);
   const snfRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     if (branches.length > 0 && !selectedBranch) {
@@ -500,7 +501,7 @@ const AnalyserCollection = () => {
                     {/* Analysis Form */}
                     <Card className="border-none shadow-xl bg-white dark:bg-gray-900 rounded-2xl">
                       <CardContent className="p-8">
-                        <form onSubmit={handleSubmit} className="space-y-8">
+                        <form ref={formRef} onSubmit={handleSubmit} className="space-y-8">
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                             <div className="space-y-2.5">
                               <Label className="text-xs font-bold uppercase tracking-widest text-gray-400 flex items-center gap-2">
@@ -512,6 +513,7 @@ const AnalyserCollection = () => {
                                 step="0.1"
                                 value={fat}
                                 onChange={(e) => handleFatChange(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (showCLR) { clrRef.current?.focus(); } else { snfRef.current?.focus(); } } }}
                                 placeholder="0.0"
                                 className="h-12 text-xl font-black bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-purple-500/20 transition-all rounded-xl"
                               />
@@ -528,6 +530,7 @@ const AnalyserCollection = () => {
                                   step="0.5"
                                   value={clr}
                                   onChange={(e) => handleCLRChange(e.target.value)}
+                                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); formRef.current?.requestSubmit(); } }}
                                   placeholder="0.0"
                                   className="h-12 text-xl font-black bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-purple-500/20 transition-all rounded-xl"
                                 />
@@ -543,6 +546,7 @@ const AnalyserCollection = () => {
                                   step="0.01"
                                   value={snf}
                                   onChange={(e) => handleSNFChange(e.target.value)}
+                                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); formRef.current?.requestSubmit(); } }}
                                   placeholder="0.00"
                                   className="h-12 text-xl font-black bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-purple-500/20 transition-all rounded-xl"
                                 />

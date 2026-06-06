@@ -14,7 +14,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Filter, Search, CalendarIcon, Settings, ArrowUp, ArrowDown, GripVertical } from "lucide-react";
+import { Filter, Search, CalendarIcon, Settings, ArrowUp, ArrowDown, GripVertical, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import SummaryCards from "@/components/SummaryCards";
@@ -32,6 +32,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { deductionApi } from "@/services/deductionApi";
 import { bonusApi } from "@/services/bonusApi";
 import { webUserApi } from "@/services/webUserApi";
+import { vlcCommissionApi } from "@/services/vlcCommissionApi";
 import { useAppSelector } from "@/redux/store";
 import { toast } from "react-toastify";
 
@@ -98,6 +99,7 @@ const FarmerDeduction = () => {
   const [previousRemainingOpen, setPreviousRemainingOpen] = useState(false);
   const [priority, setPriority] = useState<string[]>(['bonus', 'fixed', 'advance', 'cattleFeed', 'other1', 'other2']);
   const [isBillFinalized, setIsBillFinalized] = useState(false);
+  const [fetchLoading, setFetchLoading] = useState(false);
 
   // Helper functions to check if columns should be shown
   const shouldShowAdvance = () => farmerData.some(f => f.advance > 0 || f.advanceDeduction > 0);
@@ -106,6 +108,7 @@ const FarmerDeduction = () => {
   const shouldShowOther2 = () => farmerData.some(f => f.other2Amount > 0 || f.other2Deduction > 0);
   const shouldShowBonus = () => farmerData.some(f => f.bonusAmount > 0 || f.bonusRate > 0);
   const shouldShowFixed = () => farmerData.some(f => f.fixedAmount > 0);
+  const shouldShowTravelCommission = () => farmerData.some(f => (f.travelCommissionAmount || 0) > 0);
 
   useEffect(() => {
     if (branches.length > 0 && !vlcName) {
@@ -143,6 +146,7 @@ const FarmerDeduction = () => {
       return;
     }
 
+    setFetchLoading(true);
     try {
       const { data } = await deductionApi.getAllFarmersBalance(
         parseInt(vlcName),
@@ -354,6 +358,45 @@ const FarmerDeduction = () => {
         });
       }
 
+      // Fetch travel commissions (farmer-specific first, VLC-level fallback)
+      if (processedData.length > 0) {
+        try {
+          const commResponse = await vlcCommissionApi.getByVlcc(vlcName);
+          const commRecords = (commResponse.data?.data ?? []) as Record<string, string>[];
+
+          // Split into farmer-specific and VLC-level
+          const farmerCommMap = new Map<string, Record<string, string>>();
+          let vlcLevelComm: Record<string, string> | null = null;
+
+          commRecords.forEach((r) => {
+            if (r.farmer_id) {
+              if (!farmerCommMap.has(r.farmer_id)) farmerCommMap.set(r.farmer_id, r);
+            } else if (!vlcLevelComm) {
+              vlcLevelComm = r;
+            }
+          });
+
+          processedData.forEach(farmer => {
+            const comm = farmerCommMap.get(farmer.farmer_id) ?? vlcLevelComm;
+            if (!comm) { farmer.travelCommissionAmount = 0; return; }
+
+            const effectiveDate = comm.effective_from ? new Date(comm.effective_from) : null;
+            if (effectiveDate && endDate && endDate <= effectiveDate) {
+              farmer.travelCommissionAmount = 0;
+              return;
+            }
+
+            const rate = parseFloat(comm.amount || '0');
+            farmer.travelCommissionAmount = comm.type === 'Commission'
+              ? farmer.quantity * rate
+              : rate;
+          });
+        } catch (error) {
+          console.error('❌ [COMMISSION API ERROR]:', error);
+          processedData.forEach(farmer => { farmer.travelCommissionAmount = 0; });
+        }
+      }
+
       const adjustedData = processedData.map(farmer => {
         const fieldMap: any = {
           bonus: { deduction: 'bonusAmount', amount: 'bonusAmount' },
@@ -398,6 +441,8 @@ const FarmerDeduction = () => {
     } catch (error: any) {
       console.error('❌ [API ERROR] fetchDeductions:', error);
       toast.error(error?.response?.data?.message || "Failed to fetch deductions");
+    } finally {
+      setFetchLoading(false);
     }
   };
 
@@ -515,8 +560,9 @@ const FarmerDeduction = () => {
         try {
           const bonusAmount = farmer.bonusRate || 0;
           const fixedAmount = farmer.fixedAmount || 0;
+          const travelCommissionAmount = farmer.travelCommissionAmount || 0;
           const totalDeductions = bonusAmount + fixedAmount + farmer.advanceDeduction + farmer.cattleFeedDeduction + farmer.other1Deduction + farmer.other2Deduction;
-          const netPayable = farmer.billAmount - totalDeductions;
+          const netPayable = farmer.billAmount - totalDeductions + travelCommissionAmount;
           
           const billData = {
             farmer_id: farmer.farmer_id,
@@ -709,11 +755,13 @@ const FarmerDeduction = () => {
                 />
               </div>
               
-              <Button 
+              <Button
                 onClick={fetchDeductions}
-                className="bg-red-600 hover:bg-red-700 text-white px-8"
+                disabled={fetchLoading}
+                className="bg-red-600 hover:bg-red-700 text-white px-8 flex items-center gap-2"
               >
-                Fetch Data
+                {fetchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {fetchLoading ? 'Fetching...' : 'Fetch Data'}
               </Button>
             </div>
 
@@ -876,6 +924,11 @@ const FarmerDeduction = () => {
                   <TableHead className="font-semibold text-gray-700 px-2 py-2">
                     Received
                   </TableHead>
+                  {shouldShowTravelCommission() && (
+                    <TableHead className="font-semibold text-gray-700 bg-orange-50 px-2 py-2">
+                      Travel Comm
+                    </TableHead>
+                  )}
                     {shouldShowBonus() && (
                     <TableHead className="font-semibold text-gray-700 bg-red-50 px-2 py-2">
                       Bonus
@@ -973,6 +1026,13 @@ const FarmerDeduction = () => {
                     <TableCell className="text-green-600 px-2 py-2 text-xs">
                       ₹{farmer.receivedAmount.toFixed(2)}
                     </TableCell>
+                    {shouldShowTravelCommission() && (
+                      <TableCell className="text-orange-600 bg-orange-50 px-2 py-2 text-xs">
+                        {(farmer.travelCommissionAmount || 0) > 0
+                          ? `₹${(farmer.travelCommissionAmount as number).toFixed(2)}`
+                          : '-'}
+                      </TableCell>
+                    )}
                     {shouldShowBonus() && (
                       <TableCell className="text-red-600 bg-red-50 px-2 py-2 text-xs">
                         {farmer.bonusAmount > 0 ? (
@@ -994,13 +1054,14 @@ const FarmerDeduction = () => {
                     )}
                     <TableCell className="text-green-600 font-semibold px-2 py-2 text-xs">
                       ₹{(
-                        farmer.billAmount - 
-                        (farmer.bonusAmount || 0) - 
-                        (farmer.fixedAmount || 0) - 
-                        farmer.advanceDeduction - 
-                        farmer.cattleFeedDeduction - 
-                        farmer.other1Deduction - 
-                        farmer.other2Deduction
+                        farmer.billAmount -
+                        (farmer.bonusAmount || 0) -
+                        (farmer.fixedAmount || 0) -
+                        farmer.advanceDeduction -
+                        farmer.cattleFeedDeduction -
+                        farmer.other1Deduction -
+                        farmer.other2Deduction +
+                        (farmer.travelCommissionAmount || 0)
                       ).toFixed(2)}
                     </TableCell>
                   </TableRow>

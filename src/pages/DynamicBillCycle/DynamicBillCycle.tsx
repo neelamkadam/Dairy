@@ -335,24 +335,25 @@ const DynamicBillCycle = () => {
     //   Fall back: Prev = current_bill.X_total + current_bill.X_remaining
     const pb = farmer.previous_bill;
 
-    const prev_advance = pb
-      ? parseFloat(pb.advance_remaining || '0')
-      : (parseFloat(bd.advance_total || '0') + parseFloat(bd.advance_remaining || '0'));
-    const prev_cattlefeed = pb
-      ? parseFloat(pb.cattlefeed_remaining || '0')
-      : (parseFloat(bd.cattlefeed_total || '0') + parseFloat(bd.cattlefeed_remaining || '0'));
-    const prev_other1 = pb
-      ? parseFloat(pb.other1_remaining || '0')
-      : (parseFloat(bd.other1_total || '0') + parseFloat(bd.other1_remaining || '0'));
-    const prev_other2 = pb
-      ? parseFloat(pb.other2_remaining || '0')
-      : (parseFloat(bd.other2_total || '0') + parseFloat(bd.other2_remaining || '0'));
+    // When bill is frozen (from_bills data exists), read prev/pay directly from from_bills
+    const prev_advance = hasSavedBill
+      ? parseFloat(bd.advance_total || '0')
+      : (pb ? parseFloat(pb.advance_remaining || '0') : 0);
+    const prev_cattlefeed = hasSavedBill
+      ? parseFloat(bd.cattlefeed_total || '0')
+      : (pb ? parseFloat(pb.cattlefeed_remaining || '0') : 0);
+    const prev_other1 = hasSavedBill
+      ? parseFloat(bd.other1_total || '0')
+      : (pb ? parseFloat(pb.other1_remaining || '0') : 0);
+    const prev_other2 = hasSavedBill
+      ? parseFloat(bd.other2_total || '0')
+      : (pb ? parseFloat(pb.other2_remaining || '0') : 0);
 
-    // Pay = new amounts in current period
-    const pay_advance    = (pb && hasSavedBill) ? parseFloat(bd.advance_remaining    || '0') : advance_sum;
-    const pay_cattlefeed = (pb && hasSavedBill) ? parseFloat(bd.cattlefeed_remaining || '0') : cf_sum;
-    const pay_other1     = (pb && hasSavedBill) ? parseFloat(bd.other1_remaining     || '0') : o1_sum;
-    const pay_other2     = (pb && hasSavedBill) ? parseFloat(bd.other2_remaining     || '0') : o2_sum;
+    // Pay = when frozen use from_bills remaining, otherwise accumulate from daily records
+    const pay_advance    = hasSavedBill ? parseFloat(bd.advance_remaining    || '0') : advance_sum;
+    const pay_cattlefeed = hasSavedBill ? parseFloat(bd.cattlefeed_remaining || '0') : cf_sum;
+    const pay_other1     = hasSavedBill ? parseFloat(bd.other1_remaining     || '0') : o1_sum;
+    const pay_other2     = hasSavedBill ? parseFloat(bd.other2_remaining     || '0') : o2_sum;
 
     return {
       ...farmer,
@@ -489,8 +490,16 @@ const DynamicBillCycle = () => {
               payment_logs: billInfo?.payment_logs || {}
             });
 
-            // Set bill status from is_finalized
-            statusMap[farmerId] = !!(fb.is_finalized === 1 || fb.status === 'finalized');
+            // Show "Already Freezed" whenever from_bills has data (mirrors hasSavedBill logic)
+            statusMap[farmerId] = !!(
+              fb.is_finalized === 1 ||
+              fb.status === 'finalized' ||
+              (parseFloat(fb.milk_total) || 0) !== 0 ||
+              (parseFloat(fb.advance_total) || 0) !== 0 ||
+              (parseFloat(fb.cattlefeed_total) || 0) !== 0 ||
+              (parseFloat(fb.other1_total) || 0) !== 0 ||
+              (parseFloat(fb.other2_total) || 0) !== 0
+            );
           }
           
           const record = farmerMap.get(farmerId);
