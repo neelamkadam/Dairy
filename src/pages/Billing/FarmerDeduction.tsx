@@ -162,34 +162,33 @@ const FarmerDeduction = () => {
           const farmerId = farmer.farmer_id;
           
           // Debug: Check what quantity value is coming from API
-          console.log(`🔍 [DEBUG] Farmer ${farmerId}:`, {
-            quantity: farmer.quantity,
-            milk_total: farmer.milk_total,
-            hasQuantityField: 'quantity' in farmer
-          });
           
           if (farmerMap.has(farmerId)) {
             const existing = farmerMap.get(farmerId);
             const beforeQty = existing.quantity;
             existing.billAmount += farmer.milk_total || 0;
             existing.quantity += farmer.quantity || 0;
+            existing.cowQuantity += farmer.qty_breakup?.cow || 0;
+            existing.buffaloQuantity += farmer.qty_breakup?.buffalo || 0;
             existing.advance += farmer.deductions?.advance || 0;
             existing.cattleFeedAmount += farmer.deductions?.cattle_feed || 0;
             existing.other1Amount += farmer.deductions?.other1 || 0;
             existing.other2Amount += farmer.deductions?.other2 || 0;
             existing.receivedAmount += farmer.total_received || 0;
             existing.finalAmount += farmer.net_payable || 0;
-            
-            console.log(`  📊 Aggregating: ${beforeQty} + ${farmer.quantity || 0} = ${existing.quantity}`);
+
+            console.log(`  📊 Aggregating: ${beforeQty} + ${farmer.quantity || 0} = ${existing.quantity} | cow=${farmer.qty_breakup?.cow} buf=${farmer.qty_breakup?.buffalo}`);
           } else {
             const initQuantity = farmer.quantity || 0;
-            console.log(`  ✨ New farmer - Initial quantity: ${initQuantity}`);
-            
+            console.log(`  ✨ New farmer ${farmerId} - qty: ${initQuantity} | cow=${farmer.qty_breakup?.cow} buf=${farmer.qty_breakup?.buffalo}`);
+
             farmerMap.set(farmerId, {
               farmer_id: farmerId,
               name: `${farmerId} - ${farmer.farmer_name || `Farmer ${farmerId}`}`,
               billAmount: farmer.milk_total || 0,
               quantity: initQuantity,
+              cowQuantity: farmer.qty_breakup?.cow || 0,
+              buffaloQuantity: farmer.qty_breakup?.buffalo || 0,
               dateRange: `${format(startDate, "dd-MM-yyyy")} - ${format(endDate, "dd-MM-yyyy")}`,
               bonusRate: 0,
               bonusAmount: 0,
@@ -358,38 +357,62 @@ const FarmerDeduction = () => {
         });
       }
 
-      // Fetch travel commissions (farmer-specific first, VLC-level fallback)
+      // Fetch travel commissions with cow/buffalo split
       if (processedData.length > 0) {
         try {
           const commResponse = await vlcCommissionApi.getByVlcc(vlcName);
           const commRecords = (commResponse.data?.data ?? []) as Record<string, string>[];
 
-          // Split into farmer-specific and VLC-level
-          const farmerCommMap = new Map<string, Record<string, string>>();
-          let vlcLevelComm: Record<string, string> | null = null;
-
+          // Key: `${farmer_id}_${milk_type}` — farmer_id='' for VLC-level, milk_type='null' when absent
+          const commMap = new Map<string, Record<string, string>>();
           commRecords.forEach((r) => {
-            if (r.farmer_id) {
-              if (!farmerCommMap.has(r.farmer_id)) farmerCommMap.set(r.farmer_id, r);
-            } else if (!vlcLevelComm) {
-              vlcLevelComm = r;
-            }
+            const key = `${r.farmer_id || ''}_${r.milk_type || 'null'}`;
+            if (!commMap.has(key)) commMap.set(key, r);
           });
 
-          processedData.forEach(farmer => {
-            const comm = farmerCommMap.get(farmer.farmer_id) ?? vlcLevelComm;
-            if (!comm) { farmer.travelCommissionAmount = 0; return; }
-
+          const isActive = (comm: Record<string, string>) => {
             const effectiveDate = comm.effective_from ? new Date(comm.effective_from) : null;
-            if (effectiveDate && endDate && endDate <= effectiveDate) {
-              farmer.travelCommissionAmount = 0;
-              return;
-            }
+            return !(effectiveDate && endDate && endDate <= effectiveDate);
+          };
 
+          // Resolve by: farmer+type → VLC+type → farmer+generic → VLC+generic
+          const getComm = (farmerId: string, milkType: string) =>
+            commMap.get(`${farmerId}_${milkType}`) ??
+            commMap.get(`_${milkType}`) ??
+            null;
+
+          const getGeneric = (farmerId: string) =>
+            commMap.get(`${farmerId}_null`) ??
+            commMap.get(`_null`) ??
+            null;
+
+          const calcPart = (comm: Record<string, string> | null, qty: number): number => {
+            if (!comm || qty === 0 || !isActive(comm)) return 0;
             const rate = parseFloat(comm.amount || '0');
-            farmer.travelCommissionAmount = comm.type === 'Commission'
-              ? farmer.quantity * rate
-              : rate;
+            return comm.type === 'Commission' ? qty * rate : rate;
+          };
+
+          processedData.forEach(farmer => {
+            const fid = farmer.farmer_id;
+            const cowComm = getComm(fid, 'Cow');
+            const buffaloComm = getComm(fid, 'Buffalo');
+            const genericComm = getGeneric(fid);
+
+            if (cowComm || buffaloComm) {
+              // Type-specific rates — calculate cow and buffalo separately
+              const cowPart = cowComm
+                ? calcPart(cowComm, farmer.cowQuantity)
+                : calcPart(genericComm, farmer.cowQuantity);
+              const bufPart = buffaloComm
+                ? calcPart(buffaloComm, farmer.buffaloQuantity)
+                : calcPart(genericComm, farmer.buffaloQuantity);
+              farmer.travelCommissionAmount = cowPart + bufPart;
+            } else if (genericComm) {
+              // Null milk_type record → apply once to total quantity
+              farmer.travelCommissionAmount = calcPart(genericComm, farmer.quantity);
+            } else {
+              farmer.travelCommissionAmount = 0;
+            }
           });
         } catch (error) {
           console.error('❌ [COMMISSION API ERROR]:', error);
