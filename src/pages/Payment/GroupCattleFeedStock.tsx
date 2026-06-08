@@ -38,6 +38,16 @@ const GroupCattleFeedStock: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [allStocks, setAllStocks] = useState<CattleFeedStock[]>([]);
   
+  // Edit state
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editItem, setEditItem] = useState<CattleFeedStock | null>(null);
+  const [editStockName, setEditStockName] = useState("");
+  const [editStock, setEditStock] = useState("");       // current (read-only display)
+  const [editAddStock, setEditAddStock] = useState(""); // amount to add
+  const [editAmount, setEditAmount] = useState("");
+  const [editPurchaseRate, setEditPurchaseRate] = useState("");
+  const [editDate, setEditDate] = useState<Date | undefined>(new Date());
+
   // Transfer state
   const [isTransferOpen, setIsTransferOpen] = useState(false);
   const [transferItem, setTransferItem] = useState<CattleFeedStock | null>(null);
@@ -93,6 +103,45 @@ const GroupCattleFeedStock: React.FC = () => {
       fetchAllStocks();
     } catch (error) {
       toast.error("Failed to add stock item");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openEditDialog = (item: CattleFeedStock) => {
+    setEditItem(item);
+    setEditStockName(item.stock_name);
+    setEditStock(item.stock.toString());
+    setEditAddStock("");
+    setEditAmount(item.amount.toString());
+    setEditPurchaseRate(item.purchase_rate.toString());
+    const rawDate = Array.isArray(item.date) ? item.date[0] : item.date;
+    setEditDate(rawDate ? new Date(rawDate) : new Date());
+    setIsEditOpen(true);
+  };
+
+  const handleEditStock = async () => {
+    if (!editItem) return;
+    if (!editStockName.trim() || !editAmount || !editPurchaseRate || !editDate) {
+      toast.error("Please fill all fields");
+      return;
+    }
+    const addQty = parseFloat(editAddStock) || 0;
+    const newTotal = parseFloat(editStock) + addQty;
+    setLoading(true);
+    try {
+      await cattleFeedApi.updateStock(editItem.id, {
+        stock_name: editStockName.trim(),
+        stock: newTotal,
+        amount: parseFloat(editAmount),
+        purchase_rate: parseFloat(editPurchaseRate),
+        date: [format(editDate, "yyyy-MM-dd")],
+      });
+      toast.success("Stock updated successfully");
+      setIsEditOpen(false);
+      fetchAllStocks();
+    } catch (error) {
+      toast.error("Failed to update stock");
     } finally {
       setLoading(false);
     }
@@ -260,15 +309,26 @@ const GroupCattleFeedStock: React.FC = () => {
                         </h4>
                         <div className="text-xs text-slate-400 font-medium">Last updated: {format(new Date(Array.isArray(item.date) ? item.date[0] : (typeof item.date === 'string' ? item.date : new Date())), "dd MMM, yyyy")}</div>
                       </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => { setTransferItem(item); setIsTransferOpen(true); }} 
-                        className="text-indigo-600 border-indigo-200 bg-indigo-50 hover:bg-indigo-600 hover:text-white transition-all shadow-sm rounded-lg py-5 px-4 font-bold"
-                      >
-                        <ArrowRightLeft className="w-4 h-4 mr-2" />
-                        Transfer Stock
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditDialog(item)}
+                          className="text-slate-600 border-slate-200 bg-slate-50 hover:bg-slate-700 hover:text-white transition-all shadow-sm rounded-lg py-5 px-4 font-bold"
+                        >
+                          <Pencil className="w-4 h-4 mr-2" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => { setTransferItem(item); setIsTransferOpen(true); }}
+                          className="text-indigo-600 border-indigo-200 bg-indigo-50 hover:bg-indigo-600 hover:text-white transition-all shadow-sm rounded-lg py-5 px-4 font-bold"
+                        >
+                          <ArrowRightLeft className="w-4 h-4 mr-2" />
+                          Transfer
+                        </Button>
+                      </div>
                     </div>
                     
                     <div className="grid grid-cols-2 gap-4">
@@ -299,6 +359,123 @@ const GroupCattleFeedStock: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Edit Stock Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="bg-white border-none shadow-2xl max-w-md rounded-2xl p-0 overflow-hidden">
+          <DialogHeader className="bg-slate-900 text-white p-6">
+            <DialogTitle className="text-xl font-bold flex items-center">
+              <Pencil className="w-5 h-5 mr-3 text-indigo-400" />
+              Edit Stock — {editItem?.stock_name}
+            </DialogTitle>
+            <DialogDescription className="text-slate-400 text-sm mt-2">
+              Update the stock details. Quantity here replaces the current balance.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="p-8 space-y-5 bg-white">
+            <div className="space-y-2">
+              <Label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Stock Name</Label>
+              <Input
+                value={editStockName}
+                onChange={(e) => setEditStockName(e.target.value)}
+                placeholder="e.g. Premium Cattle Feed"
+                className="bg-slate-50 border-slate-200 h-11 rounded-xl"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-bold text-slate-700 uppercase tracking-wider">
+                  Current Stock
+                  {(parseFloat(editAddStock) || 0) > 0 && (
+                    <span className="ml-2 text-[10px] font-normal text-slate-400 normal-case">
+                      was {editStock}
+                    </span>
+                  )}
+                </Label>
+                <Input
+                  type="number"
+                  value={(parseFloat(editStock) + (parseFloat(editAddStock) || 0)).toString()}
+                  disabled
+                  className="bg-slate-100 border-slate-200 h-11 rounded-xl text-slate-700 font-bold cursor-not-allowed"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Add Quantity</Label>
+                <Input
+                  type="number"
+                  value={editAddStock}
+                  onChange={(e) => setEditAddStock(e.target.value)}
+                  placeholder="0.00"
+                  className="bg-slate-50 border-slate-200 h-11 rounded-xl"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Purchase Rate</Label>
+                <Input
+                  type="number"
+                  value={editPurchaseRate}
+                  onChange={(e) => setEditPurchaseRate(e.target.value)}
+                  placeholder="₹0.00"
+                  className="bg-slate-50 border-slate-200 h-11 rounded-xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Selling Rate</Label>
+                <Input
+                  type="number"
+                  value={editAmount}
+                  onChange={(e) => setEditAmount(e.target.value)}
+                  placeholder="₹0.00"
+                  className="bg-slate-50 border-slate-200 h-11 rounded-xl text-indigo-600 font-bold"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full pl-3 text-left font-normal h-11 bg-slate-50 border-slate-200 rounded-xl",
+                      !editDate && "text-muted-foreground"
+                    )}
+                  >
+                    {editDate ? format(editDate, "PPP") : <span>Pick a date</span>}
+                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 bg-white" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={editDate}
+                    onSelect={setEditDate}
+                    className="bg-white"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          <DialogFooter className="bg-slate-50 p-6 flex items-center justify-end gap-3 border-t border-slate-100">
+            <Button
+              variant="ghost"
+              onClick={() => setIsEditOpen(false)}
+              className="hover:bg-slate-200 rounded-xl px-6"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleEditStock}
+              disabled={loading}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-8 shadow-lg shadow-indigo-100 h-11 font-bold"
+            >
+              {loading ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Transfer Dialog */}
       <Dialog open={isTransferOpen} onOpenChange={setIsTransferOpen}>
