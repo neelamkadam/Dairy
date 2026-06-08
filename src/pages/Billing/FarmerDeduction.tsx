@@ -343,13 +343,12 @@ const FarmerDeduction = () => {
                            o1Total > 0 || o1Remaining > 0 || o2Total > 0 || o2Remaining > 0;
 
             if (hasData) {
-              farmer.advance = advTotal + advRemaining;
+              // Keep aggregated amounts — they correctly include new daily advances/deductions
+              // given after the bill was last saved. Only pull the deduction amounts from the
+              // saved bill so the UI shows what was already processed.
               farmer.advanceDeduction = advTotal;
-              farmer.cattleFeedAmount = cfTotal + cfRemaining;
               farmer.cattleFeedDeduction = cfTotal;
-              farmer.other1Amount = o1Total + o1Remaining;
               farmer.other1Deduction = o1Total;
-              farmer.other2Amount = o2Total + o2Remaining;
               farmer.other2Deduction = o2Total;
               farmer.hasBill = true;
             }

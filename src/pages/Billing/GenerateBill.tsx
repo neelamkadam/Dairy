@@ -10,10 +10,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Lock, CheckCircle, Unlock } from "lucide-react";
+import { Lock, CheckCircle, Unlock, Loader2 } from "lucide-react";
 import { billApi } from "@/services/billApi";
 import { deductionApi } from "@/services/deductionApi";
 import { bonusApi } from "@/services/bonusApi";
+import { vlcCommissionApi } from "@/services/vlcCommissionApi";
 import { normalizeFarmerId } from "@/utils/farmerIdUtils";
 import { format } from "date-fns";
 import { toast } from "react-toastify";
@@ -71,9 +72,12 @@ const GenerateBill = () => {
     setEndDate(dates.to);
   };
   const [loading, setLoading] = useState(false);
+  const [fetchLoading, setFetchLoading] = useState(false);
   const [farmersData, setFarmersData] = useState<any[]>([]);
   const [isBillFinalized, setIsBillFinalized] = useState(false);
   const [resetting, setResetting] = useState(false);
+
+  const shouldShowTravelCommission = () => farmersData.some(f => (f.travelCommissionAmount || 0) > 0);
 
   const totals = farmersData.reduce(
     (acc, farmer) => {
@@ -104,6 +108,7 @@ const GenerateBill = () => {
   }, [selectedDairy, branches]); // Added branches to dependency to ensure selectedVlc is available
 
   const fetchBillData = async () => {
+    setFetchLoading(true);
     try {
       const { data } = await deductionApi.getAllFarmersBalance(
         selectedDairy,
@@ -122,10 +127,12 @@ const GenerateBill = () => {
             const existing = farmerMap.get(farmerId);
             existing.milk_total += farmer.milk_total || 0;
             existing.quantity += farmer.quantity || 0;
-            existing.advance_total += farmer.deductions?.advance || 0;
-            existing.cattlefeed_total += farmer.deductions?.cattle_feed || 0;
-            existing.other1_total += farmer.deductions?.other1 || 0;
-            existing.other2_total += farmer.deductions?.other2 || 0;
+            existing.cowQuantity += farmer.qty_breakup?.cow || 0;
+            existing.buffaloQuantity += farmer.qty_breakup?.buffalo || 0;
+            existing.advance += farmer.deductions?.advance || 0;
+            existing.cattleFeedAmount += farmer.deductions?.cattle_feed || 0;
+            existing.other1Amount += farmer.deductions?.other1 || 0;
+            existing.other2Amount += farmer.deductions?.other2 || 0;
             existing.received_total += farmer.total_received || 0;
           } else {
             farmerMap.set(farmerId, {
@@ -133,14 +140,17 @@ const GenerateBill = () => {
               name: farmer.farmer_name || `Farmer ${farmerId}`,
               milk_total: farmer.milk_total || 0,
               quantity: farmer.quantity || 0,
-              advance: farmer.deductions?.advance || 0,
-              advanceDeduction: farmer.deductions?.advance || 0,
-              cattleFeedAmount: farmer.deductions?.cattle_feed || 0,
-              cattleFeedDeduction: farmer.deductions?.cattle_feed || 0,
-              other1Amount: farmer.deductions?.other1 || 0,
-              other1Deduction: farmer.deductions?.other1 || 0,
-              other2Amount: farmer.deductions?.other2 || 0,
-              other2Deduction: farmer.deductions?.other2 || 0,
+              cowQuantity: farmer.qty_breakup?.cow || 0,
+              buffaloQuantity: farmer.qty_breakup?.buffalo || 0,
+              travelCommissionAmount: 0,
+              advance: (farmer.deductions?.advance || 0) + parseFloat(farmer.previous_bill?.advance_remaining || 0),
+              advanceDeduction: 0,
+              cattleFeedAmount: (farmer.deductions?.cattle_feed || 0) + parseFloat(farmer.previous_bill?.cattlefeed_remaining || 0),
+              cattleFeedDeduction: 0,
+              other1Amount: (farmer.deductions?.other1 || 0) + parseFloat(farmer.previous_bill?.other1_remaining || 0),
+              other1Deduction: 0,
+              other2Amount: (farmer.deductions?.other2 || 0) + parseFloat(farmer.previous_bill?.other2_remaining || 0),
+              other2Deduction: 0,
               received_total: farmer.total_received || 0,
               net_payable: farmer.net_payable || 0,
               hasBill: false,
@@ -246,13 +256,11 @@ const GenerateBill = () => {
                            o1Total > 0 || o1Remaining > 0 || o2Total > 0 || o2Remaining > 0;
 
             if (hasData) {
-              farmer.advance = advTotal + advRemaining;
+              // Keep aggregated *Amount fields — they include new deductions added after the last save.
+              // Only pull the deduction amounts from the saved bill.
               farmer.advanceDeduction = advTotal;
-              farmer.cattleFeedAmount = cfTotal + cfRemaining;
               farmer.cattleFeedDeduction = cfTotal;
-              farmer.other1Amount = o1Total + o1Remaining;
               farmer.other1Deduction = o1Total;
-              farmer.other2Amount = o2Total + o2Remaining;
               farmer.other2Deduction = o2Total;
               farmer.hasBill = true;
             }
@@ -304,6 +312,61 @@ const GenerateBill = () => {
         })));
       }
 
+      // Fetch travel commissions (same logic as FarmerDeduction)
+      if (processedData.length > 0) {
+        try {
+          const commResponse = await vlcCommissionApi.getByVlcc(selectedDairy.toString());
+          const commRecords = (commResponse.data?.data ?? []) as Record<string, string>[];
+
+          const commMap = new Map<string, Record<string, string>>();
+          commRecords.forEach((r) => {
+            const key = `${r.farmer_id || ''}_${r.milk_type || 'null'}`;
+            if (!commMap.has(key)) commMap.set(key, r);
+          });
+
+          const isActive = (comm: Record<string, string>) => {
+            const effectiveDate = comm.effective_from ? new Date(comm.effective_from) : null;
+            return !(effectiveDate && endDate && endDate <= effectiveDate);
+          };
+
+          const getComm = (farmerId: string, milkType: string) =>
+            commMap.get(`${farmerId}_${milkType}`) ?? commMap.get(`_${milkType}`) ?? null;
+
+          const getGeneric = (farmerId: string) =>
+            commMap.get(`${farmerId}_null`) ?? commMap.get(`_null`) ?? null;
+
+          const calcPart = (comm: Record<string, string> | null, qty: number): number => {
+            if (!comm || qty === 0 || !isActive(comm)) return 0;
+            const rate = parseFloat(comm.amount || '0');
+            return comm.type === 'Commission' ? qty * rate : rate;
+          };
+
+          processedData.forEach(farmer => {
+            const fid = farmer.farmer_id;
+            const cowComm = getComm(fid, 'Cow');
+            const buffaloComm = getComm(fid, 'Buffalo');
+            const genericComm = getGeneric(fid);
+
+            if (cowComm || buffaloComm) {
+              const cowPart = cowComm
+                ? calcPart(cowComm, farmer.cowQuantity)
+                : calcPart(genericComm, farmer.cowQuantity);
+              const bufPart = buffaloComm
+                ? calcPart(buffaloComm, farmer.buffaloQuantity)
+                : calcPart(genericComm, farmer.buffaloQuantity);
+              farmer.travelCommissionAmount = cowPart + bufPart;
+            } else if (genericComm) {
+              farmer.travelCommissionAmount = calcPart(genericComm, farmer.quantity);
+            } else {
+              farmer.travelCommissionAmount = 0;
+            }
+          });
+        } catch (error) {
+          console.error('❌ [COMMISSION API ERROR]:', error);
+          processedData.forEach(farmer => { farmer.travelCommissionAmount = 0; });
+        }
+      }
+
       // Apply priority-based adjustment with bonus/fixed first
       const adjustedData = processedData.map(farmer => {
         console.log(`\n💰 Processing Farmer ${farmer.farmer_id}:`);
@@ -330,8 +393,9 @@ const GenerateBill = () => {
           console.log('  ✅ Bills Finalized - Using Saved Values');
           
           const totalBonusFixed = farmer.bonusAmount + farmer.fixedAmount;
+          const travelComm = farmer.travelCommissionAmount || 0;
           const netPayableBeforeBonusFixed = farmer.milk_total - (farmer.advanceDeduction + farmer.cattleFeedDeduction + farmer.other1Deduction + farmer.other2Deduction);
-          const finalAmount = netPayableBeforeBonusFixed - totalBonusFixed;
+          const finalAmount = netPayableBeforeBonusFixed - totalBonusFixed + travelComm;
 
           return {
             ...farmer,
@@ -471,9 +535,9 @@ const GenerateBill = () => {
 
         // Calculate net payable before bonus/fixed
         const netPayableBeforeBonusFixed = farmer.milk_total - (finalAdvance + finalCattleFeed + finalOther1 + finalOther2);
-        
-        // Final amount = net payable before bonus/fixed - total bonus/fixed
-        const finalAmount = netPayableBeforeBonusFixed - totalBonusFixed;
+
+        // Final amount = net payable before bonus/fixed - total bonus/fixed + travel commission
+        const finalAmount = netPayableBeforeBonusFixed - totalBonusFixed + (farmer.travelCommissionAmount || 0);
 
         console.log('  Final Calculation:', {
           netPayableBeforeBonusFixed,
@@ -515,6 +579,8 @@ const GenerateBill = () => {
       setFarmersData(adjustedData);
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to fetch bill data");
+    } finally {
+      setFetchLoading(false);
     }
   };
 
@@ -672,6 +738,7 @@ const GenerateBill = () => {
           received_total: farmer.received_total || 0,
           bonus_deduction: farmer.bonusAmount || 0,
           fixed_deduction: farmer.fixedAmount || 0,
+          travel_commission: farmer.travelCommissionAmount || 0,
           net_payable: farmer.finalAmount,
           advance_remaining: farmer.advance_remaining_display || 0,
           cattlefeed_remaining: farmer.cattlefeed_remaining_display || 0,
@@ -785,12 +852,13 @@ const GenerateBill = () => {
                     className="border-gray-300 bg-gray-100 cursor-not-allowed"
                   />
                 </div>
-                <Button 
+                <Button
                   onClick={fetchBillData}
-                  disabled={loading}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  disabled={fetchLoading}
+                  className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
                 >
-                  {loading ? "Loading..." : "Show"}
+                  {fetchLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {fetchLoading ? "Fetching..." : "Show"}
                 </Button>
               </div>
               {farmersData.length > 0 && (
@@ -861,6 +929,11 @@ const GenerateBill = () => {
                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                       Other2
                     </th>
+                    {shouldShowTravelCommission() && (
+                      <th className="px-3 py-2 text-left text-xs font-medium text-orange-500 uppercase bg-orange-50">
+                        Travel Comm
+                      </th>
+                    )}
                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                       Bonus
                     </th>
@@ -922,6 +995,13 @@ const GenerateBill = () => {
                           </div>
                         )}
                       </td>
+                      {shouldShowTravelCommission() && (
+                        <td className="px-3 py-2 text-xs text-orange-600 font-medium bg-orange-50">
+                          {(farmer.travelCommissionAmount || 0) > 0
+                            ? `₹${(farmer.travelCommissionAmount as number).toFixed(2)}`
+                            : '-'}
+                        </td>
+                      )}
                       <td className="px-3 py-2 text-xs text-red-600 font-medium">
                         ₹{(farmer.bonusAmount || 0).toFixed(2)}
                         {farmer.bonusRate > 0 && (
