@@ -410,7 +410,7 @@ const GenerateBill = () => {
         }
 
         const totalBonusFixed = farmer.bonusAmount + farmer.fixedAmount;
-        const remainingAfterBonusFixed = farmer.milk_total - totalBonusFixed;
+        const remainingAfterBonusFixed = farmer.milk_total + (farmer.travelCommissionAmount || 0) - totalBonusFixed;
 
         console.log('  Bonus/Fixed Calc:', {
           totalBonusFixed,
