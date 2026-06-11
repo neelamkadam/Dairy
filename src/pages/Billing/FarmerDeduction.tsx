@@ -177,10 +177,8 @@ const FarmerDeduction = () => {
             existing.receivedAmount += farmer.total_received || 0;
             existing.finalAmount += farmer.net_payable || 0;
 
-            console.log(`  📊 Aggregating: ${beforeQty} + ${farmer.quantity || 0} = ${existing.quantity} | cow=${farmer.qty_breakup?.cow} buf=${farmer.qty_breakup?.buffalo}`);
           } else {
             const initQuantity = farmer.quantity || 0;
-            console.log(`  ✨ New farmer ${farmerId} - qty: ${initQuantity} | cow=${farmer.qty_breakup?.cow} buf=${farmer.qty_breakup?.buffalo}`);
 
             farmerMap.set(farmerId, {
               farmer_id: farmerId,
@@ -226,9 +224,8 @@ const FarmerDeduction = () => {
       const processedData = Array.from(farmerMap.values());
       
       // Debug: Check final aggregated quantities
-      console.log('📋 [DEBUG] Final Aggregated Data:');
       processedData.forEach(farmer => {
-        console.log(`  ${farmer.farmer_id}: quantity=${farmer.quantity}, billAmount=${farmer.billAmount}`);
+        // console.log(`  ${farmer.farmer_id}: quantity=${farmer.quantity}, billAmount=${farmer.billAmount}`);
       });
 
       // Fetch bonus/fixed deductions
@@ -239,7 +236,6 @@ const FarmerDeduction = () => {
             start_date: format(startDate, "yyyy-MM-dd"),
             end_date: format(endDate, "yyyy-MM-dd")
           });
-          console.log('🎁 [BONUS API] getBonusDeductions - Response:', bonusResponse.data);
 
           // Create bonus/fixed map by farmer (get latest entry - highest ID)
           const bonusMap = new Map();
@@ -258,13 +254,6 @@ const FarmerDeduction = () => {
               const effectiveDate = bonusEntry.effective_from ? new Date(bonusEntry.effective_from) : null;
               const shouldApplyBonusFixed = effectiveDate && periodEndDate && periodEndDate > effectiveDate;
 
-              console.log(`🎁 [DEBUG] Farmer ${farmer.farmer_id} Bonus Calc:`, {
-                quantity: farmer.quantity,
-                bonusRate: parseFloat(bonusEntry.bonus_deduction || 0),
-                shouldApply: shouldApplyBonusFixed,
-                effectiveFrom: bonusEntry.effective_from,
-                periodEndDate: periodEndDate?.toISOString()
-              });
 
               if (shouldApplyBonusFixed) {
                 farmer.bonusRate = parseFloat(bonusEntry.bonus_deduction || 0);
@@ -272,14 +261,12 @@ const FarmerDeduction = () => {
                 farmer.fixedAmount = parseFloat(bonusEntry.fixed_deduction || 0);
                 farmer.effectiveFrom = bonusEntry.effective_from;
                 
-                console.log(`  ✅ Applied: bonusAmount = ${farmer.quantity} * ${farmer.bonusRate} = ${farmer.bonusAmount}`);
               } else {
                 farmer.bonusRate = 0;
                 farmer.bonusAmount = 0;
                 farmer.fixedAmount = 0;
                 farmer.effectiveFrom = bonusEntry.effective_from;
                 
-                console.log(`  ❌ Not Applied: Date condition not met`);
               }
             }
           });
@@ -317,7 +304,6 @@ const FarmerDeduction = () => {
           // Source 2: Check if farmer has finalized bills from detailed API data
           const billDetail = billDetailsMap.get(farmer.farmer_id);
           if (billDetail && billDetail.is_finalized === 1) {
-            console.log(`✅ Farmer ${farmer.farmer_id} has finalized bill in bill details`);
             return true;
           }
           
@@ -325,7 +311,6 @@ const FarmerDeduction = () => {
         });
 
         setIsBillFinalized(hasFinalized);
-        console.log('🔒 Bills Finalized Status:', hasFinalized);
 
         processedData.forEach(farmer => {
           const billDetail = billDetailsMap.get(farmer.farmer_id);
@@ -432,7 +417,7 @@ const FarmerDeduction = () => {
         if (farmer.hasBill) return farmer;
 
         const updated = { ...farmer };
-        let remainingBillAmount = farmer.billAmount;
+        let remainingBillAmount = farmer.billAmount + (farmer.travelCommissionAmount || 0);
 
         // Bonus and fixed are already calculated based on date validation
         let bonusAmount = updated.bonusAmount || 0;
@@ -485,11 +470,11 @@ const FarmerDeduction = () => {
           (field !== 'other1Deduction' ? farmer.other1Deduction : 0) + 
           (field !== 'other2Deduction' ? farmer.other2Deduction : 0);
         
-        const maxAllowed = farmer.billAmount - otherDeductions;
-        
+        const maxAllowed = farmer.billAmount + (farmer.travelCommissionAmount || 0) - otherDeductions;
+
         if (numValue > maxAllowed) {
           const correctedValue = Math.max(0, maxAllowed);
-          toast.warning(`Value auto-corrected to ${correctedValue.toFixed(2)}. Total deductions cannot exceed bill amount.`);
+          toast.warning(`Value auto-corrected to ${correctedValue.toFixed(2)}. Total deductions cannot exceed bill amount + travel commission.`);
           numValue = correctedValue;
         }
         
@@ -618,7 +603,6 @@ const FarmerDeduction = () => {
                 end_date: format(endDate, "yyyy-MM-dd")
               };
               await bonusApi.createBonusDeductionLog(logData);
-              console.log('✅ [BONUS LOG] Created for farmer:', farmer.farmer_id);
             } catch (logError) {
               console.error(`❌ [BONUS LOG ERROR] Farmer ${farmer.farmer_id}:`, logError);
             }

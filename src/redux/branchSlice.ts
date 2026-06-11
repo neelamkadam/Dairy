@@ -26,7 +26,6 @@ export const fetchUserBranches = createAsyncThunk(
   async (email: string, { rejectWithValue }) => {
     try {
       const { data } = await api.post("/web/dashboard/data", { email });
-      console.log('Branch API Response:', data);
 
       if (!data.success) {
         return rejectWithValue(data.message || 'Failed to fetch branches');

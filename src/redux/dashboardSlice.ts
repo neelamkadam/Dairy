@@ -57,7 +57,6 @@ export const fetchCollectionsSummary = createAsyncThunk(
   async (payload: { branches: number[]; date: string; shift: string }, { rejectWithValue }) => {
     try {
       const { data } = await api.post("/web/dashboard/collections", payload);
-      console.log('Collections API Response:', data);
 
       if (!data.success) {
         return rejectWithValue(data.message || 'Failed to fetch collections');

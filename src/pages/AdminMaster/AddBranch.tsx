@@ -36,7 +36,6 @@ const AddBranch = () => {
       const { data } = await api.post<BranchResponse>("/web/branches/by-mobile", {
         mobile_number: mobileNumber
       });
-      console.log('AddBranch API Response:', data);
       setResponse(data);
 
       if (data.success) {
