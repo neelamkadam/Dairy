@@ -139,7 +139,14 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
     ];
     
     if (isAdmin) {
-      settingsChildren.push({ title: "Create User", icon: "", href: ROUTES.SETTINGS.CREATE_USER });
+      settingsChildren.push({
+        title: "Create User",
+        icon: "",
+        children: [
+          { title: "Create User", icon: "", href: ROUTES.SETTINGS.CREATE_USER },
+          { title: "Tanker Collector", icon: "", href: ROUTES.TANKER_COLLECTION },
+        ],
+      });
       settingsChildren.push({ title: "Sidebar Access", icon: "", href: ROUTES.SETTINGS.SIDEBAR_ACCESS });
     } else {
       console.log('❌ Not adding Sidebar Access - user is not admin');

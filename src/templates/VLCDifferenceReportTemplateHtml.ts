@@ -22,6 +22,10 @@ export const generateVLCDifferenceReportHtml = (
       <td style="padding: 4px; font-size: 10px; border: 1px solid #e5e7eb; background-color: #f0fdf4;">${parseFloat(row.vlc.avg_snf).toFixed(2)}</td>
       <td style="padding: 4px; font-size: 10px; border: 1px solid #e5e7eb; background-color: #f0fdf4;">${parseFloat(row.vlc.avg_rate || 0).toFixed(2)}</td>
       <td style="padding: 4px; font-size: 10px; border: 1px solid #e5e7eb; background-color: #f0fdf4;">${parseFloat(row.vlc.total_amount).toFixed(2)}</td>
+      <td style="padding: 4px; font-size: 10px; border: 1px solid #e5e7eb; background-color: #e5e7eb;">${row.milk_collection ? parseFloat(row.milk_collection.total_weight).toFixed(2) : '-'}</td>
+      <td style="padding: 4px; font-size: 10px; border: 1px solid #e5e7eb; background-color: #e5e7eb;">${row.milk_collection ? parseFloat(row.milk_collection.avg_fat).toFixed(2) : '-'}</td>
+      <td style="padding: 4px; font-size: 10px; border: 1px solid #e5e7eb; background-color: #e5e7eb;">${row.milk_collection ? parseFloat(row.milk_collection.avg_snf).toFixed(2) : '-'}</td>
+      <td style="padding: 4px; font-size: 10px; border: 1px solid #e5e7eb; background-color: #e5e7eb;">${row.milk_collection ? parseFloat(row.milk_collection.avg_clr).toFixed(2) : '-'}</td>
       <td style="padding: 4px; font-size: 10px; border: 1px solid #e5e7eb; background-color: #eff6ff;">${parseFloat(row.dairy.total_weight).toFixed(2)}</td>
       <td style="padding: 4px; font-size: 10px; border: 1px solid #e5e7eb; background-color: #eff6ff;">${parseFloat(row.dairy.avg_fat).toFixed(2)}</td>
       <td style="padding: 4px; font-size: 10px; border: 1px solid #e5e7eb; background-color: #eff6ff;">${parseFloat(row.dairy.avg_snf).toFixed(2)}</td>
@@ -69,6 +73,7 @@ export const generateVLCDifferenceReportHtml = (
             <th rowspan="2" style="width: 5%;">Shift</th>
             <th rowspan="2" style="width: 5%;">Type</th>
             <th colspan="5" style="background-color: #f0fdf4;">VLC DATA</th>
+            <th colspan="4" style="background-color: #e5e7eb;">MILK COLLECTION</th>
             <th colspan="5" style="background-color: #eff6ff;">DAIRY DATA</th>
             <th colspan="5">DIFFERENCE</th>
           </tr>
@@ -78,6 +83,10 @@ export const generateVLCDifferenceReportHtml = (
             <th style="background-color: #f0fdf4;">SNF</th>
             <th style="background-color: #f0fdf4;">Rate</th>
             <th style="background-color: #f0fdf4;">Amt</th>
+            <th style="background-color: #e5e7eb;">Qty</th>
+            <th style="background-color: #e5e7eb;">Fat</th>
+            <th style="background-color: #e5e7eb;">SNF</th>
+            <th style="background-color: #e5e7eb;">CLR</th>
             <th style="background-color: #eff6ff;">Qty</th>
             <th style="background-color: #eff6ff;">Fat</th>
             <th style="background-color: #eff6ff;">SNF</th>

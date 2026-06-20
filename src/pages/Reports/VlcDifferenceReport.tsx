@@ -353,6 +353,10 @@ const VlcDifferenceReport = () => {
       'VLC SNF': period.vlc.avg_snf,
       'VLC Rate': period.vlc.avg_rate || '0.00',
       'VLC Amount': period.vlc.total_amount,
+      'Milk Weight': period.milk_collection?.total_weight ?? '-',
+      'Milk Fat': period.milk_collection?.avg_fat ?? '-',
+      'Milk SNF': period.milk_collection?.avg_snf ?? '-',
+      'Milk CLR': period.milk_collection?.avg_clr ?? '-',
       'Dairy Weight': period.dairy.total_weight,
       'Dairy Fat': period.dairy.avg_fat,
       'Dairy SNF': period.dairy.avg_snf,
@@ -384,17 +388,25 @@ const VlcDifferenceReport = () => {
         ws[address].s = { fill: { fgColor: { rgb: "DBEAFE" } } };
       }
     }
-    
+
     for (let R = range.s.r + 1; R <= range.e.r; ++R) {
-      for (let C = 8; C <= 12; ++C) {
+      for (let C = 8; C <= 11; ++C) {
+        const address = XLSX.utils.encode_cell({ r: R, c: C });
+        if (!ws[address]) continue;
+        ws[address].s = { fill: { fgColor: { rgb: "E5E7EB" } } };
+      }
+    }
+
+    for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+      for (let C = 12; C <= 16; ++C) {
         const address = XLSX.utils.encode_cell({ r: R, c: C });
         if (!ws[address]) continue;
         ws[address].s = { fill: { fgColor: { rgb: "D1FAE5" } } };
       }
     }
-    
+
     for (let R = range.s.r + 1; R <= range.e.r; ++R) {
-      for (let C = 13; C <= 17; ++C) {
+      for (let C = 17; C <= 21; ++C) {
         const address = XLSX.utils.encode_cell({ r: R, c: C });
         if (!ws[address]) continue;
         const value = parseFloat(ws[address].v);
@@ -404,8 +416,8 @@ const VlcDifferenceReport = () => {
         };
       }
     }
-    
-    ws['!cols'] = Array(18).fill({ wch: 12 });
+
+    ws['!cols'] = Array(22).fill({ wch: 12 });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'VLC Difference Report');
     XLSX.writeFile(wb, `VLC_Difference_Report_${vlcId}_${format(new Date(), 'dd-MM-yyyy')}.xlsx`, { cellStyles: true });
@@ -510,6 +522,9 @@ const VlcDifferenceReport = () => {
               <TableHead colSpan={5} className="text-center border border-gray-200 font-bold text-blue-900 py-3">
                 VLC Collection Data
               </TableHead>
+              <TableHead colSpan={4} className="text-center border border-gray-200 font-bold text-gray-700 bg-gray-200 py-3">
+                Milk Collection
+              </TableHead>
               <TableHead colSpan={5} className="text-center border border-gray-200 font-bold text-green-900 py-3">
                 Dairy Entry
               </TableHead>
@@ -523,6 +538,10 @@ const VlcDifferenceReport = () => {
               <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">SNF</TableHead>
               <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Rate</TableHead>
               <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Amount</TableHead>
+              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">Weight</TableHead>
+              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">Fat</TableHead>
+              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">SNF</TableHead>
+              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">CLR</TableHead>
               <TableHead className="text-center font-semibold bg-green-50 border border-gray-200 text-green-800">Weight</TableHead>
               <TableHead className="text-center font-semibold bg-green-50 border border-gray-200 text-green-800">Fat</TableHead>
               <TableHead className="text-center font-semibold bg-green-50 border border-gray-200 text-green-800">SNF</TableHead>
@@ -550,6 +569,10 @@ const VlcDifferenceReport = () => {
                   <TableCell className={`border border-gray-200 text-center ${isSummaryRow ? 'bg-blue-100 text-blue-900 font-bold' : 'bg-blue-50/30'}`}>{period.vlc.avg_snf}</TableCell>
                   <TableCell className={`border border-gray-200 text-center ${isSummaryRow ? 'bg-blue-100 text-blue-900 font-bold' : 'bg-blue-50/30'}`}>{period.vlc.avg_rate || '0.00'}</TableCell>
                   <TableCell className={`border border-gray-200 text-center font-semibold ${isSummaryRow ? 'bg-blue-100 text-blue-900 font-bold' : 'bg-blue-50/30'}`}>{period.vlc.total_amount}</TableCell>
+                  <TableCell className={`border border-gray-200 text-center ${isSummaryRow ? 'bg-gray-200 text-gray-900 font-bold' : 'bg-gray-100'}`}>{period.milk_collection?.total_weight ?? '-'}</TableCell>
+                  <TableCell className={`border border-gray-200 text-center ${isSummaryRow ? 'bg-gray-200 text-gray-900 font-bold' : 'bg-gray-100'}`}>{period.milk_collection?.avg_fat ?? '-'}</TableCell>
+                  <TableCell className={`border border-gray-200 text-center ${isSummaryRow ? 'bg-gray-200 text-gray-900 font-bold' : 'bg-gray-100'}`}>{period.milk_collection?.avg_snf ?? '-'}</TableCell>
+                  <TableCell className={`border border-gray-200 text-center ${isSummaryRow ? 'bg-gray-200 text-gray-900 font-bold' : 'bg-gray-100'}`}>{period.milk_collection?.avg_clr ?? '-'}</TableCell>
                   <TableCell className={`border border-gray-200 text-center ${isSummaryRow ? 'bg-green-100 text-green-900 font-bold' : 'bg-green-50/30'}`}>{period.dairy.total_weight}</TableCell>
                   <TableCell className={`border border-gray-200 text-center ${isSummaryRow ? 'bg-green-100 text-green-900 font-bold' : 'bg-green-50/30'}`}>{period.dairy.avg_fat}</TableCell>
                   <TableCell className={`border border-gray-200 text-center ${isSummaryRow ? 'bg-green-100 text-green-900 font-bold' : 'bg-green-50/30'}`}>{period.dairy.avg_snf}</TableCell>
@@ -575,7 +598,7 @@ const VlcDifferenceReport = () => {
               })
             ) : (
               <TableRow>
-                <TableCell colSpan={18} className="text-center py-10 text-gray-500 bg-gray-50">
+                <TableCell colSpan={22} className="text-center py-10 text-gray-500 bg-gray-50">
                   Select VLC and date range, then click Show to view the report
                 </TableCell>
               </TableRow>

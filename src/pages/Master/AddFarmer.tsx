@@ -24,6 +24,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { deleteFarmerApi } from '@/services/deleteFarmerApi';
+import { adminApi } from '@/services/adminApi';
 import * as XLSX from 'xlsx';
 
 export const AddFarmer: React.FC = () => {
@@ -48,8 +49,11 @@ export const AddFarmer: React.FC = () => {
     bankName: '',
     accountNumber: '',
     ifscCode: '',
+    bankPassbookPhoto: '',
   });
-  
+
+  const [bankPassbookFile, setBankPassbookFile] = useState<File | null>(null);
+  const [bankPassbookName, setBankPassbookName] = useState('');
   const [isEditMode, setIsEditMode] = useState(false);
   const [existingFarmerData, setExistingFarmerData] = useState<any>(null);
   const [cowRateNames, setCowRateNames] = useState<string[]>([]);
@@ -161,6 +165,60 @@ export const AddFarmer: React.FC = () => {
     }
   };
 
+  const handleBankPassbookUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      toast.error('File size must be less than 5MB');
+      e.target.value = '';
+      return;
+    }
+
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Please upload an image (JPG/PNG) or PDF file');
+      e.target.value = '';
+      return;
+    }
+
+    setBankPassbookFile(file);
+    setBankPassbookName(file.name);
+    e.target.value = '';
+  };
+
+  const removeBankPassbook = () => {
+    setBankPassbookFile(null);
+    setBankPassbookName('');
+    setFormData((prev) => ({ ...prev, bankPassbookPhoto: '' }));
+  };
+
+  const previewBankPassbook = () => {
+    if (bankPassbookFile) {
+      const objectUrl = URL.createObjectURL(bankPassbookFile);
+      window.open(objectUrl, '_blank', 'noopener,noreferrer');
+      // Release the object URL after the new tab has had time to load it
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+    } else if (formData.bankPassbookPhoto) {
+      window.open(formData.bankPassbookPhoto, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const uploadBankPassbook = async (): Promise<string> => {
+    if (!bankPassbookFile) return formData.bankPassbookPhoto;
+
+    const uploadData = new FormData();
+    uploadData.append('image', bankPassbookFile);
+    uploadData.append('folder', 'bank_passbooks');
+    uploadData.append('dairy_id', formData.VLC);
+    uploadData.append('ref_id', normalizeFarmerId(formData.farmerId));
+    uploadData.append('ref_type', 'bank_passbook');
+
+    const uploadRes = await adminApi.uploadImage(uploadData);
+    return uploadRes.data?.url || '';
+  };
+
   useEffect(() => {
     if (routeFarmerId && formData.VLC) {
       loadExistingFarmerData(routeFarmerId);
@@ -230,8 +288,11 @@ export const AddFarmer: React.FC = () => {
           bankName: farmer.bankName || '',
           accountNumber: farmer.accountNumber || '',
           ifscCode: farmer.ifscCode || '',
+          bankPassbookPhoto: farmer.bankPassbookPhoto || '',
         }));
-        
+        setBankPassbookFile(null);
+        setBankPassbookName(farmer.bankPassbookPhoto ? 'Uploaded document' : '');
+
         toast.info('Farmer found! Data loaded for editing.');
       } else {
         setIsEditMode(false);
@@ -282,7 +343,10 @@ export const AddFarmer: React.FC = () => {
           bankName: farmer.bankName || '',
           accountNumber: farmer.accountNumber || '',
           ifscCode: farmer.ifscCode || '',
+          bankPassbookPhoto: farmer.bankPassbookPhoto || '',
         });
+        setBankPassbookFile(null);
+        setBankPassbookName(farmer.bankPassbookPhoto ? 'Uploaded document' : '');
       }
     } catch (error) {
       console.error('Error loading farmer:', error);
@@ -444,7 +508,10 @@ export const AddFarmer: React.FC = () => {
           bankName: '',
           accountNumber: '',
           ifscCode: '',
+          bankPassbookPhoto: '',
         });
+        setBankPassbookFile(null);
+        setBankPassbookName('');
         navigate(-1);
       } else {
         toast.error(response.message || 'Failed to delete farmer');
@@ -479,7 +546,19 @@ export const AddFarmer: React.FC = () => {
       } else {
         rateChartValue = formData.rateChart;
       }
-      
+
+      let bankPassbookUrl = formData.bankPassbookPhoto;
+      if (bankPassbookFile) {
+        try {
+          bankPassbookUrl = await uploadBankPassbook();
+        } catch (uploadError) {
+          console.error('Bank passbook upload error:', uploadError);
+          toast.error('Failed to upload bank passbook. Please try again.');
+          setLoading(false);
+          return;
+        }
+      }
+
       if (isEditMode && existingFarmerData) {
         const updateData = {
           id: existingFarmerData.id,
@@ -496,6 +575,7 @@ export const AddFarmer: React.FC = () => {
           aadhaarCard: formData.aadhaarCard,
           panCard: formData.panCard,
           ifscCode: formData.ifscCode,
+          bankPassbookPhoto: bankPassbookUrl,
           rateChart: rateChartValue,
           milkType: formData.milkType,
           role: 'farmer',
@@ -531,7 +611,10 @@ export const AddFarmer: React.FC = () => {
             bankName: '',
             accountNumber: '',
             ifscCode: '',
+            bankPassbookPhoto: '',
           });
+          setBankPassbookFile(null);
+          setBankPassbookName('');
         } else {
           toast.error(response.message || 'Failed to update farmer');
         }
@@ -549,10 +632,11 @@ export const AddFarmer: React.FC = () => {
           bankName: formData.bankName,
           accountNumber: formData.accountNumber,
           ifscCode: formData.ifscCode,
+          bankPassbookPhoto: bankPassbookUrl,
           role: 'farmer',
           dairy_id: dairyId
         };
-        
+
         const response = await authApi.registerFarmer(apiData);
         
         if (response.success) {
@@ -573,7 +657,10 @@ export const AddFarmer: React.FC = () => {
             bankName: '',
             accountNumber: '',
             ifscCode: '',
+            bankPassbookPhoto: '',
           });
+          setBankPassbookFile(null);
+          setBankPassbookName('');
         } else {
           toast.error(response.message || 'Failed to create farmer');
         }
@@ -853,6 +940,69 @@ export const AddFarmer: React.FC = () => {
                     onChange={(e) => setFormData({...formData, ifscCode: e.target.value.toUpperCase()})}
                     className='border-gray-200'
                   />
+                  <Label htmlFor="bankPassbook" className='mt-3 mb-1'>{t('bank_passbook_cheque')}</Label>
+                  <input
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
+                    onChange={handleBankPassbookUpload}
+                    style={{ display: 'none' }}
+                    id="bankPassbook"
+                  />
+                  {bankPassbookFile || formData.bankPassbookPhoto ? (
+                    <div className="flex items-center justify-between gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
+                      {formData.bankPassbookPhoto && !bankPassbookFile ? (
+                        <a
+                          href={formData.bankPassbookPhoto}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-blue-600 underline truncate"
+                        >
+                          {bankPassbookName || 'View uploaded document'}
+                        </a>
+                      ) : (
+                        <span className="text-sm text-gray-700 truncate">{bankPassbookName || 'Uploaded document'}</span>
+                      )}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={previewBankPassbook}
+                          className="text-blue-600 border-blue-600"
+                        >
+                          {t('preview')}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => document.getElementById('bankPassbook')?.click()}
+                        >
+                          {t('replace')}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={removeBankPassbook}
+                          className="text-red-600 border-red-600"
+                        >
+                          {t('remove')}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => document.getElementById('bankPassbook')?.click()}
+                      className="w-full flex items-center justify-center gap-2 border-gray-200"
+                    >
+                      <Upload className="h-4 w-4" />
+                      {t('upload_bank_passbook_cheque')}
+                    </Button>
+                  )}
+                  <p className="text-xs text-gray-400 mt-1">{t('accepted_formats_passbook')}</p>
               </div>
             </div>
 

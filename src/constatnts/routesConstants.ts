@@ -64,6 +64,7 @@ export const ROUTES = {
     CREATE_USER:`/dashboard/create-user`,
   },
   SHUBHAM_MILK_PRODUCT:`/dashboard/shubham-milk-product`,
+  TANKER_COLLECTION:`/dashboard/tanker-collection`,
   GROUP_CATTLE_FEED_STOCK:`/dashboard/group-cattle-feed-stock`,
   FARMER_PAYMENT:`/dashboard/farmer-payment`,
   DYNAMIC_BILL_CYCLE: `/dashboard/dynamic-bill-cycle`,

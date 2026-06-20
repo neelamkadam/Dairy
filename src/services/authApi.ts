@@ -13,6 +13,7 @@ export interface RegisterFarmerPayload {
   bankName?: string;
   accountNumber?: string;
   ifscCode?: string;
+  bankPassbookPhoto?: string;
   role: string;
   dairy_id: number;
 }

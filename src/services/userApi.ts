@@ -14,6 +14,12 @@ export interface Farmer {
   rateChart?: string;
   dairy_id?: number;
   address?: string;
+  panCard?: string;
+  aadhaarCard?: string;
+  bankName?: string;
+  accountNumber?: string;
+  ifscCode?: string;
+  bankPassbookPhoto?: string;
 }
 
 export const userApi = {

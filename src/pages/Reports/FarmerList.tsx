@@ -142,6 +142,7 @@ const FarmerList = () => {
               <TableHead>Bank Name</TableHead>
               <TableHead>Account Number</TableHead>
               <TableHead>IFSC Code</TableHead>
+              <TableHead>Passbook</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -156,11 +157,25 @@ const FarmerList = () => {
                   <TableCell className="border border-gray-300">{farmer.bankName || '-'}</TableCell>
                   <TableCell className="border border-gray-300">{farmer.accountNumber || '-'}</TableCell>
                   <TableCell className="border border-gray-300">{farmer.ifscCode || '-'}</TableCell>
+                  <TableCell className="border border-gray-300">
+                    {farmer.bankPassbookPhoto ? (
+                      <a
+                        href={farmer.bankPassbookPhoto}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 underline hover:text-blue-800"
+                      >
+                        View
+                      </a>
+                    ) : (
+                      '-'
+                    )}
+                  </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-10 text-gray-500">
+                <TableCell colSpan={9} className="text-center py-10 text-gray-500">
                   {loading ? "Loading..." : "Select VLC and click Show to view farmers"}
                 </TableCell>
               </TableRow>
