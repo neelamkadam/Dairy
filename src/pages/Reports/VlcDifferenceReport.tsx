@@ -15,8 +15,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { ChevronDown } from "lucide-react";
+import { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { useAppSelector } from "@/redux/store";
 import { reportsApi } from "@/services/reportsApi";
@@ -33,7 +40,7 @@ import PdfLoader from "@/components/PdfLoader";
 const VlcDifferenceReport = () => {
   const { i18n } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
-  const [vlcId, setVlcId] = useState("");
+  const [vlcIds, setVlcIds] = useState<string[]>([]);
   const [fromDate, setFromDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [toDate, setToDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   
@@ -49,34 +56,23 @@ const VlcDifferenceReport = () => {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [language, setLanguage] = useState<string>(i18n.language || 'en');
 
-  const handleShow = async () => {
-    if (!vlcId) {
-      toast.error("Please select a VLC");
-      return;
-    }
+  const isAllSelected = !!branches?.length && vlcIds.length === branches.length;
 
-    const selectedBranch = branches?.find(b => b.username === vlcId);
-    if (!selectedBranch) return;
+  const toggleVlc = (username: string) => {
+    setVlcIds((prev) =>
+      prev.includes(username)
+        ? prev.filter((id) => id !== username)
+        : [...prev, username]
+    );
+  };
 
-    setLoading(true);
-    try {
-      const payload = {
-        dairy_id: selectedBranch.branch_id.toString(),
-        vlc_id: vlcId, 
-        
-        from: fromDate,
-        to: toDate,
-        shift: shift,
-        type: type,
-      };
-      
-      console.log('📤 VLC Difference Report API Request:', payload);
-      const data = await reportsApi.getVlcDifferenceReport(payload);
-      console.log('📥 VLC Difference Report API Response:', data);
-      
-      if (data.success && data.data) {
-        const rawData = data.data;
-        
+  const toggleSelectAll = () => {
+    setVlcIds(isAllSelected ? [] : (branches?.map((b) => b.username) ?? []));
+  };
+
+  // Process a single VLC's raw API rows into display rows (with summaries).
+  const processVlcRawData = (rawData: any[]) => {
+
         // Normalize types and ensure difference fields
         rawData.forEach((item: any) => {
           if (item.type === 'गाय' || (item.type && item.type.toLowerCase() === 'cow')) item.type = 'Cow';
@@ -247,8 +243,57 @@ const VlcDifferenceReport = () => {
           });
         }
 
-        setReportData(processedData);
+    return processedData;
+  };
+
+  const handleShow = async () => {
+    if (!vlcIds.length) {
+      toast.error("Please select at least one VLC");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const allRows: any[] = [];
+      const multiple = vlcIds.length > 1;
+
+      for (const id of vlcIds) {
+        const selectedBranch = branches?.find((b) => b.username === id);
+        if (!selectedBranch) continue;
+
+        const payload = {
+          dairy_id: selectedBranch.branch_id.toString(),
+          vlc_id: id,
+          from: fromDate,
+          to: toDate,
+          shift: shift,
+          type: type,
+        };
+
+        const data = await reportsApi.getVlcDifferenceReport(payload);
+
+        if (data.success && data.data) {
+          const processed = processVlcRawData(data.data);
+          if (processed.length > 0) {
+            processed.forEach((row: any) => {
+              row.vlcId = id;
+            });
+            // Add a section divider per VLC when more than one is selected.
+            if (multiple) {
+              allRows.push({
+                isVlcHeader: true,
+                vlcLabel: `${selectedBranch.username} - ${selectedBranch.name}${selectedBranch.branchName ? ' - ' + selectedBranch.branchName : ''}`,
+              });
+            }
+            allRows.push(...processed);
+          }
+        }
       }
+
+      if (allRows.length === 0) {
+        toast.error("No data found for the selected VLC(s)");
+      }
+      setReportData(allRows);
     } catch (error: any) {
       console.error('❌ VLC Difference Report API Error:', error);
       toast.error(error?.response?.data?.message || "Failed to fetch report");
@@ -314,22 +359,26 @@ const VlcDifferenceReport = () => {
     
     setPdfLoading(true);
     try {
-      const selectedBranch = branches?.find(b => b.username === vlcId);
-      const branchName = selectedBranch ? selectedBranch.name : vlcId;
-      
+      const vlcIdLabel = vlcIds.join(', ');
+      const branchName = vlcIds.length === 1
+        ? (branches?.find(b => b.username === vlcIds[0])?.name ?? vlcIds[0])
+        : `${vlcIds.length} VLCs`;
+      const dataRows = reportData.filter((row: any) => !row.isVlcHeader);
+
       const htmlContent = generateVLCDifferenceReportHtml(
-        reportData, 
-        vlcId, 
-        fromDate, 
-        toDate, 
-        shift, 
+        dataRows,
+        vlcIdLabel,
+        fromDate,
+        toDate,
+        shift,
         branchName
       );
 
       const { imgData, imgWidth, imgHeight } = await generatePage(htmlContent);
       const pdf = new jsPDF('l', 'mm', 'a4');
       pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
-      pdf.save(`VLC_Difference_Report_${vlcId}_${fromDate}_to_${toDate}.pdf`);
+      const fileLabel = vlcIds.length === 1 ? vlcIds[0] : 'multiple_VLCs';
+      pdf.save(`VLC_Difference_Report_${fileLabel}_${fromDate}_to_${toDate}.pdf`);
       toast.success("PDF exported successfully");
     } catch (error) {
       console.error("PDF Export Error:", error);
@@ -344,7 +393,10 @@ const VlcDifferenceReport = () => {
       toast.error("No data to export");
       return;
     }
-    const exportData = reportData.map((period: any) => ({
+    const exportData = reportData
+      .filter((period: any) => !period.isVlcHeader)
+      .map((period: any) => ({
+      'VLC': period.vlcId ?? (vlcIds.length === 1 ? vlcIds[0] : ''),
       'Period': period.period,
       'Shift': period.shift,
       'Type': period.type,
@@ -382,7 +434,7 @@ const VlcDifferenceReport = () => {
     }
     
     for (let R = range.s.r + 1; R <= range.e.r; ++R) {
-      for (let C = 3; C <= 7; ++C) {
+      for (let C = 4; C <= 8; ++C) {
         const address = XLSX.utils.encode_cell({ r: R, c: C });
         if (!ws[address]) continue;
         ws[address].s = { fill: { fgColor: { rgb: "DBEAFE" } } };
@@ -390,7 +442,7 @@ const VlcDifferenceReport = () => {
     }
 
     for (let R = range.s.r + 1; R <= range.e.r; ++R) {
-      for (let C = 8; C <= 11; ++C) {
+      for (let C = 9; C <= 12; ++C) {
         const address = XLSX.utils.encode_cell({ r: R, c: C });
         if (!ws[address]) continue;
         ws[address].s = { fill: { fgColor: { rgb: "E5E7EB" } } };
@@ -398,7 +450,7 @@ const VlcDifferenceReport = () => {
     }
 
     for (let R = range.s.r + 1; R <= range.e.r; ++R) {
-      for (let C = 12; C <= 16; ++C) {
+      for (let C = 13; C <= 17; ++C) {
         const address = XLSX.utils.encode_cell({ r: R, c: C });
         if (!ws[address]) continue;
         ws[address].s = { fill: { fgColor: { rgb: "D1FAE5" } } };
@@ -406,7 +458,7 @@ const VlcDifferenceReport = () => {
     }
 
     for (let R = range.s.r + 1; R <= range.e.r; ++R) {
-      for (let C = 17; C <= 21; ++C) {
+      for (let C = 18; C <= 22; ++C) {
         const address = XLSX.utils.encode_cell({ r: R, c: C });
         if (!ws[address]) continue;
         const value = parseFloat(ws[address].v);
@@ -417,10 +469,11 @@ const VlcDifferenceReport = () => {
       }
     }
 
-    ws['!cols'] = Array(22).fill({ wch: 12 });
+    ws['!cols'] = Array(23).fill({ wch: 12 });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'VLC Difference Report');
-    XLSX.writeFile(wb, `VLC_Difference_Report_${vlcId}_${format(new Date(), 'dd-MM-yyyy')}.xlsx`, { cellStyles: true });
+    const fileLabel = vlcIds.length === 1 ? vlcIds[0] : 'multiple_VLCs';
+    XLSX.writeFile(wb, `VLC_Difference_Report_${fileLabel}_${format(new Date(), 'dd-MM-yyyy')}.xlsx`, { cellStyles: true });
     toast.success("Excel exported successfully");
   };
 
@@ -431,18 +484,57 @@ const VlcDifferenceReport = () => {
       <div className="grid grid-cols-1 md:grid-cols-7 gap-4 p-3 rounded-lg">
         <div>
           <Label className="mb-1">VLC Name</Label>
-          <Select value={vlcId} onValueChange={setVlcId}>
-            <SelectTrigger className="w-full border-gray-200">
-              <SelectValue placeholder="Select VLC" />
-            </SelectTrigger>
-            <SelectContent className="bg-white">
-              {branches?.map((branch) => (
-                <SelectItem key={branch.username} value={branch.username}>
-                  {branch.username} - {branch.name} - {branch.branchName || ''}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full justify-between border-gray-200 font-normal"
+              >
+                <span className="truncate">
+                  {vlcIds.length === 0
+                    ? "Select VLC"
+                    : isAllSelected
+                      ? "All VLCs selected"
+                      : `${vlcIds.length} VLC${vlcIds.length > 1 ? 's' : ''} selected`}
+                </span>
+                <ChevronDown size={16} className="ml-2 shrink-0 opacity-60" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-72 p-0 bg-white" align="start">
+              <div className="flex items-center justify-between border-b px-3 py-2">
+                <span className="text-sm font-medium">VLCs</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs text-blue-600 hover:text-blue-700"
+                  onClick={toggleSelectAll}
+                >
+                  {isAllSelected ? "Clear All" : "Select All"}
+                </Button>
+              </div>
+              <ScrollArea className="h-64">
+                <div className="p-1">
+                  {branches?.map((branch) => (
+                    <label
+                      key={branch.username}
+                      htmlFor={`vlc-${branch.username}`}
+                      className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-gray-100"
+                    >
+                      <Checkbox
+                        id={`vlc-${branch.username}`}
+                        checked={vlcIds.includes(branch.username)}
+                        onCheckedChange={() => toggleVlc(branch.username)}
+                      />
+                      <span className="truncate">
+                        {branch.username} - {branch.name} - {branch.branchName || ''}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </ScrollArea>
+            </PopoverContent>
+          </Popover>
         </div>
         <div>
           <Label className="mb-1">From Date</Label>
@@ -557,6 +649,19 @@ const VlcDifferenceReport = () => {
           <TableBody>
             {reportData && reportData.length > 0 ? (
               reportData.map((period: any, index: number) => {
+                if (period.isVlcHeader) {
+                  return (
+                    <TableRow key={index} className="bg-blue-100">
+                      <TableCell
+                        colSpan={22}
+                        className="border border-gray-200 text-left font-bold text-blue-900 py-2 px-3"
+                      >
+                        {period.vlcLabel}
+                      </TableCell>
+                    </TableRow>
+                  );
+                }
+
                 const isSummaryRow = !!period.isSummary;
 
                 return (
