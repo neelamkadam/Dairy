@@ -49,6 +49,7 @@ import ShiftReports from "@/pages/Reports/ShiftReports";
 import TotalCollectionReport from "@/pages/Reports/TotalCollectionReport";
 import VlcCommissionReport from "@/pages/Reports/VlcCommissionReport";
 import VlcDifferenceReport from "@/pages/Reports/VlcDifferenceReport";
+import VlcDifferenceReport2 from "@/pages/Reports/VlcDifferenceReport2";
 import BankSummary from "@/pages/Reports/BankSummary";
 import CattleFeedStockReport from "@/pages/Reports/CattleFeedStockReport";
 import CattleFeedFarmerWiseReport from "@/pages/Reports/CattleFeedFarmerWiseReport";
@@ -226,6 +227,10 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "vlc-diffrerence-report",
         element: <VlcDifferenceReport />,
+      },
+      {
+        path: "vlc-diffrerence-report-2",
+        element: <VlcDifferenceReport2 />,
       },
       {
         path: "bank-summary",

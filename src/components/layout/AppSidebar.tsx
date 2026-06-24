@@ -112,7 +112,14 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
         { title: t('rate_chart_report'), icon: "", href:ROUTES.REPORTS.RATECHART_REPORT},
         { title: t('farmer_bill_invoice_report'), icon: "", href: ROUTES.REPORTS.FARMER_BILL_INVOICE_REPORT },
         { title: t('farmer_list'), icon: "", href: ROUTES.REPORTS.FARMER_LIST},
-        { title: t('vlc_difference_report'), icon: "", href:ROUTES.REPORTS.VLC_DIFFERENCE_REPORT },
+        {
+          title: t('vlc_difference_report'),
+          icon: "",
+          children: [
+            { title: t('vlc_difference_report') + " 1", icon: "", href: ROUTES.REPORTS.VLC_DIFFERENCE_REPORT },
+            { title: t('vlc_difference_report') + " 2", icon: "", href: ROUTES.REPORTS.VLC_DIFFERENCE_REPORT_2 },
+          ]
+        },
         { title: t('remaining_balance_report'), icon: "", href: ROUTES.REPORTS.REMAINING_BALANCE },
         { title: t('farmer_passbook'), icon: "", href: ROUTES.REPORTS.FARMER_PASSBOOK},
         { title: t('vlc_commission_report'), icon: "", href: ROUTES.REPORTS.VLC_COMMISSION_REPORT },

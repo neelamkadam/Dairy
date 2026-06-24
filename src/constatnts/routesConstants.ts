@@ -53,6 +53,7 @@ export const ROUTES = {
     TOTAL_COLLECTION_REPORT:`/dashboard/total-collection-report`,
     VLC_COMMISSION_REPORT:`/dashboard/vlc-commission-report`,
     VLC_DIFFERENCE_REPORT: `/dashboard/vlc-diffrerence-report`,
+    VLC_DIFFERENCE_REPORT_2: `/dashboard/vlc-diffrerence-report-2`,
     BANK_SUMMARY:`/dashboard/bank-summary`,
     BONUS_REPORT:`/dashboard/bonus-report`,
   },
