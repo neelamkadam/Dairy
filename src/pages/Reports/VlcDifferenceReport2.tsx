@@ -368,10 +368,16 @@ const VlcDifferenceReport2 = () => {
     setPdfLoading(true);
     try {
       const vlcIdLabel = vlcIds.join(', ');
-      const branchName = vlcIds.length === 1
-        ? (branches?.find(b => b.username === vlcIds[0])?.name ?? vlcIds[0])
-        : `${vlcIds.length} VLCs`;
-      const dataRows = reportData.filter((row: any) => !row.isVlcHeader);
+      const selectedBranches = vlcIds
+        .map((id) => branches?.find((b) => b.username === id))
+        .filter((b): b is NonNullable<typeof b> => Boolean(b));
+      const branchName = selectedBranches.length === 1
+        ? selectedBranches[0].name
+        : selectedBranches.length > 1
+          ? [...new Set(selectedBranches.map((b) => b.name))].join(', ')
+          : (vlcIds[0] ?? '');
+      // Keep the per-VLC header rows so each branch name is labelled in the PDF.
+      const dataRows = reportData;
 
       const htmlContent = generateVLCDifferenceReportHtml(
         dataRows,
@@ -402,10 +408,14 @@ const VlcDifferenceReport2 = () => {
       toast.error("No data to export");
       return;
     }
+    const branchLabel = (id: string) => {
+      const b = branches?.find((x) => x.username === id);
+      return b ? `${id} - ${b.name}${b.branchName ? ' - ' + b.branchName : ''}` : id;
+    };
     const exportData = reportData
       .filter((period: any) => !period.isVlcHeader)
       .map((period: any) => ({
-      'VLC': period.vlcId ?? (vlcIds.length === 1 ? vlcIds[0] : ''),
+      'VLC Name': branchLabel(period.vlcId ?? (vlcIds.length === 1 ? vlcIds[0] : '')),
       'Period': period.period,
       'Shift': period.shift,
       'Type': period.type,
@@ -478,7 +488,7 @@ const VlcDifferenceReport2 = () => {
       }
     }
 
-    ws['!cols'] = Array(23).fill({ wch: 12 });
+    ws['!cols'] = [{ wch: 30 }, ...Array(22).fill({ wch: 12 })];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'VLC Difference Report');
     const fileLabel = vlcIds.length === 1 ? vlcIds[0] : 'multiple_VLCs';

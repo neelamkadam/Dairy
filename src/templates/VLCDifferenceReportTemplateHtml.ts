@@ -35,7 +35,17 @@ export const generateVLCDifferenceReportHtml = (
             <th style="background-color: #e5e7eb;">SNF</th>
             <th style="background-color: #e5e7eb;">CLR</th>`;
 
-  const tableRows = reportData.map((row) => `
+  const totalCols = includeMilkCollection ? 22 : 18;
+
+  const tableRows = reportData.map((row) => {
+    // Section divider naming each VLC/branch when multiple VLCs are exported.
+    if (row.isVlcHeader) {
+      return `
+    <tr>
+      <td colspan="${totalCols}" style="text-align: left; font-weight: bold; background-color: #dbeafe; color: #1e3a8a; padding: 6px 8px; font-size: 10px;">${row.vlcLabel}</td>
+    </tr>`;
+    }
+    return `
     <tr>
       <td>${row.period}</td>
       <td>${row.shift}</td>
@@ -55,8 +65,8 @@ export const generateVLCDifferenceReportHtml = (
       <td class="diff" style="color: ${diffColor(row.difference.snf)};">${parseFloat(row.difference.snf).toFixed(2)}</td>
       <td class="diff" style="color: ${diffColor(row.difference.rate || 0)};">${parseFloat(row.difference.rate || 0).toFixed(2)}</td>
       <td class="diff" style="color: ${diffColor(row.difference.amount)}; font-weight: bold;">${parseFloat(row.difference.amount).toFixed(2)}</td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
 
   return `
     <!DOCTYPE html>
