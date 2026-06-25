@@ -151,6 +151,7 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
         icon: "",
         children: [
           { title: "Create User", icon: "", href: ROUTES.SETTINGS.CREATE_USER },
+          { title: "Create Dairy", icon: "", href: ROUTES.SETTINGS.CREATE_DAIRY },
           { title: "Tanker Collector", icon: "", href: ROUTES.TANKER_COLLECTION },
         ],
       });

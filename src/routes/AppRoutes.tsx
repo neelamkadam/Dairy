@@ -60,6 +60,7 @@ import GeneralSettings from "@/pages/Settings/GeneralSettings";
 import CattleFeedStockSettings from "@/pages/Settings/CattleFeedStock";
 import PasswordManager from "@/pages/Settings/PasswordManager";
 import AdminCreateUser from "@/pages/Settings/AdminCreateUser";
+import CreateDairy from "@/pages/Settings/CreateDairy";
 import ShubhamMilkProduct from "@/pages/ShubhamMilkProduct/ShubhamMilkProduct";
 import TankerCollection from "@/pages/TankerCollection/TankerCollection";
 import DynamicBillCycle from "@/pages/DynamicBillCycle/DynamicBillCycle";
@@ -275,6 +276,10 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "create-user",
         element: <AdminCreateUser />,
+      },
+      {
+        path: "create-dairy",
+        element: <CreateDairy />,
       },
       {
         path: "shubham-milk-product",

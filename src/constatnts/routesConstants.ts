@@ -63,6 +63,7 @@ export const ROUTES = {
     PASSWORD_MANAGER:`/dashboard/password-manager`,
     SIDEBAR_ACCESS:`/dashboard/sidebar-access`,
     CREATE_USER:`/dashboard/create-user`,
+    CREATE_DAIRY:`/dashboard/create-dairy`,
   },
   SHUBHAM_MILK_PRODUCT:`/dashboard/shubham-milk-product`,
   TANKER_COLLECTION:`/dashboard/tanker-collection`,

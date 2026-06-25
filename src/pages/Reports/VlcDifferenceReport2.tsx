@@ -34,8 +34,85 @@ import * as XLSX from 'xlsx';
 import { useTranslation } from 'react-i18next';
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
-import { generateVLCDifferenceReportHtml } from "@/templates/VLCDifferenceReportTemplateHtml";
+import { generateVLCDifferenceConsolidatedHtml } from "@/templates/VLCDifferenceReportTemplateHtml";
 import PdfLoader from "@/components/PdfLoader";
+
+type Metrics = Record<string, string>;
+type ConsolidatedRow = {
+  isVlcHeader?: boolean;
+  vlcLabel?: string;
+  vlcId?: string;
+  vlcName?: string;
+  type?: string;
+  vlc?: Metrics;
+  milk_collection?: Metrics;
+  dairy?: Metrics;
+  difference?: Metrics;
+  vlc_milk_collection_diff?: Metrics;
+  milk_collection_dairy_diff?: Metrics;
+};
+
+// Consolidate a set of report rows (across dates/shifts) into a single
+// weighted-average summary: total qty, qty-weighted fat/snf/rate, total amount —
+// for VLC / Milk Collection / Dairy, plus the three difference groups.
+const consolidateRows = (rows: any[]) => {
+  const acc = {
+    vlc: { w: 0, wf: 0, ws: 0, wr: 0, a: 0 },
+    milk: { w: 0, wf: 0, ws: 0, wr: 0, a: 0 },
+    dairy: { w: 0, wf: 0, ws: 0, wr: 0, a: 0 },
+  };
+
+  const add = (bucket: typeof acc.vlc, src: Record<string, string> | undefined) => {
+    if (!src) return;
+    const w = parseFloat(src.total_weight || '0');
+    bucket.w += w;
+    bucket.wf += parseFloat(src.avg_fat || '0') * w;
+    bucket.ws += parseFloat(src.avg_snf || '0') * w;
+    bucket.wr += parseFloat(src.avg_rate || '0') * w;
+    bucket.a += parseFloat(src.total_amount || '0');
+  };
+
+  rows.forEach((r) => {
+    add(acc.vlc, r.vlc);
+    add(acc.milk, r.milk_collection);
+    add(acc.dairy, r.dairy);
+  });
+
+  const summarize = (b: typeof acc.vlc) => {
+    const fat = b.w > 0 ? b.wf / b.w : 0;
+    const snf = b.w > 0 ? b.ws / b.w : 0;
+    return {
+      total_weight: b.w.toFixed(2),
+      avg_fat: fat.toFixed(2),
+      avg_snf: snf.toFixed(2),
+      kg_fat: ((b.w * fat) / 100).toFixed(2),
+      kg_snf: ((b.w * snf) / 100).toFixed(2),
+      avg_rate: (b.w > 0 ? b.wr / b.w : 0).toFixed(2),
+      total_amount: b.a.toFixed(2),
+    };
+  };
+
+  const vlc = summarize(acc.vlc);
+  const milk_collection = summarize(acc.milk);
+  const dairy = summarize(acc.dairy);
+
+  const diff = (x: Record<string, string>, y: Record<string, string>) => ({
+    weight: (parseFloat(x.total_weight) - parseFloat(y.total_weight)).toFixed(2),
+    fat: (parseFloat(x.avg_fat) - parseFloat(y.avg_fat)).toFixed(2),
+    snf: (parseFloat(x.avg_snf) - parseFloat(y.avg_snf)).toFixed(2),
+    rate: (parseFloat(x.avg_rate) - parseFloat(y.avg_rate)).toFixed(2),
+    amount: (parseFloat(x.total_amount) - parseFloat(y.total_amount)).toFixed(2),
+  });
+
+  return {
+    vlc,
+    milk_collection,
+    dairy,
+    difference: diff(vlc, dairy),
+    vlc_milk_collection_diff: diff(vlc, milk_collection),
+    milk_collection_dairy_diff: diff(milk_collection, dairy),
+  };
+};
 
 const VlcDifferenceReport2 = () => {
   const { i18n } = useTranslation();
@@ -177,17 +254,23 @@ const VlcDifferenceReport2 = () => {
           let vlcWeightedFat = 0;
           let vlcWeightedSnf = 0;
           let vlcTotalAmount = 0;
-          
+
           let dairyTotalWeight = 0;
           let dairyWeightedFat = 0;
           let dairyWeightedSnf = 0;
           let dairyTotalAmount = 0;
 
+          let milkTotalWeight = 0;
+          let milkWeightedFat = 0;
+          let milkWeightedSnf = 0;
+          let milkWeightedClr = 0;
+          let milkTotalAmount = 0;
+
           data.forEach((item: any) => {
             const vlcWeight = parseFloat(item.vlc.total_weight || 0);
             const vlcFat = parseFloat(item.vlc.avg_fat || 0);
             const vlcSnf = parseFloat(item.vlc.avg_snf || 0);
-            
+
             const dairyWeight = parseFloat(item.dairy.total_weight || 0);
             const dairyFat = parseFloat(item.dairy.avg_fat || 0);
             const dairySnf = parseFloat(item.dairy.avg_snf || 0);
@@ -201,13 +284,27 @@ const VlcDifferenceReport2 = () => {
             dairyWeightedFat += dairyFat * dairyWeight;
             dairyWeightedSnf += dairySnf * dairyWeight;
             dairyTotalAmount += parseFloat(item.dairy.total_amount || 0);
+
+            const milk = item.milk_collection;
+            if (milk) {
+              const milkWeight = parseFloat(milk.total_weight || 0);
+              milkTotalWeight += milkWeight;
+              milkWeightedFat += parseFloat(milk.avg_fat || 0) * milkWeight;
+              milkWeightedSnf += parseFloat(milk.avg_snf || 0) * milkWeight;
+              milkWeightedClr += parseFloat(milk.avg_clr || 0) * milkWeight;
+              milkTotalAmount += parseFloat(milk.total_amount || 0);
+            }
           });
 
           const vlcAvgFat = vlcTotalWeight > 0 ? (vlcWeightedFat / vlcTotalWeight).toFixed(2) : '0.00';
           const vlcAvgSnf = vlcTotalWeight > 0 ? (vlcWeightedSnf / vlcTotalWeight).toFixed(2) : '0.00';
-          
+
           const dairyAvgFat = dairyTotalWeight > 0 ? (dairyWeightedFat / dairyTotalWeight).toFixed(2) : '0.00';
           const dairyAvgSnf = dairyTotalWeight > 0 ? (dairyWeightedSnf / dairyTotalWeight).toFixed(2) : '0.00';
+
+          const milkAvgFat = milkTotalWeight > 0 ? (milkWeightedFat / milkTotalWeight).toFixed(2) : '0.00';
+          const milkAvgSnf = milkTotalWeight > 0 ? (milkWeightedSnf / milkTotalWeight).toFixed(2) : '0.00';
+          const milkAvgClr = milkTotalWeight > 0 ? (milkWeightedClr / milkTotalWeight).toFixed(2) : '0.00';
 
           return {
             period: 'SUMMARY',
@@ -227,12 +324,34 @@ const VlcDifferenceReport2 = () => {
               avg_rate: '0.00',
               total_amount: dairyTotalAmount.toFixed(2),
             },
+            milk_collection: {
+              total_weight: milkTotalWeight.toFixed(2),
+              avg_fat: milkAvgFat,
+              avg_snf: milkAvgSnf,
+              avg_clr: milkAvgClr,
+              avg_rate: '0.00',
+              total_amount: milkTotalAmount.toFixed(2),
+            },
             difference: {
               weight: (vlcTotalWeight - dairyTotalWeight).toFixed(2),
               fat: (parseFloat(vlcAvgFat) - parseFloat(dairyAvgFat)).toFixed(2),
               snf: (parseFloat(vlcAvgSnf) - parseFloat(dairyAvgSnf)).toFixed(2),
               rate: '0.00',
               amount: (vlcTotalAmount - dairyTotalAmount).toFixed(2),
+            },
+            vlc_milk_collection_diff: {
+              weight: (vlcTotalWeight - milkTotalWeight).toFixed(2),
+              fat: (parseFloat(vlcAvgFat) - parseFloat(milkAvgFat)).toFixed(2),
+              snf: (parseFloat(vlcAvgSnf) - parseFloat(milkAvgSnf)).toFixed(2),
+              rate: '0.00',
+              amount: (vlcTotalAmount - milkTotalAmount).toFixed(2),
+            },
+            milk_collection_dairy_diff: {
+              weight: (milkTotalWeight - dairyTotalWeight).toFixed(2),
+              fat: (parseFloat(milkAvgFat) - parseFloat(dairyAvgFat)).toFixed(2),
+              snf: (parseFloat(milkAvgSnf) - parseFloat(dairyAvgSnf)).toFixed(2),
+              rate: '0.00',
+              amount: (milkTotalAmount - dairyTotalAmount).toFixed(2),
             },
             isSummary: true
           };
@@ -242,13 +361,18 @@ const VlcDifferenceReport2 = () => {
         const groupCount = Object.keys(groups).length;
         if (groupCount > 1) {
           const summaryTypes: Array<'Cow' | 'Buffalo' | 'Both'> = ['Cow', 'Buffalo', 'Both'];
+          const summaryRows: typeof processedData = [];
           summaryTypes.forEach((summaryType) => {
             const typedData = processedData.filter((row: any) => row.type === summaryType);
             if (typedData.length > 0) {
-              const weightedAverageRow = calculateWeightedAverages(typedData, summaryType);
-              processedData.push(weightedAverageRow);
+              summaryRows.push(calculateWeightedAverages(typedData, summaryType));
             }
           });
+          // Group the summary rows under a single "SUMMARY" label row.
+          if (summaryRows.length > 0) {
+            processedData.push({ isSummaryHeader: true });
+            processedData.push(...summaryRows);
+          }
         }
 
     return processedData;
@@ -308,6 +432,65 @@ const VlcDifferenceReport2 = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const branchLabel = (id: string) => {
+    const b = branches?.find((x) => x.username === id);
+    return b ? `${id} - ${b.name}${b.branchName ? ' - ' + b.branchName : ''}` : id;
+  };
+
+  const branchNameOf = (id: string) => branches?.find((x) => x.username === id)?.name ?? '';
+
+  // A consolidated row is "empty" when VLC, Milk and Dairy all have zero qty
+  // and zero amount — such rows are hidden from the report.
+  const isAllZero = (s: ConsolidatedRow) =>
+    [
+      s.vlc?.total_weight, s.vlc?.total_amount,
+      s.milk_collection?.total_weight, s.milk_collection?.total_amount,
+      s.dairy?.total_weight, s.dairy?.total_amount,
+    ].every((v) => parseFloat(v || '0') === 0);
+
+  // Build the consolidated (weighted-average) display rows: one row per milk
+  // type (Cow/Buffalo/Both) per VLC, with a VLC divider row before each VLC's
+  // block when more than one VLC is shown.
+  const buildConsolidatedRows = (): ConsolidatedRow[] => {
+    if (!reportData || reportData.length === 0) return [];
+    const dataRows = reportData.filter(
+      (r) => !r.isVlcHeader && !r.isSummaryHeader && !r.isSummary
+    );
+    const vlcOrder: string[] = [];
+    const rowsByVlc: Record<string, typeof dataRows> = {};
+    dataRows.forEach((r) => {
+      const key = r.vlcId ?? (vlcIds.length === 1 ? vlcIds[0] : '');
+      if (!rowsByVlc[key]) {
+        rowsByVlc[key] = [];
+        vlcOrder.push(key);
+      }
+      rowsByVlc[key].push(r);
+    });
+
+    const types: Array<'Cow' | 'Buffalo' | 'Both'> = ['Cow', 'Buffalo', 'Both'];
+    const multiple = vlcOrder.length > 1;
+    const out: ConsolidatedRow[] = [];
+    vlcOrder.forEach((key) => {
+      const label = branchLabel(key);
+      const name = branchNameOf(key);
+      // Build the type rows, dropping any that are entirely zero.
+      const typeRows: ConsolidatedRow[] = types
+        .filter((type) => rowsByVlc[key].some((r) => r.type === type))
+        .map((type) => ({
+          type,
+          vlcLabel: label,
+          vlcId: key,
+          vlcName: name,
+          ...consolidateRows(rowsByVlc[key].filter((r) => r.type === type)),
+        }))
+        .filter((row) => !isAllZero(row));
+      if (typeRows.length === 0) return;
+      if (multiple) out.push({ isVlcHeader: true, vlcLabel: label });
+      out.push(...typeRows);
+    });
+    return out;
   };
 
   const generatePage = async (htmlContent: string) => {
@@ -376,17 +559,14 @@ const VlcDifferenceReport2 = () => {
         : selectedBranches.length > 1
           ? [...new Set(selectedBranches.map((b) => b.name))].join(', ')
           : (vlcIds[0] ?? '');
-      // Keep the per-VLC header rows so each branch name is labelled in the PDF.
-      const dataRows = reportData;
-
-      const htmlContent = generateVLCDifferenceReportHtml(
-        dataRows,
+      // Consolidated weighted-average rows (per type, per VLC) — same as the UI.
+      const htmlContent = generateVLCDifferenceConsolidatedHtml(
+        buildConsolidatedRows(),
         vlcIdLabel,
         fromDate,
         toDate,
         shift,
-        branchName,
-        true // include Milk Collection columns
+        branchName
       );
 
       const { imgData, imgWidth, imgHeight } = await generatePage(htmlContent);
@@ -408,93 +588,133 @@ const VlcDifferenceReport2 = () => {
       toast.error("No data to export");
       return;
     }
-    const branchLabel = (id: string) => {
-      const b = branches?.find((x) => x.username === id);
-      return b ? `${id} - ${b.name}${b.branchName ? ' - ' + b.branchName : ''}` : id;
-    };
-    const exportData = reportData
-      .filter((period: any) => !period.isVlcHeader)
-      .map((period: any) => ({
-      'VLC Name': branchLabel(period.vlcId ?? (vlcIds.length === 1 ? vlcIds[0] : '')),
-      'Period': period.period,
-      'Shift': period.shift,
-      'Type': period.type,
-      'VLC Weight': period.vlc.total_weight,
-      'VLC Fat': period.vlc.avg_fat,
-      'VLC SNF': period.vlc.avg_snf,
-      'VLC Rate': period.vlc.avg_rate || '0.00',
-      'VLC Amount': period.vlc.total_amount,
-      'Milk Weight': period.milk_collection?.total_weight ?? '-',
-      'Milk Fat': period.milk_collection?.avg_fat ?? '-',
-      'Milk SNF': period.milk_collection?.avg_snf ?? '-',
-      'Milk CLR': period.milk_collection?.avg_clr ?? '-',
-      'Dairy Weight': period.dairy.total_weight,
-      'Dairy Fat': period.dairy.avg_fat,
-      'Dairy SNF': period.dairy.avg_snf,
-      'Dairy Rate': period.dairy.avg_rate || '0.00',
-      'Dairy Amount': period.dairy.total_amount,
-      'Diff Weight': period.difference.weight,
-      'Diff Fat': period.difference.fat,
-      'Diff SNF': period.difference.snf,
-      'Diff Rate': period.difference.rate || '0.00',
-      'Diff Amount': period.difference.amount,
-    }));
+    // One consolidated (weighted-average) row per type per VLC; the VLC ID and
+    // Name are kept in separate columns, so multiple VLCs appear one after
+    // another.
+    const exportData = buildConsolidatedRows()
+      .filter((row) => !row.isVlcHeader)
+      .map((row) => ({
+        'VLC ID': row.vlcId,
+        'VLC Name': row.vlcName,
+        'Type': row.type,
+        'VLC Weight': row.vlc!.total_weight,
+        'VLC Fat': row.vlc!.avg_fat,
+        'VLC SNF': row.vlc!.avg_snf,
+        'VLC Kg Fat': row.vlc!.kg_fat,
+        'VLC Kg SNF': row.vlc!.kg_snf,
+        'VLC Rate': row.vlc!.avg_rate,
+        'VLC Amount': row.vlc!.total_amount,
+        'Milk Weight': row.milk_collection!.total_weight,
+        'Milk Fat': row.milk_collection!.avg_fat,
+        'Milk SNF': row.milk_collection!.avg_snf,
+        'Milk Kg Fat': row.milk_collection!.kg_fat,
+        'Milk Kg SNF': row.milk_collection!.kg_snf,
+        'Milk Rate': row.milk_collection!.avg_rate,
+        'Milk Amount': row.milk_collection!.total_amount,
+        'Dairy Weight': row.dairy!.total_weight,
+        'Dairy Fat': row.dairy!.avg_fat,
+        'Dairy SNF': row.dairy!.avg_snf,
+        'Dairy Kg Fat': row.dairy!.kg_fat,
+        'Dairy Kg SNF': row.dairy!.kg_snf,
+        'Dairy Rate': row.dairy!.avg_rate,
+        'Dairy Amount': row.dairy!.total_amount,
+        'Diff Weight': row.difference!.weight,
+        'Diff Fat': row.difference!.fat,
+        'Diff SNF': row.difference!.snf,
+        'Diff Rate': row.difference!.rate,
+        'Diff Amount': row.difference!.amount,
+        'VLC-Milk Weight': row.vlc_milk_collection_diff!.weight,
+        'VLC-Milk Fat': row.vlc_milk_collection_diff!.fat,
+        'VLC-Milk SNF': row.vlc_milk_collection_diff!.snf,
+        'VLC-Milk Rate': row.vlc_milk_collection_diff!.rate,
+        'VLC-Milk Amount': row.vlc_milk_collection_diff!.amount,
+        'Milk-Dairy Weight': row.milk_collection_dairy_diff!.weight,
+        'Milk-Dairy Fat': row.milk_collection_dairy_diff!.fat,
+        'Milk-Dairy SNF': row.milk_collection_dairy_diff!.snf,
+        'Milk-Dairy Rate': row.milk_collection_dairy_diff!.rate,
+        'Milk-Dairy Amount': row.milk_collection_dairy_diff!.amount,
+      }));
+
     const ws = XLSX.utils.json_to_sheet(exportData);
+
+    const headerStyle = {
+      fill: { fgColor: { rgb: "DBEAFE" } },
+      font: { bold: true, color: { rgb: "1E3A8A" } },
+      alignment: { horizontal: "center", vertical: "center" }
+    };
+    const signedStyle = (v: string | number, fillRgb: string) => {
+      const value = parseFloat(String(v));
+      return {
+        fill: { fgColor: { rgb: fillRgb } },
+        font: { bold: true, color: { rgb: value < 0 ? "DC2626" : value > 0 ? "16A34A" : "4B5563" } }
+      };
+    };
+
+    // Column group → fill colour. Plain fills for the source data (each group is
+    // 7 cols: Qty, Fat, SNF, Kg Fat, Kg SNF, Rate, Amount), signed (red/green)
+    // fills for the three 5-col difference groups.
+    const plainFill = (C: number) => {
+      if (C >= 3 && C <= 9) return "DBEAFE";   // VLC
+      if (C >= 10 && C <= 16) return "E5E7EB"; // Milk Collection
+      if (C >= 17 && C <= 23) return "D1FAE5"; // Dairy
+      return null;
+    };
+    const signedFill = (C: number) => {
+      if (C >= 24 && C <= 28) return "E9D5FF"; // Difference (VLC - Dairy)
+      if (C >= 29 && C <= 33) return "FFEDD5"; // VLC - Milk Collection
+      if (C >= 34 && C <= 38) return "CCFBF1"; // Milk Collection - Dairy
+      return null;
+    };
+
     const range = XLSX.utils.decode_range(ws['!ref']!);
-    
     for (let C = range.s.c; C <= range.e.c; ++C) {
       const address = XLSX.utils.encode_col(C) + "1";
-      if (!ws[address]) continue;
-      ws[address].s = {
-        fill: { fgColor: { rgb: "DBEAFE" } },
-        font: { bold: true, color: { rgb: "1E3A8A" } },
-        alignment: { horizontal: "center", vertical: "center" }
-      };
+      if (ws[address]) ws[address].s = headerStyle;
     }
-    
     for (let R = range.s.r + 1; R <= range.e.r; ++R) {
-      for (let C = 4; C <= 8; ++C) {
+      for (let C = 3; C <= 38; ++C) {
         const address = XLSX.utils.encode_cell({ r: R, c: C });
         if (!ws[address]) continue;
-        ws[address].s = { fill: { fgColor: { rgb: "DBEAFE" } } };
+        const signed = signedFill(C);
+        if (signed) {
+          ws[address].s = signedStyle(ws[address].v, signed);
+        } else {
+          const rgb = plainFill(C);
+          if (rgb) ws[address].s = { fill: { fgColor: { rgb } } };
+        }
       }
     }
 
-    for (let R = range.s.r + 1; R <= range.e.r; ++R) {
-      for (let C = 9; C <= 12; ++C) {
-        const address = XLSX.utils.encode_cell({ r: R, c: C });
-        if (!ws[address]) continue;
-        ws[address].s = { fill: { fgColor: { rgb: "E5E7EB" } } };
-      }
-    }
-
-    for (let R = range.s.r + 1; R <= range.e.r; ++R) {
-      for (let C = 13; C <= 17; ++C) {
-        const address = XLSX.utils.encode_cell({ r: R, c: C });
-        if (!ws[address]) continue;
-        ws[address].s = { fill: { fgColor: { rgb: "D1FAE5" } } };
-      }
-    }
-
-    for (let R = range.s.r + 1; R <= range.e.r; ++R) {
-      for (let C = 18; C <= 22; ++C) {
-        const address = XLSX.utils.encode_cell({ r: R, c: C });
-        if (!ws[address]) continue;
-        const value = parseFloat(ws[address].v);
-        ws[address].s = {
-          fill: { fgColor: { rgb: "E9D5FF" } },
-          font: { bold: true, color: { rgb: value < 0 ? "DC2626" : value > 0 ? "16A34A" : "4B5563" } }
-        };
-      }
-    }
-
-    ws['!cols'] = [{ wch: 30 }, ...Array(22).fill({ wch: 12 })];
+    ws['!cols'] = [{ wch: 12 }, { wch: 24 }, { wch: 10 }, ...Array(36).fill({ wch: 12 })];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'VLC Difference Report');
     const fileLabel = vlcIds.length === 1 ? vlcIds[0] : 'multiple_VLCs';
     XLSX.writeFile(wb, `VLC_Difference_Report_${fileLabel}_${format(new Date(), 'dd-MM-yyyy')}.xlsx`, { cellStyles: true });
     toast.success("Excel exported successfully");
   };
+
+  // Render the 5 cells (Weight, Fat, SNF, Rate, Amount) of a diff group.
+  const renderDiffCells = (
+    diff: Record<string, string> | undefined,
+    isSummaryRow: boolean,
+    bg: string,
+    bgSummary: string
+  ) =>
+    (['weight', 'fat', 'snf', 'rate', 'amount'] as const).map((field) => {
+      const raw = diff ? diff[field] : undefined;
+      const display = raw === undefined || raw === null ? '-' : (raw || '0.00');
+      const n = parseFloat(raw);
+      return (
+        <TableCell
+          key={field}
+          className={`border border-gray-200 text-center font-bold ${isSummaryRow ? bgSummary : bg} ${n < 0 ? 'text-red-600' : n > 0 ? 'text-green-600' : 'text-gray-700'}`}
+        >
+          {display}
+        </TableCell>
+      );
+    });
+
+  const consolidatedRows = buildConsolidatedRows();
 
   return (
     <div className="p-6 bg-white w-full h-screen">
@@ -624,38 +844,49 @@ const VlcDifferenceReport2 = () => {
         </Button>
       </div>
       <div className="overflow-x-auto mt-4 border border-gray-200 rounded-lg shadow-sm">
-        <Table>
+        <Table className="text-xs [&_th]:h-auto [&_th]:py-2 [&_th]:px-2 [&_td]:py-1.5 [&_td]:px-2 [&_th]:align-middle">
           <TableHeader>
             <TableRow className="bg-gradient-to-r from-blue-50 to-blue-100">
-              <TableHead rowSpan={2} className="text-center border border-gray-200 font-bold text-gray-900 py-3">Period</TableHead>
-              <TableHead rowSpan={2} className="text-center border border-gray-200 font-bold text-gray-900 py-3">Shift</TableHead>
-              <TableHead rowSpan={2} className="text-center border border-gray-200 font-bold text-gray-900 py-3">Type</TableHead>
-              <TableHead colSpan={5} className="text-center border border-gray-200 font-bold text-blue-900 py-3">
+              <TableHead rowSpan={2} className="text-center border border-gray-200 font-bold text-gray-900">Type</TableHead>
+              <TableHead colSpan={7} className="text-center border border-gray-200 font-bold text-blue-900 py-3">
                 VLC Collection Data
               </TableHead>
-              <TableHead colSpan={4} className="text-center border border-gray-200 font-bold text-gray-700 bg-gray-200 py-3">
+              <TableHead colSpan={7} className="text-center border border-gray-200 font-bold text-gray-700 bg-gray-200 py-3">
                 Milk Collection
               </TableHead>
-              <TableHead colSpan={5} className="text-center border border-gray-200 font-bold text-green-900 py-3">
+              <TableHead colSpan={7} className="text-center border border-gray-200 font-bold text-green-900 py-3">
                 Dairy Entry
               </TableHead>
               <TableHead colSpan={5} className="text-center border border-gray-200 font-bold text-purple-900 py-3">
                 Difference (VLC - Dairy)
+              </TableHead>
+              <TableHead colSpan={5} className="text-center border border-gray-200 font-bold text-orange-900 bg-orange-50 py-3">
+                VLC - Milk Collection
+              </TableHead>
+              <TableHead colSpan={5} className="text-center border border-gray-200 font-bold text-teal-900 bg-teal-50 py-3">
+                Milk Collection - Dairy
               </TableHead>
             </TableRow>
             <TableRow>
               <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Weight</TableHead>
               <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Fat</TableHead>
               <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">SNF</TableHead>
+              <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Kg Fat</TableHead>
+              <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Kg SNF</TableHead>
               <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Rate</TableHead>
               <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Amount</TableHead>
               <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">Weight</TableHead>
               <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">Fat</TableHead>
               <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">SNF</TableHead>
-              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">CLR</TableHead>
+              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">Kg Fat</TableHead>
+              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">Kg SNF</TableHead>
+              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">Rate</TableHead>
+              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">Amount</TableHead>
               <TableHead className="text-center font-semibold bg-green-50 border border-gray-200 text-green-800">Weight</TableHead>
               <TableHead className="text-center font-semibold bg-green-50 border border-gray-200 text-green-800">Fat</TableHead>
               <TableHead className="text-center font-semibold bg-green-50 border border-gray-200 text-green-800">SNF</TableHead>
+              <TableHead className="text-center font-semibold bg-green-50 border border-gray-200 text-green-800">Kg Fat</TableHead>
+              <TableHead className="text-center font-semibold bg-green-50 border border-gray-200 text-green-800">Kg SNF</TableHead>
               <TableHead className="text-center font-semibold bg-green-50 border border-gray-200 text-green-800">Rate</TableHead>
               <TableHead className="text-center font-semibold bg-green-50 border border-gray-200 text-green-800">Amount</TableHead>
               <TableHead className="text-center font-semibold bg-purple-50 border border-gray-200 text-purple-800">Weight</TableHead>
@@ -663,66 +894,67 @@ const VlcDifferenceReport2 = () => {
               <TableHead className="text-center font-semibold bg-purple-50 border border-gray-200 text-purple-800">SNF</TableHead>
               <TableHead className="text-center font-semibold bg-purple-50 border border-gray-200 text-purple-800">Rate</TableHead>
               <TableHead className="text-center font-semibold bg-purple-50 border border-gray-200 text-purple-800">Amount</TableHead>
+              <TableHead className="text-center font-semibold bg-orange-50 border border-gray-200 text-orange-800">Weight</TableHead>
+              <TableHead className="text-center font-semibold bg-orange-50 border border-gray-200 text-orange-800">Fat</TableHead>
+              <TableHead className="text-center font-semibold bg-orange-50 border border-gray-200 text-orange-800">SNF</TableHead>
+              <TableHead className="text-center font-semibold bg-orange-50 border border-gray-200 text-orange-800">Rate</TableHead>
+              <TableHead className="text-center font-semibold bg-orange-50 border border-gray-200 text-orange-800">Amount</TableHead>
+              <TableHead className="text-center font-semibold bg-teal-50 border border-gray-200 text-teal-800">Weight</TableHead>
+              <TableHead className="text-center font-semibold bg-teal-50 border border-gray-200 text-teal-800">Fat</TableHead>
+              <TableHead className="text-center font-semibold bg-teal-50 border border-gray-200 text-teal-800">SNF</TableHead>
+              <TableHead className="text-center font-semibold bg-teal-50 border border-gray-200 text-teal-800">Rate</TableHead>
+              <TableHead className="text-center font-semibold bg-teal-50 border border-gray-200 text-teal-800">Amount</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {reportData && reportData.length > 0 ? (
-              reportData.map((period: any, index: number) => {
-                if (period.isVlcHeader) {
+            {consolidatedRows.length > 0 ? (
+              consolidatedRows.map((row, index: number) => {
+                if (row.isVlcHeader) {
                   return (
                     <TableRow key={index} className="bg-blue-100">
                       <TableCell
-                        colSpan={22}
+                        colSpan={37}
                         className="border border-gray-200 text-left font-bold text-blue-900 py-2 px-3"
                       >
-                        {period.vlcLabel}
+                        {row.vlcLabel}
                       </TableCell>
                     </TableRow>
                   );
                 }
 
-                const isSummaryRow = !!period.isSummary;
-
                 return (
-                <TableRow key={index} className={isSummaryRow ? "bg-amber-50 hover:bg-amber-100" : "hover:bg-gray-50"}>
-                  <TableCell className={`border border-gray-200 text-center font-medium ${isSummaryRow ? 'bg-amber-100 text-gray-900 font-bold' : 'bg-gray-50'}`}>{period.period}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center font-medium ${isSummaryRow ? 'bg-amber-100 text-gray-900 font-bold' : 'bg-gray-50'}`}>{period.shift}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center font-medium ${isSummaryRow ? 'bg-amber-100 text-gray-900 font-bold' : 'bg-gray-50'}`}>{period.type}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center ${isSummaryRow ? 'bg-blue-100 text-blue-900 font-bold' : 'bg-blue-50/30'}`}>{period.vlc.total_weight}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center ${isSummaryRow ? 'bg-blue-100 text-blue-900 font-bold' : 'bg-blue-50/30'}`}>{period.vlc.avg_fat}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center ${isSummaryRow ? 'bg-blue-100 text-blue-900 font-bold' : 'bg-blue-50/30'}`}>{period.vlc.avg_snf}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center ${isSummaryRow ? 'bg-blue-100 text-blue-900 font-bold' : 'bg-blue-50/30'}`}>{period.vlc.avg_rate || '0.00'}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center font-semibold ${isSummaryRow ? 'bg-blue-100 text-blue-900 font-bold' : 'bg-blue-50/30'}`}>{period.vlc.total_amount}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center ${isSummaryRow ? 'bg-gray-200 text-gray-900 font-bold' : 'bg-gray-100'}`}>{period.milk_collection?.total_weight ?? '-'}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center ${isSummaryRow ? 'bg-gray-200 text-gray-900 font-bold' : 'bg-gray-100'}`}>{period.milk_collection?.avg_fat ?? '-'}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center ${isSummaryRow ? 'bg-gray-200 text-gray-900 font-bold' : 'bg-gray-100'}`}>{period.milk_collection?.avg_snf ?? '-'}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center ${isSummaryRow ? 'bg-gray-200 text-gray-900 font-bold' : 'bg-gray-100'}`}>{period.milk_collection?.avg_clr ?? '-'}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center ${isSummaryRow ? 'bg-green-100 text-green-900 font-bold' : 'bg-green-50/30'}`}>{period.dairy.total_weight}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center ${isSummaryRow ? 'bg-green-100 text-green-900 font-bold' : 'bg-green-50/30'}`}>{period.dairy.avg_fat}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center ${isSummaryRow ? 'bg-green-100 text-green-900 font-bold' : 'bg-green-50/30'}`}>{period.dairy.avg_snf}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center ${isSummaryRow ? 'bg-green-100 text-green-900 font-bold' : 'bg-green-50/30'}`}>{period.dairy.avg_rate || '0.00'}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center font-semibold ${isSummaryRow ? 'bg-green-100 text-green-900 font-bold' : 'bg-green-50/30'}`}>{period.dairy.total_amount}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center font-bold ${isSummaryRow ? 'bg-purple-100' : 'bg-purple-50/30'} ${parseFloat(period.difference.weight) < 0 ? 'text-red-600' : parseFloat(period.difference.weight) > 0 ? 'text-green-600' : 'text-gray-700'}`}>
-                    {period.difference.weight}
-                  </TableCell>
-                  <TableCell className={`border border-gray-200 text-center font-bold ${isSummaryRow ? 'bg-purple-100' : 'bg-purple-50/30'} ${parseFloat(period.difference.fat) < 0 ? 'text-red-600' : parseFloat(period.difference.fat) > 0 ? 'text-green-600' : 'text-gray-700'}`}>
-                    {period.difference.fat}
-                  </TableCell>
-                  <TableCell className={`border border-gray-200 text-center font-bold ${isSummaryRow ? 'bg-purple-100' : 'bg-purple-50/30'} ${parseFloat(period.difference.snf) < 0 ? 'text-red-600' : parseFloat(period.difference.snf) > 0 ? 'text-green-600' : 'text-gray-700'}`}>
-                    {period.difference.snf}
-                  </TableCell>
-                  <TableCell className={`border border-gray-200 text-center font-bold ${isSummaryRow ? 'bg-purple-100' : 'bg-purple-50/30'} ${parseFloat(period.difference.rate) < 0 ? 'text-red-600' : parseFloat(period.difference.rate) > 0 ? 'text-green-600' : 'text-gray-700'}`}>
-                    {period.difference.rate || '0.00'}
-                  </TableCell>
-                  <TableCell className={`border border-gray-200 text-center font-bold ${isSummaryRow ? 'bg-purple-100' : 'bg-purple-50/30'} ${parseFloat(period.difference.amount) < 0 ? 'text-red-600' : parseFloat(period.difference.amount) > 0 ? 'text-green-600' : 'text-gray-700'}`}>
-                    {period.difference.amount}
-                  </TableCell>
-                </TableRow>
+                  <TableRow key={index} className="hover:bg-gray-50">
+                    <TableCell className="border border-gray-200 text-center font-medium bg-gray-50">{row.type}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-blue-50/30">{row.vlc!.total_weight}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-blue-50/30">{row.vlc!.avg_fat}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-blue-50/30">{row.vlc!.avg_snf}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-blue-50/30">{row.vlc!.kg_fat}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-blue-50/30">{row.vlc!.kg_snf}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-blue-50/30">{row.vlc!.avg_rate}</TableCell>
+                    <TableCell className="border border-gray-200 text-center font-semibold bg-blue-50/30">{row.vlc!.total_amount}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-gray-100">{row.milk_collection!.total_weight}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-gray-100">{row.milk_collection!.avg_fat}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-gray-100">{row.milk_collection!.avg_snf}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-gray-100">{row.milk_collection!.kg_fat}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-gray-100">{row.milk_collection!.kg_snf}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-gray-100">{row.milk_collection!.avg_rate}</TableCell>
+                    <TableCell className="border border-gray-200 text-center font-semibold bg-gray-100">{row.milk_collection!.total_amount}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-green-50/30">{row.dairy!.total_weight}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-green-50/30">{row.dairy!.avg_fat}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-green-50/30">{row.dairy!.avg_snf}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-green-50/30">{row.dairy!.kg_fat}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-green-50/30">{row.dairy!.kg_snf}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-green-50/30">{row.dairy!.avg_rate}</TableCell>
+                    <TableCell className="border border-gray-200 text-center font-semibold bg-green-50/30">{row.dairy!.total_amount}</TableCell>
+                    {renderDiffCells(row.difference, false, 'bg-purple-50/30', 'bg-purple-100')}
+                    {renderDiffCells(row.vlc_milk_collection_diff, false, 'bg-orange-50/30', 'bg-orange-100')}
+                    {renderDiffCells(row.milk_collection_dairy_diff, false, 'bg-teal-50/30', 'bg-teal-100')}
+                  </TableRow>
                 );
               })
             ) : (
               <TableRow>
-                <TableCell colSpan={22} className="text-center py-10 text-gray-500 bg-gray-50">
+                <TableCell colSpan={37} className="text-center py-10 text-gray-500 bg-gray-50">
                   Select VLC and date range, then click Show to view the report
                 </TableCell>
               </TableRow>
