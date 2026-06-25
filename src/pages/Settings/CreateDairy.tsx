@@ -3,12 +3,43 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "react-toastify";
 import { createDairyApi } from "@/services/createDairyApi";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import FileCopyIcon from "@mui/icons-material/FileCopy";
+import { 
+  Plus, 
+  Phone, 
+  Lock, 
+  Building2, 
+  User, 
+  MapPin, 
+  Map, 
+  Factory, 
+  Store,
+  CalendarClock,
+  ShieldCheck,
+  CheckCircle2
+} from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const ROLE = "Dairyadmin";
+
+const DEFAULT_EQUIPMENT = [
+  "Milk Analyzer",
+  "Weighting Scale",
+  "Mobile Application",
+  "Stirer",
+  "Milk Can",
+  "Solar Panel",
+];
 
 type Step = 1 | 2 | 3 | 4;
 
@@ -37,6 +68,38 @@ const CreateDairy = () => {
     address: "",
   });
   const [createdUser, setCreatedUser] = useState<any>(null);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+
+  // Equipment checklist (backend pending — local only for now).
+  const [equipment, setEquipment] = useState<{ name: string; checked: boolean }[]>(
+    DEFAULT_EQUIPMENT.map((name) => ({ name, checked: false }))
+  );
+  const [newField, setNewField] = useState("");
+
+  const toggleEquipment = (idx: number) =>
+    setEquipment((prev) =>
+      prev.map((e, i) => (i === idx ? { ...e, checked: !e.checked } : e))
+    );
+
+  const addEquipmentField = () => {
+    const name = newField.trim();
+    if (!name) {
+      toast.error("Enter a field name");
+      return;
+    }
+    if (equipment.some((e) => e.name.toLowerCase() === name.toLowerCase())) {
+      toast.error("This field already exists");
+      return;
+    }
+    setEquipment((prev) => [...prev, { name, checked: true }]);
+    setNewField("");
+  };
+
+  const handleEquipmentSubmit = () => {
+    // Backend not wired up yet — just acknowledge the submission.
+    toast.success("Equipment details submitted");
+    setIsSubmitted(true);
+  };
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text).then(
@@ -166,307 +229,493 @@ const CreateDairy = () => {
       address: "",
     });
     setCreatedUser(null);
+    setEquipment(DEFAULT_EQUIPMENT.map((name) => ({ name, checked: false })));
+    setNewField("");
+    setIsSubmitted(false);
   };
 
   const createdUsername =
     createdUser?.username ?? createdUser?.user_name ?? createdUser?.userName ?? "-";
-  const createdPassword =
-    createdUser?.password ?? createdUser?.plain_password ?? form.password;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-2xl mx-auto">
-        <Card className="shadow-lg border-0">
-          <CardHeader className="border-b bg-gradient-to-r from-blue-50 to-indigo-50">
-            <CardTitle className="text-2xl font-bold text-gray-800">Create Dairy</CardTitle>
-            <p className="text-gray-600 text-sm mt-1">
-              Verify the owner's mobile number, then set up a new dairy.
-            </p>
+    <div className="min-h-[calc(100vh-80px)] flex items-center justify-center p-4 sm:p-8 bg-background relative overflow-hidden">
+      <div className="w-full max-w-3xl relative z-10">
+        <Card className="shadow-lg border-border bg-card rounded-2xl overflow-hidden transition-all duration-500">
+          <CardHeader className="border-b border-border bg-card p-6 sm:p-8">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <CardTitle className="text-3xl font-extrabold text-foreground">
+                  Create Dairy
+                </CardTitle>
+                <p className="text-muted-foreground text-sm mt-2 font-medium">
+                  Set up a new dairy in a few simple steps.
+                </p>
+              </div>
 
-            {/* Stepper */}
-            <div className="flex items-center mt-4">
-              {STEPS.map((s, idx) => {
-                const active = step === s.id;
-                const done = step > s.id;
-                return (
-                  <div key={s.id} className="flex items-center flex-1 last:flex-none">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
-                          done
-                            ? "bg-green-600 text-white"
-                            : active
-                              ? "bg-blue-600 text-white"
-                              : "bg-gray-200 text-gray-500"
-                        }`}
-                      >
-                        {done ? "✓" : s.id}
+              {/* Stepper */}
+              <div className="flex items-center space-x-2">
+                {STEPS.map((s, idx) => {
+                  const active = step === s.id;
+                  const done = step > s.id;
+                  return (
+                    <div key={s.id} className="flex items-center">
+                      <div className="flex flex-col items-center gap-1 relative">
+                        <div
+                          className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold shadow-sm transition-all duration-300 ${
+                            done
+                              ? "bg-green-600 text-white shadow-sm"
+                              : active
+                                ? "bg-blue-600 text-white shadow-sm ring-4 ring-blue-600/20"
+                                : "bg-gray-100 text-gray-400 border border-gray-200"
+                          }`}
+                        >
+                          {done ? <CheckCircle2 size={18} /> : s.id}
+                        </div>
+                        {active && (
+                          <span className="absolute -bottom-5 text-[10px] font-bold text-blue-600 whitespace-nowrap">
+                            {s.label}
+                          </span>
+                        )}
                       </div>
-                      <span
-                        className={`text-xs font-medium ${
-                          active ? "text-blue-700" : done ? "text-green-700" : "text-gray-400"
-                        }`}
-                      >
-                        {s.label}
-                      </span>
+                      {idx < STEPS.length - 1 && (
+                        <div
+                          className={`w-8 sm:w-12 h-[2px] mx-2 transition-all duration-500 rounded-full ${
+                            step > s.id ? "bg-green-500" : "bg-gray-200"
+                          }`}
+                        />
+                      )}
                     </div>
-                    {idx < STEPS.length - 1 && (
-                      <div
-                        className={`mx-2 h-0.5 flex-1 ${step > s.id ? "bg-green-500" : "bg-gray-200"}`}
-                      />
-                    )}
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </CardHeader>
 
-          <CardContent className="p-6">
-            {/* Step 1: Mobile number */}
-            {step === 1 && (
-              <form onSubmit={handleSendOtp} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="mobile" className="text-sm font-medium text-gray-700">
-                    Mobile Number <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="mobile"
-                    type="tel"
-                    inputMode="numeric"
-                    maxLength={10}
-                    placeholder="Enter 10-digit mobile number"
-                    className="bg-gray-50 border-gray-200"
-                    value={mobileNumber}
-                    onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, ""))}
-                  />
-                </div>
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white h-11 text-base font-medium"
-                >
-                  {loading ? "Sending OTP..." : "Send OTP"}
-                </Button>
-              </form>
-            )}
-
-            {/* Step 2: Verify OTP */}
-            {step === 2 && (
-              <form onSubmit={handleVerifyOtp} className="space-y-6">
-                <p className="text-sm text-gray-600">
-                  Enter the OTP sent to <span className="font-semibold">{mobileNumber}</span>.
-                </p>
-                <div className="space-y-2">
-                  <Label htmlFor="otp" className="text-sm font-medium text-gray-700">
-                    OTP <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="otp"
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={6}
-                    placeholder="6-digit OTP"
-                    className="bg-gray-50 border-gray-200 tracking-[0.5em] text-center text-lg font-semibold"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="text-blue-600 hover:text-blue-700 px-0"
-                    onClick={handleResendOtp}
-                    disabled={loading}
-                  >
-                    Resend OTP
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="text-gray-500 px-0"
-                    onClick={() => setStep(1)}
-                    disabled={loading}
-                  >
-                    Change number
-                  </Button>
-                </div>
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white h-11 text-base font-medium"
-                >
-                  {loading ? "Verifying..." : "Verify OTP"}
-                </Button>
-              </form>
-            )}
-
-            {/* Step 3: Dairy details */}
-            {step === 3 && (
-              <div className="space-y-6">
-                {existingDairies.length > 0 && (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-                    <p className="text-sm font-semibold text-amber-800 mb-2">
-                      This number already has {existingDairies.length} dair
-                      {existingDairies.length > 1 ? "ies" : "y"}:
+          <CardContent className="p-6 sm:p-8">
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              {/* Step 1: Mobile number */}
+              {step === 1 && (
+                <form onSubmit={handleSendOtp} className="max-w-md mx-auto space-y-6 py-6">
+                  <div className="text-center mb-8">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-50 text-blue-600 mb-4">
+                      <Phone size={32} />
+                    </div>
+                    <h3 className="text-xl font-bold text-foreground">Verify Mobile</h3>
+                    <p className="text-muted-foreground text-sm mt-2">
+                      Enter the owner's 10-digit mobile number to begin.
                     </p>
-                    <ul className="space-y-1">
-                      {existingDairies.map((d: any, i: number) => (
-                        <li key={i} className="text-sm text-amber-900">
-                          • {d.name ?? d.dairy_name ?? "Dairy"}
-                          {d.branchname ? ` — ${d.branchname}` : ""}
-                          {d.username ? ` (${d.username})` : ""}
-                        </li>
-                      ))}
-                    </ul>
                   </div>
-                )}
 
-                <form onSubmit={handleCreateBranch} className="space-y-5">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-gray-700">
-                        Dairy Name <span className="text-red-500">*</span>
-                      </Label>
+                  <div className="space-y-3">
+                    <Label htmlFor="mobile" className="text-sm font-semibold text-foreground">
+                      Mobile Number
+                    </Label>
+                    <div className="relative group">
+                      <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground h-5 w-5 group-focus-within:text-blue-600 transition-colors" />
                       <Input
-                        className="bg-gray-50 border-gray-200"
-                        placeholder="e.g. My Dairy"
-                        value={form.name}
-                        onChange={(e) => setForm({ ...form, name: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-gray-700">
-                        Branch Name <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        className="bg-gray-50 border-gray-200"
-                        placeholder="e.g. Main Branch"
-                        value={form.branchname}
-                        onChange={(e) => setForm({ ...form, branchname: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-gray-700">
-                        Owner Name <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        className="bg-gray-50 border-gray-200"
-                        placeholder="e.g. John Doe"
-                        value={form.ownername}
-                        onChange={(e) => setForm({ ...form, ownername: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-gray-700">Mobile Number</Label>
-                      <Input
-                        className="bg-gray-100 border-gray-200 text-gray-500"
+                        id="mobile"
+                        type="tel"
+                        inputMode="numeric"
+                        maxLength={10}
+                        placeholder="Enter mobile number"
+                        className="pl-11 h-12 bg-background border-input focus:bg-background focus:border-blue-600 focus:ring-blue-600/20 transition-all rounded-xl text-lg"
                         value={mobileNumber}
-                        readOnly
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-gray-700">
-                        Password <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        type="text"
-                        className="bg-gray-50 border-gray-200"
-                        placeholder="Min 6 characters"
-                        value={form.password}
-                        onChange={(e) => setForm({ ...form, password: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-gray-700">Billing Days</Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        className="bg-gray-50 border-gray-200"
-                        value={form.days}
-                        onChange={(e) => setForm({ ...form, days: Number(e.target.value) })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-gray-700">Village Name</Label>
-                      <Input
-                        className="bg-gray-50 border-gray-200"
-                        placeholder="Village"
-                        value={form.villagename}
-                        onChange={(e) => setForm({ ...form, villagename: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-gray-700">Address</Label>
-                      <Input
-                        className="bg-gray-50 border-gray-200"
-                        placeholder="Full address"
-                        value={form.address}
-                        onChange={(e) => setForm({ ...form, address: e.target.value })}
+                        onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, ""))}
                       />
                     </div>
                   </div>
 
                   <Button
                     type="submit"
-                    disabled={loading}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white h-11 text-base font-medium"
+                    disabled={loading || mobileNumber.length !== 10}
+                    className="w-full h-12 text-base font-semibold rounded-xl transition-all disabled:opacity-70 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700 text-white"
                   >
-                    {loading ? "Creating Dairy..." : "Create Dairy"}
+                    {loading ? "Sending OTP..." : "Send OTP"}
                   </Button>
                 </form>
-              </div>
-            )}
+              )}
 
-            {/* Step 4: Success / credentials */}
-            {step === 4 && (
-              <div className="space-y-6">
-                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-center gap-2 text-green-800 font-medium mb-3">
-                    <CheckCircleIcon className="text-green-600" />
-                    Dairy created successfully
+              {/* Step 2: Verify OTP */}
+              {step === 2 && (
+                <form onSubmit={handleVerifyOtp} className="max-w-md mx-auto space-y-6 py-6">
+                  <div className="text-center mb-8">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-50 text-blue-600 mb-4">
+                      <ShieldCheck size={32} />
+                    </div>
+                    <h3 className="text-xl font-bold text-foreground">Enter OTP</h3>
+                    <p className="text-muted-foreground text-sm mt-2">
+                      We've sent a code to <span className="font-semibold text-foreground">{mobileNumber}</span>.
+                    </p>
                   </div>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Share these manager credentials with the owner. The password is shown only once.
-                  </p>
+
                   <div className="space-y-3">
-                    <div>
-                      <Label className="text-xs text-gray-600">Manager Username</Label>
-                      <div className="flex items-center gap-2 mt-1">
-                        <code className="text-lg font-bold text-blue-700 bg-blue-100 px-3 py-1 rounded">
-                          {createdUsername}
-                        </code>
-                        <FileCopyIcon
-                          className="text-gray-500 cursor-pointer hover:text-blue-600 transition-colors"
-                          fontSize="small"
-                          onClick={() => handleCopy(String(createdUsername))}
-                        />
+                    <Label htmlFor="otp" className="text-sm font-semibold text-foreground">
+                      6-Digit Code
+                    </Label>
+                    <Input
+                      id="otp"
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      placeholder="• • • • • •"
+                      className="h-14 bg-background border-input focus:bg-background focus:border-blue-600 focus:ring-blue-600/20 transition-all rounded-xl tracking-[0.75em] text-center text-2xl font-bold"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between px-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-medium px-3 rounded-lg"
+                      onClick={handleResendOtp}
+                      disabled={loading}
+                    >
+                      Resend OTP
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="text-muted-foreground hover:text-foreground hover:bg-muted font-medium px-3 rounded-lg"
+                      onClick={() => setStep(1)}
+                      disabled={loading}
+                    >
+                      Change Number
+                    </Button>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={loading || otp.length !== 6}
+                    className="w-full h-12 text-base font-semibold rounded-xl transition-all disabled:opacity-70 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    {loading ? "Verifying..." : "Verify OTP"}
+                  </Button>
+                </form>
+              )}
+
+              {/* Step 3: Dairy details */}
+              {step === 3 && (
+                <div className="space-y-6 py-2">
+                  {existingDairies.length > 0 && (
+                    <div className="rounded-xl border border-green-200 bg-green-50 p-5">
+                      <div className="flex gap-3">
+                        <Store className="text-green-600 shrink-0 mt-0.5" size={20} />
+                        <div className="w-full">
+                          <p className="text-sm font-semibold text-green-900 mb-3">
+                            Found {existingDairies.length} existing dair{existingDairies.length > 1 ? "ies" : "y"} for this number:
+                          </p>
+                          <div className="flex flex-col gap-2">
+                            {existingDairies.map((d: any, i: number) => (
+                              <div key={i} className="flex items-center text-sm text-white font-medium bg-green-600 px-4 py-2.5 rounded-lg shadow-sm">
+                                <div className="w-1.5 h-1.5 rounded-full bg-white mr-3 shrink-0"></div>
+                                <span className="truncate">
+                                  {d.name ?? d.dairy_name ?? "Dairy"}
+                                  {d.branchname ? <span className="text-green-100 font-normal ml-1">— {d.branchname}</span> : ""}
+                                  {d.username ? <span className="text-green-200 font-normal ml-2">({d.username})</span> : ""}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    <div className="pt-2 border-t border-green-200">
-                      <Label className="text-xs text-gray-600">Password</Label>
-                      <div className="flex items-center gap-2 mt-1">
-                        <code className="text-lg font-bold text-green-700 bg-green-100 px-3 py-1 rounded">
-                          {createdPassword}
-                        </code>
-                        <FileCopyIcon
-                          className="text-gray-500 cursor-pointer hover:text-blue-600 transition-colors"
-                          fontSize="small"
-                          onClick={() => handleCopy(String(createdPassword))}
-                        />
+                  )}
+
+                  <form onSubmit={handleCreateBranch} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-semibold text-foreground">
+                          Dairy Name <span className="text-destructive">*</span>
+                        </Label>
+                        <div className="relative group">
+                          <Factory className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4 group-focus-within:text-blue-600 transition-colors" />
+                          <Input
+                            className="pl-9 h-11 bg-background border-input focus:bg-background focus:ring-blue-600/20 rounded-lg transition-all"
+                            placeholder="e.g. Sunrise Dairy"
+                            value={form.name}
+                            onChange={(e) => setForm({ ...form, name: e.target.value })}
+                          />
+                        </div>
                       </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm font-semibold text-foreground">
+                          Branch Name <span className="text-destructive">*</span>
+                        </Label>
+                        <div className="relative group">
+                          <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4 group-focus-within:text-blue-600 transition-colors" />
+                          <Input
+                            className="pl-9 h-11 bg-background border-input focus:bg-background focus:ring-blue-600/20 rounded-lg transition-all"
+                            placeholder="e.g. Main Branch"
+                            value={form.branchname}
+                            onChange={(e) => setForm({ ...form, branchname: e.target.value })}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm font-semibold text-foreground">
+                          Owner Name <span className="text-destructive">*</span>
+                        </Label>
+                        <div className="relative group">
+                          <User className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4 group-focus-within:text-blue-600 transition-colors" />
+                          <Input
+                            className="pl-9 h-11 bg-background border-input focus:bg-background focus:ring-blue-600/20 rounded-lg transition-all"
+                            placeholder="e.g. John Doe"
+                            value={form.ownername}
+                            onChange={(e) => setForm({ ...form, ownername: e.target.value })}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm font-semibold text-foreground">Mobile Number</Label>
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                          <Input
+                            className="pl-9 h-11 bg-muted border-input text-muted-foreground rounded-lg font-medium cursor-not-allowed"
+                            value={mobileNumber}
+                            readOnly
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm font-semibold text-foreground">
+                          Password <span className="text-destructive">*</span>
+                        </Label>
+                        <div className="relative group">
+                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4 group-focus-within:text-blue-600 transition-colors" />
+                          <Input
+                            type="text"
+                            className="pl-9 h-11 bg-background border-input focus:bg-background focus:ring-blue-600/20 rounded-lg transition-all"
+                            placeholder="Min 6 characters"
+                            value={form.password}
+                            onChange={(e) => setForm({ ...form, password: e.target.value })}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm font-semibold text-foreground">Billing Days</Label>
+                        <div className="relative group">
+                          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground z-10 pointer-events-none group-focus-within:text-blue-600 transition-colors">
+                            <CalendarClock className="h-4 w-4" />
+                          </div>
+                          <Select
+                            value={String(form.days)}
+                            onValueChange={(v) => setForm({ ...form, days: Number(v) })}
+                          >
+                            <SelectTrigger className="pl-9 h-11 bg-background border-input focus:ring-blue-600/20 rounded-lg transition-all w-full relative z-10">
+                              <SelectValue placeholder="Select billing cycle" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-white dark:bg-zinc-900 border border-border shadow-xl z-[100]">
+                              <SelectItem value="7">7 Days</SelectItem>
+                              <SelectItem value="10">10 Days</SelectItem>
+                              <SelectItem value="15">15 Days</SelectItem>
+                              <SelectItem value="30">30 Days</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm font-semibold text-foreground">Village Name</Label>
+                        <div className="relative group">
+                          <Map className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4 group-focus-within:text-blue-600 transition-colors" />
+                          <Input
+                            className="pl-9 h-11 bg-background border-input focus:bg-background focus:ring-blue-600/20 rounded-lg transition-all"
+                            placeholder="Enter village"
+                            value={form.villagename}
+                            onChange={(e) => setForm({ ...form, villagename: e.target.value })}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm font-semibold text-foreground">Address</Label>
+                        <div className="relative group">
+                          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4 group-focus-within:text-blue-600 transition-colors" />
+                          <Input
+                            className="pl-9 h-11 bg-background border-input focus:bg-background focus:ring-blue-600/20 rounded-lg transition-all"
+                            placeholder="Full address"
+                            value={form.address}
+                            onChange={(e) => setForm({ ...form, address: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-border">
+                      <Button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full sm:w-auto px-8 h-12 text-base font-semibold rounded-xl transition-all disabled:opacity-70 float-right bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        {loading ? "Creating Dairy..." : "Create Dairy Account"}
+                      </Button>
+                      <div className="clear-both"></div>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {/* Step 4: Success — generated dairy ID + equipment checklist */}
+              {step === 4 && (
+                <div className="space-y-8 py-2">
+                  <div className="p-5 bg-blue-50 border border-blue-200 rounded-xl shadow-sm">
+                    <div className="flex items-center gap-3 text-blue-700 font-semibold mb-4">
+                      <CheckCircleIcon className="text-blue-600 text-2xl" />
+                      Dairy successfully created!
+                    </div>
+                    <div className="bg-background p-4 rounded-lg border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Generated Dairy ID</Label>
+                        <div className="flex items-center gap-3 mt-1.5">
+                          <code className="text-2xl font-black text-foreground font-mono tracking-tight">
+                            {createdUsername}
+                          </code>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        className="shrink-0 h-10 px-4 rounded-lg border-blue-200 text-blue-700 hover:bg-blue-50"
+                        onClick={() => handleCopy(String(createdUsername))}
+                      >
+                        <FileCopyIcon className="mr-2 h-4 w-4" />
+                        Copy ID
+                      </Button>
                     </div>
                   </div>
+
+                  {isSubmitted ? (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                      <div>
+                        <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+                          <CheckCircle2 className="text-blue-600" />
+                          Delivered Equipment
+                        </h3>
+                        <div className="bg-muted border border-border rounded-xl p-5">
+                          {equipment.filter((e) => e.checked).length > 0 ? (
+                            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              {equipment.filter((e) => e.checked).map((item, idx) => (
+                                <li key={idx} className="flex items-center gap-2 text-sm font-medium text-foreground bg-background px-3 py-2.5 rounded-lg border border-border shadow-sm">
+                                  <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+                                  {item.name}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <div className="text-center py-6">
+                              <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-background text-muted-foreground border border-border mb-3">
+                                <Store size={24} />
+                              </div>
+                              <p className="text-sm font-medium text-muted-foreground">No equipment delivered yet</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-border">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setIsSubmitted(false)}
+                          className="flex-1 h-12 text-base font-semibold rounded-xl"
+                        >
+                          Edit Equipment
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={resetFlow}
+                          className="flex-1 h-12 text-base font-semibold rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          Create Another Dairy
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-500">
+                      <div>
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-lg font-bold text-foreground">Assign Equipment</h3>
+                          <span className="text-xs font-medium bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full">
+                            {equipment.filter(e => e.checked).length} selected
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {equipment.map((item, idx) => (
+                            <label
+                              key={item.name}
+                              htmlFor={`equip-${idx}`}
+                              className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3.5 transition-all ${
+                                item.checked 
+                                  ? "bg-blue-50 border-blue-200 shadow-sm" 
+                                  : "bg-background border-border hover:bg-muted"
+                              }`}
+                            >
+                              <Checkbox
+                                id={`equip-${idx}`}
+                                checked={item.checked}
+                                onCheckedChange={() => toggleEquipment(idx)}
+                              />
+                              <span className={`text-sm font-medium ${item.checked ? "text-blue-700" : "text-foreground"}`}>
+                                {item.name}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+
+                        {/* Add new field */}
+                        <div className="flex items-center gap-3 mt-4">
+                          <Input
+                            placeholder="Add custom equipment..."
+                            className="h-11 bg-background border-border rounded-lg flex-1 focus:ring-blue-600/20"
+                            value={newField}
+                            onChange={(e) => setNewField(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                addEquipmentField();
+                              }
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className="shrink-0 h-11 px-4 rounded-lg font-medium"
+                            onClick={addEquipmentField}
+                          >
+                            <Plus size={18} className="mr-1.5" />
+                            Add
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-border">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={resetFlow}
+                          className="flex-1 h-12 text-base font-semibold rounded-xl order-2 sm:order-1"
+                        >
+                          Skip & Create Another
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={handleEquipmentSubmit}
+                          className="flex-1 h-12 text-base font-semibold rounded-xl order-1 sm:order-2 bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          Confirm & Submit
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <Button
-                  type="button"
-                  onClick={resetFlow}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white h-11 text-base font-medium"
-                >
-                  Create Another Dairy
-                </Button>
-              </div>
-            )}
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
