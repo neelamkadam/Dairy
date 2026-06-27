@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useState, useEffect, useRef, useCallback, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useSerialAnalyzer } from "@/hooks/useSerialAnalyzer";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constatnts/routesConstants";
@@ -93,6 +94,16 @@ const FarmerCollectionEntry = () => {
   const modalPrimaryActionRef = useRef<HTMLButtonElement>(null);
   const formContainerRef = useRef<HTMLDivElement>(null);
   const [showWater, setShowWater] = useState(false);
+
+  // Serial (wired machine) connection — logic lives in useSerialAnalyzer hook
+  const { serialStatus, connectMachine, disconnectMachine } = useSerialAnalyzer({
+    enabled: !!farmerId,
+    onData: useCallback((data) => {
+      setFat(data.fat);
+      setSnf(data.snf);
+      setClr('');
+    }, []),
+  });
 
   useEffect(() => {
     if (selectedBranch) {
@@ -786,6 +797,44 @@ const FarmerCollectionEntry = () => {
 
             {/* Collection Details */}
             <div className="space-y-4 bg-white p-5 rounded-2xl">
+              {/* Analyzer machine connection bar */}
+              <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5">
+                <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  <span
+                    className={`inline-block h-2.5 w-2.5 rounded-full ${
+                      serialStatus === 'connected' ? 'bg-green-500' :
+                      serialStatus === 'connecting' ? 'bg-yellow-400 animate-pulse' :
+                      serialStatus === 'error' ? 'bg-red-500' : 'bg-gray-300'
+                    }`}
+                  />
+                  {serialStatus === 'connected' ? 'Analyzer connected — FAT & SNF auto-fill active'
+                    : serialStatus === 'connecting' ? 'Connecting…'
+                    : serialStatus === 'error' ? 'Connection lost'
+                    : 'Analyzer not connected'}
+                </div>
+                {serialStatus === 'connected' ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs border-red-200 text-red-600 hover:bg-red-50"
+                    onClick={disconnectMachine}
+                  >
+                    Disconnect
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs border-blue-200 text-blue-600 hover:bg-blue-50"
+                    disabled={serialStatus === 'connecting'}
+                    onClick={connectMachine}
+                  >
+                    Connect Analyzer
+                  </Button>
+                )}
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">
