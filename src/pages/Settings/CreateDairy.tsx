@@ -71,14 +71,19 @@ const CreateDairy = () => {
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   // Equipment checklist (backend pending — local only for now).
-  const [equipment, setEquipment] = useState<{ name: string; checked: boolean }[]>(
-    DEFAULT_EQUIPMENT.map((name) => ({ name, checked: false }))
+  const [equipment, setEquipment] = useState<{ name: string; checked: boolean; quantity: string; serialNumber: string }[]>(
+    DEFAULT_EQUIPMENT.map((name) => ({ name, checked: false, quantity: "", serialNumber: "" }))
   );
   const [newField, setNewField] = useState("");
 
   const toggleEquipment = (idx: number) =>
     setEquipment((prev) =>
       prev.map((e, i) => (i === idx ? { ...e, checked: !e.checked } : e))
+    );
+
+  const updateEquipmentField = (idx: number, field: "quantity" | "serialNumber", value: string) =>
+    setEquipment((prev) =>
+      prev.map((e, i) => (i === idx ? { ...e, [field]: value } : e))
     );
 
   const addEquipmentField = () => {
@@ -91,7 +96,7 @@ const CreateDairy = () => {
       toast.error("This field already exists");
       return;
     }
-    setEquipment((prev) => [...prev, { name, checked: true }]);
+    setEquipment((prev) => [...prev, { name, checked: true, quantity: "", serialNumber: "" }]);
     setNewField("");
   };
 
@@ -229,7 +234,7 @@ const CreateDairy = () => {
       address: "",
     });
     setCreatedUser(null);
-    setEquipment(DEFAULT_EQUIPMENT.map((name) => ({ name, checked: false })));
+    setEquipment(DEFAULT_EQUIPMENT.map((name) => ({ name, checked: false, quantity: "", serialNumber: "" })));
     setNewField("");
     setIsSubmitted(false);
   };
@@ -601,9 +606,15 @@ const CreateDairy = () => {
                           {equipment.filter((e) => e.checked).length > 0 ? (
                             <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                               {equipment.filter((e) => e.checked).map((item, idx) => (
-                                <li key={idx} className="flex items-center gap-2 text-sm font-medium text-foreground bg-background px-3 py-2.5 rounded-lg border border-border shadow-sm">
-                                  <div className="w-2 h-2 rounded-full bg-blue-600"></div>
-                                  {item.name}
+                                <li key={idx} className="text-sm bg-background px-3 py-2.5 rounded-lg border border-border shadow-sm">
+                                  <div className="flex items-center gap-2 font-medium text-foreground">
+                                    <div className="w-2 h-2 rounded-full bg-blue-600 shrink-0"></div>
+                                    {item.name}
+                                  </div>
+                                  <div className="mt-1.5 ml-4 flex gap-4 text-xs text-muted-foreground">
+                                    <span>Qty: <span className="font-semibold text-foreground">{item.quantity || "—"}</span></span>
+                                    <span>Serial: <span className="font-semibold text-foreground">{item.serialNumber || "—"}</span></span>
+                                  </div>
                                 </li>
                               ))}
                             </ul>
@@ -647,24 +658,53 @@ const CreateDairy = () => {
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {equipment.map((item, idx) => (
-                            <label
+                            <div
                               key={item.name}
-                              htmlFor={`equip-${idx}`}
-                              className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3.5 transition-all ${
-                                item.checked 
-                                  ? "bg-blue-50 border-blue-200 shadow-sm" 
+                              className={`rounded-xl border p-3.5 transition-all ${
+                                item.checked
+                                  ? "bg-blue-50 border-blue-200 shadow-sm"
                                   : "bg-background border-border hover:bg-muted"
                               }`}
                             >
-                              <Checkbox
-                                id={`equip-${idx}`}
-                                checked={item.checked}
-                                onCheckedChange={() => toggleEquipment(idx)}
-                              />
-                              <span className={`text-sm font-medium ${item.checked ? "text-blue-700" : "text-foreground"}`}>
-                                {item.name}
-                              </span>
-                            </label>
+                              <label
+                                htmlFor={`equip-${idx}`}
+                                className="flex cursor-pointer items-center gap-3"
+                              >
+                                <Checkbox
+                                  id={`equip-${idx}`}
+                                  checked={item.checked}
+                                  onCheckedChange={() => toggleEquipment(idx)}
+                                />
+                                <span className={`text-sm font-medium ${item.checked ? "text-blue-700" : "text-foreground"}`}>
+                                  {item.name}
+                                </span>
+                              </label>
+                              {item.checked && (
+                                <div className="mt-2.5 grid grid-cols-2 gap-2">
+                                  <div>
+                                    <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1 block">Qty</Label>
+                                    <Input
+                                      type="number"
+                                      min={1}
+                                      placeholder="1"
+                                      className="h-8 text-xs rounded-md bg-background border-blue-200"
+                                      value={item.quantity}
+                                      onChange={(e) => updateEquipmentField(idx, "quantity", e.target.value)}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1 block">Serial No.</Label>
+                                    <Input
+                                      type="text"
+                                      placeholder="e.g. SN-001"
+                                      className="h-8 text-xs rounded-md bg-background border-blue-200"
+                                      value={item.serialNumber}
+                                      onChange={(e) => updateEquipmentField(idx, "serialNumber", e.target.value)}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           ))}
                         </div>
 
