@@ -265,9 +265,9 @@ export const generateVLCDifferenceConsolidatedHtml = (
     return `
     <tr>
       <td>${row.type}</td>
-      ${cell('vlc', v.total_weight)}${cell('vlc', v.avg_fat)}${cell('vlc', v.avg_snf)}${cell('vlc', v.avg_rate)}${cell('vlc', v.total_amount)}
-      ${cell('milk', m.total_weight)}${cell('milk', m.avg_fat)}${cell('milk', m.avg_snf)}${cell('milk', m.avg_rate)}${cell('milk', m.total_amount)}
       ${cell('dairy', d.total_weight)}${cell('dairy', d.avg_fat)}${cell('dairy', d.avg_snf)}${cell('dairy', d.avg_rate)}${cell('dairy', d.total_amount)}
+      ${cell('milk', m.total_weight)}${cell('milk', m.avg_fat)}${cell('milk', m.avg_snf)}${cell('milk', m.avg_rate)}${cell('milk', m.total_amount)}
+      ${cell('vlc', v.total_weight)}${cell('vlc', v.avg_fat)}${cell('vlc', v.avg_snf)}${cell('vlc', v.avg_rate)}${cell('vlc', v.total_amount)}
       ${diffCell('diff', df.weight)}${diffCell('diff', df.fat)}${diffCell('diff', df.snf)}${diffCell('diff', df.rate)}${diffCell('diff', df.amount, true)}
       ${diffCell('vmdiff', vm.weight)}${diffCell('vmdiff', vm.fat)}${diffCell('vmdiff', vm.snf)}${diffCell('vmdiff', vm.rate)}${diffCell('vmdiff', vm.amount, true)}
       ${diffCell('mddiff', md.weight)}${diffCell('mddiff', md.fat)}${diffCell('mddiff', md.snf)}${diffCell('mddiff', md.rate)}${diffCell('mddiff', md.amount, true)}
@@ -317,17 +317,17 @@ export const generateVLCDifferenceConsolidatedHtml = (
         <thead>
           <tr class="section-header">
             <th rowspan="2" style="width: 6%;">Type</th>
-            <th colspan="5" style="background-color: #f0fdf4;">VLC DATA</th>
-            <th colspan="5" style="background-color: #e5e7eb;">MILK COLLECTION</th>
-            <th colspan="5" style="background-color: #eff6ff;">DAIRY DATA</th>
-            <th colspan="5" style="background-color: #faf5ff;">DIFFERENCE (VLC − DAIRY)</th>
-            <th colspan="5" style="background-color: #fff7ed;">VLC − MILK</th>
-            <th colspan="5" style="background-color: #f0fdfa;">MILK − DAIRY</th>
+            <th colspan="5" style="background-color: #eff6ff;">COMPOSITE</th>
+            <th colspan="5" style="background-color: #e5e7eb;">DISPATCH</th>
+            <th colspan="5" style="background-color: #f0fdf4;">ACTUAL</th>
+            <th colspan="5" style="background-color: #faf5ff;">COMPOSITE - ACTUAL</th>
+            <th colspan="5" style="background-color: #fff7ed;">DISPATCH - ACTUAL</th>
+            <th colspan="5" style="background-color: #f0fdfa;">COMPOSITE - DISPATCH</th>
           </tr>
           <tr>
-            ${subHeads('#f0fdf4')}
-            ${subHeads('#e5e7eb')}
             ${subHeads('#eff6ff')}
+            ${subHeads('#e5e7eb')}
+            ${subHeads('#f0fdf4')}
             ${subHeads('#faf5ff')}
             ${subHeads('#fff7ed')}
             ${subHeads('#f0fdfa')}

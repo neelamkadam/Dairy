@@ -597,42 +597,44 @@ const VlcDifferenceReport2 = () => {
         'VLC ID': row.vlcId,
         'VLC Name': row.vlcName,
         'Type': row.type,
-        'VLC Weight': row.vlc!.total_weight,
-        'VLC Fat': row.vlc!.avg_fat,
-        'VLC SNF': row.vlc!.avg_snf,
-        'VLC Kg Fat': row.vlc!.kg_fat,
-        'VLC Kg SNF': row.vlc!.kg_snf,
-        'VLC Rate': row.vlc!.avg_rate,
-        'VLC Amount': row.vlc!.total_amount,
-        'Milk Weight': row.milk_collection!.total_weight,
-        'Milk Fat': row.milk_collection!.avg_fat,
-        'Milk SNF': row.milk_collection!.avg_snf,
-        'Milk Kg Fat': row.milk_collection!.kg_fat,
-        'Milk Kg SNF': row.milk_collection!.kg_snf,
-        'Milk Rate': row.milk_collection!.avg_rate,
-        'Milk Amount': row.milk_collection!.total_amount,
-        'Dairy Weight': row.dairy!.total_weight,
-        'Dairy Fat': row.dairy!.avg_fat,
-        'Dairy SNF': row.dairy!.avg_snf,
-        'Dairy Kg Fat': row.dairy!.kg_fat,
-        'Dairy Kg SNF': row.dairy!.kg_snf,
-        'Dairy Rate': row.dairy!.avg_rate,
-        'Dairy Amount': row.dairy!.total_amount,
-        'Diff Weight': row.difference!.weight,
-        'Diff Fat': row.difference!.fat,
-        'Diff SNF': row.difference!.snf,
-        'Diff Rate': row.difference!.rate,
-        'Diff Amount': row.difference!.amount,
-        'VLC-Milk Weight': row.vlc_milk_collection_diff!.weight,
-        'VLC-Milk Fat': row.vlc_milk_collection_diff!.fat,
-        'VLC-Milk SNF': row.vlc_milk_collection_diff!.snf,
-        'VLC-Milk Rate': row.vlc_milk_collection_diff!.rate,
-        'VLC-Milk Amount': row.vlc_milk_collection_diff!.amount,
-        'Milk-Dairy Weight': row.milk_collection_dairy_diff!.weight,
-        'Milk-Dairy Fat': row.milk_collection_dairy_diff!.fat,
-        'Milk-Dairy SNF': row.milk_collection_dairy_diff!.snf,
-        'Milk-Dairy Rate': row.milk_collection_dairy_diff!.rate,
-        'Milk-Dairy Amount': row.milk_collection_dairy_diff!.amount,
+        'From Date': fromDate,
+        'To Date': toDate,
+        'Composite Weight': row.dairy!.total_weight,
+        'Composite Fat': row.dairy!.avg_fat,
+        'Composite SNF': row.dairy!.avg_snf,
+        'Composite Kg Fat': row.dairy!.kg_fat,
+        'Composite Kg SNF': row.dairy!.kg_snf,
+        'Composite Rate': row.dairy!.avg_rate,
+        'Composite Amount': row.dairy!.total_amount,
+        'Dispatch Weight': row.milk_collection!.total_weight,
+        'Dispatch Fat': row.milk_collection!.avg_fat,
+        'Dispatch SNF': row.milk_collection!.avg_snf,
+        'Dispatch Kg Fat': row.milk_collection!.kg_fat,
+        'Dispatch Kg SNF': row.milk_collection!.kg_snf,
+        'Dispatch Rate': row.milk_collection!.avg_rate,
+        'Dispatch Amount': row.milk_collection!.total_amount,
+        'Actual Weight': row.vlc!.total_weight,
+        'Actual Fat': row.vlc!.avg_fat,
+        'Actual SNF': row.vlc!.avg_snf,
+        'Actual Kg Fat': row.vlc!.kg_fat,
+        'Actual Kg SNF': row.vlc!.kg_snf,
+        'Actual Rate': row.vlc!.avg_rate,
+        'Actual Amount': row.vlc!.total_amount,
+        'Composite-Actual Weight': row.difference!.weight,
+        'Composite-Actual Fat': row.difference!.fat,
+        'Composite-Actual SNF': row.difference!.snf,
+        'Composite-Actual Rate': row.difference!.rate,
+        'Composite-Actual Amount': row.difference!.amount,
+        'Dispatch-Actual Weight': row.vlc_milk_collection_diff!.weight,
+        'Dispatch-Actual Fat': row.vlc_milk_collection_diff!.fat,
+        'Dispatch-Actual SNF': row.vlc_milk_collection_diff!.snf,
+        'Dispatch-Actual Rate': row.vlc_milk_collection_diff!.rate,
+        'Dispatch-Actual Amount': row.vlc_milk_collection_diff!.amount,
+        'Composite-Dispatch Weight': row.milk_collection_dairy_diff!.weight,
+        'Composite-Dispatch Fat': row.milk_collection_dairy_diff!.fat,
+        'Composite-Dispatch SNF': row.milk_collection_dairy_diff!.snf,
+        'Composite-Dispatch Rate': row.milk_collection_dairy_diff!.rate,
+        'Composite-Dispatch Amount': row.milk_collection_dairy_diff!.amount,
       }));
 
     const ws = XLSX.utils.json_to_sheet(exportData);
@@ -654,15 +656,15 @@ const VlcDifferenceReport2 = () => {
     // 7 cols: Qty, Fat, SNF, Kg Fat, Kg SNF, Rate, Amount), signed (red/green)
     // fills for the three 5-col difference groups.
     const plainFill = (C: number) => {
-      if (C >= 3 && C <= 9) return "DBEAFE";   // VLC
-      if (C >= 10 && C <= 16) return "E5E7EB"; // Milk Collection
-      if (C >= 17 && C <= 23) return "D1FAE5"; // Dairy
+      if (C >= 5 && C <= 11) return "D1FAE5";   // Composite
+      if (C >= 12 && C <= 18) return "E5E7EB";  // Dispatch
+      if (C >= 19 && C <= 25) return "DBEAFE";  // Actual
       return null;
     };
     const signedFill = (C: number) => {
-      if (C >= 24 && C <= 28) return "E9D5FF"; // Difference (VLC - Dairy)
-      if (C >= 29 && C <= 33) return "FFEDD5"; // VLC - Milk Collection
-      if (C >= 34 && C <= 38) return "CCFBF1"; // Milk Collection - Dairy
+      if (C >= 26 && C <= 30) return "E9D5FF";  // Composite - Actual
+      if (C >= 31 && C <= 35) return "FFEDD5";  // Dispatch - Actual
+      if (C >= 36 && C <= 40) return "CCFBF1";  // Composite - Dispatch
       return null;
     };
 
@@ -672,7 +674,7 @@ const VlcDifferenceReport2 = () => {
       if (ws[address]) ws[address].s = headerStyle;
     }
     for (let R = range.s.r + 1; R <= range.e.r; ++R) {
-      for (let C = 3; C <= 38; ++C) {
+      for (let C = 5; C <= 40; ++C) {
         const address = XLSX.utils.encode_cell({ r: R, c: C });
         if (!ws[address]) continue;
         const signed = signedFill(C);
@@ -685,7 +687,7 @@ const VlcDifferenceReport2 = () => {
       }
     }
 
-    ws['!cols'] = [{ wch: 12 }, { wch: 24 }, { wch: 10 }, ...Array(36).fill({ wch: 12 })];
+    ws['!cols'] = [{ wch: 12 }, { wch: 24 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, ...Array(36).fill({ wch: 12 })];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'VLC Difference Report');
     const fileLabel = vlcIds.length === 1 ? vlcIds[0] : 'multiple_VLCs';
@@ -720,168 +722,158 @@ const VlcDifferenceReport2 = () => {
     <div className="p-6 bg-white w-full h-screen">
       <PdfLoader isLoading={pdfLoading} />
       <h1 className="text-lg font-bold mb-7">VLCC Difference Report 2</h1>
-      <div className="grid grid-cols-1 md:grid-cols-7 gap-4 p-3 rounded-lg">
-        <div>
-          <Label className="mb-1">VLC Name</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className="w-full justify-between border-gray-200 font-normal"
-              >
-                <span className="truncate">
-                  {vlcIds.length === 0
-                    ? "Select VLC"
-                    : isAllSelected
-                      ? "All VLCs selected"
-                      : `${vlcIds.length} VLC${vlcIds.length > 1 ? 's' : ''} selected`}
-                </span>
-                <ChevronDown size={16} className="ml-2 shrink-0 opacity-60" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-72 p-0 bg-white" align="start">
-              <div className="flex items-center justify-between border-b px-3 py-2">
-                <span className="text-sm font-medium">VLCs</span>
+      <div className="p-3 rounded-lg space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div>
+            <Label className="mb-1">VLC Name</Label>
+            <Popover>
+              <PopoverTrigger asChild>
                 <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs text-blue-600 hover:text-blue-700"
-                  onClick={toggleSelectAll}
+                  variant="outline"
+                  className="w-full justify-between border-gray-200 font-normal"
                 >
-                  {isAllSelected ? "Clear All" : "Select All"}
+                  <span className="truncate">
+                    {vlcIds.length === 0
+                      ? "Select VLC"
+                      : isAllSelected
+                        ? "All VLCs selected"
+                        : `${vlcIds.length} VLC${vlcIds.length > 1 ? 's' : ''} selected`}
+                  </span>
+                  <ChevronDown size={16} className="ml-2 shrink-0 opacity-60" />
                 </Button>
-              </div>
-              <ScrollArea className="h-64">
-                <div className="p-1">
-                  {branches?.map((branch) => (
-                    <label
-                      key={branch.username}
-                      htmlFor={`vlc-${branch.username}`}
-                      className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-gray-100"
-                    >
-                      <Checkbox
-                        id={`vlc-${branch.username}`}
-                        checked={vlcIds.includes(branch.username)}
-                        onCheckedChange={() => toggleVlc(branch.username)}
-                      />
-                      <span className="truncate">
-                        {branch.username} - {branch.name} - {branch.branchName || ''}
-                      </span>
-                    </label>
-                  ))}
+              </PopoverTrigger>
+              <PopoverContent className="w-72 p-0 bg-white" align="start">
+                <div className="flex items-center justify-between border-b px-3 py-2">
+                  <span className="text-sm font-medium">VLCs</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-blue-600 hover:text-blue-700"
+                    onClick={toggleSelectAll}
+                  >
+                    {isAllSelected ? "Clear All" : "Select All"}
+                  </Button>
                 </div>
-              </ScrollArea>
-            </PopoverContent>
-          </Popover>
+                <ScrollArea className="h-64">
+                  <div className="p-1">
+                    {branches?.map((branch) => (
+                      <label
+                        key={branch.username}
+                        htmlFor={`vlc-${branch.username}`}
+                        className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-gray-100"
+                      >
+                        <Checkbox
+                          id={`vlc-${branch.username}`}
+                          checked={vlcIds.includes(branch.username)}
+                          onCheckedChange={() => toggleVlc(branch.username)}
+                        />
+                        <span className="truncate">
+                          {branch.username} - {branch.name} - {branch.branchName || ''}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div>
+            <Label className="mb-1">From Date</Label>
+            <Input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="border-gray-200"
+            />
+          </div>
+          <div>
+            <Label className="mb-1">To Date</Label>
+            <Input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="border-gray-200"
+            />
+          </div>
+          <div>
+            <Label className="mb-1">Shift Type</Label>
+            <Select value={shift} onValueChange={setShift}>
+              <SelectTrigger className="w-full border-gray-200">
+                <SelectValue placeholder="Select shift" />
+              </SelectTrigger>
+              <SelectContent className="bg-white">
+                <SelectItem value="All">All</SelectItem>
+                <SelectItem value="Morning">Morning</SelectItem>
+                <SelectItem value="Evening">Evening</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="mb-1">Type</Label>
+            <Select value={type} onValueChange={(val: 'Cow' | 'Buffalo' | 'Both') => setType(val)}>
+              <SelectTrigger className="w-full border-gray-200">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-white">
+                <SelectItem value="Cow">Cow</SelectItem>
+                <SelectItem value="Buffalo">Buffalo</SelectItem>
+                <SelectItem value="Both">Both</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-        <div>
-          <Label className="mb-1">From Date</Label>
-          <Input
-            type="date"
-            value={fromDate}
-            onChange={(e) => setFromDate(e.target.value)}
-            className="border-gray-200"
-          />
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={handleShow}
+            disabled={loading}
+            className="text-white bg-blue-600 w-[90px]"
+          >
+            {loading ? "Loading..." : "Show"}
+          </Button>
+          <Button
+            onClick={handleExportPDF}
+            disabled={!reportData || reportData.length === 0}
+            className="text-white bg-red-600 w-[120px] flex items-center gap-2"
+          >
+            <FileDown size={16} />
+            Export PDF
+          </Button>
+          <Button
+            onClick={handleExportExcel}
+            disabled={!reportData || reportData.length === 0}
+            className="text-white bg-green-600 w-[130px] flex items-center gap-2"
+          >
+            <FileSpreadsheet size={16} />
+            Export Excel
+          </Button>
         </div>
-        <div>
-          <Label className="mb-1">To Date</Label>
-          <Input
-            type="date"
-            value={toDate}
-            onChange={(e) => setToDate(e.target.value)}
-            className="border-gray-200"
-          />
-        </div>
-        <div>
-          <Label className="mb-1">Shift Type</Label>
-          <Select value={shift} onValueChange={setShift}>
-            <SelectTrigger className="w-full border-gray-200">
-              <SelectValue placeholder="Select shift" />
-            </SelectTrigger>
-            <SelectContent className="bg-white">
-              <SelectItem value="All">All</SelectItem>
-              <SelectItem value="Morning">Morning</SelectItem>
-              <SelectItem value="Evening">Evening</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label className="mb-1">Type</Label>
-          <Select value={type} onValueChange={(val: 'Cow' | 'Buffalo' | 'Both') => setType(val)}>
-            <SelectTrigger className="w-full border-gray-200">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-white">
-              <SelectItem value="Cow">Cow</SelectItem>
-              <SelectItem value="Buffalo">Buffalo</SelectItem>
-              <SelectItem value="Both">Both</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <Button 
-          onClick={handleShow} 
-          disabled={loading}
-          className="text-white bg-blue-600 w-[90px] mt-4.5"
-        >
-          {loading ? "Loading..." : "Show"}
-        </Button>
-        <Button 
-          onClick={handleExportPDF} 
-          disabled={!reportData || reportData.length === 0}
-          className="text-white bg-red-600 w-[120px] mt-4.5 flex items-center gap-2"
-        >
-          <FileDown size={16} />
-          Export PDF
-        </Button>
-        <Button 
-          onClick={handleExportExcel} 
-          disabled={!reportData || reportData.length === 0}
-          className="text-white bg-green-600 w-[130px] mt-4.5 flex items-center gap-2"
-        >
-          <FileSpreadsheet size={16} />
-          Export Excel
-        </Button>
       </div>
       <div className="overflow-x-auto mt-4 border border-gray-200 rounded-lg shadow-sm">
         <Table className="text-xs [&_th]:h-auto [&_th]:py-2 [&_th]:px-2 [&_td]:py-1.5 [&_td]:px-2 [&_th]:align-middle">
           <TableHeader>
             <TableRow className="bg-gradient-to-r from-blue-50 to-blue-100">
               <TableHead rowSpan={2} className="text-center border border-gray-200 font-bold text-gray-900">Type</TableHead>
-              <TableHead colSpan={7} className="text-center border border-gray-200 font-bold text-blue-900 py-3">
-                VLC Collection Data
+              <TableHead colSpan={7} className="text-center border border-gray-200 font-bold text-green-900 py-3">
+                Composite
               </TableHead>
               <TableHead colSpan={7} className="text-center border border-gray-200 font-bold text-gray-700 bg-gray-200 py-3">
-                Milk Collection
+                Dispatch
               </TableHead>
-              <TableHead colSpan={7} className="text-center border border-gray-200 font-bold text-green-900 py-3">
-                Dairy Entry
+              <TableHead colSpan={7} className="text-center border border-gray-200 font-bold text-blue-900 py-3">
+                Actual
               </TableHead>
               <TableHead colSpan={5} className="text-center border border-gray-200 font-bold text-purple-900 py-3">
-                Difference (VLC - Dairy)
+                Composite - Actual
               </TableHead>
               <TableHead colSpan={5} className="text-center border border-gray-200 font-bold text-orange-900 bg-orange-50 py-3">
-                VLC - Milk Collection
+                Dispatch - Actual
               </TableHead>
               <TableHead colSpan={5} className="text-center border border-gray-200 font-bold text-teal-900 bg-teal-50 py-3">
-                Milk Collection - Dairy
+                Composite - Dispatch
               </TableHead>
             </TableRow>
             <TableRow>
-              <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Weight</TableHead>
-              <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Fat</TableHead>
-              <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">SNF</TableHead>
-              <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Kg Fat</TableHead>
-              <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Kg SNF</TableHead>
-              <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Rate</TableHead>
-              <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Amount</TableHead>
-              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">Weight</TableHead>
-              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">Fat</TableHead>
-              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">SNF</TableHead>
-              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">Kg Fat</TableHead>
-              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">Kg SNF</TableHead>
-              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">Rate</TableHead>
-              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">Amount</TableHead>
               <TableHead className="text-center font-semibold bg-green-50 border border-gray-200 text-green-800">Weight</TableHead>
               <TableHead className="text-center font-semibold bg-green-50 border border-gray-200 text-green-800">Fat</TableHead>
               <TableHead className="text-center font-semibold bg-green-50 border border-gray-200 text-green-800">SNF</TableHead>
@@ -889,6 +881,20 @@ const VlcDifferenceReport2 = () => {
               <TableHead className="text-center font-semibold bg-green-50 border border-gray-200 text-green-800">Kg SNF</TableHead>
               <TableHead className="text-center font-semibold bg-green-50 border border-gray-200 text-green-800">Rate</TableHead>
               <TableHead className="text-center font-semibold bg-green-50 border border-gray-200 text-green-800">Amount</TableHead>
+              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">Weight</TableHead>
+              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">Fat</TableHead>
+              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">SNF</TableHead>
+              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">Kg Fat</TableHead>
+              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">Kg SNF</TableHead>
+              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">Rate</TableHead>
+              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">Amount</TableHead>
+              <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Weight</TableHead>
+              <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Fat</TableHead>
+              <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">SNF</TableHead>
+              <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Kg Fat</TableHead>
+              <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Kg SNF</TableHead>
+              <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Rate</TableHead>
+              <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Amount</TableHead>
               <TableHead className="text-center font-semibold bg-purple-50 border border-gray-200 text-purple-800">Weight</TableHead>
               <TableHead className="text-center font-semibold bg-purple-50 border border-gray-200 text-purple-800">Fat</TableHead>
               <TableHead className="text-center font-semibold bg-purple-50 border border-gray-200 text-purple-800">SNF</TableHead>
@@ -925,20 +931,6 @@ const VlcDifferenceReport2 = () => {
                 return (
                   <TableRow key={index} className="hover:bg-gray-50">
                     <TableCell className="border border-gray-200 text-center font-medium bg-gray-50">{row.type}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-blue-50/30">{row.vlc!.total_weight}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-blue-50/30">{row.vlc!.avg_fat}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-blue-50/30">{row.vlc!.avg_snf}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-blue-50/30">{row.vlc!.kg_fat}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-blue-50/30">{row.vlc!.kg_snf}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-blue-50/30">{row.vlc!.avg_rate}</TableCell>
-                    <TableCell className="border border-gray-200 text-center font-semibold bg-blue-50/30">{row.vlc!.total_amount}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-gray-100">{row.milk_collection!.total_weight}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-gray-100">{row.milk_collection!.avg_fat}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-gray-100">{row.milk_collection!.avg_snf}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-gray-100">{row.milk_collection!.kg_fat}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-gray-100">{row.milk_collection!.kg_snf}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-gray-100">{row.milk_collection!.avg_rate}</TableCell>
-                    <TableCell className="border border-gray-200 text-center font-semibold bg-gray-100">{row.milk_collection!.total_amount}</TableCell>
                     <TableCell className="border border-gray-200 text-center bg-green-50/30">{row.dairy!.total_weight}</TableCell>
                     <TableCell className="border border-gray-200 text-center bg-green-50/30">{row.dairy!.avg_fat}</TableCell>
                     <TableCell className="border border-gray-200 text-center bg-green-50/30">{row.dairy!.avg_snf}</TableCell>
@@ -946,6 +938,20 @@ const VlcDifferenceReport2 = () => {
                     <TableCell className="border border-gray-200 text-center bg-green-50/30">{row.dairy!.kg_snf}</TableCell>
                     <TableCell className="border border-gray-200 text-center bg-green-50/30">{row.dairy!.avg_rate}</TableCell>
                     <TableCell className="border border-gray-200 text-center font-semibold bg-green-50/30">{row.dairy!.total_amount}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-gray-100">{row.milk_collection!.total_weight}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-gray-100">{row.milk_collection!.avg_fat}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-gray-100">{row.milk_collection!.avg_snf}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-gray-100">{row.milk_collection!.kg_fat}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-gray-100">{row.milk_collection!.kg_snf}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-gray-100">{row.milk_collection!.avg_rate}</TableCell>
+                    <TableCell className="border border-gray-200 text-center font-semibold bg-gray-100">{row.milk_collection!.total_amount}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-blue-50/30">{row.vlc!.total_weight}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-blue-50/30">{row.vlc!.avg_fat}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-blue-50/30">{row.vlc!.avg_snf}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-blue-50/30">{row.vlc!.kg_fat}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-blue-50/30">{row.vlc!.kg_snf}</TableCell>
+                    <TableCell className="border border-gray-200 text-center bg-blue-50/30">{row.vlc!.avg_rate}</TableCell>
+                    <TableCell className="border border-gray-200 text-center font-semibold bg-blue-50/30">{row.vlc!.total_amount}</TableCell>
                     {renderDiffCells(row.difference, false, 'bg-purple-50/30', 'bg-purple-100')}
                     {renderDiffCells(row.vlc_milk_collection_diff, false, 'bg-orange-50/30', 'bg-orange-100')}
                     {renderDiffCells(row.milk_collection_dairy_diff, false, 'bg-teal-50/30', 'bg-teal-100')}
