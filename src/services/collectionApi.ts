@@ -59,8 +59,41 @@ export const collectionApi = {
   bulkCreate: async (collections: BulkCollectionItem[]) => {
     const response = await AxiosClient.post('/collections/bulk', { collections });
     return response.data;
+  },
+
+  // Antibiotic: rate -1 on normal rows of the date/shift, flags them antibiotic
+  // (skips finalized/paid, already-antibiotic and rate-below-1 rows)
+  decreaseRatesByDate: async (payload: AntibioticRatePayload) => {
+    const response = await AxiosClient.put('/collections/decrease-rates-by-date', payload);
+    return response.data;
+  },
+
+  // Antibiotic revert: rate +1 on antibiotic rows of the date/shift, flags them back to normal
+  // (skips finalized/paid & normal rows)
+  revertRatesByDate: async (payload: AntibioticRatePayload) => {
+    const response = await AxiosClient.put('/collections/revert-rates-by-date', payload);
+    return response.data;
+  },
+
+  getAntibioticStatus: async (params: AntibioticRatePayload): Promise<AntibioticStatusResponse> => {
+    const response = await AxiosClient.get('/collections/antibiotic-status', { params });
+    return response.data;
   }
 };
+
+export interface AntibioticRatePayload {
+  dairy_id: number;
+  date: string;
+  shift: 'Morning' | 'Evening';
+}
+
+export interface AntibioticStatusResponse {
+  success: boolean;
+  total: number;
+  antibiotic_count: number;
+  normal_count: number;
+  status: 'empty' | 'normal' | 'antibiotic' | 'partial';
+}
 
 export interface BulkCollectionItem {
   farmer_id: string;

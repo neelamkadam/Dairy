@@ -37,7 +37,9 @@ import {
   Download,
   ChevronLeft,
   ChevronRight,
+  Loader2,
 } from "lucide-react";
+import { collectionApi, AntibioticStatusResponse } from "@/services/collectionApi";
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
 
@@ -50,6 +52,9 @@ const ShiftReports:React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [language, setLanguage] = useState<string>(i18n.language || 'en');
+  const [antibioticLoading, setAntibioticLoading] = useState(false);
+  const [revertLoading, setRevertLoading] = useState(false);
+  const [antibioticStatus, setAntibioticStatus] = useState<AntibioticStatusResponse | null>(null);
 
   const getDefaultShift = () => {
     const hour = new Date().getHours();
@@ -118,6 +123,88 @@ const ShiftReports:React.FC = () => {
       toast.error(error?.response?.data?.message || "Failed to fetch report");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Backend expects 'Morning' | 'Evening'; the form stores lowercase
+  const getShiftValue = (): 'Morning' | 'Evening' =>
+    formData.shift === 'evening' ? 'Evening' : 'Morning';
+
+  const fetchAntibioticStatus = async () => {
+    if (!formData.selectedDairy || !formData.date || !formData.shift) {
+      setAntibioticStatus(null);
+      return;
+    }
+    try {
+      const data = await collectionApi.getAntibioticStatus({
+        dairy_id: parseInt(formData.selectedDairy),
+        date: format(formData.date, "yyyy-MM-dd"),
+        shift: getShiftValue(),
+      });
+      setAntibioticStatus(data);
+    } catch (error) {
+      console.error("❌ [API ERROR] getAntibioticStatus:", error);
+      setAntibioticStatus(null);
+    }
+  };
+
+  useEffect(() => {
+    fetchAntibioticStatus();
+  }, [formData.selectedDairy, formData.date, formData.shift]);
+
+  const handleAntibioticDecrease = async () => {
+    if (!formData.selectedDairy || !formData.date || !formData.shift) {
+      toast.error("Please select VLC, date and shift");
+      return;
+    }
+    const label = `${format(formData.date, "dd-MM-yyyy")} (${getShiftValue()} shift)`;
+    if (!window.confirm(`Apply antibiotic rate decrease (-1/L) to all normal collections for ${label}? Already-antibiotic, finalized/paid and rate-below-1 rows will be skipped.`)) return;
+
+    setAntibioticLoading(true);
+    try {
+      const data = await collectionApi.decreaseRatesByDate({
+        dairy_id: parseInt(formData.selectedDairy),
+        date: format(formData.date, "yyyy-MM-dd"),
+        shift: getShiftValue(),
+      });
+      toast.success(data?.message || "Antibiotic rate decrease applied");
+      await fetchAntibioticStatus();
+      if (reportData) {
+        await fetchCollectionReport();
+      }
+    } catch (error: any) {
+      console.error("❌ [API ERROR] decreaseRatesByDate:", error);
+      toast.error(error?.response?.data?.message || "Failed to apply antibiotic rate decrease");
+    } finally {
+      setAntibioticLoading(false);
+    }
+  };
+
+  const handleAntibioticRevert = async () => {
+    if (!formData.selectedDairy || !formData.date || !formData.shift) {
+      toast.error("Please select VLC, date and shift");
+      return;
+    }
+    const label = `${format(formData.date, "dd-MM-yyyy")} (${getShiftValue()} shift)`;
+    if (!window.confirm(`Revert antibiotic collections (+1/L, back to normal) for ${label}? Normal and finalized/paid rows will be skipped.`)) return;
+
+    setRevertLoading(true);
+    try {
+      const data = await collectionApi.revertRatesByDate({
+        dairy_id: parseInt(formData.selectedDairy),
+        date: format(formData.date, "yyyy-MM-dd"),
+        shift: getShiftValue(),
+      });
+      toast.success(data?.message || "Antibiotic rates reverted");
+      await fetchAntibioticStatus();
+      if (reportData) {
+        await fetchCollectionReport();
+      }
+    } catch (error: any) {
+      console.error("❌ [API ERROR] revertRatesByDate:", error);
+      toast.error(error?.response?.data?.message || "Failed to revert antibiotic rates");
+    } finally {
+      setRevertLoading(false);
     }
   };
 
@@ -319,14 +406,44 @@ const ShiftReports:React.FC = () => {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex justify-end gap-3 mt-6 mr-5">
-            <Button 
+        </div>
+
+        <div className="flex flex-nowrap items-center gap-3 mt-5 overflow-x-auto">
+            <Button
               onClick={fetchCollectionReport}
               disabled={loading}
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               {loading ? "Loading..." : "Show"}
             </Button>
+            <Button
+              onClick={handleAntibioticDecrease}
+              disabled={antibioticLoading || revertLoading || antibioticStatus?.status === 'antibiotic' || antibioticStatus?.status === 'empty'}
+              className="bg-amber-600 hover:bg-amber-700 text-white flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {antibioticLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {antibioticLoading ? "Applying..." : "Antibiotic (Rate -1)"}
+            </Button>
+            <Button
+              onClick={handleAntibioticRevert}
+              disabled={antibioticLoading || revertLoading || antibioticStatus?.status === 'normal' || antibioticStatus?.status === 'empty'}
+              variant="outline"
+              className="text-amber-700 border-amber-600 hover:bg-amber-50 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {revertLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {revertLoading ? "Reverting..." : "Revert Antibiotic (+1)"}
+            </Button>
+            {(antibioticStatus?.status === 'antibiotic' || antibioticStatus?.status === 'partial') && (
+              <div className={`px-3 py-1.5 rounded-md text-xs font-semibold whitespace-nowrap ${
+                antibioticStatus.status === 'antibiotic'
+                  ? 'bg-amber-200 text-amber-900'
+                  : 'bg-amber-50 text-amber-700 border border-amber-300'
+              }`}>
+                {antibioticStatus.status === 'antibiotic'
+                  ? `Antibiotic applied (${antibioticStatus.antibiotic_count}/${antibioticStatus.total})`
+                  : `Antibiotic partial (${antibioticStatus.antibiotic_count}/${antibioticStatus.total})`}
+              </div>
+            )}
             <Button
               onClick={handleExportExcel}
               disabled={!farmerData || farmerData.length === 0}
@@ -345,7 +462,6 @@ const ShiftReports:React.FC = () => {
               <Download className="h-4 w-4" />
               PDF Export
             </Button>
-          </div>
         </div>
       </div>
 

@@ -96,7 +96,7 @@ const FarmerCollectionEntry = () => {
   const [showWater, setShowWater] = useState(false);
 
   // Serial (wired machine) connection — logic lives in useSerialAnalyzer hook
-  const { serialStatus, connectMachine, disconnectMachine } = useSerialAnalyzer({
+  const { serialStatus, errorMessage, connectMachine, disconnectMachine } = useSerialAnalyzer({
     enabled: !!farmerId,
     onData: useCallback((data) => {
       setFat(data.fat);
@@ -798,41 +798,47 @@ const FarmerCollectionEntry = () => {
             {/* Collection Details */}
             <div className="space-y-4 bg-white p-5 rounded-2xl">
               {/* Analyzer machine connection bar */}
-              <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5">
-                <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <span
-                    className={`inline-block h-2.5 w-2.5 rounded-full ${
-                      serialStatus === 'connected' ? 'bg-green-500' :
-                      serialStatus === 'connecting' ? 'bg-yellow-400 animate-pulse' :
-                      serialStatus === 'error' ? 'bg-red-500' : 'bg-gray-300'
-                    }`}
-                  />
-                  {serialStatus === 'connected' ? 'Analyzer connected — FAT & SNF auto-fill active'
-                    : serialStatus === 'connecting' ? 'Connecting…'
-                    : serialStatus === 'error' ? 'Connection lost'
-                    : 'Analyzer not connected'}
+              <div className={`rounded-lg border px-4 py-2.5 ${serialStatus === 'error' ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-gray-50'}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <span
+                      className={`inline-block h-2.5 w-2.5 rounded-full flex-shrink-0 ${
+                        serialStatus === 'connected' ? 'bg-green-500' :
+                        serialStatus === 'connecting' ? 'bg-yellow-400 animate-pulse' :
+                        serialStatus === 'error' ? 'bg-red-500' : 'bg-gray-300'
+                      }`}
+                    />
+                    {serialStatus === 'connected'
+                      ? (farmerId ? 'Analyzer ready — run a measurement to auto-fill FAT & SNF' : 'Analyzer connected — enter Farmer ID to enable auto-fill')
+                      : serialStatus === 'connecting' ? 'Connecting…'
+                      : serialStatus === 'error' ? 'Connection error'
+                      : 'Analyzer not connected'}
+                  </div>
+                  {serialStatus === 'connected' ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs border-red-200 text-red-600 hover:bg-red-50"
+                      onClick={disconnectMachine}
+                    >
+                      Disconnect
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs border-blue-200 text-blue-600 hover:bg-blue-50"
+                      disabled={serialStatus === 'connecting'}
+                      onClick={connectMachine}
+                    >
+                      Connect Analyzer
+                    </Button>
+                  )}
                 </div>
-                {serialStatus === 'connected' ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-xs border-red-200 text-red-600 hover:bg-red-50"
-                    onClick={disconnectMachine}
-                  >
-                    Disconnect
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-xs border-blue-200 text-blue-600 hover:bg-blue-50"
-                    disabled={serialStatus === 'connecting'}
-                    onClick={connectMachine}
-                  >
-                    Connect Analyzer
-                  </Button>
+                {serialStatus === 'error' && errorMessage && (
+                  <p className="mt-1.5 text-xs text-red-600">{errorMessage}</p>
                 )}
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
