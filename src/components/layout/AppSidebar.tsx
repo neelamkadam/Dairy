@@ -165,6 +165,7 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
     if (isAdmin) {
       settingsChildren.push({ title: "Tanker Collector", icon: "", href: ROUTES.TANKER_COLLECTION });
       settingsChildren.push({ title: "Sidebar Access", icon: "", href: ROUTES.SETTINGS.SIDEBAR_ACCESS });
+      settingsChildren.push({ title: "Shift Timings", icon: "", href: ROUTES.SETTINGS.SHIFT_TIMINGS });
     } else {
       console.log('❌ Not adding Sidebar Access - user is not admin');
     }

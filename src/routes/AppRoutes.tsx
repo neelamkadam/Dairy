@@ -64,6 +64,7 @@ import CattleFeedStockSettings from "@/pages/Settings/CattleFeedStock";
 import PasswordManager from "@/pages/Settings/PasswordManager";
 import AdminCreateUser from "@/pages/Settings/AdminCreateUser";
 import CreateDairy from "@/pages/Settings/CreateDairy";
+import ShiftTimings from "@/pages/Settings/ShiftTimings";
 import ShubhamMilkProduct from "@/pages/ShubhamMilkProduct/ShubhamMilkProduct";
 import TankerCollection from "@/pages/TankerCollection/TankerCollection";
 import DynamicBillCycle from "@/pages/DynamicBillCycle/DynamicBillCycle";
@@ -287,6 +288,10 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "sidebar-access",
         element: <SidebarAccessManagement />,
+      },
+      {
+        path: "shift-timings",
+        element: <ShiftTimings />,
       },
       {
         path: "create-user",

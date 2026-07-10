@@ -44,14 +44,35 @@ const ShiftTimings = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const loadStatus = async () => {
+  // Load saved config (form population) from GET /web/shift-timings/get/:userId
+  const loadConfig = async () => {
     if (!userId) return;
     setIsLoading(true);
     try {
+      const response = await shiftTimingApi.getTimings(userId);
+      const config = response?.data?.data;
+      if (config) {
+        const ms = toHHmm(config.morning_start);
+        const me = toHHmm(config.morning_end);
+        setMorning({ restricted: !!(ms && me), start: ms, end: me });
+        const es = toHHmm(config.evening_start);
+        const ee = toHHmm(config.evening_end);
+        setEvening({ restricted: !!(es && ee), start: es, end: ee });
+      }
+      // null data = no config = everything works always
+    } catch (error) {
+      console.error("Failed to load shift timing config:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load live status banner from GET /web/shift-timings/status/:userId
+  const loadStatus = async () => {
+    if (!userId) return;
+    try {
       const response = await shiftTimingApi.getStatus(userId);
       const data = response?.data?.data ?? response?.data ?? {};
-      setMorning(pickWindow(data, "morning"));
-      setEvening(pickWindow(data, "evening"));
       setServerTime(
         data?.current_time ?? data?.server_time ?? data?.ist_time ?? data?.now ?? ""
       );
@@ -61,13 +82,11 @@ const ShiftTimings = () => {
       );
     } catch (error) {
       console.error("Failed to load shift timing status:", error);
-      toast.error("Failed to load shift timings");
-    } finally {
-      setIsLoading(false);
     }
   };
 
   useEffect(() => {
+    loadConfig();
     loadStatus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
@@ -238,7 +257,7 @@ const ShiftTimings = () => {
 
           <p className="text-xs text-gray-500">
             Turning a shift off ("Open all times") clears its window — mobile entries for that
-            shift are allowed round the clock. This gate is enforced in the mobile app UI only.
+            shift are allowed round the clock.
           </p>
 
           <Button

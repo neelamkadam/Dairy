@@ -15,6 +15,11 @@ export interface ShiftTimingPayload {
 }
 
 export const shiftTimingApi = {
+  // Returns the saved config (morning_start/end, evening_start/end).
+  // data is null when nothing is configured yet.
+  getTimings: (userId: number) =>
+    AxiosClient.get(`/web/shift-timings/get/${userId}`),
+
   // Server's current IST time, each shift's window, allowed_shifts, entry_allowed.
   getStatus: (userId: number) =>
     AxiosClient.get(`/web/shift-timings/status/${userId}`),
