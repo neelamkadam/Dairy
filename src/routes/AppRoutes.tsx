@@ -37,6 +37,9 @@ import Dashboard from "@/pages/Dashboard/Dashboard";
 import { AddFarmer } from "@/pages/Master/AddFarmer";
 import AddRateChart from "@/pages/Master/AddRateChart";
 import Bonus from "@/pages/Master/Bonus";
+import CreateRoute from "@/pages/Master/CreateRoute";
+import CreateBMC from "@/pages/Master/CreateBMC";
+import CreateCC from "@/pages/Master/CreateCC";
 import FarmerBillInvoiceReport from "@/pages/Reports/FarmerBillInvoiceReport";
 import FarmerCollection from "@/pages/Reports/FarmerCollection";
 import FarmerList from "@/pages/Reports/FarmerList";
@@ -156,6 +159,18 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "bonus",
         element: <Bonus />,
+      },
+      {
+        path: "create-route",
+        element: <CreateRoute />,
+      },
+      {
+        path: "create-bmc",
+        element: <CreateBMC />,
+      },
+      {
+        path: "create-cc",
+        element: <CreateCC />,
       },
       {
         path: "farmer-deduction",

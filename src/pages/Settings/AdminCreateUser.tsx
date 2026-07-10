@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -6,10 +7,13 @@ import { Button } from "@/components/ui/button";
 import { toast } from "react-toastify";
 import { useAppSelector } from "@/redux/store";
 import { api } from "@/services/config";
+import { ROUTES } from "@/constatnts/routesConstants";
+import { PanelLeft } from "lucide-react";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import FileCopyIcon from "@mui/icons-material/FileCopy";
 
 const AdminCreateUser = () => {
+  const navigate = useNavigate();
   const authState = useAppSelector((state) => state.authData);
   const adminId = authState?.userData?.id;
   
@@ -69,12 +73,24 @@ const AdminCreateUser = () => {
       <div className="max-w-2xl mx-auto">
         <Card className="shadow-lg border-0">
           <CardHeader className="border-b bg-gradient-to-r from-blue-50 to-indigo-50">
-            <CardTitle className="text-2xl font-bold text-gray-800">
-              Create Sub-User
-            </CardTitle>
-            <p className="text-gray-600 text-sm mt-1">
-              Create a new user with inherited settings
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <CardTitle className="text-2xl font-bold text-gray-800">
+                  Create Sub-User
+                </CardTitle>
+                <p className="text-gray-600 text-sm mt-1">
+                  Create a new user with inherited settings
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => navigate(ROUTES.SETTINGS.SIDEBAR_ACCESS)}
+                className="border-blue-200 text-blue-700 hover:bg-blue-50 flex items-center gap-2"
+              >
+                <PanelLeft className="h-4 w-4" />
+                Sidebar Access
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="p-6">
             <form onSubmit={handleSubmit} className="space-y-6">

@@ -66,6 +66,19 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
   }
 
   if (access?.master) {
+    const createChildren: MenuItem[] = [
+      { title: "Create Route", icon: "", href: ROUTES.MASTER.CREATE_ROUTE },
+      { title: "Create BMC", icon: "", href: ROUTES.MASTER.CREATE_BMC },
+      { title: "Create CC", icon: "", href: ROUTES.MASTER.CREATE_CC },
+    ];
+
+    if (isAdmin) {
+      createChildren.push(
+        { title: "Create Supervisor (Sub User)", icon: "", href: ROUTES.SETTINGS.CREATE_USER },
+        { title: "Create Dairy", icon: "", href: ROUTES.SETTINGS.CREATE_DAIRY },
+      );
+    }
+
     items.push({
       title: t('master'),
       icon: "⚙️",
@@ -75,14 +88,18 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
         { title: t('cattle_feed_stock'), icon: "", href: ROUTES.SETTINGS.CATTLE_FEED_STOCK },
         { title: t('bonus'), icon: "", href: ROUTES.MASTER.BONUS },
         {
+          title: "Create",
+          icon: "",
+          children: createChildren
+        },
+        {
           title: "Commission Entry",
           icon: "",
           children: [
             { title: t('vlc_commission_entry'), icon: "", href: ROUTES.BILLING.VLC_COMMISSION_ENTRY },
             { title: "Farmer Commission Entry", icon: "", href: ROUTES.BILLING.FARMER_COMMISSION_ENTRY }
           ]
-        }       
-
+        }
       ]
     });
   }
@@ -146,15 +163,7 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
     ];
     
     if (isAdmin) {
-      settingsChildren.push({
-        title: "Create User",
-        icon: "",
-        children: [
-          { title: "Create User", icon: "", href: ROUTES.SETTINGS.CREATE_USER },
-          { title: "Create Dairy", icon: "", href: ROUTES.SETTINGS.CREATE_DAIRY },
-          { title: "Tanker Collector", icon: "", href: ROUTES.TANKER_COLLECTION },
-        ],
-      });
+      settingsChildren.push({ title: "Tanker Collector", icon: "", href: ROUTES.TANKER_COLLECTION });
       settingsChildren.push({ title: "Sidebar Access", icon: "", href: ROUTES.SETTINGS.SIDEBAR_ACCESS });
     } else {
       console.log('❌ Not adding Sidebar Access - user is not admin');

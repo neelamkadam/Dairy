@@ -27,6 +27,9 @@ export const ROUTES = {
     ADD_FARMER:`/dashboard/add-farmer`,
     ADD_RATECHART:`/dashboard/add-rate-chart`,
     BONUS:`/dashboard/bonus`,
+    CREATE_ROUTE:`/dashboard/create-route`,
+    CREATE_BMC:`/dashboard/create-bmc`,
+    CREATE_CC:`/dashboard/create-cc`,
   },
   BILLING:{
     FARMER_DEDUCTION:`/dashboard/farmer-deduction`,
@@ -61,6 +64,7 @@ export const ROUTES = {
     GENERAL_SETTINGS:`/dashboard/general-settings`,
     CATTLE_FEED_STOCK:`/dashboard/cattle-feed-stock`,
     PASSWORD_MANAGER:`/dashboard/password-manager`,
+    SHIFT_TIMINGS:`/dashboard/shift-timings`,
     SIDEBAR_ACCESS:`/dashboard/sidebar-access`,
     CREATE_USER:`/dashboard/create-user`,
     CREATE_DAIRY:`/dashboard/create-dairy`,
