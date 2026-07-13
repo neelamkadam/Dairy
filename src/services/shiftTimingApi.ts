@@ -12,6 +12,7 @@ export interface ShiftTimingPayload {
   morning_end: string | null;
   evening_start: string | null;
   evening_end: string | null;
+  vlcIds?: number[];
 }
 
 export const shiftTimingApi = {

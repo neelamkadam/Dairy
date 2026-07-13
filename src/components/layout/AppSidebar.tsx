@@ -61,6 +61,8 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
       icon: "🗂️",
       children: [
         { title: t('vlc_collection'), icon: "", href: ROUTES.COLLECTION.VLC_COLLECTION },
+        { title: "BMC Collection", icon: "", href: ROUTES.COLLECTION.BMC_COLLECTION },
+        { title: "CC Collection", icon: "", href: ROUTES.CC_COLLECTION.CHILLING_CENTER },
       ]
     });
   }

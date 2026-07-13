@@ -1,0 +1,1294 @@
+<USER_REQUEST>
+{
+  "info": {
+    "name": "BMC / CC / Routes API",
+    "description": "API collection for the BMC -> Route -> VLC hierarchy.\n\nBMCs, CCs and Routes are created by an admin web_user. VLCs (dairies) are added inside routes. BMCs, CCs and Routes can be assigned to sub-users.\n\nVariables:\n- base_url: server url (default local http://localhost:5000)\n- admin_id: id of an admin web_user (is_admin = 1)\n- user_id: id of a sub-user web_user\n- bmc_id / cc_id / route_id: ids of created entities",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "admin_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "2",
+      "type": "string"
+    },
+    {
+      "key": "bmc_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "cc_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "route_id",
+      "value": "1",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "BMC",
+      "item": [
+        {
+          "name": "Create BMC",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"adminId\": {{admin_id}},\n  \"name\": \"BMC Shirpur\",\n  \"location\": \"Shirpur, Dhule\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/web/bmc/create",
+              "host": ["{{base_url}}"],
+              "path": ["web", "bmc", "create"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List BMCs (admin or sub-user)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/web/bmc/list/{{admin_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["web", "bmc", "list", "{{admin_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update BMC",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bmcId\": {{bmc_id}},\n  \"name\": \"BMC Shirpur Updated\",\n  \"location\": \"Shirpur, Dhule\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/web/bmc/update",
+              "host": ["{{base_url}}"],
+              "path": ["web", "bmc", "update"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Assign BMC to Sub-user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"adminId\": {{admin_id}},\n  \"userId\": {{user_id}},\n  \"bmcId\": {{bmc_id}}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/web/bmc/assign",
+              "host": ["{{base_url}}"],
+              "path": ["web", "bmc", "assign"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Unassign BMC from Sub-user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": {{user_id}},\n  \"bmcId\": {{bmc_id}}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/web/bmc/unassign",
+              "host": ["{{base_url}}"],
+              "path": ["web", "bmc", "unassign"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Assigned BMCs of User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/web/bmc/assigned/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["web", "bmc", "assigned", "{{user_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete BMC",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/web/bmc/{{bmc_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["web", "bmc", "{{bmc_id}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "CC",
+      "item": [
+        {
+          "name": "Create CC",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"adminId\": {{admin_id}},\n  \"name\": \"CC Dhule\",\n  \"location\": \"Dhule MIDC\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/web/cc/create",
+              "host": ["{{base_url}}"],
+              "path": ["web", "cc", "create"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List CCs (admin or sub-user)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/web/cc/list/{{admin_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["web", "cc", "list", "{{admin_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update CC",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ccId\": {{cc_id}},\n  \"name\": \"CC Dhule Updated\",\n  \"location\": \"Dhule MIDC\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/web/cc/update",
+              "host": ["{{base_url}}"],
+              "path": ["web", "cc", "update"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Assign CC to Sub-user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"adminId\": {{admin_id}},\n  \"userId\": {{user_id}},\n  \"ccId\": {{cc_id}}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/web/cc/assign",
+              "host": ["{{base_url}}"],
+              "path": ["web", "cc", "assign"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Unassign CC from Sub-user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": {{user_id}},\n  \"ccId\": {{cc_id}}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/web/cc/unassign",
+              "host": ["{{base_url}}"],
+              "path": ["web", "cc", "unassign"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Assigned CCs of User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/web/cc/assigned/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["web", "cc", "assigned", "{{user_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete CC",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/web/cc/{{cc_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["web", "cc", "{{cc_id}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Routes",
+      "item": [
+        {
+          "name": "Create Route (under BMC)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"adminId\": {{admin_id}},\n  \"name\": \"Route 1 - Shirpur East\",\n  \"bmcId\": {{bmc_id}},\n  \"vlcIds\": [1, 2, 3]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/web/routes/create",
+              "host": ["{{base_url}}"],
+              "path": ["web", "routes", "create"]
+            },
+            "description": "Pass bmcId OR ccId (never both). Both optional for a standalone route. vlcIds is optional."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Route (under CC)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"adminId\": {{admin_id}},\n  \"name\": \"Route 2 - Dhule West\",\n  \"ccId\": {{cc_id}},\n  \"vlcIds\": []\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/web/routes/create",
+              "host": ["{{base_url}}"],
+              "path": ["web", "routes", "create"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Routes (admin or sub-user)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/web/routes/list/{{admin_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["web", "routes", "list", "{{admin_id}}"]
+            },
+            "description": "Returns routes with bmc_name / cc_name and the vlcs array of each route."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Route",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"routeId\": {{route_id}},\n  \"name\": \"Route 1 - Renamed\",\n  \"bmcId\": {{bmc_id}},\n  \"ccId\": null\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/web/routes/update",
+              "host": ["{{base_url}}"],
+              "path": ["web", "routes", "update"]
+            },
+            "description": "bmcId / ccId omitted or null clears that parent. Never send both."
+          },
+          "response": []
+        },
+        {
+          "name": "Set Route VLCs (replace list)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"routeId\": {{route_id}},\n  \"vlcIds\": [1, 2, 5]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/web/routes/vlcs",
+              "host": ["{{base_url}}"],
+              "path": ["web", "routes", "vlcs"]
+            },
+            "description": "Replaces the full VLC (dairy) list of the route. Send an empty array to clear."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Route VLCs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/web/routes/{{route_id}}/vlcs",
+              "host": ["{{base_url}}"],
+              "path": ["web", "routes", "{{route_id}}", "vlcs"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Assign Route to Sub-user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"adminId\": {{admin_id}},\n  \"userId\": {{user_id}},\n  \"routeId\": {{route_id}}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/web/routes/assign",
+              "host": ["{{base_url}}"],
+              "path": ["web", "routes", "assign"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Unassign Route from Sub-user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": {{user_id}},\n  \"routeId\": {{route_id}}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/web/routes/unassign",
+              "host": ["{{base_url}}"],
+              "path": ["web", "routes", "unassign"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Assigned Routes of User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/web/routes/assigned/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["web", "routes", "assigned", "{{user_id}}"]
+            },
+            "description": "Routes assigned directly to the user, each with its VLCs."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Route",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/web/routes/{{route_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["web", "routes", "{{route_id}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "User Assignments",
+      "item": [
+        {
+          "name": "Get All Assignments of User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/web-users/assignments/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["web-users", "assignments", "{{user_id}}"]
+            },
+            "description": "Combined bootstrap call: assigned BMCs and CCs (each nested with their routes + VLCs) plus directly assigned routes (with VLCs)."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
+
+
+use all the api's for the functionaloty , 
+
+any questions ask me ..
+Show less
+Excellent — this changes the data model quite a bit from what I scaffolded (BMC/CC take name + location with no VLCs; Routes take name + optional parent BMC/CC + VLC list; plus assign-to-sub-user everywhere). Let me first check what user-listing APIs already exist in the codebase, since the assign endpoints need a userId:
+
+Read d:\Dairy_web\Dairy\src\services\webUserApi.ts
+Grep "web-users|getAllWebUsers|sub.?user" (in d:\Dairy_web\Dairy\src)
+15 lines of output
+Grep "getAllWebUsers|is_admin|users\." (in d:\Dairy_web\Dairy\src\pages\AdminMaster\SidebarAccessManagement.tsx)
+1 line of output
+Grep "webUserApi|/web-users" (in d:\Dairy_web\Dairy\src\pages)
+10 lines of output
+AskUserQuestion
+OUT
+Your questions have been answered: "The assign APIs (/web/bmc/assign etc.) need a sub-user's userId, but the Postman collection has no endpoint to list sub-users. How should I get the sub-user list for the assign UI?"="GET /web-users (Recommended)", "Where should the assign-to-sub-user UI live?"="Per-row on entity pages (Recommended)". You can now continue with these answers in mind.
+Globpattern: "Dairy/src/components/ui/dialog.tsx"
+Found 1 file
+Update Todos
+
+Create routeBmcCcApi.ts service covering all collection endpoints
+
+Build AssignToSubUserDialog (sub-user picker + assign/unassign)
+
+Build CreateBmcCc shared page (name + location, edit/delete/assign)
+
+Rewrite CreateRoute page (name + parent BMC/CC + VLCs, edit/delete/assign)
+
+Point CreateBMC/CreateCC wrappers at new component, remove CreateMasterEntity
+
+Build and verify
+Dialog exists. First, the API service covering every endpoint in the collection:
+
+Write d:\Dairy_web\Dairy\src\services\routeBmcCcApi.ts
+90 lines
+Now the assign dialog, shared by all three pages:
+
+Write d:\Dairy_web\Dairy\src\pages\Master\AssignToSubUserDialog.tsx
+133 lines
+Write d:\Dairy_web\Dairy\src\pages\Master\CreateBmcCc.tsx
+433 lines
+Write d:\Dairy_web\Dairy\src\pages\Master\CreateRoute.tsx
+707 lines
+Write d:\Dairy_web\Dairy\src\pages\Master\CreateBMC.tsx
+16 lines
+Write d:\Dairy_web\Dairy\src\pages\Master\CreateCC.tsx
+16 lines
+PowerShell Delete obsolete component and rebuild
+IN
+Remove-Item "d:\Dairy_web\Dairy\src\pages\Master\CreateMasterEntity.tsx" -Confirm:$false; Set-Location d:\Dairy_web\Dairy; npm run build:skip-ts
+
+OUT
+> dairy@0.0.0 build:skip-ts
+> vite build
+
+vite v6.3.3 building for production...
+transforming...
+✓ 4094 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                               1.17 kB │ gzip:   0.51 kB
+dist/assets/NeoDairy_Logo-BwaKITxx.png      262.80 kB
+dist/assets/index-PA5lZ68N.css              127.09 kB │ gzip:  20.12 kB
+dist/assets/browser-ponyfill-DccqPi8n.js     10.29 kB │ gzip:   3.52 kB
+dist/assets/purify.es-B6FQ9oRL.js            22.57 kB │ gzip:   8.74 kB
+dist/assets/ui-CtZ9LwhX.js                   84.89 kB │ gzip:  28.51 kB
+dist/assets/vendor-DKK3NxJw.js               91.72 kB │ gzip:  31.26 kB
+dist/assets/index.es-lIVtHY6x.js            159.33 kB │ gzip:  53.42 kB
+dist/assets/charts-BgfUM0TY.js              420.01 kB │ gzip: 113.20 kB
+dist/assets/excel-BFeHtWaJ.js               424.67 kB │ gzip: 141.75 kB
+dist/assets/pdf-e1Y_Cxjr.js               1,790.05 kB │ gzip: 724.10 kB
+dist/assets/index-BnuTMFHh.js             2,723.61 kB │ gzip: 928.78 kB
+
+(!) Some chunks are larger than 1000 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 18.20s
+Update Todos
+
+Create routeBmcCcApi.ts service covering all collection endpoints
+
+Build AssignToSubUserDialog (sub-user picker + assign/unassign)
+
+Build CreateBmcCc shared page (name + location, edit/delete/assign)
+
+Rewrite CreateRoute page (name + parent BMC/CC + VLCs, edit/delete/assign)
+
+Point CreateBMC/CreateCC wrappers at new component, remove CreateMasterEntity
+
+Build and verify
+All wired up to your real APIs — build passes. Here's what each piece does now:
+
+New service: routeBmcCcApi.ts
+Covers every endpoint in the collection through the app's existing AxiosClient (so it uses the same base URL/auth as everything else): bmcApi, ccApi, routeApi (create / list / update / assign / unassign / assigned / delete, plus setVlcs + getVlcs for routes) and getUserAssignments for the combined bootstrap call.
+
+Create BMC & Create CC (CreateBmcCc.tsx)
+Per the API, these are now Name + Location (the VLC list is gone from them — VLCs belong to routes). Collapsible create form on top; below it the list with per-row actions:
+
+Edit (pencil) — loads the row into the form, button switches to "Update", calls /web/bmc/update / /web/cc/update
+Assign (person icon) — opens a dialog to pick a sub-user, with Assign and Unassign buttons
+Delete (trash) — confirmation prompt, then DELETE /web/bmc/:id
+Create Route (CreateRoute.tsx)
+The full hierarchy page:
+
+Route Name + a "Route Under" selector: Standalone / Under BMC / Under CC. Picking BMC or CC shows a dropdown of your actual BMCs/CCs (fetched live), never sending both — matching the API rule
+The VLC checklist (search, Select All, Clear) — sent as vlcIds on create; on edit, saved via the replace-list endpoint /web/routes/vlcs
+List shows each route with a colored badge for its parent (blue = BMC, purple = CC, gray = Standalone), VLC count and names from the API's vlcs array, plus the same Edit / Assign / Delete actions
+Assign dialog (AssignToSubUserDialog.tsx)
+Shared by all three pages. Loads sub-users from GET /web-users (admins filtered out), then Assign or Unassign hits the matching endpoint for that entity.
+
+Two notes:
+
+Your sidebar label edits (Create Route / Create BMC / Create CC / Create Supervisor / Create Dairy inside the Create group) are untouched.
+GET /web/routes/:id/vlcs, the per-user assigned endpoints, and /web-users/assignments/:userId are in the service but not used by any UI yet — they're ready for when you want a "what's assigned to this sub-user" view (natural home: the Create User page). Just say so and I'll build it.
+4. Shift timing gate. Before enabling any collection entry form, call GET /web/shift-timings/status/:userId. It returns the server's current IST time, each shift's window, allowed_shifts (e.g. ["Morning"]), and entry_allowed. If entry_allowed is false, disable the form and show "entries open at {start}"; otherwise restrict the shift selector to allowed_shifts. Two things the frontend must know: use the server's time from this response, never the device clock — and the backend does not block the collection APIs, so this UI gate is the only enforcement. Re-check on screen focus or poll about once a minute. The admin configures the windows via PUT /web/shift-timings/set (times in IST, start/end must come as a pair, null pair = that shift works at all times, no config at all = everything works always).
+
+
+
+We need to implement the sihft timing .. 
+For the mobile application .. 
+So create in the settings where user can give the timings for the same ..
+Before I build this, one thing genuinely needs pinning down — you said to ask. The spec gives the endpoints (PUT /web/shift-timings/set, GET /web/shift-timings/status/:userId) but not the exact JSON body the PUT expects:
+
+AskUserQuestion
+OUT
+Your questions have been answered: "What request body does PUT /web/shift-timings/set expect? (If you have the exact backend spec/Postman entry, paste it in Other.)"="Flat fields (Recommended)". You can now continue with these answers in mind.
+Flat payload it is. Building the Shift Timings settings page now — service, route, sidebar entry, and the page itself:
+
+Update Todos
+
+Create shiftTimingApi.ts (status GET + set PUT, flat payload)
+
+Add SHIFT_TIMINGS route constant + AppRoutes entry
+
+Build ShiftTimings settings page (per-shift restrict toggle + IST time pickers + server status)
+
+Add Settings sidebar item (admin-only)
+
+Build and verify
+Globpattern: "Dairy/src/components/ui/{switch,checkbox}.tsx"
+Found 2 files
+Write d:\Dairy_web\Dairy\src\services\shiftTimingApi.ts
+26 lines
+Edit d:\Dairy_web\Dairy\src\constatnts\routesConstants.ts
+Added 1 line
+Now the page itself:
+
+Write d:\Dairy_web\Dairy\src\pages\Settings\ShiftTimings.tsx
+258 lines
+You've hit your session limit · resets 7:20am (Asia/Calcutta)
+
+# Frontend Flow — CC / BMC / Routes / Dairy (VLC) / Shift Timings
+
+Base URL examples assume the API root (same server as all `/web/*` endpoints).
+All responses follow the usual shape: `{ success: true, data / message }` on success,
+`{ success: false, message }` with HTTP 400 / 403 / 404 on errors.
+
+---
+
+## 1. The model in one picture
+
+```
+Admin web_user (is_admin = 1)
+ └── registers CCs (Chilling Centers)          ids: 700001, 700002, ...
+      └── registers BMCs under a CC            ids: 800001, 800002, ...
+           └── registers Routes                ids: 900001, 900002, ...
+                (a route can be under a BMC, a CC, or BOTH)
+                └── Dairies (VLCs) — the actual data lives here.
+                    Each dairy has OPTIONAL cc_id, bmc_id, route_id links
+                    (any combination, or none at all).
+```
+
+Key rules:
+
+- **CC, BMC and Route are registered like a dairy**: `name`, `villagename`, `address`, `ownername`.
+  The generated id is returned by the create call and **is the real id** used everywhere
+  (`cc_id: 700001`, `bmc_id: 800001`, `route_id: 900001`, each series counts up on its own).
+- **CC and BMC also take a required `password`** at registration and **can log in** with
+  their generated id as the username (section 5). Routes have no login.
+- **BMC requires a CC** (`ccId`) at creation. A **Route** can take `bmcId`, `ccId`, or **both**.
+- **The dairy (VLC) is the source of truth**: its `cc_id` / `bmc_id` / `route_id` columns say where
+  it sits in the hierarchy. CC/BMC/Route are just collections of VLCs. All three links are optional.
+- Only admins (`is_admin = 1`) can create / update / assign. All list & read endpoints accept
+  a sub-user id too — the backend resolves their admin automatically.
+- Assigning a **BMC or CC** to a sub-user implicitly brings everything under it;
+  assigning a **route** brings just that route's VLCs.
+- Shift timings are **not enforced by the backend** on the collection APIs — the frontend
+  must gate the entry forms using the status endpoint (section 7).
+
+---
+
+## 2. Admin — registration screens (top-down order)
+
+Build the screens so the admin registers top-down: CC first, then BMC, then Route, then dairies.
+
+### CC screen
+
+| Action | Call |
+|---|---|
+| Register | `POST /web/cc/create` `{ adminId, name, villagename, address, ownername, password (required) }` → returns `cc_id` (700001+) and `username` — **show these to the admin, they are the CC's login credentials** |
+| List | `GET /web/cc/list/:userId` → rows include `bmc_count`, `route_count`, `vlc_count` |
+| Update | `PUT /web/cc/update` `{ ccId, name, villagename, address, ownername, password? }` — include `password` only to change it |
+| VLCs under it | `GET /web/cc/:ccId/vlcs` |
+| Delete | `DELETE /web/cc/:ccId` → children are kept, their `cc_id` becomes null |
+
+### BMC screen
+
+| Action | Call |
+|---|---|
+| Register | `POST /web/bmc/create` `{ adminId, ccId (required), name, villagename, address, ownername, password (required) }` → returns `bmc_id` (800001+) and `username` — the BMC's login credentials |
+| List | `GET /web/bmc/list/:userId` → rows include `cc_name`, `route_count`, `vlc_count` |
+| Update | `PUT /web/bmc/update` `{ bmcId, ccId?, name, villagename, address, ownername, password? }` — send `ccId` to move it, `password` to change it, omit either to keep |
+| VLCs under it | `GET /web/bmc/:bmcId/vlcs` |
+| Delete | `DELETE /web/bmc/:bmcId` |
+
+UI: the create form needs a CC dropdown (from the CC list call) — it's mandatory.
+
+### Route screen
+
+| Action | Call |
+|---|---|
+| Register | `POST /web/routes/create` `{ adminId, name, villagename, address, ownername, bmcId?, ccId?, vlcIds?: [dairy ids] }` → returns `route_id` (900001+) |
+| List | `GET /web/routes/list/:userId` → each route has `bmc_name`, `cc_name`, `vlcs[]` |
+| Update | `PUT /web/routes/update` `{ routeId, name, villagename, address, ownername, bmcId?, ccId? }` — **full replace**: an omitted/null parent is cleared, so always send the complete desired state |
+| Edit VLCs | `PUT /web/routes/vlcs` `{ routeId, vlcIds: [...] }` — replaces the route's VLC membership (sets `dairy.route_id`; dairies dropped from the list are detached) |
+| Read VLCs | `GET /web/routes/:routeId/vlcs` |
+| Delete | `DELETE /web/routes/:routeId` |
+
+UI: the create form can show **two** dropdowns — BMC and CC — either, both, or none can be picked.
+`vlcIds` on create is a shortcut that links the selected dairies to the new route immediately.
+
+### Dairy (VLC) registration — existing screen, extended
+
+The existing dairy registration now accepts the three optional hierarchy links:
+
+- Register: `POST /branch/create` — same body as before **plus optional** `cc_id`, `bmc_id`, `route_id`.
+- Edit: `PUT /branch/updateDairydetails/:id` — partial update; for the three link fields:
+  **send a value to link, send `null` to detach, omit the key to leave unchanged.**
+
+UI: add three optional dropdowns (CC / BMC / Route) to the dairy form, filled from the list calls.
+
+---
+
+## 3. Admin — assignment screen
+
+Pick a sub-user, then:
+
+| Action | Call |
+|---|---|
+| Assign CC | `POST /web/cc/assign` `{ adminId, userId, ccId }` |
+| Assign BMC | `POST /web/bmc/assign` `{ adminId, userId, bmcId }` |
+| Assign Route | `POST /web/routes/assign` `{ adminId, userId, routeId }` |
+| Unassign | `POST /web/{cc|bmc|routes}/unassign` `{ userId, ccId/bmcId/routeId }` |
+| Show current | `GET /web-users/assignments/:userId` (one call, everything nested) |
+
+Assign calls are idempotent — assigning twice is safe. The backend validates that the target
+user belongs to this admin and that the CC/BMC/Route was created by this admin.
+
+---
+
+## 4. Sub-user — login / scope bootstrap
+
+After the existing `POST /web-users/login`, when the user is **not** an admin, make one call:
+
+```
+GET /web-users/assignments/:userId
+```
+
+Response shape:
+
+```jsonc
+{
+  "success": true,
+  "data": {
+    "ccs": [ {
+      "id": 700001, "name": "CC Dhule", "villagename": "...", "address": "...", "ownername": "...",
+      "routes": [ { "id": 900001, "name": "Route 1",
+                    "vlcs": [ { "dairy_id": 7, "name": "...", "branchname": "...", "villagename": "...",
+                                "cc_id": 700001, "bmc_id": 800001, "route_id": 900001 } ] } ],
+      "vlcs":   [ /* dairies linked DIRECTLY to this CC (dairy.cc_id) */ ]
+    } ],
+    "bmcs":   [ /* same shape: routes[] under the BMC + vlcs[] linked directly to it */ ],
+    "routes": [ /* routes assigned DIRECTLY to the user, each with vlcs[] */ ]
+  }
+}
+```
+
+Build the sub-user's working scope from this:
+**their VLCs = union of every `vlcs` array in the response** (routes under CCs/BMCs,
+direct VLCs of CCs/BMCs, and directly assigned routes).
+Use that set to filter dairy dropdowns, dashboards, entry screens, etc.
+
+Admins skip this call — they own everything, use the `list/:userId` endpoints.
+
+---
+
+## 5. CC / BMC login — "dairies are their farmers"
+
+A CC or BMC logs in with **its generated id as the username** plus the password set at
+registration. One shared endpoint handles both — the id decides the type:
+
+```
+POST /web/cc/login        (identical endpoint also mounted at /web/bmc/login)
+{ "username": "700001", "password": "secret123" }
+```
+
+Response:
+
+```jsonc
+{
+  "success": true,
+  "message": "Login successful",
+  "type": "CC",                          // or "BMC" — auto-detected from the id
+  "data": { "id": 700001, "name": "CC Dhule", "villagename": "...", "address": "...",
+            "ownername": "...", "created_by": 1, ... },   // no password field
+  "vlcs": [                              // the dairies under it — these ACT AS ITS FARMERS
+    { "dairy_id": 7, "name": "VLC Sanjay Dairy", "branchname": "...", "ownername": "...",
+      "villagename": "...", "address": "...", "active": 1,
+      "cc_id": 700001, "bmc_id": 800001, "route_id": 900001 }
+  ]
+}
+```
+
+Frontend behaviour:
+
+- Build the CC/BMC home screen exactly like the dairy screen builds its farmer list,
+  but the rows are the `vlcs` from the login response.
+- To refresh the list later without re-login: `GET /web/cc/:ccId/vlcs` or `GET /web/bmc/:bmcId/vlcs`.
+- Which dairies appear is decided by the **dairy's own link columns**: a dairy shows under the
+  CC whose id is in its `cc_id`, and under the BMC in its `bmc_id` (set at dairy registration
+  or via dairy update).
+- Wrong id/password → 401 "Invalid credentials". A CC/BMC created before passwords existed
+  (password never set) → 401 "Login not enabled for this account. Set a password first." —
+  fix it by having the admin set a password through the update endpoint.
+- Routes cannot log in — there is no password on routes.
+
+---
+
+## 6. Where an id tells you what it is
+
+| Id range | Entity |
+|---|---|
+| 700001+ | CC (also its login username) |
+| 800001+ | BMC (also its login username) |
+| 900001+ | Route |
+| small ids | dairy (VLC), web users, etc. |
+
+---
+
+## 7. Shift timings (gates the entry forms)
+
+### Settings screen (admin)
+
+- Prefill: `GET /web/shift-timings/get/:userId` → `data` is the 4 times or `null` if never set.
+- Save: `PUT /web/shift-timings/set`
+
+```json
+{ "adminId": 1,
+  "morning_start": "06:00", "morning_end": "11:00",
+  "evening_start": "16:00", "evening_end": "21:00" }
+```
+
+Rules: times are **IST**, `HH:MM` or `HH:MM:SS`; a shift's start & end must be sent together;
+send both as `null` to make that shift unrestricted.
+
+### Gating the collection entry UI (all users)
+
+Before enabling any collection entry form:
+
+```
+GET /web/shift-timings/status/:userId
+```
+
+```jsonc
+{
+  "success": true,
+  "data": {
+    "current_time": "07:15:32",          // IST, from the server — do NOT use device time
+    "timezone": "IST",
+    "morning": { "start": "06:00:00", "end": "11:00:00", "configured": true,  "active": true  },
+    "evening": { "start": null,       "end": null,       "configured": false, "active": true  },
+    "allowed_shifts": ["Morning", "Evening"],
+    "entry_allowed": true
+  }
+}
+```
+
+Frontend behaviour:
+
+- `entry_allowed === false` → disable the whole entry form, show something like
+  "Entries open at {morning.start} / {evening.start}".
+- Otherwise limit the shift selector to `allowed_shifts`
+  (inside the morning window only "Morning" may be submitted, etc.).
+- A shift with `configured: false` is always `active: true` — no config means no restriction.
+- Re-check on screen focus and around window boundaries (polling once a minute is fine).
+  Remember: the backend does not reject out-of-window entries, so this UI gate is the enforcement.
+
+---
+
+## 8. Error handling cheat-sheet
+
+| HTTP | Meaning | Typical message |
+|---|---|---|
+| 400 | Bad/missing fields | "adminId, ccId, name and password are required", "morning_start and morning_end must be provided together", "VLCs not found for this admin: 5, 9" |
+| 401 | Login failed | "Invalid credentials", "Login not enabled for this account. Set a password first." |
+| 403 | Not allowed | "User is not an admin", "User does not belong to this admin" |
+| 404 | Not found | "CC not found for this admin", "Route not found", "Assignment not found" |
+
+A ready-made Postman collection with every request pre-filled lives at
+`bk/postman/BMC_CC_Routes_API.postman_collection.json` (7 folders, 35 requests).
+
+{
+  "info": {
+    "name": "BMC / CC / Routes API",
+    "description": "API collection for the CC -> BMC -> Route -> VLC (dairy) hierarchy.\n\nCC, BMC and Route are dairy-style registrations (name, villagename, address, ownername) created by an admin web_user.\nGenerated id series: CC from 700001, BMC from 800001, Route from 900001 (the id IS the primary key).\nA BMC is created under a CC. A Route can be under a BMC, a CC, or BOTH.\nA dairy (VLC) carries optional cc_id / bmc_id / route_id links - any combination.\nBMCs, CCs and Routes can be assigned to sub-users.\n\nCC and BMC can LOG IN: username = their generated id, password set at registration (routes have no login).\nAfter login, the dairies under the CC/BMC are returned as its farmers.\n\nVariables:\n- base_url: server url (default local http://localhost:5000)\n- admin_id: id of an admin web_user (is_admin = 1)\n- user_id: id of a sub-user web_user\n- cc_id / bmc_id / route_id: ids of created entities (700001+ / 800001+ / 900001+)\n- dairy_id: id of a dairy (VLC)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "admin_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "2",
+      "type": "string"
+    },
+    {
+      "key": "cc_id",
+      "value": "700001",
+      "type": "string"
+    },
+    {
+      "key": "bmc_id",
+      "value": "800001",
+      "type": "string"
+    },
+    {
+      "key": "route_id",
+      "value": "900001",
+      "type": "string"
+    },
+    {
+      "key": "dairy_id",
+      "value": "1",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "CC",
+      "item": [
+        {
+          "name": "Create CC",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"adminId\": {{admin_id}},\n  \"name\": \"CC Dhule\",\n  \"villagename\": \"Dhule\",\n  \"address\": \"MIDC Area, Dhule\",\n  \"ownername\": \"Ramesh Patil\",\n  \"password\": \"secret123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/web/cc/create",
+              "host": ["{{base_url}}"],
+              "path": ["web", "cc", "create"]
+            },
+            "description": "CC is the top of the hierarchy. Response returns cc_id - generated from 700001 - which is also the CC's login username. password is required."
+          },
+          "response": []
+        },
+        {
+          "name": "List CCs (admin or sub-user)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/web/cc/list/{{admin_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["web", "cc", "list", "{{admin_id}}"]
+            },
+            "description": "Rows include bmc_count, route_count and vlc_count."
+          },
+          "response": []
+        },
+        {
+          "name": "Update CC",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ccId\": {{cc_id}},\n  \"name\": \"CC Dhule Updated\",\n  \"villagename\": \"Dhule\",\n  \"address\": \"MIDC Area, Dhule\",\n  \"ownername\": \"Ramesh Patil\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/web/cc/update",
+              "host": ["{{base_url}}"],
+              "path": ["web", "cc", "update"]
+            },
+            "description": "Optionally include a password field to change the CC's login password (omit to keep the current one)."
+          },
+          "response": []
+        },
+        {
+          "name": "Assign CC to Sub-user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"adminId\": {{admin_id}},\n  \"userId\": {{user_id}},\n  \"ccId\": {{cc_id}}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/web/cc/assign",
+              "host": ["{{base_url}}"],
+              "path": ["web", "cc", "assign"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Unassign CC from Sub-user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": {{user_id}},\n  \"ccId\": {{cc_id}}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/web/cc/unassign",
+              "host": ["{{base_url}}"],
+              "path": ["web", "cc", "unassign"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Assigned CCs of User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/web/cc/assigned/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["web", "cc", "assigned", "{{user_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete CC",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/web/cc/{{cc_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["web", "cc", "{{cc_id}}"]
+            },
+            "description": "BMCs, routes and dairies under it are kept - their cc_id just becomes NULL."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "BMC",
+      "item": [
+        {
+          "name": "Create BMC (under a CC)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"adminId\": {{admin_id}},\n  \"ccId\": {{cc_id}},\n  \"name\": \"BMC Shirpur\",\n  \"villagename\": \"Shirpur\",\n  \"address\": \"Main Road, Shirpur\",\n  \"ownername\": \"Suresh Mahajan\",\n  \"password\": \"secret123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/web/bmc/create",
+              "host": ["{{base_url}}"],
+              "path": ["web", "bmc", "create"]
+            },
+            "description": "ccId is REQUIRED - a BMC is always created under a CC. Response returns bmc_id - generated from 800001 - which is also the BMC's login username. password is required."
+          },
+          "response": []
+        },
+        {
+          "name": "List BMCs (admin or sub-user)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/web/bmc/list/{{admin_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["web", "bmc", "list", "{{admin_id}}"]
+            },
+            "description": "Rows include cc_name, route_count and vlc_count."
+          },
+          "response": []
+        },
+        {
+          "name": "Update BMC",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bmcId\": {{bmc_id}},\n  \"ccId\": {{cc_id}},\n  \"name\": \"BMC Shirpur Updated\",\n  \"villagename\": \"Shirpur\",\n  \"address\": \"Main Road, Shirpur\",\n  \"ownername\": \"Suresh Mahajan\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/web/bmc/update",
+              "host": ["{{base_url}}"],
+              "path": ["web", "bmc", "update"]
+            },
+            "description": "Pass ccId to move the BMC under another CC; omit ccId to keep the current one. Optionally include a password field to change the BMC's login password."
+          },
+          "response": []
+        },
+        {
+          "name": "Assign BMC to Sub-user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"adminId\": {{admin_id}},\n  \"userId\": {{user_id}},\n  \"bmcId\": {{bmc_id}}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/web/bmc/assign",
+              "host": ["{{base_url}}"],
+              "path": ["web", "bmc", "assign"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Unassign BMC from Sub-user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": {{user_id}},\n  \"bmcId\": {{bmc_id}}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/web/bmc/unassign",
+              "host": ["{{base_url}}"],
+              "path": ["web", "bmc", "unassign"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Assigned BMCs of User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/web/bmc/assigned/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["web", "bmc", "assigned", "{{user_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete BMC",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/web/bmc/{{bmc_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["web", "bmc", "{{bmc_id}}"]
+            },
+            "description": "Routes and dairies under it are kept - their bmc_id just becomes NULL."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Routes",
+      "item": [
+        {
+          "name": "Create Route (under BMC)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"adminId\": {{admin_id}},\n  \"name\": \"Route 1 - Shirpur East\",\n  \"villagename\": \"Shirpur\",\n  \"address\": \"East Zone\",\n  \"ownername\": \"Kiran Pawar\",\n  \"bmcId\": {{bmc_id}},\n  \"vlcIds\": [1, 2, 3]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/web/routes/create",
+              "host": ["{{base_url}}"],
+              "path": ["web", "routes", "create"]
+            },
+            "description": "A route can be under a BMC, a CC, or BOTH (send bmcId and/or ccId). Response returns route_id - generated from 900001. vlcIds is optional - those dairies get route_id set to the new route."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Route (under CC + BMC)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"adminId\": {{admin_id}},\n  \"name\": \"Route 2 - Dhule West\",\n  \"villagename\": \"Dhule\",\n  \"address\": \"West Zone\",\n  \"ownername\": \"Kiran Pawar\",\n  \"ccId\": {{cc_id}},\n  \"bmcId\": {{bmc_id}},\n  \"vlcIds\": []\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/web/r
+<truncated 56532 bytes>
+
+NOTE: The output was truncated because it was too long. Use a more targeted query or a smaller range to get the information you need.

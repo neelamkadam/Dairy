@@ -8,7 +8,16 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Clock, RefreshCw, Sun, Moon } from "lucide-react";
+import { Clock, RefreshCw, Sun, Moon, Snowflake, Warehouse, Route as RouteIcon, ListChecks, Save } from "lucide-react";
+import { ccApi, bmcApi, routeApi } from "@/services/routeBmcCcApi";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface ShiftWindow {
   restricted: boolean;
@@ -43,6 +52,19 @@ const ShiftTimings = () => {
   const [entryAllowed, setEntryAllowed] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  const { branches } = useAppSelector((state) => state.branch);
+
+  const [ccSel, setCcSel] = useState<string>("none");
+  const [bmcSel, setBmcSel] = useState<string>("none");
+  const [routeSel, setRouteSel] = useState<string>("none");
+  const [ccList, setCcList] = useState<any[]>([]);
+  const [bmcList, setBmcList] = useState<any[]>([]);
+  const [routeList, setRouteList] = useState<any[]>([]);
+
+  const [availableVlcs, setAvailableVlcs] = useState<any[]>([]);
+  const [selectedVlcs, setSelectedVlcs] = useState<number[]>([]);
+  const [isVlcDropdownOpen, setIsVlcDropdownOpen] = useState(false);
 
   // Load saved config (form population) from GET /web/shift-timings/get/:userId
   const loadConfig = async () => {
@@ -91,6 +113,50 @@ const ShiftTimings = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
+  useEffect(() => {
+    if (!userId) return;
+    ccApi.list(userId).then((r) => setCcList(r.data?.data ?? r.data ?? [])).catch(() => {});
+    bmcApi.list(userId).then((r) => setBmcList(r.data?.data ?? r.data ?? [])).catch(() => {});
+    routeApi.list(userId).then((r) => setRouteList(r.data?.data ?? r.data ?? [])).catch(() => {});
+  }, [userId]);
+
+  useEffect(() => {
+    const loadVlcs = async () => {
+      let vlcs: any[] = [];
+      try {
+        if (routeSel !== "none") {
+          const r = await routeApi.getVlcs(Number(routeSel));
+          vlcs = r.data?.data ?? r.data ?? [];
+        } else if (bmcSel !== "none") {
+          const r = await bmcApi.vlcs(Number(bmcSel));
+          vlcs = r.data?.data ?? r.data ?? [];
+        } else if (ccSel !== "none") {
+          const r = await ccApi.vlcs(Number(ccSel));
+          vlcs = r.data?.data ?? r.data ?? [];
+        } else {
+          vlcs = branches || [];
+        }
+      } catch (err) {
+        console.error("Failed to load VLCs for selection", err);
+      }
+      setAvailableVlcs(vlcs);
+      setSelectedVlcs([]);
+    }
+    loadVlcs();
+  }, [ccSel, bmcSel, routeSel, branches]);
+
+  const toggleVlc = (id: number) => {
+    setSelectedVlcs(prev => prev.includes(id) ? prev.filter(vId => vId !== id) : [...prev, id]);
+  };
+
+  const toggleSelectAllVlcs = () => {
+    if (selectedVlcs.length === availableVlcs.length) {
+      setSelectedVlcs([]);
+    } else {
+      setSelectedVlcs(availableVlcs.map(v => Number(v.vlc_id ?? v.branch_id ?? v.id)).filter(id => !isNaN(id)));
+    }
+  };
+
   const handleSave = async () => {
     if (!userId) {
       toast.error("User not found");
@@ -104,6 +170,10 @@ const ShiftTimings = () => {
       toast.error("Evening shift needs both start and end time");
       return;
     }
+    if (selectedVlcs.length === 0) {
+      toast.error("Please select at least one Target VLC to apply shift timings");
+      return;
+    }
 
     setIsSaving(true);
     try {
@@ -113,6 +183,7 @@ const ShiftTimings = () => {
         morning_end: morning.restricted ? morning.end : null,
         evening_start: evening.restricted ? evening.start : null,
         evening_end: evening.restricted ? evening.end : null,
+        vlcIds: selectedVlcs,
       });
       if (response?.data?.success === false) {
         toast.error(response?.data?.message || "Failed to save shift timings");
@@ -240,6 +311,108 @@ const ShiftTimings = () => {
             </div>
           )}
 
+          {/* Filter Target Dairies */}
+          <Card className="border border-indigo-100 shadow-sm bg-white overflow-hidden mb-6">
+            <div className="bg-indigo-50/50 px-4 py-3 border-b border-indigo-100 flex items-center gap-2">
+              <ListChecks className="h-5 w-5 text-indigo-600" />
+              <Label className="text-sm font-bold text-indigo-900 m-0">
+                Filter & Select Target Dairies (VLCs)
+              </Label>
+            </div>
+            <CardContent className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold flex items-center gap-1.5">
+                    <Snowflake className="h-3.5 w-3.5 text-purple-500" /> CC
+                  </Label>
+                  <Select value={ccSel} onValueChange={setCcSel}>
+                    <SelectTrigger className="bg-gray-50 border-gray-200 h-10"><SelectValue placeholder="All" /></SelectTrigger>
+                    <SelectContent className="bg-white">
+                      <SelectItem value="none">All</SelectItem>
+                      {ccList.map((cc) => (
+                        <SelectItem key={cc.cc_id ?? cc.id} value={String(cc.cc_id ?? cc.id)}>
+                          {cc.cc_id ?? cc.id} - {cc.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold flex items-center gap-1.5">
+                    <Warehouse className="h-3.5 w-3.5 text-blue-500" /> BMC
+                  </Label>
+                  <Select value={bmcSel} onValueChange={setBmcSel}>
+                    <SelectTrigger className="bg-gray-50 border-gray-200 h-10"><SelectValue placeholder="All" /></SelectTrigger>
+                    <SelectContent className="bg-white">
+                      <SelectItem value="none">All</SelectItem>
+                      {bmcList.map((bmc) => (
+                        <SelectItem key={bmc.bmc_id ?? bmc.id} value={String(bmc.bmc_id ?? bmc.id)}>
+                          {bmc.bmc_id ?? bmc.id} - {bmc.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold flex items-center gap-1.5">
+                    <RouteIcon className="h-3.5 w-3.5 text-green-500" /> Route
+                  </Label>
+                  <Select value={routeSel} onValueChange={setRouteSel}>
+                    <SelectTrigger className="bg-gray-50 border-gray-200 h-10"><SelectValue placeholder="All" /></SelectTrigger>
+                    <SelectContent className="bg-white">
+                      <SelectItem value="none">All</SelectItem>
+                      {routeList.map((route) => (
+                        <SelectItem key={route.route_id ?? route.id} value={String(route.route_id ?? route.id)}>
+                          {route.route_id ?? route.id} - {route.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold flex items-center gap-1.5">
+                    Target VLCs <span className="text-red-500">*</span>
+                  </Label>
+                  <Popover open={isVlcDropdownOpen} onOpenChange={setIsVlcDropdownOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left font-normal bg-gray-50 border-gray-200 h-10">
+                        {selectedVlcs.length === 0 ? "Select VLCs" : `${selectedVlcs.length} VLC(s) selected`}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 p-0 bg-white" align="start">
+                      <div className="p-2 border-b flex gap-2">
+                        <Button variant="outline" size="sm" onClick={toggleSelectAllVlcs} className="flex-1 text-xs">
+                          {selectedVlcs.length > 0 && selectedVlcs.length === availableVlcs.length ? 'Deselect All' : 'Select All'}
+                        </Button>
+                        {selectedVlcs.length > 0 && (
+                          <Button variant="outline" size="sm" onClick={() => setSelectedVlcs([])} className="flex-1 text-xs">Clear</Button>
+                        )}
+                      </div>
+                      <div className="max-h-60 overflow-y-auto p-2">
+                        {availableVlcs.length === 0 && <p className="text-sm text-gray-500 p-2 text-center">No VLCs found</p>}
+                        {availableVlcs.map((v, i) => {
+                          const rawId = v.vlc_id ?? v.branch_id ?? v.id;
+                          const vId = Number(rawId);
+                          const isValidId = !isNaN(vId);
+                          const displayName = v.name ?? v.branchName ?? v.username ?? `Dairy ${i + 1}`;
+                          return (
+                            <div key={isValidId ? vId : `idx-${i}`} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded cursor-pointer" onClick={() => isValidId && toggleVlc(vId)}>
+                              <input type="checkbox" checked={isValidId && selectedVlcs.includes(vId)} onChange={() => {}} className="h-4 w-4 pointer-events-none" />
+                              <span className="text-sm">
+                                {isValidId ? `${v.username ?? vId} - ` : ""}
+                                {displayName}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {renderShiftCard(
               "Morning",
@@ -263,8 +436,9 @@ const ShiftTimings = () => {
           <Button
             onClick={handleSave}
             disabled={isSaving}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 disabled:opacity-50"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 disabled:opacity-50 mt-4 flex items-center gap-2"
           >
+            <Save className="h-4 w-4" />
             {isSaving ? "Saving..." : "Save Timings"}
           </Button>
         </CardContent>
