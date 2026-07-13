@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useAppSelector } from "@/redux/store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -6,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "react-toastify";
 import { createDairyApi } from "@/services/createDairyApi";
+import { ccApi, bmcApi, routeApi } from "@/services/routeBmcCcApi";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import FileCopyIcon from "@mui/icons-material/FileCopy";
 import { 
@@ -19,8 +21,10 @@ import {
   Factory, 
   Store,
   CalendarClock,
-  ShieldCheck,
-  CheckCircle2
+  CheckCircle2,
+  Snowflake,
+  Warehouse,
+  Route as RouteIcon,
 } from "lucide-react";
 import {
   Select,
@@ -41,22 +45,31 @@ const DEFAULT_EQUIPMENT = [
   "Solar Panel",
 ];
 
-type Step = 1 | 2 | 3 | 4;
+type Step = 1 | 2 | 3;
 
 const STEPS = [
   { id: 1, label: "Mobile Number" },
-  { id: 2, label: "Verify OTP" },
-  { id: 3, label: "Dairy Details" },
+  { id: 2, label: "Dairy Details" },
 ];
 
+const NONE = "none";
+
 const CreateDairy = () => {
+  const authState = useAppSelector((state) => state.authData);
+  const userId = authState?.userData?.id ? Number(authState.userData.id) : null;
+
   const [step, setStep] = useState<Step>(1);
   const [loading, setLoading] = useState(false);
 
   const [mobileNumber, setMobileNumber] = useState("");
-  const [otp, setOtp] = useState("");
-  const [token, setToken] = useState<string | null>(null);
-  const [existingDairies, setExistingDairies] = useState<any[]>([]);
+
+  // Hierarchy dropdown selections.
+  const [ccSel, setCcSel] = useState<string>(NONE);
+  const [bmcSel, setBmcSel] = useState<string>(NONE);
+  const [routeSel, setRouteSel] = useState<string>(NONE);
+  const [ccList, setCcList] = useState<any[]>([]);
+  const [bmcList, setBmcList] = useState<any[]>([]);
+  const [routeList, setRouteList] = useState<any[]>([]);
 
   const [form, setForm] = useState({
     name: "",
@@ -75,6 +88,19 @@ const CreateDairy = () => {
     DEFAULT_EQUIPMENT.map((name) => ({ name, checked: false, quantity: "", serialNumber: "" }))
   );
   const [newField, setNewField] = useState("");
+
+  const toArray = (res: any) => {
+    const raw = res?.data?.data ?? res?.data ?? [];
+    return Array.isArray(raw) ? raw : [];
+  };
+
+  // Load CC, BMC, Route lists for the hierarchy dropdowns.
+  useEffect(() => {
+    if (!userId) return;
+    ccApi.list(userId).then((r) => setCcList(toArray(r))).catch(() => {});
+    bmcApi.list(userId).then((r) => setBmcList(toArray(r))).catch(() => {});
+    routeApi.list(userId).then((r) => setRouteList(toArray(r))).catch(() => {});
+  }, [userId]);
 
   const toggleEquipment = (idx: number) =>
     setEquipment((prev) =>
@@ -113,71 +139,17 @@ const CreateDairy = () => {
     );
   };
 
-  // Step 1 — send the OTP.
-  const handleSendOtp = async (e?: React.FormEvent) => {
+  // Step 1 — validate mobile and proceed directly to form (no OTP).
+  const handleContinue = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!/^\d{10}$/.test(mobileNumber.trim())) {
       toast.error("Please enter a valid 10-digit mobile number");
       return;
     }
-    setLoading(true);
-    try {
-      const data = await createDairyApi.sendOtp(mobileNumber.trim());
-      if (data.success === false) {
-        toast.error(data.message || "Failed to send OTP");
-        return;
-      }
-      toast.success(data.message || "OTP sent successfully");
-      setStep(2);
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to send OTP");
-    } finally {
-      setLoading(false);
-    }
+    setStep(2);
   };
 
-  // Step 2 — verify the OTP and pull any existing dairies.
-  const handleVerifyOtp = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (!/^\d{6}$/.test(otp.trim())) {
-      toast.error("Please enter the 6-digit OTP");
-      return;
-    }
-    setLoading(true);
-    try {
-      const data = await createDairyApi.verifyOtp({
-        mobile_number: mobileNumber.trim(),
-        otp: otp.trim(),
-        role: ROLE,
-      });
-      if (data.success === false) {
-        toast.error(data.message || "Invalid OTP");
-        return;
-      }
-      toast.success(data.message || "OTP verified successfully");
-      setToken(data.token ?? null);
-      setExistingDairies(Array.isArray(data.data) ? data.data : []);
-      setStep(3);
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Invalid OTP");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResendOtp = async () => {
-    setLoading(true);
-    try {
-      const data = await createDairyApi.sendOtp(mobileNumber.trim());
-      toast.success(data.message || "OTP resent");
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to resend OTP");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Step 3 — create the dairy/branch.
+  // Step 2 — create the dairy/branch.
   const handleCreateBranch = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!form.name.trim() || !form.branchname.trim() || !form.ownername.trim()) {
@@ -188,6 +160,10 @@ const CreateDairy = () => {
       toast.error("Password must be at least 6 characters");
       return;
     }
+    const ccId = ccSel !== NONE ? Number(ccSel) : null;
+    const bmcId = bmcSel !== NONE ? Number(bmcSel) : null;
+    const routeId = routeSel !== NONE ? Number(routeSel) : null;
+
     setLoading(true);
     try {
       const data = await createDairyApi.createBranch(
@@ -201,8 +177,10 @@ const CreateDairy = () => {
           villagename: form.villagename.trim(),
           address: form.address.trim(),
           role: ROLE,
-        },
-        token ?? undefined
+          ...(ccId ? { cc_id: ccId } : {}),
+          ...(bmcId ? { bmc_id: bmcId } : {}),
+          ...(routeId ? { route_id: routeId } : {}),
+        }
       );
       if (data.success === false) {
         toast.error(data.message || "Failed to create dairy");
@@ -210,7 +188,7 @@ const CreateDairy = () => {
       }
       toast.success(data.message || "Dairy created successfully");
       setCreatedUser(data.userdata ?? data.data ?? data.user ?? data);
-      setStep(4);
+      setStep(3);
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to create dairy");
     } finally {
@@ -221,9 +199,9 @@ const CreateDairy = () => {
   const resetFlow = () => {
     setStep(1);
     setMobileNumber("");
-    setOtp("");
-    setToken(null);
-    setExistingDairies([]);
+    setCcSel(NONE);
+    setBmcSel(NONE);
+    setRouteSel(NONE);
     setForm({
       name: "",
       branchname: "",
@@ -298,16 +276,16 @@ const CreateDairy = () => {
 
           <CardContent className="p-6 sm:p-8">
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              {/* Step 1: Mobile number */}
+              {/* Step 1: Mobile number — proceed directly, no OTP */}
               {step === 1 && (
-                <form onSubmit={handleSendOtp} className="max-w-md mx-auto space-y-6 py-6">
+                <form onSubmit={handleContinue} className="max-w-md mx-auto space-y-6 py-6">
                   <div className="text-center mb-8">
                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-50 text-blue-600 mb-4">
                       <Phone size={32} />
                     </div>
-                    <h3 className="text-xl font-bold text-foreground">Verify Mobile</h3>
+                    <h3 className="text-xl font-bold text-foreground">Enter Mobile Number</h3>
                     <p className="text-muted-foreground text-sm mt-2">
-                      Enter the owner's 10-digit mobile number to begin.
+                      Enter the owner's 10-digit mobile number to continue.
                     </p>
                   </div>
 
@@ -332,102 +310,17 @@ const CreateDairy = () => {
 
                   <Button
                     type="submit"
-                    disabled={loading || mobileNumber.length !== 10}
+                    disabled={mobileNumber.length !== 10}
                     className="w-full h-12 text-base font-semibold rounded-xl transition-all disabled:opacity-70 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700 text-white"
                   >
-                    {loading ? "Sending OTP..." : "Send OTP"}
+                    Continue
                   </Button>
                 </form>
               )}
 
-              {/* Step 2: Verify OTP */}
+              {/* Step 2: Dairy details */}
               {step === 2 && (
-                <form onSubmit={handleVerifyOtp} className="max-w-md mx-auto space-y-6 py-6">
-                  <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-50 text-blue-600 mb-4">
-                      <ShieldCheck size={32} />
-                    </div>
-                    <h3 className="text-xl font-bold text-foreground">Enter OTP</h3>
-                    <p className="text-muted-foreground text-sm mt-2">
-                      We've sent a code to <span className="font-semibold text-foreground">{mobileNumber}</span>.
-                    </p>
-                  </div>
-
-                  <div className="space-y-3">
-                    <Label htmlFor="otp" className="text-sm font-semibold text-foreground">
-                      6-Digit Code
-                    </Label>
-                    <Input
-                      id="otp"
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={6}
-                      placeholder="• • • • • •"
-                      className="h-14 bg-background border-input focus:bg-background focus:border-blue-600 focus:ring-blue-600/20 transition-all rounded-xl tracking-[0.75em] text-center text-2xl font-bold"
-                      value={otp}
-                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between px-1">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-medium px-3 rounded-lg"
-                      onClick={handleResendOtp}
-                      disabled={loading}
-                    >
-                      Resend OTP
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="text-muted-foreground hover:text-foreground hover:bg-muted font-medium px-3 rounded-lg"
-                      onClick={() => setStep(1)}
-                      disabled={loading}
-                    >
-                      Change Number
-                    </Button>
-                  </div>
-
-                  <Button
-                    type="submit"
-                    disabled={loading || otp.length !== 6}
-                    className="w-full h-12 text-base font-semibold rounded-xl transition-all disabled:opacity-70 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    {loading ? "Verifying..." : "Verify OTP"}
-                  </Button>
-                </form>
-              )}
-
-              {/* Step 3: Dairy details */}
-              {step === 3 && (
                 <div className="space-y-6 py-2">
-                  {existingDairies.length > 0 && (
-                    <div className="rounded-xl border border-green-200 bg-green-50 p-5">
-                      <div className="flex gap-3">
-                        <Store className="text-green-600 shrink-0 mt-0.5" size={20} />
-                        <div className="w-full">
-                          <p className="text-sm font-semibold text-green-900 mb-3">
-                            Found {existingDairies.length} existing dair{existingDairies.length > 1 ? "ies" : "y"} for this number:
-                          </p>
-                          <div className="flex flex-col gap-2">
-                            {existingDairies.map((d: any, i: number) => (
-                              <div key={i} className="flex items-center text-sm text-white font-medium bg-green-600 px-4 py-2.5 rounded-lg shadow-sm">
-                                <div className="w-1.5 h-1.5 rounded-full bg-white mr-3 shrink-0"></div>
-                                <span className="truncate">
-                                  {d.name ?? d.dairy_name ?? "Dairy"}
-                                  {d.branchname ? <span className="text-green-100 font-normal ml-1">— {d.branchname}</span> : ""}
-                                  {d.username ? <span className="text-green-200 font-normal ml-2">({d.username})</span> : ""}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
                   <form onSubmit={handleCreateBranch} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
                       <div className="space-y-2">
@@ -553,22 +446,100 @@ const CreateDairy = () => {
                       </div>
                     </div>
 
+                    {/* Hierarchy assignment — optional CC / BMC / Route dropdowns */}
                     <div className="pt-4 border-t border-border">
+                      <Label className="text-sm font-bold text-foreground mb-3 block">
+                        Assign to Hierarchy <span className="text-muted-foreground font-normal">(optional)</span>
+                      </Label>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                            <Snowflake className="h-3.5 w-3.5 text-purple-500" />
+                            CC (Chilling Center)
+                          </Label>
+                          <Select value={ccSel} onValueChange={setCcSel}>
+                            <SelectTrigger className="h-11 bg-background border-input focus:ring-blue-600/20 rounded-lg transition-all w-full">
+                              <SelectValue placeholder="None" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-white dark:bg-zinc-900 border border-border shadow-xl z-[100]">
+                              <SelectItem value={NONE}>None</SelectItem>
+                              {ccList.map((cc: any) => (
+                                <SelectItem key={cc.cc_id ?? cc.id} value={String(cc.cc_id ?? cc.id)}>
+                                  {cc.cc_id ?? cc.id} — {cc.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                            <Warehouse className="h-3.5 w-3.5 text-blue-500" />
+                            BMC
+                          </Label>
+                          <Select value={bmcSel} onValueChange={setBmcSel}>
+                            <SelectTrigger className="h-11 bg-background border-input focus:ring-blue-600/20 rounded-lg transition-all w-full">
+                              <SelectValue placeholder="None" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-white dark:bg-zinc-900 border border-border shadow-xl z-[100]">
+                              <SelectItem value={NONE}>None</SelectItem>
+                              {bmcList.map((bmc: any) => (
+                                <SelectItem key={bmc.bmc_id ?? bmc.id} value={String(bmc.bmc_id ?? bmc.id)}>
+                                  {bmc.bmc_id ?? bmc.id} — {bmc.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                            <RouteIcon className="h-3.5 w-3.5 text-green-500" />
+                            Route
+                          </Label>
+                          <Select value={routeSel} onValueChange={setRouteSel}>
+                            <SelectTrigger className="h-11 bg-background border-input focus:ring-blue-600/20 rounded-lg transition-all w-full">
+                              <SelectValue placeholder="None" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-white dark:bg-zinc-900 border border-border shadow-xl z-[100]">
+                              <SelectItem value={NONE}>None</SelectItem>
+                              {routeList.map((route: any) => (
+                                <SelectItem key={route.route_id ?? route.id} value={String(route.route_id ?? route.id)}>
+                                  {route.route_id ?? route.id} — {route.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Pick any combination of CC, BMC and Route — or leave all as "None" for an unlinked dairy.
+                      </p>
+                    </div>
+
+                    <div className="pt-4 border-t border-border flex items-center justify-between">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="text-muted-foreground hover:text-foreground font-medium"
+                        onClick={() => setStep(1)}
+                      >
+                        ← Change Number
+                      </Button>
                       <Button
                         type="submit"
                         disabled={loading}
-                        className="w-full sm:w-auto px-8 h-12 text-base font-semibold rounded-xl transition-all disabled:opacity-70 float-right bg-blue-600 hover:bg-blue-700 text-white"
+                        className="px-8 h-12 text-base font-semibold rounded-xl transition-all disabled:opacity-70 bg-blue-600 hover:bg-blue-700 text-white"
                       >
                         {loading ? "Creating Dairy..." : "Create Dairy Account"}
                       </Button>
-                      <div className="clear-both"></div>
                     </div>
                   </form>
                 </div>
               )}
 
-              {/* Step 4: Success — generated dairy ID + equipment checklist */}
-              {step === 4 && (
+              {/* Step 3: Success — generated dairy ID + equipment checklist */}
+              {step === 3 && (
                 <div className="space-y-8 py-2">
                   <div className="p-5 bg-blue-50 border border-blue-200 rounded-xl shadow-sm">
                     <div className="flex items-center gap-3 text-blue-700 font-semibold mb-4">

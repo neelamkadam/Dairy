@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/table";
 import AssignToSubUserDialog from "./AssignToSubUserDialog";
 
-type ParentType = "none" | "bmc" | "cc";
+const NONE = "none";
 
 const CreateRoute = () => {
   const authState = useAppSelector((state) => state.authData);
@@ -45,8 +45,12 @@ const CreateRoute = () => {
 
   const [isFormOpen, setIsFormOpen] = useState(true);
   const [name, setName] = useState("");
-  const [parentType, setParentType] = useState<ParentType>("none");
-  const [parentId, setParentId] = useState<string>("");
+  const [ownername, setOwnername] = useState("");
+  const [villagename, setVillagename] = useState("");
+  const [address, setAddress] = useState("");
+  // A route can sit under a BMC, a CC, or BOTH — two independent pickers.
+  const [bmcSel, setBmcSel] = useState<string>(NONE);
+  const [ccSel, setCcSel] = useState<string>(NONE);
   const [selectedVlcs, setSelectedVlcs] = useState<number[]>([]);
   const [vlcSearch, setVlcSearch] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -67,7 +71,7 @@ const CreateRoute = () => {
     return Array.isArray(raw) ? raw : [];
   };
 
-  const getRouteId = (route: any): number => Number(route?.id ?? route?.route_id);
+  const getRouteId = (route: any): number => Number(route?.route_id ?? route?.id);
 
   const loadRoutes = async () => {
     if (!userId) return;
@@ -101,8 +105,11 @@ const CreateRoute = () => {
 
   const resetForm = () => {
     setName("");
-    setParentType("none");
-    setParentId("");
+    setOwnername("");
+    setVillagename("");
+    setAddress("");
+    setBmcSel(NONE);
+    setCcSel(NONE);
     setSelectedVlcs([]);
     setVlcSearch("");
     setEditingId(null);
@@ -132,6 +139,25 @@ const CreateRoute = () => {
     }
   };
 
+  // Build a mapping from dairy_id -> branch_id so that VLC IDs coming from
+  // the routes API (which may use dairy_id) can be matched to the branch
+  // picker (which uses branch_id). When they are the same value, the map
+  // simply maps id -> id.
+  const dairyToBranchId: Record<number, number> = {};
+  const branchToDairyId: Record<number, number> = {};
+  (branches || []).forEach((b: any) => {
+    const bid = Number(b.branch_id);
+    // The branch itself may carry a dairy_id that differs from branch_id.
+    const did = b.dairy_id != null ? Number(b.dairy_id) : bid;
+    dairyToBranchId[did] = bid;
+    dairyToBranchId[bid] = bid; // identity for safety
+    branchToDairyId[bid] = did;
+  });
+
+  // The API expects dairy ids in vlcIds — translate the picker's branch ids.
+  const toDairyIds = (branchIds: number[]) =>
+    branchIds.map((id) => branchToDairyId[id] ?? id);
+
   const handleSave = async () => {
     if (!userId) {
       toast.error("User not found");
@@ -141,20 +167,24 @@ const CreateRoute = () => {
       toast.error("Please enter Route name");
       return;
     }
-    if (parentType !== "none" && !parentId) {
-      toast.error(`Please select a ${parentType.toUpperCase()}`);
-      return;
-    }
 
-    const bmcId = parentType === "bmc" ? Number(parentId) : null;
-    const ccId = parentType === "cc" ? Number(parentId) : null;
+    const bmcId = bmcSel !== NONE ? Number(bmcSel) : null;
+    const ccId = ccSel !== NONE ? Number(ccSel) : null;
+    const fields = {
+      name: name.trim(),
+      villagename: villagename.trim(),
+      address: address.trim(),
+      ownername: ownername.trim(),
+    };
 
     setIsSaving(true);
     try {
       if (editingId) {
+        // Full replace — omitted/null parent is cleared, so send the complete
+        // desired state. The backend re-stamps all dairies on the route.
         const updateRes = await routeApi.update({
           routeId: editingId,
-          name: name.trim(),
+          ...fields,
           bmcId,
           ccId,
         });
@@ -162,7 +192,10 @@ const CreateRoute = () => {
           toast.error(updateRes?.data?.message || "Failed to update Route");
           return;
         }
-        const vlcRes = await routeApi.setVlcs({ routeId: editingId, vlcIds: selectedVlcs });
+        const vlcRes = await routeApi.setVlcs({
+          routeId: editingId,
+          vlcIds: toDairyIds(selectedVlcs),
+        });
         if (vlcRes?.data?.success === false) {
           toast.error(vlcRes?.data?.message || "Failed to update Route VLCs");
           return;
@@ -171,10 +204,10 @@ const CreateRoute = () => {
       } else {
         const response = await routeApi.create({
           adminId: userId,
-          name: name.trim(),
+          ...fields,
           ...(bmcId ? { bmcId } : {}),
           ...(ccId ? { ccId } : {}),
-          vlcIds: selectedVlcs,
+          vlcIds: toDairyIds(selectedVlcs),
         });
         if (response?.data?.success === false) {
           toast.error(response?.data?.message || "Failed to create Route");
@@ -190,19 +223,6 @@ const CreateRoute = () => {
       setIsSaving(false);
     }
   };
-
-  // Build a mapping from dairy_id -> branch_id so that VLC IDs coming from
-  // the routes API (which may use dairy_id) can be matched to the branch
-  // picker (which uses branch_id). When they are the same value, the map
-  // simply maps id -> id.
-  const dairyToBranchId: Record<number, number> = {};
-  (branches || []).forEach((b: any) => {
-    const bid = Number(b.branch_id);
-    // The branch itself may carry a dairy_id that differs from branch_id.
-    const did = b.dairy_id != null ? Number(b.dairy_id) : bid;
-    dairyToBranchId[did] = bid;
-    dairyToBranchId[bid] = bid; // identity for safety
-  });
 
   // Normalize the vlcs array of a route (objects or plain ids) and return
   // the *branch_id* values used by the VLC picker checkboxes.
@@ -229,31 +249,32 @@ const CreateRoute = () => {
   };
 
   const getParentLabel = (route: any): string => {
-    if (route?.bmc_name) return `BMC: ${route.bmc_name}`;
-    if (route?.cc_name) return `CC: ${route.cc_name}`;
-    return "Standalone";
+    const parts = [];
+    if (route?.bmc_name) parts.push(`BMC: ${route.bmc_name}`);
+    if (route?.cc_name) parts.push(`CC: ${route.cc_name}`);
+    return parts.length > 0 ? parts.join(" / ") : "Standalone";
   };
 
   const handleEdit = (route: any) => {
     setEditingId(getRouteId(route));
     setName(route?.name || "");
-    if (route?.bmc_id) {
-      setParentType("bmc");
-      setParentId(String(route.bmc_id));
-    } else if (route?.cc_id) {
-      setParentType("cc");
-      setParentId(String(route.cc_id));
-    } else {
-      setParentType("none");
-      setParentId("");
-    }
+    setOwnername(route?.ownername || "");
+    setVillagename(route?.villagename || "");
+    setAddress(route?.address || "");
+    setBmcSel(route?.bmc_id ? String(route.bmc_id) : NONE);
+    setCcSel(route?.cc_id ? String(route.cc_id) : NONE);
     setSelectedVlcs(getRouteVlcIds(route));
     setVlcSearch("");
     setIsFormOpen(true);
   };
 
   const handleDelete = async (route: any) => {
-    if (!window.confirm(`Delete Route "${route?.name}"?`)) return;
+    if (
+      !window.confirm(
+        `Delete Route "${route?.name}"? Its dairies are kept — only the route link is cleared.`
+      )
+    )
+      return;
     try {
       const response = await routeApi.remove(getRouteId(route));
       if (response?.data?.success === false) {
@@ -308,9 +329,9 @@ const CreateRoute = () => {
   const filteredRoutes = routes.filter((route) => {
     const query = listSearch.trim().toLowerCase();
     if (!query) return true;
-    return [route?.name, route?.bmc_name, route?.cc_name]
-      .filter(Boolean)
-      .some((field: string) => String(field).toLowerCase().includes(query));
+    return [getRouteId(route), route?.name, route?.bmc_name, route?.cc_name, route?.villagename, route?.ownername]
+      .filter((f) => f !== undefined && f !== null)
+      .some((field) => String(field).toLowerCase().includes(query));
   });
 
   const totalPages = Math.ceil(filteredRoutes.length / itemsPerPage);
@@ -325,8 +346,11 @@ const CreateRoute = () => {
     }
     const exportData = filteredRoutes.map((route, index) => ({
       "Sr No": index + 1,
+      "Route ID": getRouteId(route) || "-",
       "Route Name": route?.name || "N/A",
-      "Parent": getParentLabel(route),
+      "Under": getParentLabel(route),
+      "Owner": route?.ownername || "-",
+      "Village": route?.villagename || "-",
       "VLC Count": getRouteVlcIds(route).length,
       "VLCs": getRouteVlcNames(route),
     }));
@@ -340,7 +364,7 @@ const CreateRoute = () => {
 
   return (
     <div className="space-y-4 bg-gray-50 min-h-screen p-4">
-      {/* Create / Edit Form */}
+      {/* Register / Edit Form */}
       <Card className="border-0 shadow-lg bg-white">
         <CardHeader
           className="border-b cursor-pointer select-none"
@@ -348,7 +372,7 @@ const CreateRoute = () => {
         >
           <div className="flex items-center justify-between">
             <CardTitle className="text-xl font-semibold text-gray-800">
-              {editingId ? "Edit Route" : "Create Route"}
+              {editingId ? `Edit Route (${editingId})` : "Create Route"}
             </CardTitle>
             {isFormOpen ? (
               <ChevronUp className="h-5 w-5 text-gray-500" />
@@ -373,85 +397,81 @@ const CreateRoute = () => {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-700">Route Under</Label>
-                  <Select
-                    value={parentType}
-                    onValueChange={(value: ParentType) => {
-                      setParentType(value);
-                      setParentId("");
-                    }}
-                  >
-                    <SelectTrigger className="w-full bg-gray-50 border-gray-200">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white">
-                      <SelectItem value="none">Standalone (no BMC / CC)</SelectItem>
-                      <SelectItem value="bmc">Under BMC</SelectItem>
-                      <SelectItem value="cc">Under CC</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700">Owner Name</Label>
+                    <Input
+                      placeholder="Enter owner name"
+                      value={ownername}
+                      onChange={(e) => setOwnername(e.target.value)}
+                      className="bg-gray-50 border-gray-200 h-10"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700">Village Name</Label>
+                    <Input
+                      placeholder="Enter village"
+                      value={villagename}
+                      onChange={(e) => setVillagename(e.target.value)}
+                      className="bg-gray-50 border-gray-200 h-10"
+                    />
+                  </div>
                 </div>
 
-                {parentType === "bmc" && (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-700">
-                      Select BMC <span className="text-red-500">*</span>
-                    </Label>
-                    <Select value={parentId} onValueChange={setParentId}>
-                      <SelectTrigger className="w-full bg-gray-50 border-gray-200">
-                        <SelectValue placeholder={isLoadingParents ? "Loading..." : "Select BMC"} />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white">
-                        {bmcs.length === 0 ? (
-                          <div className="text-sm text-gray-500 px-3 py-2">
-                            No BMC found — create one first
-                          </div>
-                        ) : (
-                          bmcs.map((bmc: any) => (
-                            <SelectItem
-                              key={bmc.id ?? bmc.bmc_id}
-                              value={String(bmc.id ?? bmc.bmc_id)}
-                            >
-                              {bmc.name}
-                              {bmc.location ? ` (${bmc.location})` : ""}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-gray-700">Address</Label>
+                  <Input
+                    placeholder="Enter full address"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    className="bg-gray-50 border-gray-200 h-10"
+                  />
+                </div>
 
-                {parentType === "cc" && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-700">
-                      Select CC <span className="text-red-500">*</span>
-                    </Label>
-                    <Select value={parentId} onValueChange={setParentId}>
+                    <Label className="text-sm font-medium text-gray-700">Under BMC</Label>
+                    <Select value={bmcSel} onValueChange={setBmcSel}>
                       <SelectTrigger className="w-full bg-gray-50 border-gray-200">
-                        <SelectValue placeholder={isLoadingParents ? "Loading..." : "Select CC"} />
+                        <SelectValue placeholder={isLoadingParents ? "Loading..." : "None"} />
                       </SelectTrigger>
                       <SelectContent className="bg-white">
-                        {ccs.length === 0 ? (
-                          <div className="text-sm text-gray-500 px-3 py-2">
-                            No CC found — create one first
-                          </div>
-                        ) : (
-                          ccs.map((cc: any) => (
-                            <SelectItem
-                              key={cc.id ?? cc.cc_id}
-                              value={String(cc.id ?? cc.cc_id)}
-                            >
-                              {cc.name}
-                              {cc.location ? ` (${cc.location})` : ""}
-                            </SelectItem>
-                          ))
-                        )}
+                        <SelectItem value={NONE}>None</SelectItem>
+                        {bmcs.map((bmc: any) => (
+                          <SelectItem
+                            key={bmc.bmc_id ?? bmc.id}
+                            value={String(bmc.bmc_id ?? bmc.id)}
+                          >
+                            {bmc.bmc_id ?? bmc.id} - {bmc.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
-                )}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700">Under CC</Label>
+                    <Select value={ccSel} onValueChange={setCcSel}>
+                      <SelectTrigger className="w-full bg-gray-50 border-gray-200">
+                        <SelectValue placeholder={isLoadingParents ? "Loading..." : "None"} />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white">
+                        <SelectItem value={NONE}>None</SelectItem>
+                        {ccs.map((cc: any) => (
+                          <SelectItem
+                            key={cc.cc_id ?? cc.id}
+                            value={String(cc.cc_id ?? cc.id)}
+                          >
+                            {cc.cc_id ?? cc.id} - {cc.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Pick a BMC, a CC, or both. Under only a BMC, the CC is derived from that BMC
+                  automatically — the route's dairies inherit the full chain.
+                </p>
 
                 <div className="text-sm text-gray-600">
                   {selectedVlcs.length === 0
@@ -540,6 +560,9 @@ const CreateRoute = () => {
                     )}
                   </div>
                 </div>
+                <p className="text-xs text-gray-500">
+                  Selected dairies are stamped with this route's BMC + CC automatically.
+                </p>
               </div>
             </div>
           </CardContent>
@@ -581,8 +604,10 @@ const CreateRoute = () => {
               <TableHeader>
                 <TableRow className="bg-gray-50">
                   <TableHead className="text-gray-700 font-semibold px-4 py-3">Sr No</TableHead>
+                  <TableHead className="text-gray-700 font-semibold px-4 py-3">ID</TableHead>
                   <TableHead className="text-gray-700 font-semibold px-4 py-3">Route Name</TableHead>
                   <TableHead className="text-gray-700 font-semibold px-4 py-3">Under</TableHead>
+                  <TableHead className="text-gray-700 font-semibold px-4 py-3">Village</TableHead>
                   <TableHead className="text-gray-700 font-semibold px-4 py-3">VLC Count</TableHead>
                   <TableHead className="text-gray-700 font-semibold px-4 py-3">VLCs</TableHead>
                   <TableHead className="text-gray-700 font-semibold px-4 py-3 text-right">
@@ -593,7 +618,7 @@ const CreateRoute = () => {
               <TableBody>
                 {paginatedRoutes.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-gray-500 py-8">
+                    <TableCell colSpan={8} className="text-center text-gray-500 py-8">
                       No Route created yet
                     </TableCell>
                   </TableRow>
@@ -606,21 +631,33 @@ const CreateRoute = () => {
                       <TableCell className="font-medium px-4 py-3">
                         {startIndex + index + 1}
                       </TableCell>
+                      <TableCell className="px-4 py-3 font-mono text-gray-700">
+                        {getRouteId(route) || "-"}
+                      </TableCell>
                       <TableCell className="px-4 py-3 font-medium">
                         {route?.name || "N/A"}
                       </TableCell>
                       <TableCell className="px-4 py-3">
-                        <Badge
-                          className={
-                            route?.bmc_name
-                              ? "bg-blue-100 text-blue-800 hover:bg-blue-100"
-                              : route?.cc_name
-                                ? "bg-purple-100 text-purple-800 hover:bg-purple-100"
-                                : "bg-gray-100 text-gray-800 hover:bg-gray-100"
-                          }
-                        >
-                          {getParentLabel(route)}
-                        </Badge>
+                        <div className="flex flex-wrap gap-1">
+                          {route?.bmc_name && (
+                            <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
+                              BMC: {route.bmc_name}
+                            </Badge>
+                          )}
+                          {route?.cc_name && (
+                            <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100">
+                              CC: {route.cc_name}
+                            </Badge>
+                          )}
+                          {!route?.bmc_name && !route?.cc_name && (
+                            <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">
+                              Standalone
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-4 py-3 text-gray-600">
+                        {route?.villagename || "-"}
                       </TableCell>
                       <TableCell className="px-4 py-3 text-gray-600">
                         {getRouteVlcIds(route).length}

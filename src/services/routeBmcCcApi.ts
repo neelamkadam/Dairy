@@ -1,89 +1,121 @@
 import AxiosClient from "./interceptor";
 
-// BMC -> Route -> VLC hierarchy APIs.
-// BMCs, CCs and Routes are created by an admin web_user; VLCs (dairies) live
-// inside routes; BMCs, CCs and Routes can be assigned to sub-users.
+// CC -> BMC -> Route -> VLC (dairy) hierarchy.
+// CC, BMC and Route are dairy-style registrations (name, villagename, address,
+// ownername) created by an admin web_user. Generated id series: CC 700001+,
+// BMC 800001+, Route 900001+ — the returned id IS the primary key everywhere.
+// CC and BMC take a required password at creation and can log in (mobile app)
+// with their generated id as the username; routes have no login.
+// The dairy's own cc_id / bmc_id / route_id columns are the source of truth —
+// CC/BMC/Route are just collections of VLCs.
+
+interface RegistrationFields {
+  name: string;
+  villagename?: string;
+  address?: string;
+  ownername?: string;
+}
+
+export const ccApi = {
+  // password is required; the response returns cc_id (700001+) and username —
+  // these are the CC's login credentials, show them to the admin.
+  create: (p: { adminId: number; password: string } & RegistrationFields) =>
+    AxiosClient.post("/web/cc/create", p),
+
+  // Rows include bmc_count, route_count, vlc_count. userId may be a sub-user.
+  list: (userId: number) => AxiosClient.get(`/web/cc/list/${userId}`),
+
+  // Include password only to change it.
+  update: (p: { ccId: number; password?: string } & RegistrationFields) =>
+    AxiosClient.put("/web/cc/update", p),
+
+  // Dairies whose cc_id points to this CC.
+  vlcs: (ccId: number) => AxiosClient.get(`/web/cc/${ccId}/vlcs`),
+
+  assign: (p: { adminId: number; userId: number; ccId: number }) =>
+    AxiosClient.post("/web/cc/assign", p),
+
+  unassign: (p: { userId: number; ccId: number }) =>
+    AxiosClient.post("/web/cc/unassign", p),
+
+  assigned: (userId: number) => AxiosClient.get(`/web/cc/assigned/${userId}`),
+
+  // Children are kept — their cc_id just becomes NULL.
+  remove: (ccId: number) => AxiosClient.delete(`/web/cc/${ccId}`),
+};
 
 export const bmcApi = {
-  create: (payload: { adminId: number; name: string; location?: string }) =>
-    AxiosClient.post("/web/bmc/create", payload),
+  // ccId is REQUIRED — a BMC is always created under a CC. Response returns
+  // bmc_id (800001+) and username — the BMC's login credentials.
+  create: (p: { adminId: number; ccId: number; password: string } & RegistrationFields) =>
+    AxiosClient.post("/web/bmc/create", p),
 
-  // userId can be an admin or a sub-user id.
+  // Rows include cc_name, route_count, vlc_count.
   list: (userId: number) => AxiosClient.get(`/web/bmc/list/${userId}`),
 
-  update: (payload: { bmcId: number; name: string; location?: string }) =>
-    AxiosClient.put("/web/bmc/update", payload),
+  // Send ccId to move it under another CC; omit to keep. password only to change.
+  update: (p: { bmcId: number; ccId?: number; password?: string } & RegistrationFields) =>
+    AxiosClient.put("/web/bmc/update", p),
 
-  assign: (payload: { adminId: number; userId: number; bmcId: number }) =>
-    AxiosClient.post("/web/bmc/assign", payload),
+  vlcs: (bmcId: number) => AxiosClient.get(`/web/bmc/${bmcId}/vlcs`),
 
-  unassign: (payload: { userId: number; bmcId: number }) =>
-    AxiosClient.post("/web/bmc/unassign", payload),
+  assign: (p: { adminId: number; userId: number; bmcId: number }) =>
+    AxiosClient.post("/web/bmc/assign", p),
+
+  unassign: (p: { userId: number; bmcId: number }) =>
+    AxiosClient.post("/web/bmc/unassign", p),
 
   assigned: (userId: number) => AxiosClient.get(`/web/bmc/assigned/${userId}`),
 
   remove: (bmcId: number) => AxiosClient.delete(`/web/bmc/${bmcId}`),
 };
 
-export const ccApi = {
-  create: (payload: { adminId: number; name: string; location?: string }) =>
-    AxiosClient.post("/web/cc/create", payload),
-
-  list: (userId: number) => AxiosClient.get(`/web/cc/list/${userId}`),
-
-  update: (payload: { ccId: number; name: string; location?: string }) =>
-    AxiosClient.put("/web/cc/update", payload),
-
-  assign: (payload: { adminId: number; userId: number; ccId: number }) =>
-    AxiosClient.post("/web/cc/assign", payload),
-
-  unassign: (payload: { userId: number; ccId: number }) =>
-    AxiosClient.post("/web/cc/unassign", payload),
-
-  assigned: (userId: number) => AxiosClient.get(`/web/cc/assigned/${userId}`),
-
-  remove: (ccId: number) => AxiosClient.delete(`/web/cc/${ccId}`),
-};
-
 export const routeApi = {
-  // Pass bmcId OR ccId (never both); both optional for a standalone route.
-  create: (payload: {
-    adminId: number;
-    name: string;
-    bmcId?: number | null;
-    ccId?: number | null;
-    vlcIds?: number[];
-  }) => AxiosClient.post("/web/routes/create", payload),
+  // A route can sit under a BMC, a CC, or BOTH. Response returns route_id
+  // (900001+). vlcIds (dairy ids) is optional — those dairies get linked now.
+  create: (
+    p: {
+      adminId: number;
+      bmcId?: number;
+      ccId?: number;
+      vlcIds?: number[];
+    } & RegistrationFields
+  ) => AxiosClient.post("/web/routes/create", p),
 
-  // Returns routes with bmc_name / cc_name and the vlcs array of each route.
+  // Each route has bmc_name, cc_name and its vlcs[].
   list: (userId: number) => AxiosClient.get(`/web/routes/list/${userId}`),
 
-  // bmcId / ccId omitted or null clears that parent. Never send both.
-  update: (payload: {
-    routeId: number;
-    name: string;
-    bmcId?: number | null;
-    ccId?: number | null;
-  }) => AxiosClient.put("/web/routes/update", payload),
+  // FULL REPLACE: an omitted/null parent is cleared — always send the
+  // complete desired state.
+  update: (
+    p: {
+      routeId: number;
+      bmcId?: number | null;
+      ccId?: number | null;
+    } & RegistrationFields
+  ) => AxiosClient.put("/web/routes/update", p),
 
-  // Replaces the full VLC (dairy) list of the route; empty array clears it.
-  setVlcs: (payload: { routeId: number; vlcIds: number[] }) =>
-    AxiosClient.put("/web/routes/vlcs", payload),
+  // Replaces the route's VLC membership; dairies dropped from the list are
+  // detached. Empty array detaches all.
+  setVlcs: (p: { routeId: number; vlcIds: number[] }) =>
+    AxiosClient.put("/web/routes/vlcs", p),
 
   getVlcs: (routeId: number) => AxiosClient.get(`/web/routes/${routeId}/vlcs`),
 
-  assign: (payload: { adminId: number; userId: number; routeId: number }) =>
-    AxiosClient.post("/web/routes/assign", payload),
+  assign: (p: { adminId: number; userId: number; routeId: number }) =>
+    AxiosClient.post("/web/routes/assign", p),
 
-  unassign: (payload: { userId: number; routeId: number }) =>
-    AxiosClient.post("/web/routes/unassign", payload),
+  unassign: (p: { userId: number; routeId: number }) =>
+    AxiosClient.post("/web/routes/unassign", p),
 
   assigned: (userId: number) => AxiosClient.get(`/web/routes/assigned/${userId}`),
 
+  // Dairies on it are kept — their route_id just becomes NULL.
   remove: (routeId: number) => AxiosClient.delete(`/web/routes/${routeId}`),
 };
 
-// Combined bootstrap: assigned BMCs and CCs (nested with routes + VLCs) plus
-// directly assigned routes (with VLCs).
+// Combined bootstrap for a sub-user's working scope: assigned CCs and BMCs
+// (each nested with their routes + VLCs, plus directly linked VLCs) and
+// directly assigned routes (with VLCs). Their VLC set = union of every vlcs[].
 export const getUserAssignments = (userId: number) =>
   AxiosClient.get(`/web-users/assignments/${userId}`);

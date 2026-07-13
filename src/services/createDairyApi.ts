@@ -10,28 +10,16 @@ export interface CreateBranchPayload {
   villagename: string;
   address: string;
   role: string;
+  // Optional hierarchy links — any combination or none.
+  cc_id?: number | null;
+  bmc_id?: number | null;
+  route_id?: number | null;
 }
 
 export const createDairyApi = {
-  // Step 1 — send an OTP to the given mobile number.
-  sendOtp: async (mobile_number: string) => {
-    const { data } = await api.post('/auth/send-otp', { mobile_number });
-    return data;
-  },
-
-  // Step 2 — verify the OTP. For a Dairyadmin the response carries any
-  // existing dairies under `data` plus a freshly generated auth token.
-  verifyOtp: async (payload: { mobile_number: string; otp: string; role: string }) => {
-    const { data } = await api.post('/auth/verify-otp', payload);
-    return data;
-  },
-
-  // Step 3 — create the new dairy/branch. The token returned by verifyOtp is
-  // forwarded so the backend can map the owner to this session.
-  createBranch: async (payload: CreateBranchPayload, token?: string) => {
-    const { data } = await api.post('/branch/create', payload, {
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    });
+  // Create the new dairy/branch.
+  createBranch: async (payload: CreateBranchPayload) => {
+    const { data } = await api.post('/branch/create', payload);
     return data;
   },
 };
