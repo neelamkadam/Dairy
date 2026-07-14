@@ -125,6 +125,8 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
       icon: "📈",
       children: [
         { title: t('shift_report'), icon: "", href: ROUTES.REPORTS.SHIFT_REPORTS},
+        { title: "Manual/Auto Shift Report", icon: "", href: ROUTES.REPORTS.MANUAL_AUTO_SHIFT_REPORT},
+        { title: "Dispatch Status Report", icon: "", href: ROUTES.REPORTS.DISPATCH_STATUS_REPORT},
         { title: t('farmer_collection'), icon: "", href: ROUTES.REPORTS.FARMER_COLLECTION},
         { title: t('total_collection_report'), icon: "", href: ROUTES.REPORTS.TOTAL_COLLECTION_REPORT},
         { title: t('payment_summary_report'), icon: "", href: ROUTES.REPORTS.PAYMENT_SUMMARY},

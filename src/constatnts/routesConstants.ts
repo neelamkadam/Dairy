@@ -53,6 +53,8 @@ export const ROUTES = {
     RATECHART_REPORT:`/dashboard/ratechart-report`,
     REMAINING_BALANCE:`/dashboard/remaining-balance`,
     SHIFT_REPORTS:`/dashboard/shift-reports`,
+    MANUAL_AUTO_SHIFT_REPORT:`/dashboard/manual-auto-shift-report`,
+    DISPATCH_STATUS_REPORT:`/dashboard/dispatch-status-report`,
     TOTAL_COLLECTION_REPORT:`/dashboard/total-collection-report`,
     VLC_COMMISSION_REPORT:`/dashboard/vlc-commission-report`,
     VLC_DIFFERENCE_REPORT: `/dashboard/vlc-diffrerence-report`,

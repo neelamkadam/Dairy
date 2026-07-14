@@ -49,6 +49,8 @@ import PLStatement from "@/pages/Reports/PLStatement";
 import RateChartReport from "@/pages/Reports/RateChartReport";
 import RemainingBalanceReport from "@/pages/Reports/RemainingBalanceReport";
 import ShiftReports from "@/pages/Reports/ShiftReports";
+import ManualAutoShiftReport from "@/pages/Reports/ManualAutoShiftReport";
+import DispatchStatusReport from "@/pages/Reports/DispatchStatusReport";
 import TotalCollectionReport from "@/pages/Reports/TotalCollectionReport";
 import VlcCommissionReport from "@/pages/Reports/VlcCommissionReport";
 import VlcDifferenceReport from "@/pages/Reports/VlcDifferenceReport";
@@ -232,6 +234,14 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "shift-reports",
         element: <ShiftReports />,
+      },
+      {
+        path: "manual-auto-shift-report",
+        element: <ManualAutoShiftReport />,
+      },
+      {
+        path: "dispatch-status-report",
+        element: <DispatchStatusReport />,
       },
       {
         path: "total-collection-report",
