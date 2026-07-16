@@ -76,28 +76,34 @@ import GroupCattleFeedStock from "@/pages/Payment/GroupCattleFeedStock";
 import FarmerPayment from "@/pages/Payment/FarmerPayment";
 import Attendance from "@/pages/Attendance/Attendance";
 import Supervisor from "@/pages/Attendance/Supervisor";
+import ErrorPage from "@/pages/ErrorPage";
 import { createBrowserRouter } from "react-router-dom";
 
 export const AppRoutes = createBrowserRouter([
   {
     path: "/",
     element: <Login />,
+    errorElement: <ErrorPage />,
   },
   {
     path: ROUTES.AUTH.LOGIN,
     element: <Login />,
+    errorElement: <ErrorPage />,
   },
   {
     path: ROUTES.AUTH.SIGNUP,
     element: <SignUp />,
+    errorElement: <ErrorPage />,
   },
   {
     path: ROUTES.AUTH.RESET_PWD,
     element: <ResetPassword />,
+    errorElement: <ErrorPage />,
   },
   {
     path: ROUTES.AUTH.SET_NEW_PASSWORD,
     element: <SetNewPassword />,
+    errorElement: <ErrorPage />,
   },
   {
     path: "/dashboard",
@@ -106,6 +112,7 @@ export const AppRoutes = createBrowserRouter([
         <AppLayout />
       </ProtectedRoute>
     ),
+    errorElement: <ErrorPage />,
     children: [
       {
         index: true,
@@ -348,6 +355,7 @@ export const AppRoutes = createBrowserRouter([
         <AdminAppLayout />
       </ProtectedRoute>
     ),
+    errorElement: <ErrorPage />,
     children: [
       {
         path: "admin-dashboard",

@@ -76,9 +76,9 @@ const FarmerCollection = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(100);
 
-  const filteredBranches = branches.filter(b => 
-    b.name.toLowerCase().includes(vlcSearch.toLowerCase()) || 
-    b.username.toLowerCase().includes(vlcSearch.toLowerCase())
+  const filteredBranches = branches.filter(b =>
+    (b.name || "").toLowerCase().includes(vlcSearch.toLowerCase()) ||
+    (b.username || "").toLowerCase().includes(vlcSearch.toLowerCase())
   );
 
   const handleSubmit = async () => {
