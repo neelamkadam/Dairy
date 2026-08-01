@@ -1500,3 +1500,500 @@ export const generateTemplate3Farmers = (templateData: Template3Data, language: 
   };
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body { margin: 0; padding: 0; font-family: Arial, sans-serif; } @page { size: A4; margin: 0; } .page-container { width: 210mm; height: 297mm; display: flex; flex-direction: column; }</style></head><body><div class="page-container">${templateData.farmers.map(getFarmerHtml).join('')}</div></body></html>`;
 };
+
+// ── Format 4: copy of Template 2 (1 per page) with compact table + DEDUCTION / GROSS SUMMARY layout ──
+export const generateTemplate4 = (templateData: Template2Data, language: string = 'mr'): string => {
+  const labels = getLabels(language);
+
+  // Format-4-specific labels (kept local so other formats are unaffected)
+  const t4All: Record<string, Record<string, string>> = {
+    en: {
+      deduction: 'DEDUCTION',
+      grossSummary: 'GROSS SUMMARY',
+      anamatAmt: 'Anamat Amt.',
+      advanceLongTerm: 'Advance long term Amt.',
+      advanceShortTerm: 'Advance short term Amt.',
+      remainingCattleFeed: 'Remaining cattle feed Amt.',
+      currentCattleFeed: 'Current cattle feed Amt.',
+      otherCutting: 'Other cutting Amt.',
+      totalDeductionAmt: 'Total Deduction Amt.',
+      totalMilkLiters: 'Total Milk liters',
+      totalMilkAmt: 'Total Milk Amt.',
+      netPayableAmt: 'Net Payable Amt.',
+      remainingAmt: 'Remaining Amt.',
+      longTermAdvanceAmt: 'Long Term Advance Amt.',
+      cuttingAmt: 'Cutting Amt.',
+      remainingLongTermAdvanceAmt: 'Remaining Long Term Advance Amt.'
+    },
+    hi: {
+      deduction: 'कटौती',
+      grossSummary: 'सकल सारांश',
+      anamatAmt: 'अनामत राशि',
+      advanceLongTerm: 'दीर्घकालीन एडवांस राशि',
+      advanceShortTerm: 'अल्पकालीन एडवांस राशि',
+      remainingCattleFeed: 'शेष पशुखाद्य राशि',
+      currentCattleFeed: 'वर्तमान पशुखाद्य राशि',
+      otherCutting: 'अन्य कटौती राशि',
+      totalDeductionAmt: 'कुल कटौती राशि',
+      totalMilkLiters: 'कुल दूध लीटर',
+      totalMilkAmt: 'कुल दूध राशि',
+      netPayableAmt: 'निवल देय राशि',
+      remainingAmt: 'शेष राशि',
+      longTermAdvanceAmt: 'दीर्घकालीन एडवांस राशि',
+      cuttingAmt: 'कटौती राशि',
+      remainingLongTermAdvanceAmt: 'शेष दीर्घकालीन एडवांस राशि'
+    },
+    mr: {
+      deduction: 'कपात',
+      grossSummary: 'एकूण सारांश',
+      anamatAmt: 'अनामत रक्कम',
+      advanceLongTerm: 'दीर्घ मुदत ॲडव्हान्स रक्कम',
+      advanceShortTerm: 'अल्प मुदत ॲडव्हान्स रक्कम',
+      remainingCattleFeed: 'शिल्लक पशुखाद्य रक्कम',
+      currentCattleFeed: 'चालू पशुखाद्य रक्कम',
+      otherCutting: 'इतर कपात रक्कम',
+      totalDeductionAmt: 'एकूण कपात रक्कम',
+      totalMilkLiters: 'एकूण दूध लिटर',
+      totalMilkAmt: 'एकूण दूध रक्कम',
+      netPayableAmt: 'निव्वळ देय रक्कम',
+      remainingAmt: 'बाकी रक्कम',
+      longTermAdvanceAmt: 'दीर्घ मुदत ॲडव्हान्स रक्कम',
+      cuttingAmt: 'कपात रक्कम',
+      remainingLongTermAdvanceAmt: 'शिल्लक दीर्घ मुदत ॲडव्हान्स रक्कम'
+    }
+  };
+  const t4 = t4All[language] || t4All.mr;
+
+  const parseDate = (dateStr: string) => {
+    if (!dateStr) return new Date();
+    if (dateStr.includes("/")) {
+      const parts = dateStr.split("/");
+      return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+    }
+    if (dateStr.includes("-")) {
+      const parts = dateStr.split("-");
+      if (parts[0].length === 4) return new Date(dateStr); // YYYY-MM-DD
+      return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0])); // DD-MM-YYYY
+    }
+    return new Date(dateStr);
+  };
+
+  const fromDate = parseDate(templateData.fromDate);
+  const toDate = parseDate(templateData.toDate);
+
+  const formatDisplayDate = (date: Date) => {
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
+  // Group data by date, shift, and milk type — aggregate multiple records for the same slot
+  interface AggEntry {
+    base: FarmerBillData;
+    liters: number;
+    amount: number;
+    fatWeighted: number;
+    snfWeighted: number;
+    clrWeighted: number;
+    rateWeighted: number;
+    water: number;
+  }
+  const groupedAgg = new Map<string, AggEntry>();
+  const cowAgg = new Map<string, AggEntry>();
+  const buffaloAgg = new Map<string, AggEntry>();
+
+  const aggregateInto = (map: Map<string, AggEntry>, key: string, item: FarmerBillData) => {
+    const liters = item.liters || 0;
+    const amount = item.amount || 0;
+    const fat = item.fat || 0;
+    const snf = item.snf || 0;
+    const clr = item.clr || 0;
+    const rate = item.rate || 0;
+    const water = item.water || 0;
+    if (map.has(key)) {
+      const agg = map.get(key)!;
+      agg.liters += liters;
+      agg.amount += amount;
+      agg.fatWeighted += fat * liters;
+      agg.snfWeighted += snf * liters;
+      agg.clrWeighted += clr * liters;
+      agg.rateWeighted += rate * liters;
+      agg.water += water;
+    } else {
+      map.set(key, {
+        base: item,
+        liters,
+        amount,
+        fatWeighted: fat * liters,
+        snfWeighted: snf * liters,
+        clrWeighted: clr * liters,
+        rateWeighted: rate * liters,
+        water,
+      });
+    }
+  };
+
+  const aggToFarmerBillData = (agg: AggEntry): FarmerBillData => {
+    const l = agg.liters;
+    return {
+      ...agg.base,
+      liters: l,
+      amount: agg.amount,
+      fat: l > 0 ? agg.fatWeighted / l : 0,
+      snf: l > 0 ? agg.snfWeighted / l : 0,
+      clr: l > 0 ? agg.clrWeighted / l : 0,
+      rate: l > 0 ? agg.rateWeighted / l : 0,
+      water: agg.water,
+    };
+  };
+
+  for (const item of templateData.data) {
+    const itemDate = new Date(item.date);
+    const dateKey = `${itemDate.getDate().toString().padStart(2, "0")}/${(
+      itemDate.getMonth() + 1
+    )
+      .toString()
+      .padStart(2, "0")}/${itemDate.getFullYear()}`;
+    const key = `${dateKey}_${item.shift}`;
+    const milkType = (item.type || '').toString().toLowerCase().trim();
+
+    aggregateInto(groupedAgg, key, item);
+
+    if (milkType === "cow") {
+      aggregateInto(cowAgg, key, item);
+    } else if (milkType === "buffalo") {
+      aggregateInto(buffaloAgg, key, item);
+    }
+  }
+
+  const groupedData = new Map<string, FarmerBillData>(
+    Array.from(groupedAgg.entries()).map(([k, v]) => [k, aggToFarmerBillData(v)])
+  );
+  const cowData = new Map<string, FarmerBillData>(
+    Array.from(cowAgg.entries()).map(([k, v]) => [k, aggToFarmerBillData(v)])
+  );
+  const buffaloData = new Map<string, FarmerBillData>(
+    Array.from(buffaloAgg.entries()).map(([k, v]) => [k, aggToFarmerBillData(v)])
+  );
+
+  // Pre-filter data if a specific milk type is requested
+  let processedData = templateData.data;
+  if (templateData.milkType === 'Cow') {
+    processedData = templateData.data.filter(item => (item.type || '').toString().toLowerCase().trim() === 'cow');
+  } else if (templateData.milkType === 'Buffalo') {
+    processedData = templateData.data.filter(item => (item.type || '').toString().toLowerCase().trim() === 'buffalo');
+  }
+
+  // Calculate totals for the table (from filtered processedData)
+  let totalLiters = 0, totalAmount = 0;
+  let totalFat = 0, totalSnf = 0, totalClr = 0, recordCount = 0;
+
+  processedData.forEach((item) => {
+    totalLiters += item.liters;
+    totalAmount += item.amount;
+    totalFat += item.fat;
+    totalSnf += item.snf;
+    totalClr += item.clr;
+    recordCount++;
+  });
+
+  // Calculate summary totals from COMPLETE data (for summary section)
+  let cowLiters = 0, cowAmount = 0;
+  let buffaloLiters = 0, buffaloAmount = 0;
+
+  templateData.data.forEach((item) => {
+    const milkType = (item.type || '').toString().toLowerCase().trim();
+    if (milkType === "cow") {
+      cowLiters += item.liters;
+      cowAmount += item.amount;
+    } else if (milkType === "buffalo") {
+      buffaloLiters += item.liters;
+      buffaloAmount += item.amount;
+    }
+  });
+
+  const avgFat = recordCount > 0 ? (totalFat / recordCount).toFixed(1) : "0.0";
+  const avgSnf = recordCount > 0 ? (totalSnf / recordCount).toFixed(1) : "0.0";
+  const avgClr = recordCount > 0 ? (totalClr / recordCount).toFixed(1) : "0.0";
+
+  let hasCowData = cowLiters > 0;
+  let hasBuffaloData = buffaloLiters > 0;
+
+  if (templateData.milkType === 'Cow') hasBuffaloData = false;
+  else if (templateData.milkType === 'Buffalo') hasCowData = false;
+
+  const hasBothTypes = hasCowData && hasBuffaloData;
+
+  const generateTableForType = (dataMap: Map<string, FarmerBillData>) => {
+    let rows = "";
+    const currentDate = new Date(fromDate);
+    while (currentDate <= toDate) {
+      const displayDate = `${currentDate.getDate().toString().padStart(2, "0")}/${(currentDate.getMonth() + 1).toString().padStart(2, "0")}/${currentDate.getFullYear()}`;
+
+      ['Morning', 'Evening'].forEach(shift => {
+        const key = `${displayDate}_${shift}`;
+        const item = dataMap.get(key);
+        const shiftLabel = shift === 'Morning' ? labels.morning : labels.evening;
+        rows += `<tr>
+          <td style="padding: 1px 3px;">${shift === 'Morning' ? displayDate : ''}</td>
+          <td style="padding: 1px 3px;">${shiftLabel}</td>
+          <td style="padding: 1px 3px;">${item ? item.liters.toFixed(1) : ''}</td>
+          <td style="padding: 1px 3px;">${item ? item.fat.toFixed(1) : ''}</td>
+          <td style="padding: 1px 3px;">${item ? item.snf.toFixed(1) : ''}</td>
+          <td style="padding: 1px 3px;">${item ? item.clr.toFixed(1) : ''}</td>
+          <td style="padding: 1px 3px;">${item ? item.rate.toFixed(1) : ''}</td>
+          <td style="padding: 1px 3px;">${item ? `${Math.trunc(item.amount)}.00` : ''}</td>
+        </tr>`;
+      });
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    return rows;
+  };
+
+  const tableRows = hasBothTypes ? generateTableForType(cowData) : generateTableForType(hasCowData ? cowData : (hasBuffaloData ? buffaloData : groupedData));
+
+  // Totals are the sum of the truncated row amounts (e.g. 58.8 + 58.6 → 58 + 58 = 116), no round-off
+  const truncSum = (m: Map<string, FarmerBillData>) => Array.from(m.values()).reduce((s, it) => s + Math.trunc(it.amount), 0);
+  const tableAmountTotal = hasBothTypes ? truncSum(cowData) : truncSum(hasCowData ? cowData : (hasBuffaloData ? buffaloData : groupedData));
+  const milkAmountTotal = (cowData.size > 0 || buffaloData.size > 0)
+    ? truncSum(cowData) + truncSum(buffaloData)
+    : truncSum(groupedData);
+
+  // --- DEDUCTION LOGIC ---
+  const getSumOfPayments = (type: string) => {
+    const searchType = type.toLowerCase().trim().replace(/\s/g, '');
+    const isCattleFeed = searchType === 'cattlefeed' || searchType === 'pashukhady' || searchType === 'पशुखाद्य';
+
+    return (templateData.payments || [])
+      .filter(p => {
+        const pType = p.payment_type.toLowerCase().trim().replace(/\s/g, '');
+        if (isCattleFeed) return pType === 'cattlefeed' || pType === 'pashukhady' || pType === 'पशुखाद्य';
+        return pType === searchType;
+      })
+      .reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0);
+  };
+
+  const summaryTotalLiters = cowLiters + buffaloLiters;
+
+  // Anamat = bonus deduction (rate x liters) or fixed deduction — whichever the API sends
+  const bonusRate = templateData.bonus_deduction_info?.bonus_amount || 0;
+  const bonusAmount = bonusRate * summaryTotalLiters;
+  const fixedAmount = templateData.bonus_deduction_info?.fixed_amount || 0;
+
+  // Same fallback as the other formats: when bonus_deduction_info has no value,
+  // take the farmer's bonus total from bonus_deduction_logs_summary (padded farmer-code match)
+  let bonusFromLogs: number | string = templateData.bonus_deduction_info?.total_bonus_till_date || 0;
+  if (templateData.bonus_deduction_logs_summary?.farmers) {
+    const farmerBonus = templateData.bonus_deduction_logs_summary.farmers.find(
+      (f) => String(f.farmer_id).padStart(4, "0") === String(templateData.farmerCode).padStart(4, "0") ||
+             String(f.farmer_id) === String(templateData.farmerCode)
+    );
+    if (farmerBonus) bonusFromLogs = farmerBonus.total_bonus_deduction;
+  }
+
+  // All deduction values are truncated (no round-off) and printed with .00
+  const anamatAmt = Math.trunc((bonusAmount + fixedAmount) > 0
+    ? bonusAmount + fixedAmount
+    : (parseFloat(String(bonusFromLogs)) || 0));
+
+  const advLongTermAmt = Math.trunc(parseFloat(templateData.current_bill?.other1_total || '0'));      // Other 1
+  const advShortTermAmt = Math.trunc(parseFloat(templateData.current_bill?.advance_total || '0'));    // Advance
+  const remCattleFeedAmt = Math.trunc(parseFloat(templateData.previous_bill?.cattlefeed_remaining || '0'));
+  const curCattleFeedAmt = Math.trunc(parseFloat(templateData.current_bill?.cattlefeed_total || '0'));
+  const otherCuttingAmt = Math.trunc(parseFloat(templateData.current_bill?.other2_total || '0'));     // Other 2
+
+  const totalDeductionAmt = anamatAmt + advLongTermAmt + advShortTermAmt + remCattleFeedAmt + curCattleFeedAmt + otherCuttingAmt;
+
+  // Remaining balances (prev remaining + taken this period - deducted this bill), per account
+  const remainingBalances = [
+    {
+      prev: parseFloat(templateData.previous_bill?.other1_remaining || '0'),
+      payment: getSumOfPayments('other1') + getSumOfPayments('other 1'),
+      deduction: advLongTermAmt
+    },
+    {
+      prev: parseFloat(templateData.previous_bill?.cattlefeed_remaining || '0'),
+      payment: getSumOfPayments('cattle feed'),
+      deduction: curCattleFeedAmt
+    },
+    {
+      prev: parseFloat(templateData.previous_bill?.advance_remaining || '0'),
+      payment: getSumOfPayments('advance'),
+      deduction: advShortTermAmt
+    },
+    {
+      prev: parseFloat(templateData.previous_bill?.other2_remaining || '0'),
+      payment: getSumOfPayments('other2') + getSumOfPayments('other 2'),
+      deduction: otherCuttingAmt
+    }
+  ];
+  const remainingAmt = Math.trunc(remainingBalances.reduce((sum, d) => sum + (d.prev + d.payment - d.deduction), 0));
+
+  // Long Term Advance (Other 1) account summary for the bottom table
+  const longTermAdvanceTotal = Math.trunc(remainingBalances[0].prev + remainingBalances[0].payment);
+  const longTermAdvanceCut = advLongTermAmt;
+  const longTermAdvanceRemaining = longTermAdvanceTotal - longTermAdvanceCut;
+
+  const netPayableAmt = milkAmountTotal - totalDeductionAmt;
+
+  // Amounts: truncated integer + ".00"; zero prints blank so the user can fill it in by hand
+  const fmtAmt = (v: number) => (Math.trunc(v) === 0 ? '' : `${Math.trunc(v)}.00`);
+  // Quantities (liters) keep their decimal; zero prints blank
+  const fmtQty = (v: number, digits: number = 1) => (Math.abs(v) < 0.005 ? '' : v.toFixed(digits));
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      line-height: 1.0;
+      margin: 0;
+      padding: 0;
+    }
+    .header {
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+      margin: 0;
+      margin-bottom: 3px;
+    }
+    .dairy-code {
+      text-align: center;
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+    .invoice-info { display: flex; justify-content: space-between; margin: 8px 0; font-size: 12px; line-height: 1.4; }
+    .main-table { width: 100%; border-collapse: collapse; margin: 8px 0; border: 1px solid black; }
+    .main-table th { padding: 3px 3px; text-align: center; font-size: 11px; border-bottom: 2px solid black; border-right: 1px solid #ccc; background-color: #f0f0f0; font-weight: bold; }
+    .main-table td { padding: 1px 3px; text-align: center; font-size: 11px; border-right: 1px solid #eee; }
+    .main-table th:last-child, .main-table td:last-child { border-right: none; }
+    .total-row { font-weight: bold; background-color: #f0f0f0; border-top: 1px solid black; border-bottom: 1px solid black; }
+    .total-row td { padding: 3px; }
+    .ded-summary-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    .ded-summary-table td { border: 1px solid black; padding: 6px 8px; font-size: 12px; }
+    .ded-summary-table .title-cell { text-align: center; font-size: 14px; font-weight: bold; padding: 4px; }
+    .ded-summary-table .label-cell { font-weight: bold; text-align: left; width: 32%; }
+    .ded-summary-table .value-cell { text-align: right; width: 18%; }
+    .lt-advance-table { width: 52%; border-collapse: collapse; margin-top: 12px; }
+    .lt-advance-table td { border: 1px solid black; padding: 6px 8px; font-size: 12px; }
+    .lt-advance-table .label-cell { font-weight: bold; text-align: left; width: 70%; }
+    .lt-advance-table .value-cell { text-align: right; }
+  </style>
+</head>
+<body style="margin: 0; padding: 0;">
+  <div style="padding: 30px 50px 15px 50px; box-sizing: border-box; background-color: white;">
+    ${!templateData.hideHeader ? `
+  <div class="header">${templateData.dairyName}</div>
+  <div class="dairy-code">${templateData.dairyCode || ''}</div>
+  <div class="invoice-info">
+    <div>
+      <strong>${labels.code} & ${labels.name}:</strong> ${templateData.farmerCode} ${templateData.farmerName}<br>
+      <strong>${labels.branch}:</strong> ${templateData.branchName}
+    </div>
+    <div>
+      <strong>${labels.invoice} No.</strong> 1<br>
+      <strong>${labels.bill} ${labels.date}</strong> ${formatDisplayDate(fromDate)} <strong>${labels.to}</strong> ${formatDisplayDate(toDate)}
+    </div>
+  </div>` : '<div style="height: 15px;"></div>'}
+
+  <table class="main-table">
+    <thead>
+      <tr>
+        <th>${labels.date}</th>
+        <th>${labels.shift}</th>
+        <th>${labels.quantity}</th>
+        <th>${labels.fat}</th>
+        <th>${labels.snf}</th>
+        <th>${labels.clr}</th>
+        <th>${labels.rate}</th>
+        <th>${labels.amount}</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${tableRows}
+      <tr class="total-row">
+        <td colspan="2">${labels.total}</td>
+        <td>${totalLiters.toFixed(1)}</td>
+        <td>${avgFat}</td>
+        <td>${avgSnf}</td>
+        <td>${avgClr}</td>
+        <td>${totalLiters > 0 ? (totalAmount / totalLiters).toFixed(1) : "0.0"}</td>
+        <td>${tableAmountTotal}.00</td>
+      </tr>
+    </tbody>
+  </table>
+
+  ${!templateData.hideSummary ? `
+  <table class="ded-summary-table">
+    <tr>
+      <td class="title-cell" colspan="2">${t4.deduction}</td>
+      <td class="title-cell" colspan="2">${t4.grossSummary}</td>
+    </tr>
+    <tr>
+      <td class="label-cell">1. ${t4.anamatAmt}</td>
+      <td class="value-cell">${fmtAmt(anamatAmt)}</td>
+      <td class="label-cell">${t4.totalMilkLiters}</td>
+      <td class="value-cell">${fmtQty(summaryTotalLiters)}</td>
+    </tr>
+    <tr>
+      <td class="label-cell">2. ${t4.advanceLongTerm}</td>
+      <td class="value-cell"></td>
+      <td class="label-cell">${t4.totalMilkAmt}</td>
+      <td class="value-cell">${fmtAmt(milkAmountTotal)}</td>
+    </tr>
+    <tr>
+      <td class="label-cell">3. ${t4.advanceShortTerm}</td>
+      <td class="value-cell"></td>
+      <td class="label-cell">${t4.totalDeductionAmt}</td>
+      <td class="value-cell"></td>
+    </tr>
+    <tr>
+      <td class="label-cell">4. ${t4.remainingCattleFeed}</td>
+      <td class="value-cell"></td>
+      <td class="label-cell">${t4.netPayableAmt}</td>
+      <td class="value-cell"></td>
+    </tr>
+    <tr>
+      <td class="label-cell">5. ${t4.currentCattleFeed}</td>
+      <td class="value-cell"></td>
+      <td class="label-cell">${t4.remainingAmt}</td>
+      <td class="value-cell"></td>
+    </tr>
+    <tr>
+      <td class="label-cell">6. ${t4.otherCutting}</td>
+      <td class="value-cell"></td>
+      <td class="label-cell"></td>
+      <td class="value-cell"></td>
+    </tr>
+    <tr>
+      <td class="label-cell">${t4.totalDeductionAmt}</td>
+      <td class="value-cell" style="font-weight: bold;"></td>
+      <td class="label-cell"></td>
+      <td class="value-cell"></td>
+    </tr>
+  </table>
+
+  <table class="lt-advance-table">
+    <tr>
+      <td class="label-cell">${t4.longTermAdvanceAmt}</td>
+      <td class="value-cell"></td>
+    </tr>
+    <tr>
+      <td class="label-cell">${t4.cuttingAmt}</td>
+      <td class="value-cell"></td>
+    </tr>
+    <tr>
+      <td class="label-cell">${t4.remainingLongTermAdvanceAmt}</td>
+      <td class="value-cell"></td>
+    </tr>
+  </table>` : ''}
+  </div>
+</body>
+</html>`;
+};

@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAppSelector } from "@/redux/store";
 import { toast } from "react-toastify";
-import { api } from "@/services/config";
+import { bonusApi } from "@/services/bonusApi";
 import { userApi } from "@/services/reportsApi";
 
 const Bonus = () => {
@@ -21,8 +21,7 @@ const Bonus = () => {
   const [buffaloAmount, setBuffaloAmount] = useState("");
   const [fixedAmount, setFixedAmount] = useState("");
   const [loading, setLoading] = useState(false);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [effectiveFrom, setEffectiveFrom] = useState("");
 
   useEffect(() => {
     if (selectedVlc) {
@@ -84,8 +83,8 @@ const Bonus = () => {
   };
 
   const handleSubmit = async () => {
-    if (!startDate || !endDate) {
-      toast.error("Please select start and end dates");
+    if (!effectiveFrom) {
+      toast.error("Please select effective date");
       return;
     }
 
@@ -102,19 +101,20 @@ const Bonus = () => {
         const payload = {
           dairy_id: parseInt(selectedVlc),
           farmer_id: farmerId,
-          start_date: startDate,
-          end_date: endDate,
+          effective_from: effectiveFrom,
           bonus_deduction: parseFloat(amount),
           fixed_deduction: 0,
         };
-        return api.post("/bonus-deductions", payload);
+        return bonusApi.createBonusDeduction(payload);
       });
 
       await Promise.all(promises);
       toast.success(`Bonus created for ${farmersWithBonus.length} farmer(s)`);
       setBonusAmounts({});
-      setStartDate("");
-      setEndDate("");
+      setBulkAmount("");
+      setCowAmount("");
+      setBuffaloAmount("");
+      setEffectiveFrom("");
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to create bonus");
     } finally {
@@ -123,7 +123,7 @@ const Bonus = () => {
   };
 
   const handleFixedSubmit = async () => {
-    if (!selectedVlc || !startDate || !endDate || !fixedAmount) {
+    if (!selectedVlc || !effectiveFrom || !fixedAmount) {
       toast.error("Please fill all required fields");
       return;
     }
@@ -136,18 +136,16 @@ const Bonus = () => {
           const payload = {
             dairy_id: parseInt(selectedVlc),
             farmer_id: farmer.username,
-            start_date: startDate,
-            end_date: endDate,
+            effective_from: effectiveFrom,
             bonus_deduction: 0,
             fixed_deduction: parseFloat(fixedAmount),
           };
-          return api.post("/bonus-deductions", payload);
+          return bonusApi.createBonusDeduction(payload);
         });
         await Promise.all(promises);
         toast.success(`Fixed deduction created for ${data.data.length} farmer(s)`);
         setFixedAmount("");
-        setStartDate("");
-        setEndDate("");
+        setEffectiveFrom("");
       }
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to create fixed deduction");
@@ -170,7 +168,7 @@ const Bonus = () => {
             </TabsList>
             
             <TabsContent value="bonus" className="space-y-6 text-left mt-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <Label htmlFor="vlc" className="mb-2 font-medium">VLC<span className="text-red-600">*</span></Label>
                 <Select value={selectedVlc} onValueChange={setSelectedVlc}>
@@ -187,22 +185,12 @@ const Bonus = () => {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="start_date" className="mb-2 font-medium">Start Date<span className="text-red-600">*</span></Label>
+                <Label htmlFor="effective_from" className="mb-2 font-medium">Effective Date<span className="text-red-600">*</span></Label>
                 <Input
-                  id="start_date"
+                  id="effective_from"
                   type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="border-gray-300 h-11"
-                />
-              </div>
-              <div>
-                <Label htmlFor="end_date" className="mb-2 font-medium">End Date<span className="text-red-600">*</span></Label>
-                <Input
-                  id="end_date"
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
+                  value={effectiveFrom}
+                  onChange={(e) => setEffectiveFrom(e.target.value)}
                   className="border-gray-300 h-11"
                 />
               </div>
@@ -302,7 +290,7 @@ const Bonus = () => {
             </TabsContent>
 
             <TabsContent value="fixed" className="space-y-6 text-left mt-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <Label htmlFor="vlc_fixed" className="mb-2 font-medium">VLC<span className="text-red-600">*</span></Label>
                   <Select value={selectedVlc} onValueChange={setSelectedVlc}>
@@ -319,22 +307,12 @@ const Bonus = () => {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="start_date_fixed" className="mb-2 font-medium">Start Date<span className="text-red-600">*</span></Label>
+                  <Label htmlFor="effective_from_fixed" className="mb-2 font-medium">Effective Date<span className="text-red-600">*</span></Label>
                   <Input
-                    id="start_date_fixed"
+                    id="effective_from_fixed"
                     type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="border-gray-300 h-11"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="end_date_fixed" className="mb-2 font-medium">End Date<span className="text-red-600">*</span></Label>
-                  <Input
-                    id="end_date_fixed"
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
+                    value={effectiveFrom}
+                    onChange={(e) => setEffectiveFrom(e.target.value)}
                     className="border-gray-300 h-11"
                   />
                 </div>

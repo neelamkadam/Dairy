@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { api } from '@/services/config';
 import { useAppSelector } from '@/redux/store';
 import { toast } from 'react-toastify';
-import { generateTemplate2, generateTemplateDetailedHorizontal, FarmerBillData, BankDetails } from '@/templates/FarmerBillInvoiceTemplate';
+import { generateTemplate2, generateTemplate4, generateTemplateDetailedHorizontal, FarmerBillData, BankDetails } from '@/templates/FarmerBillInvoiceTemplate';
 import { generateFarmer2PerPage } from '@/templates/FarmerBill2PerPageTemplate';
 import { bankSummaryApi } from '@/services/bankSummaryApi';
 import { format } from 'date-fns';
@@ -174,7 +174,7 @@ const FarmerBillInvoiceReport = () => {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [exportFormat, setExportFormat] = useState<'1-per-page' | '2-per-page' | '3-per-page' | 'detailed-horizontal'>('1-per-page');
+  const [exportFormat, setExportFormat] = useState<'1-per-page' | '2-per-page' | '3-per-page' | 'detailed-horizontal' | 'format-4'>('1-per-page');
   const [milkTypeFilter, setMilkTypeFilter] = useState<'All' | 'Cow' | 'Buffalo'>('All');
 
   const handleShow = async () => {
@@ -543,7 +543,7 @@ const FarmerBillInvoiceReport = () => {
     };
   };
 
-  const exportToPDF = async () => {
+  const exportToPDF = async (templateFn: typeof generateTemplate2 = generateTemplate2) => {
     setPdfLoading(true);
     try {
       const selectedBranch = branches.find(v => v.branch_id.toString() === selectedVLC);
@@ -637,6 +637,16 @@ const FarmerBillInvoiceReport = () => {
             farmer_name: farmerInfo.farmer_details?.fullName || farmerId
           }));
 
+        // Format 4 (Anamat) uses the latest bonus/fixed deduction as-is,
+        // without the effective_from period check applied by attachBonus
+        const rawBonusEntry = bonusMap.get(farmerId);
+        const format4BonusInfo = rawBonusEntry ? {
+          bonus_amount: parseFloat(rawBonusEntry.bonus_deduction || 0),
+          fixed_amount: parseFloat(rawBonusEntry.fixed_deduction || 0),
+          remark: rawBonusEntry.remark || 'इमारत निधी',
+          total_bonus_till_date: 0
+        } : null;
+
         const baseParams = {
           dairyName: dairyName,
           branchName: branchName,
@@ -650,7 +660,9 @@ const FarmerBillInvoiceReport = () => {
           payments: getNormalizedPayments(farmerInfo),
           current_bill: farmerInfo.current_bill,
           previous_bill: farmerInfo.previous_bill,
-          bonus_deduction_info: attachBonus(farmerInfo, bonusMap, templateDataItems.reduce((s, i) => s + i.liters, 0)).bonus_deduction_info,
+          bonus_deduction_info: templateFn === generateTemplate4
+            ? format4BonusInfo
+            : attachBonus(farmerInfo, bonusMap, templateDataItems.reduce((s, i) => s + i.liters, 0)).bonus_deduction_info,
           bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary,
           bankDetails: farmerInfo.farmer_details ? {
             accountNumber: farmerInfo.farmer_details.accountNumber,
@@ -690,7 +702,7 @@ const FarmerBillInvoiceReport = () => {
           } : undefined;
 
           // 1. Cow Page (Header YES, Summary NO)
-          const cowHtml = generateTemplate2({
+          const cowHtml = templateFn({
             ...baseParams,
             milkType: 'Cow',
             hideHeader: false,
@@ -704,7 +716,7 @@ const FarmerBillInvoiceReport = () => {
           pdf.addImage(cowPage.imgData, 'JPEG', 0, 0, cowPage.imgWidth, cowPage.imgHeight);
 
           // 2. Buffalo Page (Header NO, Summary YES — combined cow+buffalo travel commission)
-          const buffaloHtml = generateTemplate2({
+          const buffaloHtml = templateFn({
             ...baseParams,
             milkType: 'Buffalo',
             hideHeader: true,
@@ -718,7 +730,7 @@ const FarmerBillInvoiceReport = () => {
         } else {
           // Detect actual milk type for single-type farmers (milkTypeFilter may be 'All')
           const actualMilkType = milkTypeFilter !== 'All' ? milkTypeFilter : (templateDataItems[0]?.type || 'Cow');
-          const htmlContent = generateTemplate2({
+          const htmlContent = templateFn({
             ...baseParams,
             milkType: milkTypeFilter,
             travel_commission: buildTravelCommission(
@@ -1077,7 +1089,7 @@ const FarmerBillInvoiceReport = () => {
   };
 
   const handleExport = () => {
-    if (exportFormat === '1-per-page' && collectionData.length === 0) {
+    if ((exportFormat === '1-per-page' || exportFormat === 'format-4') && collectionData.length === 0) {
       toast.error(t('please_click_show_first_for_detailed_report'));
       return;
     }
@@ -1086,6 +1098,8 @@ const FarmerBillInvoiceReport = () => {
       exportDetailedHorizontalPDF();
     } else if (exportFormat === '1-per-page') {
       exportToPDF();
+    } else if (exportFormat === 'format-4') {
+      exportToPDF(generateTemplate4);
     } else if (exportFormat === '2-per-page') {
       exportMultiPerPagePDF(1);
     } else {
@@ -1508,6 +1522,10 @@ const FarmerBillInvoiceReport = () => {
               <div className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExportFormat('detailed-horizontal' as any)}>
                 <RadioGroupItem value="detailed-horizontal" id="detailed-horizontal" />
                 <Label htmlFor="detailed-horizontal" className="flex-1 font-semibold cursor-pointer">{t('export_option_detailed_horizontal')}</Label>
+              </div>
+              <div className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExportFormat('format-4')}>
+                <RadioGroupItem value="format-4" id="format-4" />
+                <Label htmlFor="format-4" className="flex-1 font-semibold cursor-pointer">{t('export_option_format_4')}</Label>
               </div>
             </RadioGroup>
           </div>
