@@ -1736,14 +1736,14 @@ export const generateTemplate4 = (templateData: Template2Data, language: string 
         const item = dataMap.get(key);
         const shiftLabel = shift === 'Morning' ? labels.morning : labels.evening;
         rows += `<tr>
-          <td style="padding: 1px 3px;">${shift === 'Morning' ? displayDate : ''}</td>
-          <td style="padding: 1px 3px;">${shiftLabel}</td>
-          <td style="padding: 1px 3px;">${item ? item.liters.toFixed(1) : ''}</td>
-          <td style="padding: 1px 3px;">${item ? item.fat.toFixed(1) : ''}</td>
-          <td style="padding: 1px 3px;">${item ? item.snf.toFixed(1) : ''}</td>
-          <td style="padding: 1px 3px;">${item ? item.clr.toFixed(1) : ''}</td>
-          <td style="padding: 1px 3px;">${item ? item.rate.toFixed(1) : ''}</td>
-          <td style="padding: 1px 3px;">${item ? `${Math.trunc(item.amount)}.00` : ''}</td>
+          <td style="padding: 6px 8px;">${shift === 'Morning' ? displayDate : ''}</td>
+          <td style="padding: 6px 8px;">${shiftLabel}</td>
+          <td style="padding: 6px 8px;">${item ? item.liters.toFixed(1) : ''}</td>
+          <td style="padding: 6px 8px;">${item ? item.fat.toFixed(1) : ''}</td>
+          <td style="padding: 6px 8px;">${item ? item.snf.toFixed(1) : ''}</td>
+          <td style="padding: 6px 8px;">${item ? item.clr.toFixed(1) : ''}</td>
+          <td style="padding: 6px 8px;">${item ? item.rate.toFixed(1) : ''}</td>
+          <td style="padding: 6px 8px;">${item ? `${Math.trunc(item.amount)}.00` : ''}</td>
         </tr>`;
       });
       currentDate.setDate(currentDate.getDate() + 1);
@@ -1869,19 +1869,19 @@ export const generateTemplate4 = (templateData: Template2Data, language: string 
       margin-bottom: 6px;
     }
     .invoice-info { display: flex; justify-content: space-between; margin: 8px 0; font-size: 12px; line-height: 1.4; }
-    .main-table { width: 100%; border-collapse: collapse; margin: 8px 0; border: 1px solid black; }
-    .main-table th { padding: 3px 3px; text-align: center; font-size: 11px; border-bottom: 2px solid black; border-right: 1px solid #ccc; background-color: #f0f0f0; font-weight: bold; }
-    .main-table td { padding: 1px 3px; text-align: center; font-size: 11px; border-right: 1px solid #eee; }
+    .main-table { width: 90%; border-collapse: collapse; margin: 8px 0; border: 1px solid black; }
+    .main-table th { padding: 7px 8px; text-align: center; font-size: 13px; border-bottom: 2px solid black; border-right: 1px solid #ccc; background-color: #f0f0f0; font-weight: bold; }
+    .main-table td { padding: 6px 8px; text-align: center; font-size: 13px; border-right: 1px solid #eee; }
     .main-table th:last-child, .main-table td:last-child { border-right: none; }
     .total-row { font-weight: bold; background-color: #f0f0f0; border-top: 1px solid black; border-bottom: 1px solid black; }
-    .total-row td { padding: 3px; }
+    .total-row td { padding: 6px 8px; }
     .ded-summary-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    .ded-summary-table td { border: 1px solid black; padding: 6px 8px; font-size: 12px; }
-    .ded-summary-table .title-cell { text-align: center; font-size: 14px; font-weight: bold; padding: 4px; }
+    .ded-summary-table td { border: 1px solid black; padding: 6px 8px; font-size: 14px; }
+    .ded-summary-table .title-cell { text-align: center; font-size: 16px; font-weight: bold; padding: 4px; }
     .ded-summary-table .label-cell { font-weight: bold; text-align: left; width: 32%; }
     .ded-summary-table .value-cell { text-align: right; width: 18%; }
     .lt-advance-table { width: 52%; border-collapse: collapse; margin-top: 12px; }
-    .lt-advance-table td { border: 1px solid black; padding: 6px 8px; font-size: 12px; }
+    .lt-advance-table td { border: 1px solid black; padding: 6px 8px; font-size: 14px; }
     .lt-advance-table .label-cell { font-weight: bold; text-align: left; width: 70%; }
     .lt-advance-table .value-cell { text-align: right; }
   </style>
@@ -1893,8 +1893,9 @@ export const generateTemplate4 = (templateData: Template2Data, language: string 
   <div class="dairy-code">${templateData.dairyCode || ''}</div>
   <div class="invoice-info">
     <div>
-      <strong>${labels.code} & ${labels.name}:</strong> ${templateData.farmerCode} ${templateData.farmerName}<br>
-      <strong>${labels.branch}:</strong> ${templateData.branchName}
+      <div style="font-size: 17px; font-weight: bold;">${labels.code}: ${templateData.farmerCode}</div>
+      <div><strong>${labels.name}:</strong> ${templateData.farmerName}</div>
+      <div><strong>${labels.branch}:</strong> ${templateData.branchName}</div>
     </div>
     <div>
       <strong>${labels.invoice} No.</strong> 1<br>
@@ -1993,6 +1994,217 @@ export const generateTemplate4 = (templateData: Template2Data, language: string 
       <td class="value-cell"></td>
     </tr>
   </table>` : ''}
+  </div>
+</body>
+</html>`;
+};
+
+// ── Format 5: Milk Bill (Purchase Bill Report) ──
+export const generateTemplate5MilkBill = (templateData: Template2Data, _language: string = 'mr'): string => {
+  const parseDate = (dateStr: string) => {
+    if (!dateStr) return new Date();
+    if (dateStr.includes("/")) {
+      const parts = dateStr.split("/");
+      return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+    }
+    if (dateStr.includes("-")) {
+      const parts = dateStr.split("-");
+      if (parts[0].length === 4) return new Date(dateStr); // YYYY-MM-DD
+      return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0])); // DD-MM-YYYY
+    }
+    return new Date(dateStr);
+  };
+
+  const fromDate = parseDate(templateData.fromDate);
+  const toDate = parseDate(templateData.toDate);
+
+  const pad2 = (n: number) => String(n).padStart(2, '0');
+  const fmtDMY = (d: Date) => `${pad2(d.getDate())}-${pad2(d.getMonth() + 1)}-${d.getFullYear()}`;
+  const fmtDMYSpaces = (d: Date) => `${pad2(d.getDate())} ${pad2(d.getMonth() + 1)} ${d.getFullYear()}`;
+
+  const now = new Date();
+  const runTime = `${now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} ${now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
+
+  // One row per date + shift + milk type; multiple entries in the same slot are aggregated
+  interface Slot { date: Date; shift: string; type: string; liters: number; amount: number; fatW: number; snfW: number; rateW: number; }
+  const slots = new Map<string, Slot>();
+  for (const item of templateData.data) {
+    const d = new Date(item.date);
+    const dateKey = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+    const key = `${dateKey}_${item.shift}_${item.type}`;
+    const liters = item.liters || 0;
+    if (!slots.has(key)) {
+      slots.set(key, { date: d, shift: item.shift, type: item.type, liters: 0, amount: 0, fatW: 0, snfW: 0, rateW: 0 });
+    }
+    const s = slots.get(key)!;
+    s.liters += liters;
+    s.amount += item.amount || 0;
+    s.fatW += (item.fat || 0) * liters;
+    s.snfW += (item.snf || 0) * liters;
+    s.rateW += (item.rate || 0) * liters;
+  }
+
+  const shiftOrder = (s: string) => ((s || '').toLowerCase().startsWith('e') ? 1 : 0);
+  const typeCode = (t: string) => ((t || '').toLowerCase().trim().startsWith('b') ? 'BM' : 'CM');
+
+  const rows = Array.from(slots.values()).sort((a, b) =>
+    a.date.getTime() - b.date.getTime() || shiftOrder(a.shift) - shiftOrder(b.shift) || a.type.localeCompare(b.type)
+  );
+
+  // Amounts are truncated (no round-off) and printed with .00; totals are sums of the truncated values
+  let totalQty = 0, milkAmount = 0, fatSum = 0, snfSum = 0;
+  const bodyRows = rows.map((r, idx) => {
+    const fat = r.liters > 0 ? r.fatW / r.liters : 0;
+    const snf = r.liters > 0 ? r.snfW / r.liters : 0;
+    const rate = r.liters > 0 ? r.rateW / r.liters : 0;
+    const amt = Math.trunc(r.amount);
+    totalQty += r.liters;
+    milkAmount += amt;
+    fatSum += fat;
+    snfSum += snf;
+    return `<tr>
+      <td>${idx + 1}</td>
+      <td>${fmtDMY(r.date)}</td>
+      <td></td>
+      <td>${typeCode(r.type)}</td>
+      <td>${shiftOrder(r.shift) === 1 ? 'Eve' : 'Mor'}</td>
+      <td class="num">${r.liters.toFixed(2)}</td>
+      <td class="num">${fat.toFixed(2)}</td>
+      <td class="num">${snf.toFixed(2)}</td>
+      <td class="num">${rate.toFixed(2)}</td>
+      <td class="num">${amt}.00</td>
+    </tr>`;
+  }).join('');
+
+  const rowCount = rows.length;
+  const avgQty = rowCount ? totalQty / rowCount : 0;
+  const avgFat = rowCount ? fatSum / rowCount : 0;
+  const avgSnf = rowCount ? snfSum / rowCount : 0;
+
+  const hasBM = rows.some(r => typeCode(r.type) === 'BM');
+  const hasCM = rows.some(r => typeCode(r.type) === 'CM');
+  const milkTypeLabel = hasBM && hasCM ? 'BM/ CM' : (hasBM ? 'BM' : 'CM');
+
+  const advanceAmt = Math.trunc(parseFloat(templateData.current_bill?.advance_total || '0'));
+  const cattleAmt = Math.trunc(parseFloat(templateData.current_bill?.cattlefeed_total || '0'));
+  const totalDeductions = advanceAmt + cattleAmt;
+  const totalAdditions = 0;
+  const subTotal = milkAmount + totalAdditions;
+  const netAmount = subTotal - totalDeductions;
+
+  const unitLine = `${templateData.dairyCode || ''} ${templateData.dairyName}${templateData.branchName ? ` (${templateData.branchName})` : ''}`;
+  const centerLine = `${templateData.farmerCode} ${templateData.farmerName}`;
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; font-size: 12px; margin: 0; padding: 0; color: black; }
+    .bill { border: 2px solid black; }
+    .title { text-align: center; font-size: 18px; font-weight: bold; padding: 8px 0 4px 0; }
+    .subtitle { text-align: center; font-size: 13px; font-weight: bold; padding: 2px 0 8px 0; }
+    .info-row { display: flex; justify-content: space-between; border-top: 1px solid black; padding: 5px 8px; font-size: 12px; }
+    .info-row .lbl { font-weight: normal; }
+    .info-row b { font-weight: bold; }
+    .main-table { width: 100%; border-collapse: collapse; }
+    .main-table th, .main-table td { border: 1px solid black; padding: 5px 6px; font-size: 12px; text-align: center; }
+    .main-table th { background: #d9d9d9; font-weight: bold; }
+    .main-table td.num { text-align: right; }
+    .avg-row td { font-weight: bold; }
+    .panels { display: flex; width: 100%; border-top: 1px solid black; }
+    .panel { border-collapse: collapse; }
+    .panel td { border: 1px solid black; padding: 6px 6px; font-size: 12px; }
+    .panel .panel-title { background: #d9d9d9; font-weight: bold; text-align: center; }
+    .panel .val { text-align: right; }
+    .note { border-top: 1px solid black; padding: 5px 8px; font-weight: bold; font-size: 12px; }
+  </style>
+</head>
+<body style="margin: 0; padding: 0;">
+  <div style="padding: 25px 30px; box-sizing: border-box; background-color: white;">
+  <div class="bill">
+    <div class="title">Milk Bill</div>
+    <div class="subtitle">Purchase Bill Report&nbsp;&nbsp;Run Time: ${runTime}</div>
+
+    <div class="info-row">
+      <div><span class="lbl">Bill Period:</span>&nbsp;&nbsp;<b>${fmtDMYSpaces(fromDate)} - ${fmtDMYSpaces(toDate)}</b></div>
+      <div><span class="lbl">Bill Date:</span>&nbsp;&nbsp;<b>${fmtDMY(toDate)}</b></div>
+    </div>
+
+    <div class="info-row">
+      <div style="width: 40%;"><span class="lbl">Unit :</span>&nbsp;<b>${unitLine}</b></div>
+      <div style="width: 38%;"><span class="lbl">Center :</span>&nbsp;<b>${centerLine}</b></div>
+      <div style="width: 22%; text-align: right;"><span class="lbl">Milk Type:</span>&nbsp;<b>${milkTypeLabel}</b></div>
+    </div>
+
+    <table class="main-table">
+      <thead>
+        <tr>
+          <th>Sr. No.</th>
+          <th>Date</th>
+          <th>Vehicle No</th>
+          <th>Type</th>
+          <th>Shift</th>
+          <th>Qty (Ltrs)</th>
+          <th>FAT %</th>
+          <th>SNF %</th>
+          <th>Rate</th>
+          <th>Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${bodyRows}
+        <tr class="avg-row">
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td>Avg Qty</td>
+          <td class="num">${avgQty.toFixed(2)}</td>
+          <td class="num">${avgFat.toFixed(2)}</td>
+          <td class="num">${avgSnf.toFixed(2)}</td>
+          <td></td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="panels">
+      <table class="panel" style="width: 21%;">
+        <tr><td class="panel-title" colspan="2">Gross Total</td></tr>
+        <tr><td>Total Liters</td><td class="val">${totalQty.toFixed(2)}</td></tr>
+        <tr><td>Milk Amount</td><td class="val">${milkAmount}.00</td></tr>
+        <tr><td>Rate Diff. A</td><td class="val">0.00</td></tr>
+        <tr><td>Rate Diff. B</td><td class="val">0.00</td></tr>
+        <tr><td>Total A + B</td><td class="val">0.00</td></tr>
+      </table>
+      <table class="panel" style="width: 19%;">
+        <tr><td class="panel-title" colspan="2">GST Amount</td></tr>
+        <tr><td>Type</td><td>Amount</td></tr>
+        <tr><td>CGST</td><td class="val">0.00</td></tr>
+        <tr><td>SGST</td><td class="val">0.00</td></tr>
+        <tr><td>IGST</td><td class="val">0.00</td></tr>
+        <tr><td>Total</td><td class="val">0.00</td></tr>
+      </table>
+      <table class="panel" style="width: 32%;">
+        <tr><td class="panel-title" colspan="2">Deductions</td></tr>
+        <tr><td style="font-weight: bold;">Deduction</td><td style="font-weight: bold;">Amount</td></tr>
+        <tr><td>Advance (BMC)</td><td class="val">${advanceAmt}.00</td></tr>
+        <tr><td>Cattle (BMC)</td><td class="val">${cattleAmt}.00</td></tr>
+      </table>
+      <table class="panel" style="width: 28%;">
+        <tr><td class="panel-title" colspan="2">Net Amount</td></tr>
+        <tr><td>Milk Amount</td><td class="val" style="font-weight: bold;">${milkAmount}.00</td></tr>
+        <tr><td>Total Additions</td><td class="val">${totalAdditions}.00</td></tr>
+        <tr><td>Sub Total</td><td class="val">${subTotal}.00</td></tr>
+        <tr><td>Total Deductions</td><td class="val">${totalDeductions}.00</td></tr>
+        <tr><td colspan="2" style="text-align: center; font-weight: bold; font-size: 13px;">${netAmount}.00</td></tr>
+      </table>
+    </div>
+
+    <div class="note">Note: Overhead and Transport is including in rate</div>
+  </div>
   </div>
 </body>
 </html>`;

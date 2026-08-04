@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { api } from '@/services/config';
 import { useAppSelector } from '@/redux/store';
 import { toast } from 'react-toastify';
-import { generateTemplate2, generateTemplate4, generateTemplateDetailedHorizontal, FarmerBillData, BankDetails } from '@/templates/FarmerBillInvoiceTemplate';
+import { generateTemplate2, generateTemplate4, generateTemplate5MilkBill, generateTemplateDetailedHorizontal, FarmerBillData, BankDetails } from '@/templates/FarmerBillInvoiceTemplate';
 import { generateFarmer2PerPage } from '@/templates/FarmerBill2PerPageTemplate';
 import { bankSummaryApi } from '@/services/bankSummaryApi';
 import { format } from 'date-fns';
@@ -174,7 +174,7 @@ const FarmerBillInvoiceReport = () => {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [exportFormat, setExportFormat] = useState<'1-per-page' | '2-per-page' | '3-per-page' | 'detailed-horizontal' | 'format-4'>('1-per-page');
+  const [exportFormat, setExportFormat] = useState<'1-per-page' | '2-per-page' | '3-per-page' | 'detailed-horizontal' | 'format-4' | 'format-5'>('1-per-page');
   const [milkTypeFilter, setMilkTypeFilter] = useState<'All' | 'Cow' | 'Buffalo'>('All');
 
   const handleShow = async () => {
@@ -672,10 +672,11 @@ const FarmerBillInvoiceReport = () => {
           hideRateAmount: hideRateAmount
         };
 
-        // Check for mixed types (only relevant when milkTypeFilter is 'All')
+        // Check for mixed types (only relevant when milkTypeFilter is 'All').
+        // Format 5 (Milk Bill) keeps both types on one page, so it never splits.
         const hasCow = templateDataItems.some(item => item.type === 'Cow');
         const hasBuffalo = templateDataItems.some(item => item.type === 'Buffalo');
-        const isMixed = milkTypeFilter === 'All' && hasCow && hasBuffalo;
+        const isMixed = milkTypeFilter === 'All' && hasCow && hasBuffalo && templateFn !== generateTemplate5MilkBill;
 
         if (isMixed) {
           const cowItems = templateDataItems.filter(i => i.type === 'Cow');
@@ -1089,7 +1090,7 @@ const FarmerBillInvoiceReport = () => {
   };
 
   const handleExport = () => {
-    if ((exportFormat === '1-per-page' || exportFormat === 'format-4') && collectionData.length === 0) {
+    if ((exportFormat === '1-per-page' || exportFormat === 'format-4' || exportFormat === 'format-5') && collectionData.length === 0) {
       toast.error(t('please_click_show_first_for_detailed_report'));
       return;
     }
@@ -1100,6 +1101,8 @@ const FarmerBillInvoiceReport = () => {
       exportToPDF();
     } else if (exportFormat === 'format-4') {
       exportToPDF(generateTemplate4);
+    } else if (exportFormat === 'format-5') {
+      exportToPDF(generateTemplate5MilkBill);
     } else if (exportFormat === '2-per-page') {
       exportMultiPerPagePDF(1);
     } else {
@@ -1526,6 +1529,10 @@ const FarmerBillInvoiceReport = () => {
               <div className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExportFormat('format-4')}>
                 <RadioGroupItem value="format-4" id="format-4" />
                 <Label htmlFor="format-4" className="flex-1 font-semibold cursor-pointer">{t('export_option_format_4')}</Label>
+              </div>
+              <div className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExportFormat('format-5')}>
+                <RadioGroupItem value="format-5" id="format-5" />
+                <Label htmlFor="format-5" className="flex-1 font-semibold cursor-pointer">{t('export_option_format_5')}</Label>
               </div>
             </RadioGroup>
           </div>
