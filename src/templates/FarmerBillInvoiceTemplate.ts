@@ -1387,7 +1387,7 @@ export const generateTemplate3Farmers = (templateData: Template3Data, language: 
           if (isCattleFeed) return pType === 'cattlefeed' || pType === 'pashukhady' || pType === 'पशुखाद्य';
           return pType === searchType;
         })
-        .reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0);
+        .reduce((sum, p) => sum + parseFloat(p.amount_taken?.toString() || '0'), 0);
     };
 
     const feedTotal = Number(currentBill?.cattlefeed_total || 0) || getSumOfPayments('cattle feed');
@@ -1413,8 +1413,8 @@ export const generateTemplate3Farmers = (templateData: Template3Data, language: 
       if (farmerBonus) totalBonusTillDate = farmerBonus.total_bonus_deduction;
     }
 
-    const showOther2 = (parseFloat(farmer.previous_bill?.other2_remaining || '0') > 0 || 
-                       parseFloat(farmer.current_bill?.other2_total || '0') > 0 ||
+    const showOther2 = (parseFloat(farmer.previous_bill?.other2_remaining?.toString() || '0') > 0 || 
+                       parseFloat(farmer.current_bill?.other2_total?.toString() || '0') > 0 ||
                        (farmer.payments || []).some(p => p.payment_type.toLowerCase().includes('other2')));
 
     return `

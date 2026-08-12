@@ -92,18 +92,18 @@ const AppInputField = <T extends FieldValues>({
 
         style={{
           fontSize: "17px",
-          color: form.formState.errors[name]?.message?.toString() ? "black" : "#293343",
+          color: (form.formState.errors[name]?.message as string) ? "black" : "#293343",
         }} 
         className={cn(
-          `mt-1 block w-full px-3 py-3 !border-none bg-white focus:bg-[#f5f5f5] rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#526279] sm:text-sm xl:text-[18px] ${className}`,
-          form.formState.errors[name]?.message?.toString()
-            ? "!border-red-500 placeholder-#F3F4F6 text-white-500 focus:ring-2 focus:ring-red-500 bg-[#fff2f4] !border-1px-sold"
+          `mt-1 block w-full px-3 py-2.5 bg-white border border-slate-300 rounded-md shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm xl:text-base ${className}`,
+          (form.formState.errors[name]?.message as string)
+            ? "border-red-500 focus:border-red-500 focus:ring-red-500 bg-red-50"
             : ""
         )}
       />
       {isError && (
         <p className="mt-2 text-sm text-red-600 text-start">
-          {form.formState.errors[name]?.message?.toString()}
+          {(form.formState.errors[name]?.message as string)}
         </p>
       )}
     </div>

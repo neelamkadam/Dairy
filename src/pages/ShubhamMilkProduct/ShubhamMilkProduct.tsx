@@ -318,7 +318,7 @@ const ShubhamMilkProduct = () => {
       const selectedBranch = branches.find(b => b.branch_id.toString() === vlcId);
       await paymentApi.create({
         date: format(startDate, "yyyy-MM-dd"),
-        dairy_id: selectedBranch?.dairy_id || vlcId,
+        dairy_id: (selectedBranch as any)?.dairy_id || vlcId,
         farmer_id: currentFarmer.farmer_id,
         farmer_name: currentFarmer.name,
         payment_type: paymentType,
@@ -577,7 +577,7 @@ const ShubhamMilkProduct = () => {
         paymentPromises.push(
           paymentApi.create({
             date: dateStr,
-            dairy_id: selectedBranch?.dairy_id || vlcId,
+            dairy_id: (selectedBranch as any)?.dairy_id || vlcId,
             farmer_id: currentFarmer.farmer_id,
             farmer_name: currentFarmer.name,
             payment_type: "Advance",
@@ -591,7 +591,7 @@ const ShubhamMilkProduct = () => {
         paymentPromises.push(
           paymentApi.create({
             date: dateStr,
-            dairy_id: selectedBranch?.dairy_id || vlcId,
+            dairy_id: (selectedBranch as any)?.dairy_id || vlcId,
             farmer_id: currentFarmer.farmer_id,
             farmer_name: currentFarmer.name,
             payment_type: "Cattle Feed",
@@ -605,7 +605,7 @@ const ShubhamMilkProduct = () => {
         paymentPromises.push(
           paymentApi.create({
             date: dateStr,
-            dairy_id: selectedBranch?.dairy_id || vlcId,
+            dairy_id: (selectedBranch as any)?.dairy_id || vlcId,
             farmer_id: currentFarmer.farmer_id,
             farmer_name: currentFarmer.name,
             payment_type: "Other1",
@@ -619,7 +619,7 @@ const ShubhamMilkProduct = () => {
         paymentPromises.push(
           paymentApi.create({
             date: dateStr,
-            dairy_id: selectedBranch?.dairy_id || vlcId,
+            dairy_id: (selectedBranch as any)?.dairy_id || vlcId,
             farmer_id: currentFarmer.farmer_id,
             farmer_name: currentFarmer.name,
             payment_type: "Other2",
@@ -1209,7 +1209,7 @@ const ShubhamMilkProduct = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">{t("start_date")}</label>
                   <AppDatePicker
                     date={startDate}
-                    onChange={handleStartDateChange}
+                    onChange={(d) => handleStartDateChange(d ? new Date(d) : undefined as any)}
                   />
                 </div>
 

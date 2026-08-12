@@ -2,10 +2,17 @@ import * as React from "react"
 import { Calendar as CalendarIcon } from "lucide-react"
 import { format, isValid, parseISO } from "date-fns"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { Calendar } from "@/components/ui/calendar"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 
 interface AppDatePickerProps {
   date: string | Date | undefined;
-  onChange: (date: any) => void;
+  onChange: (date: string) => void;
   placeholder?: string;
   className?: string;
   disabled?: boolean;
@@ -14,37 +21,51 @@ interface AppDatePickerProps {
 export const AppDatePicker: React.FC<AppDatePickerProps> = ({ 
   date, 
   onChange, 
-  placeholder, 
+  placeholder = "Select date", 
   className,
   disabled = false
 }) => {
   
-  // Convert incoming date to YYYY-MM-DD string for the native input
   const dateValue = React.useMemo(() => {
-    if (!date) return ""
+    if (!date) return undefined;
     if (date instanceof Date) {
-      return isValid(date) ? format(date, "yyyy-MM-dd") : ""
+      return isValid(date) ? date : undefined;
     }
-    // If it's already a string, assume it's YYYY-MM-DD or try to parse it
-    const parsed = parseISO(date)
-    return isValid(parsed) ? format(parsed, "yyyy-MM-dd") : date
+    const parsed = parseISO(date);
+    return isValid(parsed) ? parsed : undefined;
   }, [date])
 
+  const handleSelect = (selectedDate: Date | undefined) => {
+    if (selectedDate) {
+      onChange(format(selectedDate, "yyyy-MM-dd"));
+    }
+  }
+
   return (
-    <div className={cn(
-      "flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 transition-all",
-      disabled && "opacity-50 cursor-not-allowed",
-      className
-    )}>
-      <CalendarIcon className="w-4 h-4 text-gray-500 flex-shrink-0" />
-      <input
-        type="date"
-        value={dateValue}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        className="w-full text-sm font-medium border-none outline-none bg-transparent cursor-pointer min-h-[20px]"
-        style={{ colorScheme: "light" }}
-      />
-    </div>
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant={"outline"}
+          disabled={disabled}
+          className={cn(
+            "w-[180px] h-9 px-3 justify-start text-left font-medium bg-transparent border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors",
+            !dateValue && "text-slate-500",
+            className
+          )}
+        >
+          <CalendarIcon className="mr-2 h-4 w-4 text-slate-500" />
+          {dateValue ? format(dateValue, "MMM dd, yyyy") : <span>{placeholder}</span>}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0 bg-white border-slate-200 shadow-md rounded-lg z-50" align="start">
+        <Calendar
+          mode="single"
+          selected={dateValue}
+          onSelect={handleSelect}
+          initialFocus
+          className="bg-white rounded-lg pointer-events-auto"
+        />
+      </PopoverContent>
+    </Popover>
   )
 }

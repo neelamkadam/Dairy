@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { format } from "date-fns";
 import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,8 @@ import {
   XCircle,
   AlertTriangle,
   Loader2,
+  Search,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -60,8 +62,8 @@ const TEMPLATE_COLUMNS = [
 ];
 
 const SAMPLE_ROWS = [
-  ["0001", "Cow",     10.5, 4.2, 8.5, 28, 36.5, "Morning", "2026-05-26", 0],
-  ["0002", "Buffalo",  7.25, 6.5, 9.2, 30, 58,  "Evening",  "2026-05-26", 0],
+  ["0001", "Cow", 10.5, 4.2, 8.5, 28, 36.5, "Morning", "2026-05-26", 0],
+  ["0002", "Buffalo", 7.25, 6.5, 9.2, 30, 58, "Evening", "2026-05-26", 0],
 ];
 
 const downloadTemplate = () => {
@@ -86,6 +88,21 @@ const BulkCollectionUpload = () => {
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState<UploadResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const vlcWrapperRef = useRef<HTMLDivElement>(null);
+  const vlcSearchRef = useRef<HTMLInputElement>(null);
+  const [vlcOpen, setVlcOpen] = useState(false);
+  const [vlcSearch, setVlcSearch] = useState("");
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (vlcWrapperRef.current && !vlcWrapperRef.current.contains(event.target as Node)) {
+        setVlcOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const resetState = () => {
     setParsedRows([]);
@@ -220,21 +237,104 @@ const BulkCollectionUpload = () => {
                 <Label className="mb-2 block font-medium">
                   VLC / Dairy <span className="text-red-500">*</span>
                 </Label>
-                <Select value={selectedDairy} onValueChange={(v) => {
-                  setSelectedDairy(v);
-                  setParsedRows((prev) => prev.map((r) => ({ ...r, dairy_id: v })));
-                }}>
-                  <SelectTrigger className="bg-white border-gray-300 h-10">
-                    <SelectValue placeholder="Select VLC / Dairy" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    {branches.map((b) => (
-                      <SelectItem key={b.branch_id} value={b.branch_id.toString()}>
-                        {b.username} — {b.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {(() => {
+                  const selectedBranchObj = branches?.find((b) => b.branch_id.toString() === selectedDairy);
+                  const filtered = branches?.filter((b) => {
+                    const q = vlcSearch.toLowerCase();
+                    return (
+                      !q ||
+                      String(b.username || "").toLowerCase().includes(q) ||
+                      String(b.branch_id || "").toLowerCase().includes(q) ||
+                      String(b.name || "").toLowerCase().includes(q) ||
+                      String(b.branchName || "").toLowerCase().includes(q)
+                    );
+                  }) || [];
+                  return (
+                    <div ref={vlcWrapperRef} className="relative w-full">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setVlcOpen((prev) => !prev);
+                          if (!vlcOpen) setTimeout(() => vlcSearchRef.current?.focus(), 0);
+                          else setVlcSearch("");
+                        }}
+                        className={cn(
+                          "w-full flex items-center justify-between px-3 py-2 h-10 text-sm rounded-md border bg-white transition-all shadow-sm",
+                          vlcOpen ? "border-emerald-500 ring-1 ring-emerald-500/20" : "border-gray-300 hover:border-emerald-300"
+                        )}
+                      >
+                        <span className={selectedBranchObj ? "text-gray-900 truncate" : "text-gray-500"}>
+                          {selectedBranchObj
+                            ? `${selectedBranchObj.username} - ${selectedBranchObj.name} ${selectedBranchObj.branchName ? `- ${selectedBranchObj.branchName}` : ''}`
+                            : 'Select VLC / Dairy'}
+                        </span>
+                        <ChevronDown
+                          className={cn("h-4 w-4 text-gray-400 flex-shrink-0 ml-2 transition-transform duration-150", vlcOpen && "rotate-180")}
+                        />
+                      </button>
+
+                      {vlcOpen && (
+                        <div
+                          className="absolute z-50 mt-1 w-full bg-white border border-gray-100 rounded-md shadow-lg overflow-hidden"
+                          style={{ top: "100%", left: 0 }}
+                        >
+                          <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100">
+                            <Search className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                            <input
+                              ref={vlcSearchRef}
+                              value={vlcSearch}
+                              onChange={(e) => setVlcSearch(e.target.value)}
+                              placeholder="Search VLC..."
+                              className="flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400"
+                            />
+                            {vlcSearch && (
+                              <button
+                                type="button"
+                                onMouseDown={(e) => { e.preventDefault(); setVlcSearch(""); vlcSearchRef.current?.focus(); }}
+                                className="text-gray-400 hover:text-gray-600 text-sm leading-none"
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </div>
+                          <div className="max-h-48 overflow-y-auto p-1">
+                            {filtered.length === 0 ? (
+                              <div className="px-3 py-4 text-center text-sm text-gray-400">No VLC branches found</div>
+                            ) : (
+                              filtered.map((branch) => {
+                                if (!branch?.branch_id) return null;
+                                const val = branch.branch_id.toString();
+                                const isSelected = val === selectedDairy;
+                                return (
+                                  <button
+                                    key={val}
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      setSelectedDairy(val);
+                                      setParsedRows((prev) => prev.map((r) => ({ ...r, dairy_id: val })));
+                                      setVlcOpen(false);
+                                      setVlcSearch("");
+                                    }}
+                                    className={cn(
+                                      "w-full flex items-center justify-between px-3 py-2 text-sm text-left rounded-md transition-colors",
+                                      isSelected ? "bg-emerald-50 text-emerald-700 font-medium" : "text-gray-700 hover:bg-gray-50"
+                                    )}
+                                  >
+                                    <span className="truncate">
+                                      {branch.username} - {branch.name} {branch.branchName ? `- ${branch.branchName}` : ''}
+                                    </span>
+                                    {isSelected && <span className="text-emerald-600 text-xs">✓</span>}
+                                  </button>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* ── Step 2: Download template ── */}
@@ -250,27 +350,31 @@ const BulkCollectionUpload = () => {
 
             {/* ── Step 3: File upload ── */}
             <div>
-              <Label className="mb-2 block font-medium">Upload Filled Template</Label>
+              <Label className="mb-2 block font-medium text-gray-700">Upload Filled Template</Label>
               <label
                 className={cn(
-                  "flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors",
+                  "flex flex-col items-center justify-center w-full h-36 border-2 border-dashed rounded-xl cursor-pointer transition-all duration-200 group",
                   fileName
-                    ? "border-emerald-400 bg-emerald-50"
-                    : "border-gray-300 bg-gray-50 hover:bg-gray-100"
+                    ? "border-emerald-400 bg-emerald-50/50 hover:bg-emerald-50"
+                    : "border-gray-300 bg-gray-50/50 hover:bg-emerald-50 hover:border-emerald-300"
                 )}
               >
                 <div className="flex flex-col items-center gap-2 text-center px-4">
                   {fileName ? (
                     <>
-                      <FileSpreadsheet className="w-8 h-8 text-emerald-600" />
-                      <p className="text-sm font-medium text-emerald-700">{fileName}</p>
-                      <p className="text-xs text-gray-500">{parsedRows.length} row(s) parsed</p>
+                      <div className="p-2.5 bg-emerald-100/60 rounded-full">
+                        <FileSpreadsheet className="w-6 h-6 text-emerald-600" />
+                      </div>
+                      <p className="text-sm font-bold text-emerald-700">{fileName}</p>
+                      <p className="text-[11px] font-bold text-emerald-600/70 uppercase tracking-widest">{parsedRows.length} row(s) parsed</p>
                     </>
                   ) : (
                     <>
-                      <Upload className="w-8 h-8 text-gray-400" />
-                      <p className="text-sm text-gray-500">
-                        Click to select <span className="font-semibold">.xlsx</span> file
+                      <div className="p-3 bg-white shadow-sm border border-gray-100 group-hover:bg-emerald-100/50 group-hover:border-emerald-100 group-hover:shadow-none rounded-xl transition-all duration-200">
+                        <Upload className="w-6 h-6 text-gray-400 group-hover:text-emerald-500 transition-colors" />
+                      </div>
+                      <p className="text-sm font-medium text-gray-500 group-hover:text-emerald-600 transition-colors mt-1">
+                        Click to select <span className="font-bold text-gray-700 group-hover:text-emerald-700">.xlsx</span> file
                       </p>
                     </>
                   )}

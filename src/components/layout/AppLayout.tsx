@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import AppNavbar from "./AppNavbar";
 import AppSidebar from "./AppSidebar";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import AccountStatusMonitor from "@/components/AccountStatusMonitor";
 import { useAppSelector } from "@/redux/store";
@@ -12,6 +12,7 @@ const AppLayout = () => {
     const saved = localStorage.getItem('sidebarOpen');
     return saved !== null ? JSON.parse(saved) : true;
   });
+  const location = useLocation();
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const auth = useAppSelector((state: any) => state.authData);
   const userId = auth?.userData?.userId || auth?.userData?.id || auth?.tempUserData?.userId;
@@ -74,7 +75,7 @@ const AppLayout = () => {
         <AppNavbar theme={theme} onThemeToggle={toggleTheme} />
         
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto">
+        <main key={location.pathname} className="flex-1 overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
           <Outlet />
         </main>
       </div>

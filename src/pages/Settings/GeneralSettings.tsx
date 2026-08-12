@@ -1,17 +1,10 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useAppSelector } from "@/redux/store";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
 import {
   UserPlus,
   CreditCard,
@@ -32,15 +25,139 @@ import {
   History,
   Package,
   MessageCircle,
+  Settings2,
+  Save,
+  ToggleLeft,
+  Search,
+  ChevronDown,
+  Check,
 } from "lucide-react";
 import { settingsApi } from "@/services/settingsApi";
 import { passwordApiService } from "@/services/passwordApiService";
 import { toast } from "react-toastify";
 import { cn } from "@/lib/utils";
 
+// ─── Module-level sub-components (must be outside GeneralSettings to keep
+//     stable references across re-renders — prevents input focus loss) ─────────
+
+const SectionCard = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
+  <div className={cn("bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden", className)}>
+    {children}
+  </div>
+);
+
+const SectionHeader = ({
+  icon: Icon, title, children,
+}: { icon: React.ElementType; title: string; children?: React.ReactNode }) => (
+  <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50/70">
+    <div className="flex items-center gap-2.5">
+      <div className="p-1.5 bg-blue-50 rounded-md">
+        <Icon className="h-4 w-4 text-blue-600" />
+      </div>
+      <h2 className="text-sm font-semibold text-gray-800">{title}</h2>
+    </div>
+    {children}
+  </div>
+);
+
+const SelectAllBox = ({
+  allOn, onToggle,
+}: { allOn: boolean; someOn: boolean; onToggle: (v: boolean) => void }) => (
+  <label className="flex items-center gap-2 cursor-pointer group">
+    <Checkbox
+      checked={allOn}
+      onCheckedChange={onToggle}
+      className="h-4 w-4 border-gray-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+    />
+    <span className="text-xs font-medium text-gray-500 group-hover:text-blue-500 transition-colors">
+      {allOn ? "Deselect All" : "Select All"}
+    </span>
+  </label>
+);
+
+const FeatureRow = ({
+  id, icon: Icon, label, checked, onChange,
+}: { id: string; icon: React.ElementType; label: string; checked: boolean; onChange: (v: boolean) => void }) => (
+  <label
+    htmlFor={id}
+    className={cn(
+      "flex items-center gap-3 px-3.5 py-2.5 rounded-lg border cursor-pointer transition-all select-none",
+      checked ? "border-blue-200 bg-blue-50/60" : "border-gray-100 hover:border-gray-200 hover:bg-gray-50/60"
+    )}
+  >
+    <Checkbox
+      id={id} checked={checked} onCheckedChange={onChange}
+      className="h-4 w-4 border-gray-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+    />
+    <Icon className={cn("h-4 w-4 flex-shrink-0", checked ? "text-blue-500" : "text-gray-400")} />
+    <span className="text-sm font-medium text-gray-700">{label}</span>
+  </label>
+);
+
+const SwitchRow = ({
+  icon: Icon, label, checked, onChange,
+}: { icon: React.ElementType; label: string; checked: boolean; onChange: (v: boolean) => void }) => (
+  <div className={cn(
+    "flex items-center justify-between px-3.5 py-2.5 rounded-lg border transition-all",
+    checked ? "border-blue-200 bg-blue-50/40" : "border-gray-100 hover:border-gray-200"
+  )}>
+    <div className="flex items-center gap-2.5 min-w-0">
+      <Icon className={cn("h-4 w-4 flex-shrink-0", checked ? "text-blue-500" : "text-gray-400")} />
+      <span className="text-sm font-medium text-gray-700 truncate">{label}</span>
+    </div>
+    <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+      <Switch
+        checked={checked} onCheckedChange={onChange}
+        className="scale-90 origin-right data-[state=checked]:bg-blue-600"
+      />
+      <span className={cn("text-xs font-bold w-7 text-right", checked ? "text-blue-600" : "text-gray-400")}>
+        {checked ? "ON" : "OFF"}
+      </span>
+    </div>
+  </div>
+);
+
+const SegmentControl = ({
+  options, value, onChange,
+}: { options: { label: string; val: number }[]; value: number; onChange: (v: number) => void }) => (
+  <div className="flex bg-gray-100 rounded-lg p-1 gap-1">
+    {options.map(({ label, val }) => (
+      <button
+        key={val} type="button" onClick={() => onChange(val)}
+        className={cn(
+          "flex-1 py-1.5 text-xs font-bold rounded-md transition-all",
+          value === val ? "bg-white text-blue-600 shadow-sm" : "text-gray-400 hover:text-gray-600"
+        )}
+      >
+        {label}
+      </button>
+    ))}
+  </div>
+);
+
 const GeneralSettings = () => {
   const branches = useAppSelector((state) => state.branch.branches);
   const [selectedVlc, setSelectedVlc] = useState("");
+  const [vlcOpen, setVlcOpen] = useState(false);
+  const [vlcSearch, setVlcSearch] = useState("");
+  const vlcSearchRef = useRef<HTMLInputElement>(null);
+  const vlcWrapperRef = useRef<HTMLDivElement>(null);
+
+  // Tracks the last-saved / last-fetched state for change detection
+  const savedSnapshot = useRef<Record<string, unknown>>({});
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!vlcOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (vlcWrapperRef.current && !vlcWrapperRef.current.contains(e.target as Node)) {
+        setVlcOpen(false);
+        setVlcSearch("");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [vlcOpen]);
   const [addFarmer, setAddFarmer] = useState(0);
   const [rateChart, setRateChart] = useState(0);
   const [deduction, setDeduction] = useState(0);
@@ -56,13 +173,12 @@ const GeneralSettings = () => {
   const [hasPassword, setHasPassword] = useState(false);
   const [showWater, setShowWater] = useState(0);
   const [cattleFeedLumpSum, setCattleFeedLumpSum] = useState(() => {
-    const saved = localStorage.getItem('cattleFeedLumpSum');
+    const saved = localStorage.getItem("cattleFeedLumpSum");
     return saved ? parseInt(saved) : 0;
   });
   const [multipleModal, setMultipleModal] = useState(0);
   const [cc, setCc] = useState(0);
 
-  // Report visibility settings states
   const [showShiftReport, setShowShiftReport] = useState(0);
   const [showTotalCollection, setShowTotalCollection] = useState(0);
   const [showPaymentSummary, setShowPaymentSummary] = useState(0);
@@ -73,18 +189,53 @@ const GeneralSettings = () => {
   const [showBonusDeduction, setShowBonusDeduction] = useState(0);
   const [showCollectionHistory, setShowCollectionHistory] = useState(0);
   const [showCattleFeed, setShowCattleFeed] = useState(0);
-  
-  // CC Specific Settings (Stored in localStorage per VLC)
-  const [ccSearchType, setCcSearchType] = useState(0); // 0: Farmer ID, 1: Sample ID
-  const [ccAnalysisType, setCcAnalysisType] = useState(0); // 0: FAT/SNF, 1: FAT/CLR
+  const [ccSearchType, setCcSearchType] = useState(0);
+  const [ccAnalysisType, setCcAnalysisType] = useState(0);
+
+  // Derived select-all states
+  const featureValues = [addFarmer, rateChart, deduction, paymentReceipt, generateBill];
+  const allFeaturesOn = featureValues.every((v) => v === 1);
+  const someFeaturesOn = featureValues.some((v) => v === 1) && !allFeaturesOn;
+
+  const switchValues = [analyser, weightTier, cc, weight, printer];
+  const allSwitchesOn = switchValues.every((v) => v === 1);
+  const someSwitchesOn = switchValues.some((v) => v === 1) && !allSwitchesOn;
+
+  const reportValues = [
+    showShiftReport, showTotalCollection, showPaymentSummary,
+    showReportRateChart, showFarmerBill, showFarmerList,
+    showDifferenceReport, showBonusDeduction, showCollectionHistory, showCattleFeed,
+  ];
+  const allReportsOn = reportValues.every((v) => v === 1);
+  const someReportsOn = reportValues.some((v) => v === 1) && !allReportsOn;
+
+  const handleSelectAllFeatures = (checked: boolean) => {
+    const val = checked ? 1 : 0;
+    setAddFarmer(val); setRateChart(val); setDeduction(val);
+    setPaymentReceipt(val); setGenerateBill(val);
+  };
+
+  const handleSelectAllSwitches = (checked: boolean) => {
+    const val = checked ? 1 : 0;
+    setAnalyser(val); setWeightTier(val); setCc(val);
+    setWeight(val); setPrinter(val);
+  };
+
+  const handleSelectAllReports = (checked: boolean) => {
+    const val = checked ? 1 : 0;
+    setShowShiftReport(val); setShowTotalCollection(val);
+    setShowPaymentSummary(val); setShowReportRateChart(val);
+    setShowFarmerBill(val); setShowFarmerList(val);
+    setShowDifferenceReport(val); setShowBonusDeduction(val);
+    setShowCollectionHistory(val); setShowCattleFeed(val);
+  };
 
   useEffect(() => {
     if (selectedVlc) {
+      savedSnapshot.current = {}; // reset so new VLC always allows saving
       fetchSettings();
       fetchReportSettings();
       checkPassword();
-      
-      // Load CC settings from localStorage
       const savedSearch = localStorage.getItem(`cc_search_type_${selectedVlc}`);
       const savedAnalysis = localStorage.getItem(`cc_analysis_type_${selectedVlc}`);
       setCcSearchType(savedSearch ? parseInt(savedSearch) : 0);
@@ -96,723 +247,488 @@ const GeneralSettings = () => {
     try {
       const { data } = await settingsApi.get(selectedVlc);
       if (data.success && data.data) {
-        const settings = data.data;
-        console.log('Fetched settings:', settings); // Debug log
-        console.log('CC value from API:', settings.cc); // Debug log
-        setAddFarmer(settings.add_farmer ?? 0);
-        setRateChart(settings.rate_chart ?? 0);
-        setDeduction(settings.deduction ?? 0);
-        setPaymentReceipt(settings.payment_receipt ?? 0);
-        setGenerateBill(settings.generate_bill ?? 0);
-        setAnalyser(settings.analyser ?? 0);
-        setWeightTier(settings.weight_tier ?? 0);
-        setWeight(settings.weight ?? 0);
-        setPrinter(settings.printer ?? 0);
-        setLanguage(settings.language || "English");
-        setReportLanguage(settings.report_language || "English");
-        setShowWater(settings.show_water ?? 0);
-        setMultipleModal(settings.multiple_modal ?? 0);
-        setCc(settings.cc ?? 0);
+        const s = data.data;
+        setAddFarmer(s.add_farmer ?? 0);
+        setRateChart(s.rate_chart ?? 0);
+        setDeduction(s.deduction ?? 0);
+        setPaymentReceipt(s.payment_receipt ?? 0);
+        setGenerateBill(s.generate_bill ?? 0);
+        setAnalyser(s.analyser ?? 0);
+        setWeightTier(s.weight_tier ?? 0);
+        setWeight(s.weight ?? 0);
+        setPrinter(s.printer ?? 0);
+        setLanguage(s.language || "English");
+        setReportLanguage(s.report_language || "English");
+        setShowWater(s.show_water ?? 0);
+        setMultipleModal(s.multiple_modal ?? 0);
+        setCc(s.cc ?? 0);
+        // store fetched values as baseline
+        savedSnapshot.current = {
+          ...savedSnapshot.current,
+          add_farmer: s.add_farmer ?? 0,
+          rate_chart: s.rate_chart ?? 0,
+          deduction: s.deduction ?? 0,
+          payment_receipt: s.payment_receipt ?? 0,
+          generate_bill: s.generate_bill ?? 0,
+          analyser: s.analyser ?? 0,
+          weight_tier: s.weight_tier ?? 0,
+          weight: s.weight ?? 0,
+          printer: s.printer ?? 0,
+          language: s.language || "English",
+          report_language: s.report_language || "English",
+          show_water: s.show_water ?? 0,
+          multiple_modal: s.multiple_modal ?? 0,
+          cc: s.cc ?? 0,
+        };
       }
-    } catch (error) {
-      toast.error("Failed to fetch settings");
-    }
+    } catch { toast.error("Failed to fetch settings"); }
   };
 
   const fetchReportSettings = async () => {
     try {
       const { data } = await settingsApi.getReportSettings(selectedVlc);
       if (data.success && data.data) {
-        const settings = data.data;
-        setShowShiftReport(settings.show_shift_report ?? 0);
-        setShowTotalCollection(settings.show_total_collection ?? 0);
-        setShowPaymentSummary(settings.show_payment_summary ?? 0);
-        setShowReportRateChart(settings.show_rate_chart ?? 0);
-        setShowFarmerBill(settings.show_farmer_bill ?? 0);
-        setShowFarmerList(settings.show_farmer_list ?? 0);
-        setShowDifferenceReport(settings.show_difference_report ?? 0);
-        setShowBonusDeduction(settings.show_bonus_deduction ?? 0);
-        setShowCollectionHistory(settings.show_collection_history ?? 0);
-        setShowCattleFeed(settings.show_cattle_feed ?? 0);
+        const s = data.data;
+        setShowShiftReport(s.show_shift_report ?? 0);
+        setShowTotalCollection(s.show_total_collection ?? 0);
+        setShowPaymentSummary(s.show_payment_summary ?? 0);
+        setShowReportRateChart(s.show_rate_chart ?? 0);
+        setShowFarmerBill(s.show_farmer_bill ?? 0);
+        setShowFarmerList(s.show_farmer_list ?? 0);
+        setShowDifferenceReport(s.show_difference_report ?? 0);
+        setShowBonusDeduction(s.show_bonus_deduction ?? 0);
+        setShowCollectionHistory(s.show_collection_history ?? 0);
+        setShowCattleFeed(s.show_cattle_feed ?? 0);
+        // store fetched report values as baseline
+        savedSnapshot.current = {
+          ...savedSnapshot.current,
+          show_shift_report: s.show_shift_report ?? 0,
+          show_total_collection: s.show_total_collection ?? 0,
+          show_payment_summary: s.show_payment_summary ?? 0,
+          show_rate_chart: s.show_rate_chart ?? 0,
+          show_farmer_bill: s.show_farmer_bill ?? 0,
+          show_farmer_list: s.show_farmer_list ?? 0,
+          show_difference_report: s.show_difference_report ?? 0,
+          show_bonus_deduction: s.show_bonus_deduction ?? 0,
+          show_collection_history: s.show_collection_history ?? 0,
+          show_cattle_feed: s.show_cattle_feed ?? 0,
+          cc_search_type: parseInt(localStorage.getItem(`cc_search_type_${selectedVlc}`) ?? "0"),
+          cc_analysis_type: parseInt(localStorage.getItem(`cc_analysis_type_${selectedVlc}`) ?? "0"),
+          cattle_feed_lump_sum: parseInt(localStorage.getItem("cattleFeedLumpSum") ?? "0"),
+        };
       }
-    } catch (error) {
-      console.error("Failed to fetch report settings");
-    }
+    } catch { console.error("Failed to fetch report settings"); }
   };
 
   const checkPassword = async () => {
     try {
       const result = await passwordApiService.checkPassword(selectedVlc);
-      if (result.success) {
-        setHasPassword(result.hasPassword);
-        setPassword("");
-      }
-    } catch (error) {
-      console.error("Failed to check password");
-    }
+      if (result.success) { setHasPassword(result.hasPassword); setPassword(""); }
+    } catch { console.error("Failed to check password"); }
   };
 
   const handlePasswordSave = async () => {
-    if (!selectedVlc) {
-      toast.error("Please select a VLC");
-      return;
-    }
-    if (!password.trim()) {
-      toast.error("Please enter a password");
-      return;
-    }
+    if (!selectedVlc) { toast.error("Please select a VLC"); return; }
+    if (!password.trim()) { toast.error("Please enter a password"); return; }
     try {
       const result = hasPassword
         ? await passwordApiService.updatePassword(selectedVlc, password)
         : await passwordApiService.createPassword(selectedVlc, password);
-      
       if (result.success) {
-        toast.success(result.message || `Password ${hasPassword ? 'updated' : 'created'} successfully`);
-        setHasPassword(true);
-        setPassword("");
-      } else {
-        toast.error(result.message || "Failed to save password");
-      }
-    } catch (error) {
-      toast.error("Failed to save password");
-    }
+        toast.success(result.message || `Password ${hasPassword ? "updated" : "created"} successfully`);
+        setHasPassword(true); setPassword("");
+      } else { toast.error(result.message || "Failed to save password"); }
+    } catch { toast.error("Failed to save password"); }
   };
 
+  // Build a snapshot object from current state for comparison
+  const buildCurrentSnapshot = () => ({
+    add_farmer: addFarmer,
+    rate_chart: rateChart,
+    deduction,
+    payment_receipt: paymentReceipt,
+    generate_bill: generateBill,
+    analyser,
+    weight_tier: weightTier,
+    weight,
+    printer,
+    language,
+    report_language: reportLanguage,
+    show_water: showWater,
+    multiple_modal: multipleModal,
+    cc,
+    show_shift_report: showShiftReport,
+    show_total_collection: showTotalCollection,
+    show_payment_summary: showPaymentSummary,
+    show_rate_chart: showReportRateChart,
+    show_farmer_bill: showFarmerBill,
+    show_farmer_list: showFarmerList,
+    show_difference_report: showDifferenceReport,
+    show_bonus_deduction: showBonusDeduction,
+    show_collection_history: showCollectionHistory,
+    show_cattle_feed: showCattleFeed,
+    cc_search_type: ccSearchType,
+    cc_analysis_type: ccAnalysisType,
+    cattle_feed_lump_sum: cattleFeedLumpSum,
+  });
+
+  // True only when current values differ from last-saved snapshot
+  const hasChanges = Object.keys(savedSnapshot.current).length > 0 &&
+    Object.entries(buildCurrentSnapshot()).some(
+      ([k, v]) => savedSnapshot.current[k] !== v
+    );
+
   const handleSave = async () => {
-    if (!selectedVlc) {
-      toast.error("Please select a VLC");
-      return;
-    }
+    if (!selectedVlc) { toast.error("Please select a VLC"); return; }
+    if (!hasChanges) { toast.info("No changes made. Please modify settings before saving."); return; }
     try {
-      console.log('CC value before save:', cc); // Debug log
       const { data } = await settingsApi.update({
-        vlc: selectedVlc,
-        add_farmer: addFarmer,
-        rate_chart: rateChart,
-        deduction: deduction,
-        payment_receipt: paymentReceipt,
-        generate_bill: generateBill,
-        analyser: analyser,
-        weight_tier: weightTier,
-        weight: weight,
-        printer: printer,
-        language: language,
-        report_language: reportLanguage,
-        show_water: showWater,
-        multiple_modal: multipleModal,
-        cc: cc,
+        vlc: selectedVlc, add_farmer: addFarmer, rate_chart: rateChart,
+        deduction, payment_receipt: paymentReceipt, generate_bill: generateBill,
+        analyser, weight_tier: weightTier, weight, printer, language,
+        report_language: reportLanguage, show_water: showWater,
       });
-      if (data.success) {
-        toast.success("Settings updated successfully");
-      }
-      
-      // Update report settings
+      if (data.success) toast.success("Settings updated successfully");
       await settingsApi.updateReportSettings({
-        vlc: selectedVlc,
-        show_shift_report: showShiftReport,
-        show_total_collection: showTotalCollection,
-        show_payment_summary: showPaymentSummary,
-        show_rate_chart: showReportRateChart,
-        show_farmer_bill: showFarmerBill,
-        show_farmer_list: showFarmerList,
-        show_difference_report: showDifferenceReport,
-        show_bonus_deduction: showBonusDeduction,
-        show_collection_history: showCollectionHistory,
+        vlc: selectedVlc, show_shift_report: showShiftReport,
+        show_total_collection: showTotalCollection, show_payment_summary: showPaymentSummary,
+        show_rate_chart: showReportRateChart, show_farmer_bill: showFarmerBill,
+        show_farmer_list: showFarmerList, show_difference_report: showDifferenceReport,
+        show_bonus_deduction: showBonusDeduction, show_collection_history: showCollectionHistory,
         show_cattle_feed: showCattleFeed,
       });
-
-      // Save CC settings to localStorage
       localStorage.setItem(`cc_search_type_${selectedVlc}`, ccSearchType.toString());
       localStorage.setItem(`cc_analysis_type_${selectedVlc}`, ccAnalysisType.toString());
-
-      // Don't refetch settings automatically to prevent resetting values
-      // fetchSettings(); // Removed this line
-
-    } catch (error) {
-      toast.error("Failed to update settings");
-    }
+      // Update snapshot to new saved state so button resets
+      savedSnapshot.current = buildCurrentSnapshot();
+    } catch { toast.error("Failed to update settings"); }
   };
 
   const handleShowWaterChange = (checked: boolean) => {
-    if (!selectedVlc) {
-      toast.error("Please select a VLC first");
-      return;
-    }
+    if (!selectedVlc) { toast.error("Please select a VLC first"); return; }
     setShowWater(checked ? 1 : 0);
   };
 
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto p-6 space-y-8">
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <Languages className="h-5 w-5 text-blue-600" />
-            <h2 className="text-lg font-semibold text-gray-900">
-              Language Preferences
-            </h2>
+    <div className="min-h-screen bg-slate-50 font-sans text-left">
+      {/* Sticky header */}
+      <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm px-5 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-blue-600 rounded-lg shadow-sm">
+            <Settings2 className="h-5 w-5 text-white" />
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div>
-              <h3 className="text-left text-sm font-medium text-gray-700 mb-4">
-                Language
-              </h3>
-              <RadioGroup
-                value={language.toLowerCase()}
-                onValueChange={(val) => setLanguage(val.charAt(0).toUpperCase() + val.slice(1))}
-                className="flex gap-6"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="english" id="english" className="border-gray-300" />
-                  <Label
-                    htmlFor="english"
-                    className="text-sm text-gray-700 cursor-pointer font-medium"
-                  >
-                    English
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="hindi" id="hindi" className="border-gray-300" />
-                  <Label
-                    htmlFor="hindi"
-                    className="text-sm text-gray-700 cursor-pointer font-medium"
-                  >
-                    Hindi
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="marathi" id="marathi" className="border-gray-300" />
-                  <Label
-                    htmlFor="marathi"
-                    className="text-sm text-gray-700 cursor-pointer font-medium"
-                  >
-                    Marathi
-                  </Label>
-                </div>
-              </RadioGroup>
-            </div>
-
-            <div>
-              <h3 className="text-left text-sm font-medium text-gray-700 mb-4">
-                Report Language
-              </h3>
-              <RadioGroup
-                value={reportLanguage.toLowerCase()}
-                onValueChange={(val) => setReportLanguage(val.charAt(0).toUpperCase() + val.slice(1))}
-                className="flex gap-6"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="english" id="english-report" className="border-gray-300" />
-                  <Label
-                    htmlFor="english-report"
-                    className="text-sm text-gray-700 cursor-pointer font-medium"
-                  >
-                    English
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="hindi" id="hindi-report" className="border-gray-300" />
-                  <Label
-                    htmlFor="hindi-report"
-                    className="text-sm text-gray-700 cursor-pointer font-medium"
-                  >
-                    Hindi
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="marathi" id="marathi-report" className="border-gray-300" />
-                  <Label
-                    htmlFor="marathi-report"
-                    className="text-sm text-gray-700 cursor-pointer font-medium"
-                  >
-                    Marathi
-                  </Label>
-                </div>
-              </RadioGroup>
-            </div>
+          <div>
+            <h1 className="text-base font-bold text-gray-900 leading-tight">General Settings</h1>
+            <p className="text-xs text-gray-500 leading-tight">Language · Modules · Reports · Security</p>
           </div>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-6 text-left">
-          <h2 className="text-lg font-semibold text-gray-900 mb-6">
-            Feature Management
-          </h2>
+        <Button
+          onClick={handleSave} size="sm"
+          className={cn(
+            "text-white text-sm px-4 py-2 h-auto flex items-center gap-2 shadow-sm rounded-lg transition-all",
+            hasChanges
+              ? "bg-blue-600 hover:bg-blue-700"
+              : "bg-gray-300 hover:bg-gray-300 cursor-not-allowed opacity-60"
+          )}
+        >
+          <Save className="h-4 w-4" />
+          {hasChanges ? "Save Changes" : "No Changes"}
+        </Button>
+      </div>
 
-          <div className="mb-6">
-            <label className="text-sm font-medium text-gray-700 mb-2 block">
-              Select VLC
-            </label>
-            <Select value={selectedVlc} onValueChange={setSelectedVlc}>
-              <SelectTrigger className="w-full border border-gray-200">
-                <SelectValue placeholder="Select VLC" />
-              </SelectTrigger>
-              <SelectContent className="bg-white">
-                {branches.map((branch) => (
-                  <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
-                    {branch.username} - {branch.name} - {branch.branchName || ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+      <div className="w-full p-3 space-y-3">
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-6">
-              <div className="flex items-start space-x-3 p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-                <Checkbox id="add-farmer" checked={addFarmer === 1} onCheckedChange={(checked) => setAddFarmer(checked ? 1 : 0)} className="mt-1 text-blue-600 border-gray-300" />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <UserPlus className="h-4 w-4 text-blue-600" />
-                    <label
-                      htmlFor="add-farmer"
-                      className="text-sm font-medium text-gray-900 cursor-pointer"
-                    >
-                      Add Farmer
-                    </label>
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    Enable farmer registration and management
-                  </p>
-                </div>
-              </div>
+        {/* Row 1: Language + VLC + System Toggles */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
-              <div className="flex items-start space-x-3 p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-                <Checkbox id="rate-chart" checked={rateChart === 1} onCheckedChange={(checked) => setRateChart(checked ? 1 : 0)} className="mt-1 text-blue-600 border-gray-300" />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <TrendingUp className="h-4 w-4 text-blue-600" />
-                    <label
-                      htmlFor="rate-chart"
-                      className="text-sm font-medium text-gray-900 cursor-pointer"
-                    >
-                      Rate Chart
-                    </label>
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    Configure and view rate charts
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start space-x-3 p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-                <Checkbox id="deduction" checked={deduction === 1} onCheckedChange={(checked) => setDeduction(checked ? 1 : 0)} className="mt-1 text-blue-600 border-gray-300" />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Minus className="h-4 w-4 text-blue-600" />
-                    <label
-                      htmlFor="deduction"
-                      className="text-sm font-medium text-gray-900 cursor-pointer"
-                    >
-                      Deduction
-                    </label>
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    Manage payment deductions and adjustments
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              <div className="flex items-start space-x-3 p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-                <Checkbox
-                  id="payment-receipt"
-                  checked={paymentReceipt === 1}
-                  onCheckedChange={(checked) => setPaymentReceipt(checked ? 1 : 0)}
-                  className="mt-1 text-blue-600 border-gray-300"
-                />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <CreditCard className="h-4 w-4 text-blue-600" />
-                    <label
-                      htmlFor="payment-receipt"
-                      className="text-sm font-medium text-gray-900 cursor-pointer"
-                    >
-                      Payment & Receipt
-                    </label>
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    Manage payment transactions and receipts
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start space-x-3 p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-                <Checkbox id="generate-bill" checked={generateBill === 1} onCheckedChange={(checked) => setGenerateBill(checked ? 1 : 0)} className="mt-1 text-blue-600 border-gray-300" />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <FileText className="h-4 w-4 text-blue-600" />
-                    <label
-                      htmlFor="generate-bill"
-                      className="text-sm font-medium text-gray-900 cursor-pointer"
-                    >
-                      Generate Bill
-                    </label>
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    Create and manage billing documents
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="space-y-6">
-              <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-                <div className="flex items-center gap-3">
-                  <BarChart3 className="h-5 w-5 text-blue-600" />
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-900">
-                      Analyser
-                    </h3>
-                    <p className="text-xs text-gray-500">
-                      Data analysis component
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch checked={analyser === 1} onCheckedChange={(checked) => setAnalyser(checked ? 1 : 0)} />
-                  <span className="text-xs text-gray-700 font-medium">
-                    {analyser === 1 ? "Active" : "Inactive"}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-                <div className="flex items-center gap-3">
-                  <Layers className="h-5 w-5 text-blue-600" />
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-900">
-                      Weight Tier
-                    </h3>
-                    <p className="text-xs text-gray-500">
-                      Weight classification system
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch checked={weightTier === 1} onCheckedChange={(checked) => setWeightTier(checked ? 1 : 0)} />
-                  <span className="text-xs text-gray-700 font-medium">
-                    {weightTier === 1 ? "Active" : "Inactive"}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-                <div className="flex items-center gap-3">
-                  <MessageCircle className="h-5 w-5 text-blue-600" />
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-900">
-                      CC
-                    </h3>
-                    <p className="text-xs text-gray-500">
-                      Carbon Copy functionality
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch 
-                    checked={cc === 1} 
-                    onCheckedChange={(checked) => {
-                      console.log('CC toggle changed to:', checked ? 1 : 0); // Debug log
-                      setCc(checked ? 1 : 0);
-                    }} 
-                  />
-                  <span className="text-xs text-gray-700 font-medium">
-                    {cc === 1 ? "Active" : "Inactive"}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-                <div className="flex items-center gap-3">
-                  <Scale className="h-5 w-5 text-blue-600" />
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-900">
-                      Weight
-                    </h3>
-                    <p className="text-xs text-gray-500">
-                      Weight measurement system
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch checked={weight === 1} onCheckedChange={(checked) => setWeight(checked ? 1 : 0)} />
-                  <span className="text-xs text-gray-700 font-medium">
-                    {weight === 1 ? "Active" : "Inactive"}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-                <div className="flex items-center gap-3">
-                  <Printer className="h-5 w-5 text-blue-600" />
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-900">
-                      Printer
-                    </h3>
-                    <p className="text-xs text-gray-500">
-                      Document printing system
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                <Switch checked={printer === 1} onCheckedChange={(checked) => setPrinter(checked ? 1 : 0)} />
-                  <span className="text-xs text-gray-700 font-medium">
-                    {printer === 1 ? "Active" : "Inactive"}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <FileText className="h-5 w-5 text-blue-600" />
-            <h2 className="text-lg font-semibold text-gray-900">
-              Report Visibility Settings
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-              <div className="flex items-center gap-3">
-                <ClipboardList className="h-5 w-5 text-blue-600" />
-                <h3 className="text-sm font-medium text-gray-900">Shift Report</h3>
-              </div>
-              <Switch checked={showShiftReport === 1} onCheckedChange={(checked) => setShowShiftReport(checked ? 1 : 0)} />
-            </div>
-
-            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-              <div className="flex items-center gap-3">
-                <BarChart3 className="h-5 w-5 text-blue-600" />
-                <h3 className="text-sm font-medium text-gray-900">Total Collection</h3>
-              </div>
-              <Switch checked={showTotalCollection === 1} onCheckedChange={(checked) => setShowTotalCollection(checked ? 1 : 0)} />
-            </div>
-
-            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-              <div className="flex items-center gap-3">
-                <PieChart className="h-5 w-5 text-blue-600" />
-                <h3 className="text-sm font-medium text-gray-900">Payment Summary</h3>
-              </div>
-              <Switch checked={showPaymentSummary === 1} onCheckedChange={(checked) => setShowPaymentSummary(checked ? 1 : 0)} />
-            </div>
-
-            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-              <div className="flex items-center gap-3">
-                <ListOrdered className="h-5 w-5 text-blue-600" />
-                <h3 className="text-sm font-medium text-gray-900">Rate Chart</h3>
-              </div>
-              <Switch checked={showReportRateChart === 1} onCheckedChange={(checked) => setShowReportRateChart(checked ? 1 : 0)} />
-            </div>
-
-            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-              <div className="flex items-center gap-3">
-                <FileText className="h-5 w-5 text-blue-600" />
-                <h3 className="text-sm font-medium text-gray-900">Farmer Bill</h3>
-              </div>
-              <Switch checked={showFarmerBill === 1} onCheckedChange={(checked) => setShowFarmerBill(checked ? 1 : 0)} />
-            </div>
-
-            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-              <div className="flex items-center gap-3">
-                <Users className="h-5 w-5 text-blue-600" />
-                <h3 className="text-sm font-medium text-gray-900">Farmer List</h3>
-              </div>
-              <Switch checked={showFarmerList === 1} onCheckedChange={(checked) => setShowFarmerList(checked ? 1 : 0)} />
-            </div>
-
-            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-              <div className="flex items-center gap-3">
-                <Diff className="h-5 w-5 text-blue-600" />
-                <h3 className="text-sm font-medium text-gray-900">Difference Report</h3>
-              </div>
-              <Switch checked={showDifferenceReport === 1} onCheckedChange={(checked) => setShowDifferenceReport(checked ? 1 : 0)} />
-            </div>
-
-            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-              <div className="flex items-center gap-3">
-                <Minus className="h-5 w-5 text-blue-600" />
-                <h3 className="text-sm font-medium text-gray-900">Bonus Deduction</h3>
-              </div>
-              <Switch checked={showBonusDeduction === 1} onCheckedChange={(checked) => setShowBonusDeduction(checked ? 1 : 0)} />
-            </div>
-
-            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-              <div className="flex items-center gap-3">
-                <History className="h-5 w-5 text-blue-600" />
-                <h3 className="text-sm font-medium text-gray-900">Collection History</h3>
-              </div>
-              <Switch checked={showCollectionHistory === 1} onCheckedChange={(checked) => setShowCollectionHistory(checked ? 1 : 0)} />
-            </div>
-
-            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-              <div className="flex items-center gap-3">
-                <Package className="h-5 w-5 text-blue-600" />
-                <h3 className="text-sm font-medium text-gray-900">Cattle Feed</h3>
-              </div>
-              <Switch checked={showCattleFeed === 1} onCheckedChange={(checked) => setShowCattleFeed(checked ? 1 : 0)} />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <Lock className="h-5 w-5 text-blue-600" />
-            <h2 className="text-lg font-semibold text-gray-900">
-              Settings Password Management
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-2 block">
-                {hasPassword ? "Update Password" : "Create Password"}
-              </label>
-              <div className="flex gap-3">
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter password"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <Button
-                  onClick={handlePasswordSave}
-                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+          {/* Language */}
+          <SectionCard>
+            <SectionHeader icon={Languages} title="Language Preferences" />
+            <div className="p-4 space-y-4">
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">App Language</p>
+                <RadioGroup
+                  value={language.toLowerCase()}
+                  onValueChange={(val) => setLanguage(val.charAt(0).toUpperCase() + val.slice(1))}
+                  className="grid grid-cols-2 gap-2"
                 >
+                  {["english", "hindi", "marathi", "kannada"].map((lang) => (
+                    <label
+                      key={lang} htmlFor={`lang-${lang}`}
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all text-sm font-medium capitalize",
+                        language.toLowerCase() === lang
+                          ? "border-blue-300 bg-blue-50 text-blue-700"
+                          : "border-gray-100 text-gray-600 hover:border-gray-200 bg-white"
+                      )}
+                    >
+                      <RadioGroupItem value={lang} id={`lang-${lang}`} className="w-4 h-4 border-gray-300" />
+                      {lang}
+                    </label>
+                  ))}
+                </RadioGroup>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Report Language</p>
+                <RadioGroup
+                  value={reportLanguage.toLowerCase()}
+                  onValueChange={(val) => setReportLanguage(val.charAt(0).toUpperCase() + val.slice(1))}
+                  className="grid grid-cols-2 gap-2"
+                >
+                  {["english", "hindi", "marathi", "kannada"].map((lang) => (
+                    <label
+                      key={lang} htmlFor={`report-lang-${lang}`}
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all text-sm font-medium capitalize",
+                        reportLanguage.toLowerCase() === lang
+                          ? "border-blue-300 bg-blue-50 text-blue-700"
+                          : "border-gray-100 text-gray-600 hover:border-gray-200 bg-white"
+                      )}
+                    >
+                      <RadioGroupItem value={lang} id={`report-lang-${lang}`} className="w-4 h-4 border-gray-300" />
+                      {lang}
+                    </label>
+                  ))}
+                </RadioGroup>
+              </div>
+            </div>
+          </SectionCard>
+
+          <div className="space-y-3">
+            {/* VLC Selector — searchable combobox (no-animation div-based) */}
+            <SectionCard className="overflow-visible">
+              <SectionHeader icon={Settings2} title="Select VLC" />
+              <div className="p-4 overflow-visible">
+                {(() => {
+                  const selectedBranch = branches.find((b) => b.branch_id.toString() === selectedVlc);
+                  const filtered = branches.filter((b) => {
+                    const q = vlcSearch.toLowerCase();
+                    return (
+                      !q ||
+                      b.username?.toLowerCase().includes(q) ||
+                      b.name?.toLowerCase().includes(q) ||
+                      b.branchName?.toLowerCase().includes(q)
+                    );
+                  });
+                  return (
+                    <div ref={vlcWrapperRef} className="relative">
+                      {/* Trigger */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setVlcOpen((prev) => !prev);
+                          if (!vlcOpen) setTimeout(() => vlcSearchRef.current?.focus(), 0);
+                          else setVlcSearch("");
+                        }}
+                        className={cn(
+                          "w-full flex items-center justify-between px-3 py-2 h-10 text-sm rounded-lg border bg-white transition-colors",
+                          vlcOpen ? "border-blue-400 ring-1 ring-blue-100" : "border-gray-200 hover:border-gray-300"
+                        )}
+                      >
+                        <span className={selectedBranch ? "text-gray-800 font-medium truncate" : "text-gray-400"}>
+                          {selectedBranch
+                            ? `${selectedBranch.username} — ${selectedBranch.name}${selectedBranch.branchName ? ` — ${selectedBranch.branchName}` : ""}`
+                            : "Choose a VLC branch..."}
+                        </span>
+                        <ChevronDown
+                          className={cn("h-4 w-4 text-gray-400 flex-shrink-0 ml-2 transition-transform duration-150", vlcOpen && "rotate-180")}
+                        />
+                      </button>
+
+                      {/* Dropdown panel — plain div, no Radix animation */}
+                      {vlcOpen && (
+                        <div
+                          className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden"
+                          style={{ top: "100%", left: 0 }}
+                        >
+                          {/* Search */}
+                          <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100">
+                            <Search className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                            <input
+                              ref={vlcSearchRef}
+                              value={vlcSearch}
+                              onChange={(e) => setVlcSearch(e.target.value)}
+                              placeholder="Search VLC..."
+                              className="flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400"
+                            />
+                            {vlcSearch && (
+                              <button
+                                type="button"
+                                onMouseDown={(e) => { e.preventDefault(); setVlcSearch(""); vlcSearchRef.current?.focus(); }}
+                                className="text-gray-400 hover:text-gray-600 text-sm leading-none"
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </div>
+                          {/* Options */}
+                          <div className="max-h-48 overflow-y-auto">
+                            {filtered.length === 0 ? (
+                              <div className="px-3 py-4 text-center text-sm text-gray-400">No branches found</div>
+                            ) : (
+                              filtered.map((branch) => {
+                                const val = branch.branch_id.toString();
+                                const isSelected = val === selectedVlc;
+                                return (
+                                  <button
+                                    key={branch.branch_id}
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      setSelectedVlc(val);
+                                      setVlcOpen(false);
+                                      setVlcSearch("");
+                                    }}
+                                    className={cn(
+                                      "w-full flex items-center justify-between px-3 py-2.5 text-sm text-left",
+                                      isSelected ? "bg-blue-50 text-blue-700" : "text-gray-700 hover:bg-gray-50"
+                                    )}
+                                  >
+                                    <span className="truncate">
+                                      <span className="font-semibold">{branch.username}</span>
+                                      {" — "}{branch.name}
+                                      {branch.branchName ? ` — ${branch.branchName}` : ""}
+                                    </span>
+                                    {isSelected && <Check className="h-4 w-4 text-blue-600 flex-shrink-0 ml-2" />}
+                                  </button>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+                {!selectedVlc && (
+                  <p className="text-xs text-amber-500 mt-2 flex items-center gap-1.5">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400" />
+                    Select a VLC to load and save settings
+                  </p>
+                )}
+              </div>
+            </SectionCard>
+
+            {/* System Toggles */}
+            <SectionCard>
+              <SectionHeader icon={ToggleLeft} title="System Toggles">
+                <SelectAllBox allOn={allSwitchesOn} someOn={someSwitchesOn} onToggle={handleSelectAllSwitches} />
+              </SectionHeader>
+              <div className="p-4 grid grid-cols-1 gap-2.5">
+                <SwitchRow icon={BarChart3} label="Analyser" checked={analyser === 1} onChange={(c) => setAnalyser(c ? 1 : 0)} />
+                <SwitchRow icon={Layers} label="Weight Tier" checked={weightTier === 1} onChange={(c) => setWeightTier(c ? 1 : 0)} />
+                <SwitchRow icon={MessageCircle} label="CC" checked={cc === 1} onChange={(c) => setCc(c ? 1 : 0)} />
+                <SwitchRow icon={Scale} label="Weight" checked={weight === 1} onChange={(c) => setWeight(c ? 1 : 0)} />
+                <SwitchRow icon={Printer} label="Printer" checked={printer === 1} onChange={(c) => setPrinter(c ? 1 : 0)} />
+              </div>
+            </SectionCard>
+          </div>
+        </div>
+
+        {/* Row 2: Features + Reports */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {/* Feature Management */}
+          <SectionCard>
+            <SectionHeader icon={Settings2} title="Feature Management">
+              <SelectAllBox allOn={allFeaturesOn} someOn={someFeaturesOn} onToggle={handleSelectAllFeatures} />
+            </SectionHeader>
+            <div className="p-4 grid grid-cols-1 gap-2.5">
+              <FeatureRow id="feat-add-farmer" icon={UserPlus} label="Add Farmer" checked={addFarmer === 1} onChange={(c) => setAddFarmer(c ? 1 : 0)} />
+              <FeatureRow id="feat-rate-chart" icon={TrendingUp} label="Rate Chart" checked={rateChart === 1} onChange={(c) => setRateChart(c ? 1 : 0)} />
+              <FeatureRow id="feat-deduction" icon={Minus} label="Deduction" checked={deduction === 1} onChange={(c) => setDeduction(c ? 1 : 0)} />
+              <FeatureRow id="feat-payment" icon={CreditCard} label="Payment & Receipt" checked={paymentReceipt === 1} onChange={(c) => setPaymentReceipt(c ? 1 : 0)} />
+              <FeatureRow id="feat-bill" icon={FileText} label="Generate Bill" checked={generateBill === 1} onChange={(c) => setGenerateBill(c ? 1 : 0)} />
+            </div>
+          </SectionCard>
+
+          {/* Report Visibility */}
+          <SectionCard>
+            <SectionHeader icon={FileText} title="Report Visibility">
+              <SelectAllBox allOn={allReportsOn} someOn={someReportsOn} onToggle={handleSelectAllReports} />
+            </SectionHeader>
+            <div className="p-4 grid grid-cols-2 gap-2.5">
+              <SwitchRow icon={ClipboardList} label="Shift Report" checked={showShiftReport === 1} onChange={(c) => setShowShiftReport(c ? 1 : 0)} />
+              <SwitchRow icon={BarChart3} label="Total Collection" checked={showTotalCollection === 1} onChange={(c) => setShowTotalCollection(c ? 1 : 0)} />
+              <SwitchRow icon={PieChart} label="Payment Summary" checked={showPaymentSummary === 1} onChange={(c) => setShowPaymentSummary(c ? 1 : 0)} />
+              <SwitchRow icon={ListOrdered} label="Rate Chart" checked={showReportRateChart === 1} onChange={(c) => setShowReportRateChart(c ? 1 : 0)} />
+              <SwitchRow icon={FileText} label="Farmer Bill" checked={showFarmerBill === 1} onChange={(c) => setShowFarmerBill(c ? 1 : 0)} />
+              <SwitchRow icon={Users} label="Farmer List" checked={showFarmerList === 1} onChange={(c) => setShowFarmerList(c ? 1 : 0)} />
+              <SwitchRow icon={Diff} label="Difference Report" checked={showDifferenceReport === 1} onChange={(c) => setShowDifferenceReport(c ? 1 : 0)} />
+              <SwitchRow icon={Minus} label="Bonus Deduction" checked={showBonusDeduction === 1} onChange={(c) => setShowBonusDeduction(c ? 1 : 0)} />
+              <SwitchRow icon={History} label="Collection History" checked={showCollectionHistory === 1} onChange={(c) => setShowCollectionHistory(c ? 1 : 0)} />
+              <SwitchRow icon={Package} label="Cattle Feed" checked={showCattleFeed === 1} onChange={(c) => setShowCattleFeed(c ? 1 : 0)} />
+            </div>
+          </SectionCard>
+        </div>
+
+        {/* Row 3: Password + Other + CC */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* Password */}
+          <SectionCard>
+            <SectionHeader icon={Lock} title="Password Management" />
+            <div className="p-4 space-y-3">
+              <p className="text-xs text-gray-500">
+                {hasPassword ? "Update the existing settings password." : "Create a password to protect settings."}
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter password"
+                  className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400"
+                />
+                <Button onClick={handlePasswordSave} size="sm"
+                  className="px-4 py-2 h-auto text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
                   {hasPassword ? "Update" : "Create"}
                 </Button>
               </div>
               {hasPassword && (
-                <p className="text-xs text-gray-500 mt-2">
-                  Password already exists. Enter a new password to update.
+                <p className="text-xs text-green-600 flex items-center gap-1.5">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500" />
+                  Password is currently set
                 </p>
               )}
             </div>
-            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-              <div>
-                <h3 className="text-sm font-medium text-gray-900">Show Water</h3>
-                <p className="text-xs text-gray-500">Display water information</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch checked={showWater === 1} onCheckedChange={handleShowWaterChange} />
-                <span className="text-xs text-gray-700 font-medium">
-                  {showWater === 1 ? "ON" : "OFF"}
-                </span>
-              </div>
+          </SectionCard>
+
+          {/* Other Settings */}
+          <SectionCard>
+            <SectionHeader icon={Settings2} title="Other Settings" />
+            <div className="p-4 grid grid-cols-1 gap-2.5">
+              <SwitchRow icon={Scale} label="Show Water" checked={showWater === 1} onChange={handleShowWaterChange} />
+              <SwitchRow
+                icon={Package} label="Cattle Feed Lump Sum"
+                checked={cattleFeedLumpSum === 1}
+                onChange={(c) => { const v = c ? 1 : 0; setCattleFeedLumpSum(v); localStorage.setItem("cattleFeedLumpSum", v.toString()); }}
+              />
+              <SwitchRow icon={Layers} label="Multiple Modal" checked={multipleModal === 1} onChange={(c) => setMultipleModal(c ? 1 : 0)} />
             </div>
-            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+          </SectionCard>
+
+          {/* CC Collection Settings */}
+          <SectionCard>
+            <SectionHeader icon={Layers} title="CC Collection" />
+            <div className="p-4 space-y-4">
               <div>
-                <h3 className="text-sm font-medium text-gray-900">Cattle Feed Lump Sum</h3>
-                <p className="text-xs text-gray-500">Simple input for cattle feed payments</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch 
-                  checked={cattleFeedLumpSum === 1} 
-                  onCheckedChange={(checked) => {
-                    const value = checked ? 1 : 0;
-                    setCattleFeedLumpSum(value);
-                    localStorage.setItem('cattleFeedLumpSum', value.toString());
-                  }} 
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Search Preference</p>
+                <SegmentControl
+                  value={ccSearchType} onChange={setCcSearchType}
+                  options={[{ label: "Farmer ID", val: 0 }, { label: "Sample ID", val: 1 }]}
                 />
-                <span className="text-xs text-gray-700 font-medium">
-                  {cattleFeedLumpSum === 1 ? "ON" : "OFF"}
-                </span>
               </div>
-            </div>
-            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
               <div>
-                <h3 className="text-sm font-medium text-gray-900">Multiple Modal</h3>
-                <p className="text-xs text-gray-500">Enable multiple modal windows</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch 
-                  checked={multipleModal === 1} 
-                  onCheckedChange={(checked) => setMultipleModal(checked ? 1 : 0)} 
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Analysis Mode</p>
+                <SegmentControl
+                  value={ccAnalysisType} onChange={setCcAnalysisType}
+                  options={[{ label: "FAT / SNF", val: 0 }, { label: "FAT / CLR", val: 1 }]}
                 />
-                <span className="text-xs text-gray-700 font-medium">
-                  {multipleModal === 1 ? "ON" : "OFF"}
-                </span>
               </div>
             </div>
-          </div>
+          </SectionCard>
         </div>
 
-        {/* CC Collection Specific Settings */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <Layers className="h-5 w-5 text-blue-600" />
-            <h2 className="text-lg font-semibold text-gray-900">
-              CC Collection Settings
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-              <div>
-                <h3 className="text-sm font-medium text-gray-900">Search Preference</h3>
-                <p className="text-xs text-gray-500">Method used for record lookup</p>
-              </div>
-              <div className="flex items-center gap-3 bg-gray-100 p-1 rounded-lg">
-                <button 
-                  onClick={() => setCcSearchType(0)}
-                  className={cn(
-                    "px-3 py-1.5 text-[10px] font-bold rounded-md transition-all",
-                    ccSearchType === 0 ? "bg-white text-blue-600 shadow-sm" : "text-gray-400"
-                  )}
-                >
-                  Farmer ID
-                </button>
-                <button 
-                  onClick={() => setCcSearchType(1)}
-                  className={cn(
-                    "px-3 py-1.5 text-[10px] font-bold rounded-md transition-all",
-                    ccSearchType === 1 ? "bg-white text-blue-600 shadow-sm" : "text-gray-400"
-                  )}
-                >
-                  Sample ID
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-              <div>
-                <h3 className="text-sm font-medium text-gray-900">Analysis Mode</h3>
-                <p className="text-xs text-gray-500">Collection quality parameters</p>
-              </div>
-              <div className="flex items-center gap-3 bg-gray-100 p-1 rounded-lg">
-                <button 
-                  onClick={() => setCcAnalysisType(0)}
-                  className={cn(
-                    "px-3 py-1.5 text-[10px] font-bold rounded-md transition-all",
-                    ccAnalysisType === 0 ? "bg-white text-blue-600 shadow-sm" : "text-gray-400"
-                  )}
-                >
-                  FAT / SNF
-                </button>
-                <button 
-                  onClick={() => setCcAnalysisType(1)}
-                  className={cn(
-                    "px-3 py-1.5 text-[10px] font-bold rounded-md transition-all",
-                    ccAnalysisType === 1 ? "bg-white text-blue-600 shadow-sm" : "text-gray-400"
-                  )}
-                >
-                  FAT / CLR
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex justify-left pt-6">
-          <Button onClick={handleSave} className="px-50 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
-            Save Changes
-          </Button>
-        </div>
+        {/* Bottom padding */}
+        <div className="h-4" />
       </div>
     </div>
   );

@@ -133,7 +133,7 @@ const BankSummary: React.FC = () => {
         "BNF_NAME": row.fullName,
         "BENE_ACC_NO": row.accountNumber || "",
         "BENE_IFSC": row.ifscCode || "",
-        "AMOUNT": parseFloat(row.milk_total || 0).toFixed(2),
+        "AMOUNT": parseFloat(row.milk_total?.toString() || "0").toFixed(2),
         "DEBIT_NARR": "",
         "CREDIT_NARR": "",
         "MOBILE_NUM": row.mobile_number || "",
@@ -166,7 +166,7 @@ const BankSummary: React.FC = () => {
         "Name": row.fullName,
         "Mobile": row.mobile_number,
         "Email": row.email || "-",
-        "Milk Total": parseFloat(row.milk_total || 0).toFixed(2),
+        "Milk Total": parseFloat(row.milk_total?.toString() || "0").toFixed(2),
         "Bank Name": row.bankName || "-",
         "Account Number": row.accountNumber || "-",
         "IFSC Code": row.ifscCode || "-"
@@ -258,7 +258,7 @@ const BankSummary: React.FC = () => {
                   <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
                     <CardContent className="p-4">
                       <p className="text-sm text-purple-600 font-medium">Total Amount</p>
-                      <p className="text-2xl font-bold text-purple-900">₹{data.reduce((sum, row) => sum + parseFloat(row.milk_total || 0), 0).toFixed(2)}</p>
+                      <p className="text-2xl font-bold text-purple-900">₹{data.reduce((sum, row) => sum + parseFloat(row.milk_total?.toString() || "0"), 0).toFixed(2)}</p>
                     </CardContent>
                   </Card>
                 </div>
@@ -302,7 +302,7 @@ const BankSummary: React.FC = () => {
                         <td className="py-3 px-4">{row.fullName}</td>
                         <td className="py-3 px-4">{row.mobile_number}</td>
                         <td className="py-3 px-4">{row.email || "-"}</td>
-                        <td className="py-3 px-4 text-right">₹{parseFloat(row.milk_total || 0).toFixed(2)}</td>
+                        <td className="py-3 px-4 text-right">₹{parseFloat(row.milk_total?.toString() || "0").toFixed(2)}</td>
                         <td className="py-3 px-4">{row.bankName || "-"}</td>
                         <td className="py-3 px-4">{row.accountNumber || "-"}</td>
                         <td className="py-3 px-4">{row.ifscCode || "-"}</td>

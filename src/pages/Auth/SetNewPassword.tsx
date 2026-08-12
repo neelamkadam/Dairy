@@ -9,6 +9,8 @@ import { ROUTES } from "@/constatnts/routesConstants";
 import { api } from "@/services/config";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
 import { setAuthentication, clearTempUserData } from "@/redux/AuthSlice";
+import { toast } from "react-toastify";
+import { Loader2 } from "lucide-react";
 
 const SetNewPassword = () => {
   const [formData, setFormData] = useState({
@@ -62,7 +64,7 @@ const SetNewPassword = () => {
         localStorage.removeItem("token");
         
         // Show success message and redirect to login
-        alert("Password set successfully! Please login with your new password.");
+        toast.success("Password set successfully! Please login with your new password.");
         navigate(ROUTES.AUTH.LOGIN);
       } else {
         setError(data.message || "Failed to set password");
@@ -129,6 +131,7 @@ const SetNewPassword = () => {
             )}
 
             <Button type="submit" disabled={loading} className="w-full">
+              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {loading ? "Setting Password..." : "Set Password"}
             </Button>
           </form>

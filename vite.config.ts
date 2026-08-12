@@ -2,26 +2,12 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
-import { Plugin } from 'vite';
-
-const removeConsolePlugin = (): Plugin => ({
-  name: 'remove-console',
-  transform(code, id) {
-    if (id.endsWith('.ts') || id.endsWith('.tsx')) {
-      return {
-        code: code.replace(/console\.(log|debug|info|warn)\s*\([^)]*\)\s*;?/g, ''),
-        map: null
-      };
-    }
-  }
-});
 
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig(() => ({
   plugins: [
     react(), 
     tailwindcss(),
-    // ...(mode === 'production' ? [removeConsolePlugin()] : [])
   ],
   resolve: {
     alias: {

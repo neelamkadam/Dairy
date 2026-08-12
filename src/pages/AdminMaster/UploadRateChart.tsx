@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, FileSpreadsheet } from "lucide-react";
+import { Upload, FileSpreadsheet, CheckCircle2 } from "lucide-react";
 import { toast } from "react-toastify";
 import { api } from "@/services/config";
 
@@ -16,17 +16,37 @@ const UploadRateChart = () => {
     effectiveDate: new Date().toISOString().split('T')[0],
   });
   const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [previewData, setPreviewData] = useState<string[][] | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.type !== "text/csv" && !file.name.endsWith(".csv")) {
-        toast.error("Please upload a CSV file");
+      const validExtensions = ['.csv', '.xls', '.xlsx'];
+      const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+      
+      if (!validExtensions.includes(fileExtension)) {
+        toast.error("Please upload a CSV or Excel file (.csv, .xls, .xlsx)");
+        e.target.value = '';
         return;
       }
+      
       setCsvFile(file);
+      
+      // Preview CSV files only
+      if (fileExtension === '.csv') {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const text = event.target?.result as string;
+          const rows = text.split('\n').slice(0, 6).map(row => row.split(','));
+          setPreviewData(rows);
+        };
+        reader.readAsText(file);
+      } else {
+        setPreviewData(null);
+      }
     }
+    e.target.value = '';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -59,7 +79,8 @@ const UploadRateChart = () => {
         effectiveDate: "",
       });
       setCsvFile(null);
-      const fileInput = document.getElementById("csv-file") as HTMLInputElement;
+      setPreviewData(null);
+      const fileInput = document.getElementById("excel-upload") as HTMLInputElement;
       if (fileInput) fileInput.value = "";
     } catch (error) {
       toast.error("Network error occurred");
@@ -155,27 +176,49 @@ const UploadRateChart = () => {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="csv-file" className="text-sm font-medium">
-                  CSV File (UTF-8)<span className="text-red-600">*</span>
-                </Label>
-                <div className="flex items-center gap-3">
-                  <Input
-                    id="csv-file"
-                    type="file"
-                    accept=".csv"
-                    onChange={handleFileChange}
-                    className="h-11"
-                    required
-                  />
-                  {csvFile && (
-                    <div className="flex items-center gap-2 text-sm text-green-600">
-                      <FileSpreadsheet className="w-4 h-4" />
-                      {csvFile.name}
-                    </div>
-                  )}
+              <div className="space-y-6">
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 md:p-12 text-center hover:border-blue-400 transition-colors">
+                  <input type="file" accept=".csv,.xls,.xlsx" onChange={handleFileChange} className="hidden" id="excel-upload" />
+                  <label htmlFor="excel-upload" className="cursor-pointer block">
+                    {csvFile ? (
+                      <div className="flex flex-col items-center">
+                        <CheckCircle2 className="w-16 h-16 text-green-500 mb-4" />
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">File Selected</h3>
+                        <p className="text-sm text-gray-600 bg-green-50 px-4 py-2 rounded-full">{csvFile.name}</p>
+                        <Button variant="outline" className="mt-4" onClick={(e) => { e.preventDefault(); setCsvFile(null); setPreviewData(null); }}>Change File</Button>
+                      </div>
+                    ) : (
+                      <div>
+                        <Upload className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Drop file or browse</h3>
+                        <p className="text-gray-500 text-sm">Supported formats: .csv, .xls, .xlsx</p>
+                      </div>
+                    )}
+                  </label>
                 </div>
-                <p className="text-xs text-gray-500">Upload CSV file in UTF-8 format</p>
+
+                {previewData && (
+                  <div className="mt-4 border rounded-lg overflow-hidden">
+                    <div className="bg-gray-100 px-4 py-2 border-b">
+                      <h4 className="font-semibold text-gray-700">Preview (First 5 Rows)</h4>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <tbody>
+                          {previewData.map((row, i) => (
+                            <tr key={i} className={i === 0 ? 'bg-blue-50 font-semibold' : 'hover:bg-gray-50'}>
+                              {row.map((cell, j) => (
+                                <td key={j} className="px-3 py-2 border-r border-b text-center">
+                                  {cell}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <Button type="submit" disabled={loading} className="w-full h-11 bg-blue-600 hover:bg-blue-700">

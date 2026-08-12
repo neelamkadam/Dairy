@@ -84,7 +84,11 @@ const DynamicBillCycle = () => {
   const fetchBonusInfo = async () => {
     if (!vlcId) return;
     try {
-      const response = await bonusApi.getBonusDeduction(parseInt(vlcId));
+      const response = await bonusApi.getBonusDeductions({
+        dairy_id: parseInt(vlcId),
+        start_date: format(new Date(), "yyyy-MM-dd"),
+        end_date: format(new Date(), "yyyy-MM-dd")
+      });
       if (response.data && response.data.success) {
         setBonusDeductionInfo(response.data.data);
       }
@@ -547,7 +551,7 @@ const DynamicBillCycle = () => {
       const selectedBranch = branches.find(b => b.branch_id.toString() === vlcId);
       await paymentApi.create({
         date: format(startDate, "yyyy-MM-dd"),
-        dairy_id: selectedBranch?.dairy_id || vlcId,
+        dairy_id: (selectedBranch as any)?.dairy_id || vlcId,
         farmer_id: currentFarmer.farmer_id,
         farmer_name: currentFarmer.name,
         payment_type: paymentType,
@@ -801,7 +805,7 @@ const DynamicBillCycle = () => {
         paymentPromises.push(
           paymentApi.create({
             date: dateStr,
-            dairy_id: selectedBranch?.dairy_id || vlcId,
+            dairy_id: (selectedBranch as any)?.dairy_id || vlcId,
             farmer_id: farmerRaw.farmer_id,
             farmer_name: farmerRaw.name,
             payment_type: "Advance",
@@ -815,7 +819,7 @@ const DynamicBillCycle = () => {
         paymentPromises.push(
           paymentApi.create({
             date: dateStr,
-            dairy_id: selectedBranch?.dairy_id || vlcId,
+            dairy_id: (selectedBranch as any)?.dairy_id || vlcId,
             farmer_id: farmerRaw.farmer_id,
             farmer_name: farmerRaw.name,
             payment_type: "Cattle Feed",
@@ -829,7 +833,7 @@ const DynamicBillCycle = () => {
         paymentPromises.push(
           paymentApi.create({
             date: dateStr,
-            dairy_id: selectedBranch?.dairy_id || vlcId,
+            dairy_id: (selectedBranch as any)?.dairy_id || vlcId,
             farmer_id: farmerRaw.farmer_id,
             farmer_name: farmerRaw.name,
             payment_type: "Other1",
@@ -843,7 +847,7 @@ const DynamicBillCycle = () => {
         paymentPromises.push(
           paymentApi.create({
             date: dateStr,
-            dairy_id: selectedBranch?.dairy_id || vlcId,
+            dairy_id: (selectedBranch as any)?.dairy_id || vlcId,
             farmer_id: farmerRaw.farmer_id,
             farmer_name: farmerRaw.name,
             payment_type: "Other2",

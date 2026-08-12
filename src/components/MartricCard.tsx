@@ -4,8 +4,8 @@ import { LucideIcon } from "lucide-react";
 interface MetricCardProps {
   title: string;
   value: string;
-  change: string;
-  changeType: "positive" | "negative";
+  change?: string;
+  changeType?: "positive" | "negative";
   icon: LucideIcon;
   iconColor: string;
   className?: string;
@@ -14,27 +14,33 @@ interface MetricCardProps {
 export function MetricCard({ 
   title, 
   value, 
-  change, 
-  changeType, 
+  change,
+  changeType,
   icon: Icon, 
   iconColor,
   className 
 }: MetricCardProps) {
   return (
-    <div className={cn("bg-white rounded-lg p-6 shadow-sm border", className)}>
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
-          <p className="text-3xl font-bold text-gray-900">{value}</p>
+    <div className={cn(
+      "bg-white rounded-xl p-5 border border-slate-200 shadow-sm transition-shadow hover:shadow-md",
+      className
+    )}>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm font-medium text-slate-500">{title}</p>
+        <div className={cn("p-2 rounded-lg bg-slate-50 border border-slate-100", iconColor)}>
+          <Icon size={18} />
+        </div>
+      </div>
+      <div>
+        <p className="text-2xl font-semibold text-slate-900">{value}</p>
+        {change && (
           <p className={cn(
-            "text-sm font-medium mt-2",
-            changeType === "positive" ? "text-green-600" : "text-red-600"
+            "text-xs font-medium mt-1 flex items-center gap-1",
+            changeType === "positive" ? "text-emerald-600" : "text-rose-600"
           )}>
+            {change}
           </p>
-        </div>
-        <div className={cn("p-3 rounded-lg", iconColor)}>
-          <Icon size={24} className="text-white" />
-        </div>
+        )}
       </div>
     </div>
   );

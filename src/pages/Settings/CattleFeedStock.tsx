@@ -116,7 +116,7 @@ const CattleFeedStockSettings: React.FC = () => {
         stock: parseFloat(stock),
         purchase_rate: parseFloat(purchaseRate),
         date: [format(purchaseDate, "yyyy-MM-dd")]
-      };
+      } as any;
       
       await cattleFeedApi.createStock(payload);
       toast.success("Stock added successfully");
@@ -170,7 +170,7 @@ const CattleFeedStockSettings: React.FC = () => {
         stock: newTotalStock,
         purchase_rate: parseFloat(restockRate),
         date: [format(restockDate, "yyyy-MM-dd")]
-      };
+      } as any;
       
       await cattleFeedApi.updateStock(restockItem.id, payload);
       toast.success("Stock added successfully");
@@ -228,7 +228,7 @@ const CattleFeedStockSettings: React.FC = () => {
     }
     try {
       setLoading(true);
-      const response = await cattleFeedApi.getStockReport(dairyId, startDate, endDate);
+      const response = await (cattleFeedApi as any).getStockReport(dairyId, startDate, endDate);
       if (response.success) {
         setReportData(response.data);
         setIsReportOpen(true);
@@ -637,7 +637,7 @@ const CattleFeedStockSettings: React.FC = () => {
                 date={startDate}
                 onChange={(dateStr) => {
                   const parsed = parseISO(dateStr);
-                  if (isValid(parsed)) setStartDate(parsed);
+                  if (isValid(parsed)) setStartDate(parsed as any);
                 }}
               />
             </div>
@@ -646,7 +646,7 @@ const CattleFeedStockSettings: React.FC = () => {
                 date={endDate}
                 onChange={(dateStr) => {
                   const parsed = parseISO(dateStr);
-                  if (isValid(parsed)) setEndDate(parsed);
+                  if (isValid(parsed)) setEndDate(parsed as any);
                 }}
               />
             </div>

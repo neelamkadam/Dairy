@@ -5,12 +5,10 @@ const AppDropdown = ({ triggerText, selectedKey, menuItems, onItemSelect ,classN
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className={className}>
-        <div className="flex items-center gap-2">
-          <span className="text-xl">{selectedItem?.flag || "🌐"}</span>
-          {triggerText}
-        </div>
+        <span className="text-lg leading-none flex items-center justify-center">{selectedItem?.flag || "🌐"}</span>
+        <span className="leading-none flex items-center pt-[1px]">{triggerText}</span>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="bg-white border border-gray-200 shadow-lg">
+      <DropdownMenuContent className="bg-white border border-gray-200 shadow-lg rounded-xl">
         {menuItems.map(({key,value,flag}:any) => (
           <DropdownMenuItem key={key} onClick={() => onItemSelect(key,value)} className="hover:bg-gray-50 cursor-pointer">
             <div className="flex items-center gap-2">

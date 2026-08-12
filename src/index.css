@@ -92,6 +92,16 @@ input[type="number"] {
   appearance: textfield;
 }
 
+/* Hide default calendar icon in webkit browsers since we use a custom one */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  cursor: pointer;
+  position: absolute;
+  right: 0;
+  width: 2.5rem;
+  height: 100%;
+}
+
 @media screen and (max-width: 767px) {
   input,
   select {

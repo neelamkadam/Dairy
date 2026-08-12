@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import { Bell} from "lucide-react";
+import { Bell, Menu, User, Settings, LogOut, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ArrowDown } from "lucide-react";
 
 import {
   DropdownMenu,
@@ -17,7 +16,7 @@ import { useTranslation } from "react-i18next";
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constatnts/routesConstants";
-import { useAppDispatch } from "@/redux/store";
+import { useAppDispatch, useAppSelector } from "@/redux/store";
 import { logout } from "@/redux/AuthSlice";
 
 interface NavbarProps {
@@ -35,6 +34,7 @@ const AppNavbar = ({}: NavbarProps) => {
   ]);
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const user = useAppSelector((state) => state.authData?.userData);
   const [showLanguageGuide, setShowLanguageGuide] = useState(false);
   const [userAvatar, setUserAvatar] = useState('https://api.dicebear.com/7.x/avataaars/svg?seed=default');
 
@@ -59,6 +59,7 @@ const AppNavbar = ({}: NavbarProps) => {
     { key: "en", value: "English", flag: "🇬🇧" },
     { key: "hi", value: "हिंदी", flag: "🇮🇳" },
     { key: "mr", value: "मराठी", flag: "🇮🇳" },
+    { key: "kn", value: "ಕನ್ನಡ", flag: "🇮🇳" },
   ];
 
   useEffect(() => {
@@ -80,24 +81,20 @@ const AppNavbar = ({}: NavbarProps) => {
     navigate(ROUTES.AUTH.LOGIN);
   }
   return (
-    <header className="bg-white border-b border-gray-200 px-4 md:px-6 py-4 md:py-5 shadow-sm">
+    <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 md:px-6 py-3 shadow-sm sticky top-0 z-30 transition-all duration-300">
       <div className="flex items-center justify-between">
         {/* Left side - Mobile Menu Button */}
         <div className="flex items-center">
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
             onClick={() => {
               const event = new CustomEvent('toggleSidebar');
               window.dispatchEvent(event);
             }}
-            className="lg:hidden p-2"
+            className="lg:hidden mr-2 hover:bg-slate-100 rounded-xl"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="3" y1="12" x2="21" y2="12"></line>
-              <line x1="3" y1="6" x2="21" y2="6"></line>
-              <line x1="3" y1="18" x2="21" y2="18"></line>
-            </svg>
+            <Menu className="h-5 w-5 text-slate-700" />
           </Button>
         </div>
 
@@ -113,7 +110,7 @@ const AppNavbar = ({}: NavbarProps) => {
                 handleItemSelect(key, value);
                 dismissGuide();
               }}
-              className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-full transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
             {showLanguageGuide && (
               <div className="absolute top-full mt-2 right-0 z-50 animate-bounce">
@@ -162,16 +159,35 @@ const AppNavbar = ({}: NavbarProps) => {
           {/* User Profile */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="p-0 hover:bg-gray-100 rounded-full">
-                <img src={userAvatar} alt="avatar" className="w-10 h-10 rounded-full" />
-              </Button>
+              <button className="flex items-center gap-3 p-1 pr-2 hover:bg-slate-50 border border-slate-200 bg-white rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm ml-2">
+                <div className="relative ml-1">
+                  <img src={userAvatar} alt="avatar" className="w-8 h-8 rounded-full object-cover border border-slate-100" />
+                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full"></span>
+                </div>
+                <div className="hidden sm:flex flex-col items-start mr-1">
+                  <span className="text-sm font-semibold text-slate-700 leading-none">{user?.name || "Administrator"}</span>
+                  <span className="text-[10px] text-slate-500 mt-1 leading-none">Neodairy</span>
+                </div>
+                <ChevronDown className="h-4 w-4 text-slate-400" />
+              </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 bg-white border border-gray-200 shadow-lg">
-              <DropdownMenuItem onClick={() => navigate(ROUTES.PROFILE)} className="hover:bg-gray-50 cursor-pointer">Profile</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate(ROUTES.SETTINGS.GENERAL_SETTINGS)} className="hover:bg-gray-50 cursor-pointer">Settings</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut} className="hover:bg-gray-50 cursor-pointer text-red-600">
-                Sign out
+            <DropdownMenuContent align="end" className="w-56 bg-white border border-slate-200 shadow-xl rounded-xl p-1 font-inter">
+              <div className="px-3 py-2.5 mb-1 border-b border-slate-100">
+                <p className="text-sm font-medium text-slate-900 truncate">{user?.name || "Administrator"}</p>
+                <p className="text-xs text-slate-500 truncate">{user?.email || "admin@neodairy.com"}</p>
+              </div>
+              <DropdownMenuItem onClick={() => navigate(ROUTES.PROFILE)} className="hover:bg-slate-50 cursor-pointer rounded-lg px-3 py-2 text-slate-700 flex items-center gap-2">
+                <User className="h-4 w-4 text-slate-400" />
+                <span>Profile</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate(ROUTES.SETTINGS.GENERAL_SETTINGS)} className="hover:bg-slate-50 cursor-pointer rounded-lg px-3 py-2 text-slate-700 flex items-center gap-2">
+                <Settings className="h-4 w-4 text-slate-400" />
+                <span>Settings</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="my-1 bg-slate-100" />
+              <DropdownMenuItem onClick={handleSignOut} className="hover:bg-red-50 focus:bg-red-50 cursor-pointer rounded-lg px-3 py-2 text-red-600 flex items-center gap-2">
+                <LogOut className="h-4 w-4 text-red-500" />
+                <span>Sign out</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
