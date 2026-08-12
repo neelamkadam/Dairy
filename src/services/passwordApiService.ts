@@ -1,4 +1,6 @@
-const BASE_URL = 'https://api.neodairysales.com';
+import { ENV_VARIABLES } from './config';
+
+const BASE_URL = ENV_VARIABLES.API_BASE;
 
 export interface PasswordResponse {
   success: boolean;

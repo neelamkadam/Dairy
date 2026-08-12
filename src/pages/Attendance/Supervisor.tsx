@@ -4,9 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlayCircle, StopCircle, RefreshCw, Activity } from "lucide-react";
 import axios from "axios";
 import { toast } from "react-toastify";
+import { ENV_VARIABLES } from "@/services/config";
 
-const BASE_URL = "https://api.neodairysales.com/api/maintenance";
-const HEADERS = { "x-maintenance-key": "dairy@admin#2025" };
+const BASE_URL = `${ENV_VARIABLES.API_BASE}/api/maintenance`;
+const HEADERS = { "x-maintenance-key": import.meta.env.VITE_MAINTENANCE_KEY };
 
 type ServiceStatus = "running" | "stopped" | "unknown";
 
