@@ -109,16 +109,14 @@ const DispatchEntry = () => {
       <div className="w-full max-w-5xl mx-auto space-y-6">
         
         {/* Header Card */}
-        <div className="flex items-center justify-between bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex items-center space-x-4">
-            <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
-              <Truck className="h-6 w-6" />
-            </div>
-            <h1 className="text-xl md:text-2xl font-bold text-gray-800 font-serif tracking-wide">
-              {t('tanker_dispatch') || 'Tanker Dispatch'}
-            </h1>
+        <div className="flex items-center bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100">
+          <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl shrink-0">
+            <Truck className="h-6 w-6" />
           </div>
-          <HelpCircle className="h-6 w-6 text-gray-400 stroke-[1.5]" />
+          <h1 className="flex-1 text-center text-xl md:text-2xl font-bold text-gray-800 font-serif tracking-wide">
+            {t('tanker_dispatch') || 'Tanker Dispatch'}
+          </h1>
+          <HelpCircle className="h-6 w-6 text-gray-400 stroke-[1.5] shrink-0" />
         </div>
 
         {/* Form Card */}
