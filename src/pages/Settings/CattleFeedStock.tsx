@@ -23,7 +23,9 @@ import {
   BarChart3,
   Boxes,
   X,
+  ChevronLeft
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -35,6 +37,7 @@ import { cn } from "@/lib/utils";
 import { AppDatePicker } from "@/components/ui/date-picker";
 
 const CattleFeedStockSettings: React.FC = () => {
+  const navigate = useNavigate();
   const { branches } = useAppSelector((state) => state.branch);
   const [dairyId, setDairyId] = useState("");
   const [stockName, setStockName] = useState("");
@@ -363,28 +366,21 @@ const CattleFeedStockSettings: React.FC = () => {
       <div className="max-w-[1400px] mx-auto p-4 md:p-6 lg:p-8 space-y-6">
 
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-200">
-                <Package className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
-                  Cattle Feed Inventory
-                </h1>
-                <p className="text-sm text-slate-500 font-medium">
-                  Manage your livestock feed stock and purchase logs
-                </p>
-              </div>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-2">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
+              <Package className="h-6 w-6" />
             </div>
+            <h1 className="text-xl md:text-2xl font-bold text-gray-800 font-serif tracking-wide">
+              Cattle Feed Inventory
+            </h1>
           </div>
           <Button
             variant="outline"
-            className="bg-white border-slate-200 text-slate-700 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700 shadow-sm transition-all duration-200 h-10 px-5"
+            className="text-indigo-600 border-indigo-200 bg-white hover:bg-indigo-50 flex items-center gap-1.5 rounded-lg h-9 px-4 shadow-sm"
             onClick={() => setIsReportOpen(true)}
           >
-            <FileText className="w-4 h-4 mr-2 text-indigo-500" />
+            <FileText className="w-4 h-4" />
             View Report
           </Button>
         </div>
@@ -971,120 +967,155 @@ const CattleFeedStockSettings: React.FC = () => {
 
       {/* Report Modal */}
       <Dialog open={isReportOpen} onOpenChange={setIsReportOpen}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto bg-white border-none shadow-2xl rounded-2xl p-0 overflow-hidden">
-          <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-900 p-5">
-            <DialogTitle className="text-lg font-bold text-white flex items-center">
-              <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center mr-3">
-                <FileText className="w-4 h-4 text-indigo-300" />
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col bg-white border-none shadow-2xl rounded-3xl p-0 overflow-hidden">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-slate-50 to-indigo-50/30 p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-white shadow-sm border border-slate-100 flex items-center justify-center">
+                <FileText className="w-6 h-6 text-indigo-600" />
               </div>
-              Inventory & Payment Report
-            </DialogTitle>
-          </div>
-
-          <div className="p-5 space-y-5">
-            <div className="bg-slate-50/80 rounded-xl p-4 border border-slate-100 space-y-3">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Select Date Range</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <AppDatePicker
-                  date={startDate}
-                  onChange={(dateStr) => {
-                    const parsed = parseISO(dateStr);
-                    if (isValid(parsed)) setStartDate(parsed as any);
-                  }}
-                />
-                <AppDatePicker
-                  date={endDate}
-                  onChange={(dateStr) => {
-                    const parsed = parseISO(dateStr);
-                    if (isValid(parsed)) setEndDate(parsed as any);
-                  }}
-                />
+              <div>
+                <DialogTitle className="text-xl font-bold text-slate-800 font-serif">
+                  Inventory & Payment Report
+                </DialogTitle>
+                <p className="text-sm text-slate-500 mt-1 font-medium">View detailed stock summaries and payment logs</p>
               </div>
             </div>
+          </div>
 
-            <Button
-              onClick={fetchReport}
-              disabled={loading || !dairyId}
-              className="w-full bg-gradient-to-r from-slate-900 to-indigo-900 hover:from-slate-800 hover:to-indigo-800 text-white h-11 rounded-xl shadow-lg"
-            >
-              {loading ? (
-                <span className="flex items-center gap-2">
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Generating...
-                </span>
-              ) : (
-                "Generate Report"
-              )}
-            </Button>
+          <div className="p-6 md:p-8 space-y-8 bg-[#f8fafc] overflow-y-auto flex-1">
+            {/* Filter Section */}
+            <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm space-y-4">
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                <CalendarIcon className="w-4 h-4" /> Select Date Range
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-slate-600 ml-1">Start Date</Label>
+                  <AppDatePicker
+                    date={startDate}
+                    onChange={(dateStr) => {
+                      const parsed = parseISO(dateStr);
+                      if (isValid(parsed)) setStartDate(parsed as any);
+                    }}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-slate-600 ml-1">End Date</Label>
+                  <AppDatePicker
+                    date={endDate}
+                    onChange={(dateStr) => {
+                      const parsed = parseISO(dateStr);
+                      if (isValid(parsed)) setEndDate(parsed as any);
+                    }}
+                  />
+                </div>
+              </div>
+              
+              <Button
+                onClick={fetchReport}
+                disabled={loading || !dairyId}
+                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white h-12 rounded-xl text-base font-bold shadow-md shadow-blue-200/50 mt-2 transition-all active:scale-[0.99]"
+              >
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Generating Report...
+                  </span>
+                ) : (
+                  "Generate Report"
+                )}
+              </Button>
+            </div>
 
             {reportData ? (
-              <div className="space-y-6">
+              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                {/* Stock Summary Section */}
                 <section>
-                  <div className="flex items-center gap-3 mb-3">
-                    <h4 className="font-bold text-slate-800 uppercase tracking-tight text-xs">Feed Stock Summary</h4>
-                    <div className="h-px flex-1 bg-slate-100" />
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-indigo-100 rounded-lg">
+                      <Boxes className="w-4 h-4 text-indigo-700" />
+                    </div>
+                    <h4 className="font-bold text-slate-800 uppercase tracking-tight text-sm">Feed Stock Summary</h4>
+                    <div className="h-px flex-1 bg-slate-200" />
                   </div>
-                  <div className="border border-slate-100 rounded-xl overflow-hidden shadow-sm">
+                  <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
                     <table className="w-full text-sm">
-                      <thead className="bg-slate-50 border-b border-slate-100">
+                      <thead className="bg-slate-50/50 border-b border-slate-100">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Item</th>
-                          <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Stock</th>
-                          <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Price</th>
+                          <th className="px-5 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Item</th>
+                          <th className="px-5 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Stock Qty</th>
+                          <th className="px-5 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Total Value</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {reportData.cattlefeed_stock?.map((s: any) => (
-                          <tr key={s.id} className="hover:bg-indigo-50/30 transition-colors">
-                            <td className="px-4 py-3 font-medium text-slate-700">{s.stock_name}</td>
-                            <td className="px-4 py-3 text-right font-bold text-slate-600">{s.stock}</td>
-                            <td className="px-4 py-3 text-right font-bold text-emerald-600">₹{parseFloat(s.amount).toFixed(2)}</td>
+                      <tbody className="divide-y divide-slate-50">
+                        {reportData.cattlefeed_stock?.length > 0 ? (
+                          reportData.cattlefeed_stock.map((s: any) => (
+                            <tr key={s.id} className="hover:bg-indigo-50/40 transition-colors group">
+                              <td className="px-5 py-4 font-bold text-slate-700">{s.stock_name}</td>
+                              <td className="px-5 py-4 text-right font-bold text-slate-600">
+                                <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-md">{s.stock}</span>
+                              </td>
+                              <td className="px-5 py-4 text-right font-black text-emerald-600">₹{parseFloat(s.amount).toFixed(2)}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={3} className="px-5 py-8 text-center text-slate-400 font-medium">No stock data available for this period.</td>
                           </tr>
-                        ))}
+                        )}
                       </tbody>
                     </table>
                   </div>
                 </section>
 
+                {/* Payment Logs Section */}
                 <section>
-                  <div className="flex items-center gap-3 mb-3">
-                    <h4 className="font-bold text-slate-800 uppercase tracking-tight text-xs">Farmer Payment Logs</h4>
-                    <div className="h-px flex-1 bg-slate-100" />
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-amber-100 rounded-lg">
+                      <IndianRupee className="w-4 h-4 text-amber-700" />
+                    </div>
+                    <h4 className="font-bold text-slate-800 uppercase tracking-tight text-sm">Farmer Payment Logs</h4>
+                    <div className="h-px flex-1 bg-slate-200" />
                   </div>
-                  {reportData.farmer_payments?.length > 0 ? (
-                    <div className="border border-slate-100 rounded-xl overflow-hidden shadow-sm">
+                  <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
+                    {reportData.farmer_payments?.length > 0 ? (
                       <table className="w-full text-sm">
-                        <thead className="bg-slate-50 border-b border-slate-100">
+                        <thead className="bg-slate-50/50 border-b border-slate-100">
                           <tr>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Farmer</th>
-                            <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Date</th>
-                            <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Amount</th>
+                            <th className="px-5 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Farmer</th>
+                            <th className="px-5 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Date</th>
+                            <th className="px-5 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Amount</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
+                        <tbody className="divide-y divide-slate-50">
                           {reportData.farmer_payments.map((p: any, idx: number) => (
-                            <tr key={idx} className="hover:bg-amber-50/30 transition-colors">
-                              <td className="px-4 py-3 font-medium text-slate-700">{p.farmer_name || 'N/A'}</td>
-                              <td className="px-4 py-3 text-right text-slate-500">{format(new Date(p.date), "dd/MM/yy")}</td>
-                              <td className="px-4 py-3 text-right font-bold text-slate-800">₹{parseFloat(p.amount).toFixed(2)}</td>
+                            <tr key={idx} className="hover:bg-amber-50/40 transition-colors">
+                              <td className="px-5 py-4 font-bold text-slate-700">{p.farmer_name || 'N/A'}</td>
+                              <td className="px-5 py-4 text-right text-slate-500 font-medium">{format(new Date(p.date), "dd MMM yyyy")}</td>
+                              <td className="px-5 py-4 text-right font-black text-amber-600">₹{parseFloat(p.amount).toFixed(2)}</td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
-                    </div>
-                  ) : (
-                    <div className="py-10 text-center bg-slate-50 rounded-xl text-slate-400 font-medium border border-slate-100">
-                      No payment logs found for this period.
-                    </div>
-                  )}
+                    ) : (
+                      <div className="py-12 text-center text-slate-400 font-medium flex flex-col items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center">
+                          <IndianRupee className="w-5 h-5 text-slate-300" />
+                        </div>
+                        No payment logs found for this period.
+                      </div>
+                    )}
+                  </div>
                 </section>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-16 text-slate-300">
-                <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center mb-3">
-                  <FileText className="w-8 h-8 text-slate-200" />
+              <div className="flex flex-col items-center justify-center py-20 text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl bg-white shadow-sm mt-4">
+                <div className="w-20 h-20 rounded-3xl bg-indigo-50 flex items-center justify-center mb-5 border border-indigo-100/50">
+                  <FileText className="w-10 h-10 text-indigo-300" />
                 </div>
-                <p className="font-medium text-sm text-slate-400">Configure dates and generate your report</p>
+                <h3 className="text-lg font-bold text-slate-700 mb-1">No Report Generated</h3>
+                <p className="font-medium text-sm text-slate-500">Configure the date range above to view insights</p>
               </div>
             )}
           </div>

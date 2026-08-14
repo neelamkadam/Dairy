@@ -1,8 +1,8 @@
-import { MetricCard } from "@/components/MartricCard";
+import KPICard from "@/components/KPICard";
 import { Smartphone, Sprout, Globe, CheckCircle, XCircle, PlayCircle, TrendingUp, Zap } from "lucide-react";
 import {
-  AreaChart,
-  Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -68,9 +68,6 @@ const AdminDashboard = () => {
         setRawFarmers(farmers);
         setRawWebUsers(webUsers);
 
-        setMobileAppsCount(dairyManagers.length || 0);
-        setFarmerTotalCount(farmers.length || 0);
-        setWebAppsCount(webUsers.length || 0);
 
         // Helper to identify Demo users (within 1 month of trial start)
         const isDemoUser = (u: any) => {
@@ -86,7 +83,6 @@ const AdminDashboard = () => {
         const isPaidFarmer = (u: any) => !isDemoUser(u) && Number(u.is_mobile) === 1;
         const isPaidWeb = (u: any) => !isDemoUser(u) && Number(u.is_paid) === 1;
 
-        // Segregated Calculations using strict rules
         const getStats = (list: any[], statusField: string = 'is_paid') => {
           const demo = list.filter(isDemoUser).length;
           // Active if statusField is 1, and not counted as demo
@@ -111,6 +107,10 @@ const AdminDashboard = () => {
         setWebActive(wStats.active);
         setWebInactive(wStats.inactive);
         setWebDemo(wStats.demo);
+
+        setMobileAppsCount(dairyManagers.length || 0);
+        setFarmerTotalCount(fStats.active || 0);
+        setWebAppsCount(webUsers.length || 0);
 
         // Global Totals
         setActiveCount(mStats.active + fStats.active + wStats.active);
@@ -241,26 +241,21 @@ const AdminDashboard = () => {
               </div>
               <div className="flex-1 p-6 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={trendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorMobile" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/><stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/></linearGradient>
-                      <linearGradient id="colorFarmer" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/><stop offset="95%" stopColor="#10b981" stopOpacity={0}/></linearGradient>
-                      <linearGradient id="colorWeb" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.1}/><stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/></linearGradient>
-                    </defs>
+                  <BarChart data={trendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                     <XAxis dataKey="month" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} dy={10} />
                     <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
-                    <RechartsTooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', color: '#0f172a', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} itemStyle={{ fontSize: '12px', fontWeight: '500' }} />
-                    <Area type="monotone" dataKey="Mobile" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorMobile)" />
-                    <Area type="monotone" dataKey="Farmer" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorFarmer)" />
-                    <Area type="monotone" dataKey="Web" stroke="#8b5cf6" strokeWidth={2} fillOpacity={1} fill="url(#colorWeb)" />
-                  </AreaChart>
+                    <RechartsTooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', color: '#0f172a', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} itemStyle={{ fontSize: '12px', fontWeight: '500' }} cursor={{fill: '#f8fafc'}} />
+                    <Bar name="Dairy Apps" dataKey="Mobile" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={12} />
+                    <Bar name="Farmer Apps" dataKey="Farmer" fill="#10b981" radius={[4, 4, 0, 0]} barSize={12} />
+                    <Bar name="Web Apps" dataKey="Web" fill="#8b5cf6" radius={[4, 4, 0, 0]} barSize={12} />
+                  </BarChart>
                 </ResponsiveContainer>
               </div>
               <div className="px-6 py-3 bg-slate-50 flex justify-end items-center border-t border-slate-100 rounded-b-xl gap-6">
-                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-500" /><span className="text-xs font-medium text-slate-600">Mobile Nodes</span></div>
-                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500" /><span className="text-xs font-medium text-slate-600">Farmer Nodes</span></div>
-                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-violet-500" /><span className="text-xs font-medium text-slate-600">Web Nodes</span></div>
+                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-500" /><span className="text-xs font-medium text-slate-600">Dairy Apps</span></div>
+                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500" /><span className="text-xs font-medium text-slate-600">Farmer Apps</span></div>
+                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-violet-500" /><span className="text-xs font-medium text-slate-600">Web Apps</span></div>
               </div>
             </DialogContent>
           </Dialog>
@@ -271,131 +266,131 @@ const AdminDashboard = () => {
         
         {/* Global Overview Panel */}
         <section>
-          <h2 className="text-sm font-semibold text-slate-900 mb-3">Global Overview</h2>
-          <div className="bg-white border border-slate-200 rounded-lg shadow-sm grid grid-cols-1 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-slate-100">
-            <div className="p-5 flex flex-col justify-center">
-              <div className="flex items-center gap-2 text-slate-500 mb-2">
-                <Smartphone size={16} />
-                <span className="text-xs font-medium uppercase tracking-wider">Total Apps</span>
-              </div>
-              <span className="text-3xl font-semibold text-slate-900 tracking-tight">{mobileAppsCount + farmerTotalCount + webAppsCount}</span>
-            </div>
-            <div className="p-5 flex flex-col justify-center">
-              <div className="flex items-center gap-2 text-emerald-600 mb-2">
-                <CheckCircle size={16} />
-                <span className="text-xs font-medium uppercase tracking-wider">Active Users</span>
-              </div>
-              <span className="text-3xl font-semibold text-slate-900 tracking-tight">{activeCount}</span>
-            </div>
-            <div className="p-5 flex flex-col justify-center">
-              <div className="flex items-center gap-2 text-slate-400 mb-2">
-                <XCircle size={16} />
-                <span className="text-xs font-medium uppercase tracking-wider">Inactive Users</span>
-              </div>
-              <span className="text-3xl font-semibold text-slate-900 tracking-tight">{inactiveCount}</span>
-            </div>
-            <div className="p-5 flex flex-col justify-center">
-              <div className="flex items-center gap-2 text-blue-600 mb-2">
-                <PlayCircle size={16} />
-                <span className="text-xs font-medium uppercase tracking-wider">Demo Users</span>
-              </div>
-              <span className="text-3xl font-semibold text-slate-900 tracking-tight">{demoCount}</span>
-            </div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Global Overview</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            <KPICard 
+                title="Total Apps" 
+                value={(mobileAppsCount + farmerTotalCount).toString()} 
+                icon={Smartphone} 
+                theme="blue" 
+            />
+            <KPICard 
+                title="Active Users" 
+                value={activeCount.toString()} 
+                icon={CheckCircle} 
+                theme="emerald" 
+            />
+            <KPICard 
+                title="Inactive Users" 
+                value={inactiveCount.toString()} 
+                icon={XCircle} 
+                theme="pink" 
+            />
+            <KPICard 
+                title="Demo Users" 
+                value={demoCount.toString()} 
+                icon={PlayCircle} 
+                theme="amber" 
+            />
           </div>
         </section>
 
         {/* Platform Breakdown */}
         <section>
-          <h2 className="text-sm font-semibold text-slate-900 mb-3">Platform Distribution</h2>
-          <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-500">
-                <tr>
-                  <th className="px-6 py-3 font-medium text-xs uppercase tracking-wider">Platform Type</th>
-                  <th className="px-6 py-3 font-medium text-xs uppercase tracking-wider text-right">Total Assigned</th>
-                  <th className="px-6 py-3 font-medium text-xs uppercase tracking-wider text-right">Active</th>
-                  <th className="px-6 py-3 font-medium text-xs uppercase tracking-wider text-right">Demo</th>
-                  <th className="px-6 py-3 font-medium text-xs uppercase tracking-wider text-right">Pending/Inactive</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {/* Mobile Row */}
-                <tr className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-slate-100 rounded-md text-slate-600 border border-slate-200"><Smartphone size={16} /></div>
-                      <span className="font-medium text-slate-900">Mobile Node</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-right font-medium text-slate-900">{mobileAppsCount}</td>
-                  <td className="px-6 py-4 text-right">
-                    <button onClick={() => openExplorer("Active Mobile Users", rawManagers, 'active', 'is_paid')} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors focus:ring-2 focus:ring-emerald-500">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> {mobileActive}
-                    </button>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button onClick={() => openExplorer("Demo Mobile Users", rawManagers, 'demo')} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors focus:ring-2 focus:ring-blue-500">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500" /> {mobileDemo}
-                    </button>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button onClick={() => openExplorer("Inactive Mobile Users", rawManagers, 'inactive', 'is_paid')} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-slate-200 text-slate-600 bg-slate-50 hover:bg-slate-100 transition-colors focus:ring-2 focus:ring-slate-400">
-                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400" /> {mobileInactive}
-                    </button>
-                  </td>
-                </tr>
-                {/* Farmer Row */}
-                <tr className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-slate-100 rounded-md text-slate-600 border border-slate-200"><Sprout size={16} /></div>
-                      <span className="font-medium text-slate-900">Farmer Node</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-right font-medium text-slate-900">{farmerTotalCount}</td>
-                  <td className="px-6 py-4 text-right">
-                    <button onClick={() => openExplorer("Active Farmers", rawFarmers, 'active', 'is_mobile')} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors focus:ring-2 focus:ring-emerald-500">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> {farmerActive}
-                    </button>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button onClick={() => openExplorer("Demo Farmers", rawFarmers, 'demo')} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors focus:ring-2 focus:ring-blue-500">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500" /> {farmerDemo}
-                    </button>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button onClick={() => openExplorer("Inactive Farmers", rawFarmers, 'inactive', 'is_mobile')} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-slate-200 text-slate-600 bg-slate-50 hover:bg-slate-100 transition-colors focus:ring-2 focus:ring-slate-400">
-                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400" /> {farmerInactive}
-                    </button>
-                  </td>
-                </tr>
-                {/* Web Row */}
-                <tr className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-slate-100 rounded-md text-slate-600 border border-slate-200"><Globe size={16} /></div>
-                      <span className="font-medium text-slate-900">Web Node</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-right font-medium text-slate-900">{webAppsCount}</td>
-                  <td className="px-6 py-4 text-right">
-                    <button onClick={() => openExplorer("Active Web Users", rawWebUsers, 'active', 'is_paid')} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors focus:ring-2 focus:ring-emerald-500">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> {webActive}
-                    </button>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button onClick={() => openExplorer("Demo Web Users", rawWebUsers, 'demo')} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors focus:ring-2 focus:ring-blue-500">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500" /> {webDemo}
-                    </button>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button onClick={() => openExplorer("Inactive Web Users", rawWebUsers, 'inactive', 'is_paid')} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-slate-200 text-slate-600 bg-slate-50 hover:bg-slate-100 transition-colors focus:ring-2 focus:ring-slate-400">
-                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400" /> {webInactive}
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <h2 className="text-sm font-bold text-slate-800 mb-4 uppercase tracking-wider">Platform Distribution</h2>
+          <div className="bg-white border border-slate-200/60 rounded-2xl shadow-sm shadow-slate-200/50 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-slate-50/80 border-b border-slate-100">
+                  <tr>
+                    <th className="px-6 py-4 font-bold text-slate-600 text-xs uppercase tracking-wider">Platform Type</th>
+                    <th className="px-6 py-4 font-bold text-slate-600 text-xs uppercase tracking-wider text-right">Total Assigned</th>
+                    <th className="px-6 py-4 font-bold text-emerald-600 text-xs uppercase tracking-wider text-right">Active</th>
+                    <th className="px-6 py-4 font-bold text-amber-600 text-xs uppercase tracking-wider text-right">Demo / Trial</th>
+                    <th className="px-6 py-4 font-bold text-rose-600 text-xs uppercase tracking-wider text-right">Inactive</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {/* Mobile Row */}
+                  <tr className="hover:bg-blue-50/30 transition-colors group">
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-blue-100/50 text-blue-600 rounded-xl group-hover:bg-blue-100 transition-colors"><Smartphone size={20} /></div>
+                        <span className="font-bold text-slate-800 text-base">Dairy Apps</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5 text-right font-bold text-slate-800 text-lg">{mobileAppsCount}</td>
+                    <td className="px-6 py-5 text-right">
+                      <button onClick={() => openExplorer("Active Mobile Users", rawManagers, 'active', 'is_paid')} className="inline-flex items-center justify-end gap-2 px-3 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 transition-all font-semibold shadow-sm min-w-[90px]">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> {mobileActive}
+                      </button>
+                    </td>
+                    <td className="px-6 py-5 text-right">
+                      <button onClick={() => openExplorer("Demo Mobile Users", rawManagers, 'demo')} className="inline-flex items-center justify-end gap-2 px-3 py-1.5 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:border-amber-300 transition-all font-semibold shadow-sm min-w-[90px]">
+                        <div className="w-2 h-2 rounded-full bg-amber-500" /> {mobileDemo}
+                      </button>
+                    </td>
+                    <td className="px-6 py-5 text-right">
+                      <button onClick={() => openExplorer("Inactive Mobile Users", rawManagers, 'inactive', 'is_paid')} className="inline-flex items-center justify-end gap-2 px-3 py-1.5 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:border-rose-300 transition-all font-semibold shadow-sm min-w-[90px]">
+                        <div className="w-2 h-2 rounded-full bg-rose-500" /> {mobileInactive}
+                      </button>
+                    </td>
+                  </tr>
+                  {/* Farmer Row */}
+                  <tr className="hover:bg-emerald-50/30 transition-colors group">
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-emerald-100/50 text-emerald-600 rounded-xl group-hover:bg-emerald-100 transition-colors"><Sprout size={20} /></div>
+                        <span className="font-bold text-slate-800 text-base">Farmer Apps</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5 text-right font-bold text-slate-800 text-lg">{farmerTotalCount}</td>
+                    <td className="px-6 py-5 text-right">
+                      <button onClick={() => openExplorer("Active Farmers", rawFarmers, 'active', 'is_mobile')} className="inline-flex items-center justify-end gap-2 px-3 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 transition-all font-semibold shadow-sm min-w-[90px]">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> {farmerActive}
+                      </button>
+                    </td>
+                    <td className="px-6 py-5 text-right">
+                      <button onClick={() => openExplorer("Demo Farmers", rawFarmers, 'demo')} className="inline-flex items-center justify-end gap-2 px-3 py-1.5 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:border-amber-300 transition-all font-semibold shadow-sm min-w-[90px]">
+                        <div className="w-2 h-2 rounded-full bg-amber-500" /> {farmerDemo}
+                      </button>
+                    </td>
+                    <td className="px-6 py-5 text-right">
+                      <button onClick={() => openExplorer("Inactive Farmers", rawFarmers, 'inactive', 'is_mobile')} className="inline-flex items-center justify-end gap-2 px-3 py-1.5 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:border-rose-300 transition-all font-semibold shadow-sm min-w-[90px]">
+                        <div className="w-2 h-2 rounded-full bg-rose-500" /> {farmerInactive}
+                      </button>
+                    </td>
+                  </tr>
+                  {/* Web Row */}
+                  <tr className="hover:bg-violet-50/30 transition-colors group">
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-violet-100/50 text-violet-600 rounded-xl group-hover:bg-violet-100 transition-colors"><Globe size={20} /></div>
+                        <span className="font-bold text-slate-800 text-base">Web Apps</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5 text-right font-bold text-slate-800 text-lg">{webAppsCount}</td>
+                    <td className="px-6 py-5 text-right">
+                      <button onClick={() => openExplorer("Active Web Users", rawWebUsers, 'active', 'is_paid')} className="inline-flex items-center justify-end gap-2 px-3 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 transition-all font-semibold shadow-sm min-w-[90px]">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> {webActive}
+                      </button>
+                    </td>
+                    <td className="px-6 py-5 text-right">
+                      <button onClick={() => openExplorer("Demo Web Users", rawWebUsers, 'demo')} className="inline-flex items-center justify-end gap-2 px-3 py-1.5 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:border-amber-300 transition-all font-semibold shadow-sm min-w-[90px]">
+                        <div className="w-2 h-2 rounded-full bg-amber-500" /> {webDemo}
+                      </button>
+                    </td>
+                    <td className="px-6 py-5 text-right">
+                      <button onClick={() => openExplorer("Inactive Web Users", rawWebUsers, 'inactive', 'is_paid')} className="inline-flex items-center justify-end gap-2 px-3 py-1.5 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:border-rose-300 transition-all font-semibold shadow-sm min-w-[90px]">
+                        <div className="w-2 h-2 rounded-full bg-rose-500" /> {webInactive}
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </section>
 

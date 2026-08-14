@@ -90,150 +90,176 @@ const UploadRateChart = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="bg-white rounded-lg shadow-sm border p-6">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
-              <FileSpreadsheet className="w-6 h-6 text-white" />
+    <div className="min-h-screen bg-gray-50/50 p-4 md:p-6">
+      <div className="max-w-5xl mx-auto space-y-4 md:space-y-6 mt-2 md:mt-4">
+        {/* Header */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200/60 p-4 md:p-5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-600 rounded-md flex items-center justify-center shrink-0">
+              <FileSpreadsheet className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">Upload Rate Chart</h1>
-              <p className="text-gray-600">Upload CSV file to create rate chart</p>
+              <h1 className="text-xl font-semibold text-gray-800">Upload Rate Chart</h1>
+              <p className="text-sm text-gray-500">Upload CSV file to create rate chart</p>
             </div>
           </div>
         </div>
 
-        <Card className="shadow-sm border">
-          <CardHeader className="border-b bg-gray-50">
-            <CardTitle className="text-lg font-medium">Rate Chart Details</CardTitle>
+        <Card className="shadow-sm border border-gray-200/60 bg-white rounded-lg">
+          <CardHeader className="border-b border-gray-100 bg-white pb-3 pt-4">
+            <CardTitle className="text-lg font-semibold text-gray-800">Rate Chart Details</CardTitle>
           </CardHeader>
-          <CardContent className="p-6">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="organisationId" className="text-sm font-medium">
-                  Dairy ID<span className="text-red-600">*</span>
-                </Label>
-                <Input
-                  id="organisationId"
-                  placeholder="Enter Dairy ID"
-                  value={formData.organisationId}
-                  onChange={(e) => setFormData({ ...formData, organisationId: e.target.value })}
-                  className="h-11"
-                  required
-                />
-              </div>
+          <CardContent className="p-4 md:p-6">
+            <form onSubmit={handleSubmit}>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+                {/* Left Column: Form Fields */}
+                <div className="space-y-5">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="organisationId" className="text-sm font-medium text-gray-700">
+                      Dairy ID<span className="text-red-500 ml-1">*</span>
+                    </Label>
+                    <Input
+                      id="organisationId"
+                      placeholder="Enter Dairy ID"
+                      value={formData.organisationId}
+                      onChange={(e) => setFormData({ ...formData, organisationId: e.target.value })}
+                      className="h-10 text-sm border-gray-200 focus:ring-1 focus:ring-blue-600 focus:border-blue-600 rounded-md transition-shadow"
+                      required
+                    />
+                  </div>
 
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">
-                  Type<span className="text-red-600">*</span>
-                </Label>
-                <div className="flex gap-3">
-                  <Button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, type: "cow" })}
-                    className={`flex-1 h-11 ${formData.type === "cow" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-                  >
-                    Cow
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, type: "buffalo" })}
-                    className={`flex-1 h-11 ${formData.type === "buffalo" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-                  >
-                    Buffalo
-                  </Button>
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-medium text-gray-700">
+                      Type<span className="text-red-500 ml-1">*</span>
+                    </Label>
+                    <div className="flex gap-3">
+                      <Button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, type: "cow" })}
+                        className={`flex-1 h-10 text-sm font-medium rounded-md transition-colors ${
+                          formData.type === "cow" 
+                            ? "bg-blue-600 text-white shadow-sm hover:bg-blue-700" 
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        }`}
+                      >
+                        Cow
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, type: "buffalo" })}
+                        className={`flex-1 h-10 text-sm font-medium rounded-md transition-colors ${
+                          formData.type === "buffalo" 
+                            ? "bg-blue-600 text-white shadow-sm hover:bg-blue-700" 
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        }`}
+                      >
+                        Buffalo
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="name" className="text-sm font-medium text-gray-700">
+                        Rate Chart Name<span className="text-red-500 ml-1">*</span>
+                      </Label>
+                      <Select value={formData.name} onValueChange={(value) => setFormData({ ...formData, name: value })}>
+                        <SelectTrigger className="h-10 text-sm border-gray-200 focus:ring-1 focus:ring-blue-600 focus:border-blue-600 rounded-md transition-shadow">
+                          <SelectValue placeholder="Select rate chart" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white rounded-md border-gray-200 shadow-md">
+                          <SelectItem value="Rate chart 1" className="text-sm">Rate chart 1</SelectItem>
+                          <SelectItem value="Rate chart 2" className="text-sm">Rate chart 2</SelectItem>
+                          <SelectItem value="Rate chart 3" className="text-sm">Rate chart 3</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="effectiveDate" className="text-sm font-medium text-gray-700">
+                        Effective Date<span className="text-red-500 ml-1">*</span>
+                      </Label>
+                      <Input
+                        id="effectiveDate"
+                        type="date"
+                        value={formData.effectiveDate}
+                        onChange={(e) => setFormData({ ...formData, effectiveDate: e.target.value })}
+                        className="h-10 text-sm border-gray-200 focus:ring-1 focus:ring-blue-600 focus:border-blue-600 rounded-md transition-shadow"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column: File Upload */}
+                <div className="flex flex-col">
+                  <Label className="text-sm font-medium text-gray-700 mb-1.5">
+                    Upload File<span className="text-red-500 ml-1">*</span>
+                  </Label>
+                  <div className="flex-1 border-2 border-dashed border-gray-200 rounded-lg p-6 flex flex-col items-center justify-center text-center hover:border-blue-400 hover:bg-blue-50/30 transition-colors min-h-[200px]">
+                    <input type="file" accept=".csv,.xls,.xlsx" onChange={handleFileChange} className="hidden" id="excel-upload" />
+                    <label htmlFor="excel-upload" className="cursor-pointer block w-full h-full flex flex-col items-center justify-center">
+                      {csvFile ? (
+                        <div className="flex flex-col items-center">
+                          <CheckCircle2 className="w-12 h-12 text-green-500 mb-3" />
+                          <h3 className="text-base font-semibold text-gray-900 mb-1.5">File Selected</h3>
+                          <p className="text-xs font-medium text-green-800 bg-green-100/80 px-3 py-1.5 rounded-md border border-green-200">{csvFile.name}</p>
+                          <Button variant="outline" className="mt-4 h-8 text-xs px-3 rounded-md border-gray-300 hover:bg-gray-100" onClick={(e) => { e.preventDefault(); setCsvFile(null); setPreviewData(null); }}>
+                            Change File
+                          </Button>
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3 border border-gray-100">
+                            <Upload className="w-6 h-6 text-gray-400" />
+                          </div>
+                          <h3 className="text-sm font-semibold text-gray-900 mb-1">Drop file or browse</h3>
+                          <p className="text-gray-500 text-xs">Supported formats: .csv, .xls, .xlsx</p>
+                        </div>
+                      )}
+                    </label>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="name" className="text-sm font-medium">
-                  Rate Chart Name<span className="text-red-600">*</span>
-                </Label>
-                <Select value={formData.name} onValueChange={(value) => setFormData({ ...formData, name: value })}>
-                  <SelectTrigger className="h-11">
-                    <SelectValue placeholder="Select rate chart" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    <SelectItem value="Rate chart 1">Rate chart 1</SelectItem>
-                    <SelectItem value="Rate chart 2">Rate chart 2</SelectItem>
-                    <SelectItem value="Rate chart 3">Rate chart 3</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="effectiveDate" className="text-sm font-medium">
-                  Effective Date<span className="text-red-600">*</span>
-                </Label>
-                <Input
-                  id="effectiveDate"
-                  type="date"
-                  value={formData.effectiveDate}
-                  onChange={(e) => setFormData({ ...formData, effectiveDate: e.target.value })}
-                  className="h-11"
-                  required
-                />
-              </div>
-
-              <div className="space-y-6">
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 md:p-12 text-center hover:border-blue-400 transition-colors">
-                  <input type="file" accept=".csv,.xls,.xlsx" onChange={handleFileChange} className="hidden" id="excel-upload" />
-                  <label htmlFor="excel-upload" className="cursor-pointer block">
-                    {csvFile ? (
-                      <div className="flex flex-col items-center">
-                        <CheckCircle2 className="w-16 h-16 text-green-500 mb-4" />
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">File Selected</h3>
-                        <p className="text-sm text-gray-600 bg-green-50 px-4 py-2 rounded-full">{csvFile.name}</p>
-                        <Button variant="outline" className="mt-4" onClick={(e) => { e.preventDefault(); setCsvFile(null); setPreviewData(null); }}>Change File</Button>
-                      </div>
-                    ) : (
-                      <div>
-                        <Upload className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Drop file or browse</h3>
-                        <p className="text-gray-500 text-sm">Supported formats: .csv, .xls, .xlsx</p>
-                      </div>
-                    )}
-                  </label>
+              {previewData && (
+                <div className="mt-6 border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                  <div className="bg-gray-50 px-3 py-2.5 border-b border-gray-200">
+                    <h4 className="text-xs font-semibold text-gray-700">Preview (First 5 Rows)</h4>
+                  </div>
+                  <div className="overflow-x-auto custom-scrollbar">
+                    <table className="w-full text-xs text-left whitespace-nowrap">
+                      <tbody>
+                        {previewData.map((row, i) => (
+                          <tr key={i} className={i === 0 ? 'bg-blue-50/50 font-semibold text-gray-800' : 'hover:bg-gray-50 text-gray-600'}>
+                            {row.map((cell, j) => (
+                              <td key={j} className="px-3 py-2 border-r border-b border-gray-100 last:border-r-0">
+                                {cell}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
+              )}
 
-                {previewData && (
-                  <div className="mt-4 border rounded-lg overflow-hidden">
-                    <div className="bg-gray-100 px-4 py-2 border-b">
-                      <h4 className="font-semibold text-gray-700">Preview (First 5 Rows)</h4>
+              <div className="mt-6 pt-5 border-t border-gray-100">
+                <Button type="submit" disabled={loading} className="w-full h-10 bg-blue-600 hover:bg-blue-700 text-white shadow-sm font-medium text-sm rounded-md transition-colors">
+                  {loading ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      <span>Uploading...</span>
                     </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <tbody>
-                          {previewData.map((row, i) => (
-                            <tr key={i} className={i === 0 ? 'bg-blue-50 font-semibold' : 'hover:bg-gray-50'}>
-                              {row.map((cell, j) => (
-                                <td key={j} className="px-3 py-2 border-r border-b text-center">
-                                  {cell}
-                                </td>
-                              ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2">
+                      <Upload className="w-4 h-4" />
+                      <span>Upload Rate Chart</span>
                     </div>
-                  </div>
-                )}
+                  )}
+                </Button>
               </div>
-
-              <Button type="submit" disabled={loading} className="w-full h-11 bg-blue-600 hover:bg-blue-700">
-                {loading ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Uploading...
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <Upload className="w-4 h-4" />
-                    Upload Rate Chart
-                  </div>
-                )}
-              </Button>
             </form>
           </CardContent>
         </Card>
@@ -243,3 +269,4 @@ const UploadRateChart = () => {
 };
 
 export default UploadRateChart;
+

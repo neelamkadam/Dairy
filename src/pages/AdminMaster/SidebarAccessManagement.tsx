@@ -3,13 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { getSidebarAccess, createOrUpdateSidebarAccess } from "@/services/sidebarAccessApi";
 import { adminApi } from "@/services/adminApi";
 import { toast } from "react-toastify";
 import { Input } from "@/components/ui/input";
 import { RootState, useAppSelector } from "@/redux/store";
-import { KeyRound, Eye, EyeOff } from "lucide-react";
+import { KeyRound, Eye, EyeOff, ShieldCheck, CheckSquare, Users, Search, ChevronDown } from "lucide-react";
 
 interface SidebarAccess {
   dashboard: number;
@@ -49,6 +49,8 @@ const SidebarAccessManagement = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -117,6 +119,19 @@ const SidebarAccessManagement = () => {
     }));
   };
 
+  const isAllSelected = Object.keys(access).length > 0 && Object.keys(access).every(
+    key => access[key as keyof SidebarAccess] === 1
+  );
+
+  const handleSelectAll = (checked: boolean) => {
+    const newVal = checked ? 1 : 0;
+    const newAccess = { ...access };
+    Object.keys(newAccess).forEach(key => {
+      newAccess[key as keyof SidebarAccess] = newVal;
+    });
+    setAccess(newAccess);
+  };
+
   const handleSave = async () => {
     if (!selectedUserId) {
       toast.error("Please select a user");
@@ -167,7 +182,10 @@ const SidebarAccessManagement = () => {
     }
   };
 
-  const filteredUsers = users;
+  const filteredUsers = users.filter((user) =>
+    user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.id.toString().includes(searchQuery)
+  );
 
   const accessItems = [
     { key: "dashboard", label: "Dashboard" },
@@ -183,117 +201,245 @@ const SidebarAccessManagement = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="bg-white rounded-lg shadow-sm border p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-900">Sidebar Access Management</h2>
-          {selectedUserId && (
-            <Button
-              onClick={() => setShowPasswordModal(true)}
-              variant="outline"
-              size="icon"
-              className="hover:bg-blue-50"
-              title="Reset Password"
-            >
-              <KeyRound className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
+    <div className="min-h-screen bg-gray-50/50 p-4 md:p-6">
+      <div className="max-w-5xl mx-auto space-y-4 md:space-y-6 mt-2 md:mt-4">
         
-        <div className="space-y-6">
-          <div className="space-y-2">
-            <Label className="text-sm font-medium text-gray-700">Select User</Label>
-            <Select
-              value={selectedUserId?.toString()}
-              onValueChange={(value) => setSelectedUserId(Number(value))}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select a user" />
-              </SelectTrigger>
-              <SelectContent className="bg-white">
-                {filteredUsers.map((user) => (
-                  <SelectItem key={user.id} value={user.id.toString()}>
-                    {user.email} (ID: {user.id})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {/* Header */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200/60 p-4 md:p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-600 rounded-md flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-semibold text-gray-800">Sidebar Access Management</h1>
+                <p className="text-sm text-gray-500">Control which features each user can access</p>
+              </div>
+            </div>
+            {selectedUserId && (
+              <Button
+                onClick={() => setShowPasswordModal(true)}
+                variant="outline"
+                className="h-9 text-amber-600 border-amber-200 bg-white hover:bg-amber-50 flex items-center gap-2 rounded-md px-4 shadow-sm font-medium text-sm transition-colors"
+                title="Reset Password"
+              >
+                <KeyRound className="w-4 h-4" />
+                Reset Password
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left Column: User Selection */}
+          <div className="lg:col-span-4 space-y-6">
+            <Card className="bg-white border-0 shadow-sm rounded-2xl overflow-hidden">
+              <div className="bg-gradient-to-r from-slate-50 to-indigo-50/30 p-5 border-b border-slate-100">
+                <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2 uppercase tracking-wider">
+                  <Users className="w-4 h-4 text-indigo-500" />
+                  Select User
+                </h2>
+              </div>
+              <CardContent className="p-5">
+                <div className="space-y-3">
+                  <Label className="text-xs font-semibold text-slate-600 ml-1">Target Account</Label>
+                  <Popover open={dropdownOpen} onOpenChange={setDropdownOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={dropdownOpen}
+                        className="w-full h-12 bg-slate-50/50 border-slate-200 focus:ring-2 focus:ring-blue-500/20 rounded-xl text-slate-700 justify-between font-normal hover:bg-slate-100/50"
+                      >
+                        {selectedUserId 
+                          ? users.find(u => u.id === selectedUserId)?.email || "Choose a user account..."
+                          : "Choose a user account..."}
+                        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-white rounded-xl shadow-lg border-slate-100" align="start" side="bottom" avoidCollisions={false}>
+                      <div className="p-2 border-b border-slate-100 sticky top-0 bg-white z-10 rounded-t-xl">
+                        <div className="relative">
+                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                          <Input
+                            placeholder="Search user by email or ID..."
+                            className="pl-9 h-9 bg-slate-50 border-slate-200 focus-visible:ring-1 focus-visible:ring-blue-500 rounded-lg text-sm"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyDown={(e) => e.stopPropagation()}
+                          />
+                        </div>
+                      </div>
+                      <div className="max-h-[300px] overflow-y-auto p-1">
+                        {filteredUsers.length === 0 ? (
+                          <div className="py-6 text-center text-sm text-slate-500">
+                            No users found
+                          </div>
+                        ) : (
+                          filteredUsers.map((user) => (
+                            <div 
+                              key={user.id} 
+                              onClick={() => {
+                                setSelectedUserId(user.id);
+                                setDropdownOpen(false);
+                                setSearchQuery("");
+                              }} 
+                              className={`flex items-center px-3 py-2 cursor-pointer rounded-md transition-colors ${selectedUserId === user.id ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-50 text-slate-700'}`}
+                            >
+                              <span className="font-medium">{user.email}</span>
+                              <span className={`text-xs ml-2 ${selectedUserId === user.id ? 'text-blue-500' : 'text-slate-400'}`}>(ID: {user.id})</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
-          {selectedUserId && (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {accessItems.map((item) => (
-                  <div
-                    key={item.key}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <Label htmlFor={item.key} className="cursor-pointer font-medium text-gray-700">
-                      {item.label}
+          {/* Right Column: Access Toggles */}
+          <div className="lg:col-span-8">
+            <Card className="bg-white border-0 shadow-sm rounded-2xl overflow-hidden h-full">
+              <div className="bg-gradient-to-r from-slate-50 to-indigo-50/30 p-5 border-b border-slate-100 flex items-center justify-between">
+                <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2 uppercase tracking-wider">
+                  <CheckSquare className="w-4 h-4 text-indigo-500" />
+                  Permissions
+                </h2>
+                
+                {selectedUserId && (
+                  <div className="flex items-center gap-3 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
+                    <Label htmlFor="select-all" className="text-xs font-bold text-slate-600 cursor-pointer uppercase tracking-wider">
+                      Select All
                     </Label>
                     <Switch
-                      id={item.key}
-                      checked={access[item.key as keyof SidebarAccess] === 1}
-                      onCheckedChange={() => handleToggle(item.key as keyof SidebarAccess)}
+                      id="select-all"
+                      checked={isAllSelected}
+                      onCheckedChange={handleSelectAll}
+                      className="data-[state=checked]:bg-blue-600"
                     />
                   </div>
-                ))}
+                )}
               </div>
+              
+              <CardContent className="p-5 md:p-6">
+                {!selectedUserId ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50 mt-2">
+                    <div className="w-16 h-16 rounded-3xl bg-white shadow-sm flex items-center justify-center mb-4 border border-slate-100">
+                      <ShieldCheck className="w-8 h-8 text-slate-300" />
+                    </div>
+                    <h3 className="text-base font-bold text-slate-600 mb-1">No User Selected</h3>
+                    <p className="font-medium text-sm text-slate-500">Choose a user from the left panel to manage their access</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+                      {accessItems.map((item) => {
+                        const isChecked = access[item.key as keyof SidebarAccess] === 1;
+                        return (
+                          <div
+                            key={item.key}
+                            onClick={() => handleToggle(item.key as keyof SidebarAccess)}
+                            className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                              isChecked 
+                                ? "border-blue-500 bg-blue-50/30 shadow-sm" 
+                                : "border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50"
+                            }`}
+                          >
+                            <Label 
+                              htmlFor={item.key} 
+                              className={`cursor-pointer font-bold ${isChecked ? "text-blue-900" : "text-slate-600"}`}
+                              onClick={(e) => e.preventDefault()}
+                            >
+                              {item.label}
+                            </Label>
+                            <Switch
+                              id={item.key}
+                              checked={isChecked}
+                              onCheckedChange={() => handleToggle(item.key as keyof SidebarAccess)}
+                              className="data-[state=checked]:bg-blue-600 pointer-events-none"
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
 
-              <Button 
-                onClick={handleSave} 
-                disabled={loading} 
-                className="w-full bg-blue-600 hover:bg-blue-700"
-              >
-                {loading ? "Saving..." : "Save Access"}
-              </Button>
-            </>
-          )}
+                    <Button 
+                      onClick={handleSave} 
+                      disabled={loading} 
+                      className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white h-12 text-base font-bold rounded-xl shadow-md shadow-blue-200/50 transition-all active:scale-[0.99] mt-2"
+                    >
+                      {loading ? (
+                        <span className="flex items-center gap-2">
+                          <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Saving Permissions...
+                        </span>
+                      ) : (
+                        "Save Access Permissions"
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
 
+      {/* Password Reset Modal */}
       {showPasswordModal && (
-        <div className="fixed inset-0 backdrop-blur-md flex items-center justify-center z-50">
-          <div className="bg-white bg-opacity-95 rounded-lg p-6 w-full max-w-md border-2 border-blue-200 shadow-xl">
-            <h3 className="text-lg font-semibold mb-4">Reset Password</h3>
-            <div className="space-y-4">
-              <div>
-                <Label>New Password</Label>
+        <div className="fixed inset-0 backdrop-blur-sm bg-slate-900/40 flex items-center justify-center z-50 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 mb-6 border-b border-slate-100 pb-4">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                <KeyRound className="w-5 h-5 text-amber-600" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-800 font-serif">Reset Password</h3>
+            </div>
+            
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-slate-600 uppercase tracking-wider ml-1">New Password</Label>
                 <div className="relative">
                   <Input
                     type={showPassword ? "text" : "password"}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="pr-10"
+                    className="pr-10 bg-slate-50/50 border-slate-200 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 h-11 rounded-xl"
+                    placeholder="Enter new password"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
-              <div>
-                <Label>Confirm Password</Label>
+              
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-slate-600 uppercase tracking-wider ml-1">Confirm Password</Label>
                 <div className="relative">
                   <Input
                     type={showConfirmPassword ? "text" : "password"}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="pr-10"
+                    className="pr-10 bg-slate-50/50 border-slate-200 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 h-11 rounded-xl"
+                    placeholder="Confirm new password"
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                   >
                     {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
-              <div className="flex gap-3">
+              
+              <div className="flex gap-3 pt-2">
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -301,12 +447,15 @@ const SidebarAccessManagement = () => {
                     setNewPassword("");
                     setConfirmPassword("");
                   }}
-                  className="flex-1"
+                  className="flex-1 border-slate-200 text-slate-600 hover:bg-slate-50 h-11 rounded-xl"
                 >
                   Cancel
                 </Button>
-                <Button onClick={handlePasswordReset} className="flex-1 bg-blue-600 hover:bg-blue-700">
-                  Reset Password
+                <Button 
+                  onClick={handlePasswordReset} 
+                  className="flex-1 bg-amber-500 hover:bg-amber-600 text-white h-11 rounded-xl shadow-md shadow-amber-200/50"
+                >
+                  Confirm Reset
                 </Button>
               </div>
             </div>

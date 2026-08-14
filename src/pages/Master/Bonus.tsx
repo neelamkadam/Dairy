@@ -21,10 +21,13 @@ import {
   Wallet,
   Calculator,
   Save,
-  PiggyBank
+  PiggyBank,
+  ChevronLeft
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const Bonus = () => {
+  const navigate = useNavigate();
   const { branches } = useAppSelector((state) => state.branch);
   const [selectedVlc, setSelectedVlc] = useState("");
   const [farmers, setFarmers] = useState<any[]>([]);
@@ -239,18 +242,17 @@ const Bonus = () => {
 
   return (
     <div className="min-h-screen bg-[#f8fafc] p-4 md:p-8">
-      <div className="max-w-6xl mx-auto space-y-6">
+      <div className="max-w-6xl mx-auto space-y-4 md:space-y-6">
         
         {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-200">
-              <PiggyBank className="w-6 h-6 text-white" />
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-2">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
+              <PiggyBank className="h-6 w-6" />
             </div>
-            <div>
-              <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Bonus & Deduction</h1>
-              <p className="text-slate-500 mt-1 font-medium">Manage farmer bonuses and fixed deductions efficiently</p>
-            </div>
+            <h1 className="text-xl md:text-2xl font-bold text-gray-800 font-serif tracking-wide">
+              Bonus & Deduction
+            </h1>
           </div>
         </div>
 
