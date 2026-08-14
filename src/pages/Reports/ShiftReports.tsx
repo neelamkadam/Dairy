@@ -468,32 +468,32 @@ const ShiftReports:React.FC = () => {
       <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6 bg-white">
         <Table className="border-none text-center">
           <TableHeader>
-              <TableRow className="bg-gray-100 ">
-              <TableHead className="font-semibold text-center border border-gray-100">
+              <TableRow className="bg-slate-50 hover:bg-slate-50 border-b border-slate-200">
+              <TableHead className="font-semibold text-slate-500 text-xs uppercase tracking-wider text-center border-r border-slate-200 last:border-r-0">
                 Farmer ID
               </TableHead>
-              <TableHead className="font-semibold text-center border border-gray-100">
+              <TableHead className="font-semibold text-slate-500 text-xs uppercase tracking-wider text-center border-r border-slate-200 last:border-r-0">
                 Farmer Name
               </TableHead>
-              <TableHead className="font-semibold text-center border border-gray-100">
+              <TableHead className="font-semibold text-slate-500 text-xs uppercase tracking-wider text-center border-r border-slate-200 last:border-r-0">
                 Milk Type
               </TableHead>
-              <TableHead className="font-semibold text-center border border-gray-100">
+              <TableHead className="font-semibold text-slate-500 text-xs uppercase tracking-wider text-center border-r border-slate-200 last:border-r-0">
                 Quantity
               </TableHead>
-              <TableHead className="font-semibold text-center border border-gray-100">
+              <TableHead className="font-semibold text-slate-500 text-xs uppercase tracking-wider text-center border-r border-slate-200 last:border-r-0">
                 Fat
               </TableHead>
-              <TableHead className="font-semibold text-center border border-gray-100">
+              <TableHead className="font-semibold text-slate-500 text-xs uppercase tracking-wider text-center border-r border-slate-200 last:border-r-0">
                 SNF
               </TableHead>
-              <TableHead className="font-semibold text-center border border-gray-100">
+              <TableHead className="font-semibold text-slate-500 text-xs uppercase tracking-wider text-center border-r border-slate-200 last:border-r-0">
                 Water
               </TableHead>
-              <TableHead className="font-semibold text-center border border-gray-100">
+              <TableHead className="font-semibold text-slate-500 text-xs uppercase tracking-wider text-center border-r border-slate-200 last:border-r-0">
                 Rate
               </TableHead>
-              <TableHead className="font-semibold text-center border border-gray-100">
+              <TableHead className="font-semibold text-slate-500 text-xs uppercase tracking-wider text-center border-r border-slate-200 last:border-r-0">
                 Total Amount
               </TableHead>
             </TableRow>
@@ -502,17 +502,17 @@ const ShiftReports:React.FC = () => {
             {paginatedData.length > 0 ? paginatedData.map((record: any, index: number) => (
               <TableRow
                 key={`${record.code}-${record.type}-${index}`}
-                className="hover:bg-gray-50 bg-white border-gray-100 "
+                className="hover:bg-slate-50 bg-white border-b border-slate-200"
               >
-                <TableCell className="font-medium border border-gray-100">{record.code}</TableCell>
-                <TableCell className="font-medium border border-gray-100 text-left">{farmersMap[record.code] || "-"}</TableCell>
-                <TableCell className="font-medium border border-gray-100">{record.type}</TableCell>
-                <TableCell className="font-medium border border-gray-100">{record.quantity}</TableCell>
-                <TableCell className="font-medium border border-gray-100">{record.fat}</TableCell>
-                <TableCell className="font-medium border border-gray-100">{record.snf}</TableCell>
-                <TableCell className="font-medium border border-gray-100">{record.water}</TableCell>
-                <TableCell className="font-medium border border-gray-100">{record.rate}</TableCell>
-                <TableCell className="font-medium border border-gray-100">₹{record.amount}</TableCell>
+                <TableCell className="font-medium border-r border-slate-200 last:border-r-0">{record.code}</TableCell>
+                <TableCell className="font-medium border-r border-slate-200 last:border-r-0 text-left">{farmersMap[record.code] || "-"}</TableCell>
+                <TableCell className="font-medium border-r border-slate-200 last:border-r-0">{record.type}</TableCell>
+                <TableCell className="font-medium border-r border-slate-200 last:border-r-0">{record.quantity}</TableCell>
+                <TableCell className="font-medium border-r border-slate-200 last:border-r-0">{record.fat}</TableCell>
+                <TableCell className="font-medium border-r border-slate-200 last:border-r-0">{record.snf}</TableCell>
+                <TableCell className="font-medium border-r border-slate-200 last:border-r-0">{record.water}</TableCell>
+                <TableCell className="font-medium border-r border-slate-200 last:border-r-0">{record.rate}</TableCell>
+                <TableCell className="font-medium border-r border-slate-200 last:border-r-0 text-slate-900 font-semibold">₹{record.amount}</TableCell>
               </TableRow>
             )) : (
               <TableRow>
@@ -591,32 +591,32 @@ const ShiftReports:React.FC = () => {
         {/* Summary Statistics */}
         <div className="rounded-lg bg-white">
           <Table>
-            <TableHeader className="bg-gray-200">
+            <TableHeader className="bg-slate-50">
               <TableRow>
-                <TableHead className="text-center font-semibold border border-gray-100">
+                <TableHead className="text-center font-semibold text-slate-600 text-xs uppercase tracking-wider border-r border-slate-200 last:border-r-0">
                   Total Quantity (L)
                 </TableHead>
-                <TableHead className="text-center font-semibold border border-gray-100">
+                <TableHead className="text-center font-semibold text-slate-600 text-xs uppercase tracking-wider border-r border-slate-200 last:border-r-0">
                   Average Fat (%)
                 </TableHead>
-                <TableHead className="text-center font-semibold border border-gray-100">
+                <TableHead className="text-center font-semibold text-slate-600 text-xs uppercase tracking-wider border-r border-slate-200 last:border-r-0">
                   Average SNF (%)
                 </TableHead>
-                <TableHead className="text-center font-semibold border border-gray-100">
+                <TableHead className="text-center font-semibold text-slate-600 text-xs uppercase tracking-wider border-r border-slate-200 last:border-r-0">
                   Average Water (%)
                 </TableHead>
-                <TableHead className="text-center font-semibold border border-gray-100">
+                <TableHead className="text-center font-semibold text-slate-600 text-xs uppercase tracking-wider border-r border-slate-200 last:border-r-0">
                   Total Amount (₹)
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              <TableRow className="border-gray-200">
-                <TableCell>{totals.quantity}</TableCell>
-                <TableCell>{totals.avgFat}</TableCell>
-                <TableCell>{totals.avgSnf}</TableCell>
-                <TableCell>{totals.avgWater}</TableCell>
-                <TableCell>{totals.totalAmount}</TableCell>
+              <TableRow className="border-b border-slate-200 bg-white">
+                <TableCell className="border-r border-slate-200 last:border-r-0 font-semibold">{totals.quantity}</TableCell>
+                <TableCell className="border-r border-slate-200 last:border-r-0 font-semibold">{totals.avgFat}</TableCell>
+                <TableCell className="border-r border-slate-200 last:border-r-0 font-semibold">{totals.avgSnf}</TableCell>
+                <TableCell className="border-r border-slate-200 last:border-r-0 font-semibold">{totals.avgWater}</TableCell>
+                <TableCell className="border-r border-slate-200 last:border-r-0 font-semibold text-slate-900">₹{totals.totalAmount}</TableCell>
               </TableRow>
             </TableBody>
           </Table>

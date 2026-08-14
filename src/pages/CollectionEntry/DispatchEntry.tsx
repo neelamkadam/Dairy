@@ -1,12 +1,11 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { format, isValid } from "date-fns";
-import { HelpCircle } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { HelpCircle, Truck, Scale, Droplets, Banknote, Save, RefreshCcw, Loader2, IndianRupee } from "lucide-react";
 import { usePostApi } from "@/services/use-api";
 import { toast } from "react-toastify";
 
@@ -28,24 +27,22 @@ const DispatchEntry = () => {
 
   const handleInputChange = (field: string, value: string) => {
     const updatedData = { ...formData, [field]: value };
-    
+
     // Auto-calculate total amount when weight, rate, or commission changes
     if (field === 'weight' || field === 'ratePerLiter' || field === 'commissionPerLiter') {
       const weight = parseFloat(field === 'weight' ? value : updatedData.weight) || 0;
       const rate = parseFloat(field === 'ratePerLiter' ? value : updatedData.ratePerLiter) || 0;
       const commission = parseFloat(field === 'commissionPerLiter' ? value : updatedData.commissionPerLiter) || 0;
-      
+
       updatedData.totalAmount = ((weight * rate) + (weight * commission)).toFixed(2);
     }
-    
+
     setFormData(updatedData);
   };
 
-
-
   const handleSubmit = async () => {
-    if (!formData.weight || !formData.avgFat || !formData.avgSnf || 
-        !formData.ratePerLiter || !formData.commissionPerLiter || !formData.totalAmount) {
+    if (!formData.weight || !formData.avgFat || !formData.avgSnf ||
+      !formData.ratePerLiter || !formData.commissionPerLiter || !formData.totalAmount) {
       toast.error("All fields are required");
       return;
     }
@@ -62,18 +59,10 @@ const DispatchEntry = () => {
       };
 
       const response = await postData(payload);
-      
+
       if (response?.data?.success) {
         toast.success("Dispatch entry created successfully");
-        setFormData({
-          weight: "",
-          avgFat: "",
-          avgSnf: "",
-          ratePerLiter: "",
-          commissionPerLiter: "",
-          totalAmount: ""
-        });
-        setSelectedDate(new Date());
+        handleClear();
       }
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to create dispatch entry");
@@ -92,142 +81,190 @@ const DispatchEntry = () => {
     setSelectedDate(new Date());
   };
 
+  const handleEnterAsTab = (e: React.KeyboardEvent<HTMLElement>) => {
+    if (e.key === 'Enter') {
+      const target = e.target as HTMLElement;
+      if (!target.classList.contains('enter-field')) return;
+
+      e.preventDefault();
+
+      const container = target.closest('.enter-nav-container');
+      if (!container) return;
+
+      const fields = Array.from(
+        container.querySelectorAll('.enter-field:not([disabled]):not([readonly])')
+      ) as HTMLElement[];
+      
+      const index = fields.indexOf(target);
+      if (index > -1 && index < fields.length - 1) {
+        fields[index + 1].focus();
+      } else if (index === fields.length - 1 && target.tagName === 'BUTTON') {
+        fields[index].click();
+      }
+    }
+  };
+
   return (
-    <div className="w-full px-4 md:w-[90%] lg:w-[70%] m-auto mt-4 md:mt-10">
-      <Card className="shadow-lg border-0 bg-white">
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-xl font-semibold text-gray-800">
-              {t('tanker_dispatch')}
-            </CardTitle>
-            <HelpCircle className="h-5 w-5 text-gray-400" />
+    <div className="min-h-screen bg-gray-50/50 p-4 md:p-8 space-y-6" onKeyDown={handleEnterAsTab}>
+      <div className="w-full max-w-5xl mx-auto space-y-6">
+        
+        {/* Header Card */}
+        <div className="flex items-center bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100">
+          <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl shrink-0">
+            <Truck className="h-6 w-6" />
           </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-2">
-            <Label className="text-sm font-medium text-gray-700">
-              {t('dispatch_date')}
-            </Label>
-            <Input
-              type="date"
-              value={selectedDate ? format(selectedDate, "yyyy-MM-dd") : ""}
-              onChange={(e) => {
-                const d = new Date(e.target.value);
-                if (isValid(d)) setSelectedDate(d);
-              }}
-              className="bg-gray-50 border-gray-200 hover:bg-gray-100 w-full h-10"
-            />
-          </div>
+          <h1 className="flex-1 text-center text-xl md:text-2xl font-bold text-gray-800 font-serif tracking-wide">
+            {t('tanker_dispatch') || 'Tanker Dispatch'}
+          </h1>
+          <HelpCircle className="h-6 w-6 text-gray-400 stroke-[1.5] shrink-0" />
+        </div>
 
-          <div className="space-y-2">
-            <Label className="text-sm font-medium text-gray-700">
-              {t('weight')} (ltr)
-            </Label>
-            <Input
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              value={formData.weight}
-              onChange={(e) => handleInputChange("weight", e.target.value)}
-              className="bg-gray-50 border-gray-200 focus:bg-white"
-            />
-          </div>
+        {/* Form Card */}
+        <Card className="shadow-sm border border-gray-100 bg-white rounded-2xl overflow-hidden">
+          <CardContent className="p-6 md:p-12 space-y-12 enter-nav-container">
+            
+            {/* Row 1: Date and Weight */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
+              <div className="flex flex-col justify-end">
+                <Label className="text-[11px] font-bold uppercase tracking-widest text-gray-500 font-serif mb-4 block text-left">
+                  {t('dispatch_date')}
+                </Label>
+                <Input
+                  type="date"
+                  value={selectedDate ? format(selectedDate, "yyyy-MM-dd") : ""}
+                  onChange={(e) => {
+                    const d = new Date(e.target.value);
+                    if (isValid(d)) setSelectedDate(d);
+                  }}
+                  className="h-12 bg-white border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 text-sm font-medium text-gray-800 shadow-sm enter-field"
+                />
+              </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">
-                {t('avg_fat')}
-              </Label>
-              <Input
-                type="number"
-                step="0.1"
-                placeholder="0.0"
-                value={formData.avgFat}
-                onChange={(e) => handleInputChange("avgFat", e.target.value)}
-                className="bg-gray-50 border-gray-200 focus:bg-white"
-              />
+              <div className="flex flex-col justify-end">
+                <Label className="text-[11px] font-bold uppercase tracking-widest text-gray-500 font-serif mb-4 flex flex-col items-center justify-center gap-2">
+                  <Scale className="h-5 w-5 text-blue-500 stroke-[1.5]" />
+                  <span>{t('weight')} (LTR)</span>
+                </Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.weight}
+                  onChange={(e) => handleInputChange("weight", e.target.value)}
+                  className="h-12 bg-white border-gray-200 focus:border-blue-400 text-blue-500 text-sm font-semibold rounded-xl text-center shadow-sm enter-field"
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">
-                {t('avg_snf')}
-              </Label>
-              <Input
-                type="number"
-                step="0.1"
-                placeholder="0.0"
-                value={formData.avgSnf}
-                onChange={(e) => handleInputChange("avgSnf", e.target.value)}
-                className="bg-gray-50 border-gray-200 focus:bg-white"
-              />
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">
-                {t('rate_per_liter')}
-              </Label>
-              <Input
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                value={formData.ratePerLiter}
-                onChange={(e) => handleInputChange("ratePerLiter", e.target.value)}
-                className="bg-gray-50 border-gray-200 focus:bg-white"
-              />
+            {/* Row 2: Fat and SNF */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
+              <div className="flex flex-col justify-end">
+                <Label className="text-[11px] font-bold uppercase tracking-widest text-gray-500 font-serif mb-4 flex flex-col items-center justify-center gap-2">
+                  <Droplets className="h-5 w-5 text-fuchsia-500 stroke-[1.5]" />
+                  <span>{t('avg_fat')}</span>
+                </Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  placeholder="0.0"
+                  value={formData.avgFat}
+                  onChange={(e) => handleInputChange("avgFat", e.target.value)}
+                  className="h-12 bg-white border-gray-200 focus:ring-2 focus:ring-fuchsia-500/20 text-sm font-semibold rounded-xl text-center text-gray-800 shadow-sm enter-field"
+                />
+              </div>
+              <div className="flex flex-col justify-end">
+                <Label className="text-[11px] font-bold uppercase tracking-widest text-gray-500 font-serif mb-4 flex flex-col items-center justify-center gap-2">
+                  <Droplets className="h-5 w-5 text-fuchsia-500 stroke-[1.5]" />
+                  <span>{t('avg_snf')}</span>
+                </Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  placeholder="0.0"
+                  value={formData.avgSnf}
+                  onChange={(e) => handleInputChange("avgSnf", e.target.value)}
+                  className="h-12 bg-white border-gray-200 focus:ring-2 focus:ring-fuchsia-500/20 text-sm font-semibold rounded-xl text-center text-gray-800 shadow-sm enter-field"
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">
-                {t('commission_per_liter')}
-              </Label>
-              <Input
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                value={formData.commissionPerLiter}
-                onChange={(e) => handleInputChange("commissionPerLiter", e.target.value)}
-                className="bg-gray-50 border-gray-200 focus:bg-white"
-              />
-            </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label className="text-sm font-medium text-gray-700">
-              {t('total_amount')}
-            </Label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                ₹
-              </span>
-              <Input
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                value={formData.totalAmount}
-                readOnly
-                className="pl-8 bg-gray-100 border-gray-200 cursor-not-allowed"
-              />
-            </div>
-          </div>
+            {/* Row 3: Rate, Commission, Total */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+              <div className="flex flex-col justify-end">
+                <Label className="text-[11px] font-bold uppercase tracking-widest text-gray-500 font-serif mb-4 flex flex-col items-center justify-center gap-2">
+                  <Banknote className="h-5 w-5 text-emerald-500 stroke-[1.5]" />
+                  <span>{t('rate_per_liter')}</span>
+                </Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.ratePerLiter}
+                  onChange={(e) => handleInputChange("ratePerLiter", e.target.value)}
+                  className="h-12 bg-white border-gray-200 focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold rounded-xl text-center text-gray-800 shadow-sm enter-field"
+                />
+              </div>
+              <div className="flex flex-col justify-end">
+                <Label className="text-[11px] font-bold uppercase tracking-widest text-gray-500 font-serif mb-4 flex flex-col items-center justify-center gap-2">
+                  <Banknote className="h-5 w-5 text-emerald-500 stroke-[1.5]" />
+                  <span>{t('commission_per_liter') || 'Commission Amount Per Liter'}</span>
+                </Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.commissionPerLiter}
+                  onChange={(e) => handleInputChange("commissionPerLiter", e.target.value)}
+                  className="h-12 bg-white border-gray-200 focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold rounded-xl text-center text-gray-800 shadow-sm enter-field"
+                />
+              </div>
 
-          <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 pt-4">
-            <Button
-              onClick={handleClear}
-              variant="outline"
-              className="w-full sm:w-auto px-8 py-2 text-sm font-medium border-gray-200"
-            >
-              {t('clear_form')}
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={isLoading}
-              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 text-sm font-medium disabled:opacity-50"
-            >
-              {isLoading ? t('submitting') : t('submit_entry')}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+              <div className="flex flex-col justify-end">
+                <Label className="text-[11px] font-bold uppercase tracking-widest text-emerald-600 font-serif mb-4 flex flex-col items-center justify-center gap-2">
+                  <span>{t('total_amount')}</span>
+                </Label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <IndianRupee className="h-4 w-4 text-emerald-600 stroke-[2]" />
+                  </div>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.totalAmount}
+                    readOnly
+                    className="h-12 pl-10 pr-10 text-sm font-bold text-center bg-emerald-50/30 border-emerald-100 rounded-xl text-emerald-700 cursor-not-allowed shadow-sm"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="flex flex-col sm:flex-row justify-end gap-4 pt-6">
+              <Button
+                onClick={handleClear}
+                variant="outline"
+                className="h-11 px-6 text-sm font-semibold border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 hover:text-gray-900 transition-all shadow-sm"
+              >
+                <RefreshCcw className="h-4 w-4 mr-2 stroke-[2]" />
+                {t('clear_form')}
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                disabled={isLoading}
+                className="h-11 px-8 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-sm transition-all enter-field"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2 stroke-[2]" />
+                )}
+                {t('submit_entry')}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

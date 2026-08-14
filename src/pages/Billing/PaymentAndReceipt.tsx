@@ -116,7 +116,7 @@ const PaymentAndReceipt: React.FC = () => {
     if (!window.confirm('Are you sure you want to delete this payment?')) return;
     
     try {
-      await paymentApi.delete(id);
+      await paymentApi.delete(id.toString());
       toast.success('Payment deleted successfully');
       fetchPayments();
     } catch (error) {

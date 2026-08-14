@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { format, isValid } from "date-fns";
-import { HelpCircle, Upload, Download } from "lucide-react";
+import { HelpCircle, Upload, Download, ChevronDown, Search, Check, X, Building } from "lucide-react";
 import { cn } from "@/lib/utils";
 import LastEntryDetails from "@/components/LastEntryDetails";
 import { Input } from "@/components/ui/input";
@@ -67,6 +67,40 @@ const VLCCollectionEntry = () => {
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [vlcOpen, setVlcOpen] = useState(false);
+  const [vlcSearch, setVlcSearch] = useState("");
+  const vlcSearchRef = useRef<HTMLInputElement>(null);
+  const vlcWrapperRef = useRef<HTMLDivElement>(null);
+
+  const [bulkVlcOpen, setBulkVlcOpen] = useState(false);
+  const [bulkVlcSearch, setBulkVlcSearch] = useState("");
+  const bulkVlcSearchRef = useRef<HTMLInputElement>(null);
+  const bulkVlcWrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!vlcOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (vlcWrapperRef.current && !vlcWrapperRef.current.contains(e.target as Node)) {
+        setVlcOpen(false);
+        setVlcSearch("");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [vlcOpen]);
+
+  useEffect(() => {
+    if (!bulkVlcOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (bulkVlcWrapperRef.current && !bulkVlcWrapperRef.current.contains(e.target as Node)) {
+        setBulkVlcOpen(false);
+        setBulkVlcSearch("");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [bulkVlcOpen]);
 
   const getDefaultShift = () => {
     const hour = new Date().getHours();
@@ -174,7 +208,7 @@ const VLCCollectionEntry = () => {
 
   const fetchLastEntries = async () => {
     if (!branches?.length || !formData.date || !formData.shift) return;
-    
+
     try {
       const vlcIds = branches.map(branch => branch.username);
       const payload = {
@@ -183,7 +217,7 @@ const VLCCollectionEntry = () => {
         shift: formData.shift.charAt(0).toUpperCase() + formData.shift.slice(1)
       };
       const response = await fetchEntries(payload);
-      
+
       if (response?.data?.success) {
         setLastEntries(response.data.data || []);
       }
@@ -205,7 +239,7 @@ const VLCCollectionEntry = () => {
     const sampleData = [
       ['100', '4.5', '8.5', '28', '45', '4500', 'Cow']
     ];
-    
+
     const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleData]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'VLC Template');
@@ -250,11 +284,11 @@ const VLCCollectionEntry = () => {
           }
 
           const headers = jsonData[0].map((h: any) => h.toString().trim().toLowerCase());
-          
+
           for (let i = 1; i < jsonData.length; i++) {
             const row = jsonData[i];
             if (!row || row.length === 0) continue;
-            
+
             const entry: any = {};
             headers.forEach((header, index) => {
               entry[header] = row[index];
@@ -277,7 +311,7 @@ const VLCCollectionEntry = () => {
         } else {
           const text = e.target?.result as string;
           const lines = text.split('\n').filter(line => line.trim());
-          
+
           if (lines.length < 2) {
             toast.error('CSV file is empty or invalid');
             return;
@@ -288,7 +322,7 @@ const VLCCollectionEntry = () => {
           for (let i = 1; i < lines.length; i++) {
             const values = lines[i].split(',').map(v => v.trim());
             const entry: any = {};
-            
+
             headers.forEach((header, index) => {
               entry[header] = values[index];
             });
@@ -310,7 +344,7 @@ const VLCCollectionEntry = () => {
         }
 
         const response = await bulkPostData({ entries });
-        
+
         if (response?.data?.success) {
           toast.success(`${response.data.message}`);
           setIsBulkDialogOpen(false);
@@ -327,20 +361,20 @@ const VLCCollectionEntry = () => {
         toast.error(error?.response?.data?.message || 'Failed to import bulk entries');
       }
     };
-    
+
     if (isExcel) {
       reader.readAsArrayBuffer(file);
     } else {
       reader.readAsText(file);
     }
-    
+
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleSubmit = async () => {
     // Validation
-    if (!formData.date || !formData.shift || !formData.userId || !formData.vlcName || 
-        !formData.weight || !formData.fat || !formData.snf || !formData.clr || !formData.rate) {
+    if (!formData.date || !formData.shift || !formData.userId || !formData.vlcName ||
+      !formData.weight || !formData.fat || !formData.snf || !formData.clr || !formData.rate) {
       toast.error("All fields are required");
       return;
     }
@@ -362,10 +396,10 @@ const VLCCollectionEntry = () => {
 
       console.log('📤 Submitting VLC entry:', payload);
 
-      const response = editingId 
+      const response = editingId
         ? await putData(payload, `/api/web/collection/vlc-entry/${editingId}`)
         : await postData(payload);
-      
+
       if (response?.data?.success) {
         toast.success(editingId ? "VLC entry updated successfully" : "VLC entry created successfully");
         // Reset form but keep date and shift
@@ -397,7 +431,7 @@ const VLCCollectionEntry = () => {
   const handleEdit = (entry: any) => {
     // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    
+
     setEditingId(entry.id);
     setFormData({
       date: new Date(entry.date),
@@ -429,298 +463,419 @@ const VLCCollectionEntry = () => {
     }
   };
 
-  return (
-    <div className="flex flex-col lg:flex-row gap-4 md:gap-6 w-full px-4 md:w-[95%] m-auto mt-4 md:mt-10">
-      <div className="w-full lg:w-[65%]">
-        <Card className="shadow-lg border-0 bg-white">
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-xl font-semibold text-gray-800">
-              {t('vlc_collection_entry')}
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv,.xlsx,.xls"
-                onChange={handleBulkImport}
-                className="hidden"
-              />
-              <Button
-                onClick={downloadTemplate}
-                variant="outline"
-                size="sm"
-                className="text-green-600 border-green-600 hover:bg-green-50"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Template
-              </Button>
-              <Button
-                onClick={() => setIsBulkDialogOpen(true)}
-                disabled={isBulkLoading}
-                variant="outline"
-                size="sm"
-                className="text-blue-600 border-blue-600 hover:bg-blue-50"
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                {isBulkLoading ? 'Importing...' : 'Bulk Import'}
-              </Button>
-              <HelpCircle className="h-5 w-5 text-gray-400" />
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Date, Shift, VLC ID in one row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="date" className="text-sm font-medium text-gray-700">
-                {t('date')}
-              </Label>
-              <Input
-                type="date"
-                id="date"
-                value={formData.date ? format(formData.date, "yyyy-MM-dd") : ""}
-                onChange={(e) => {
-                  const d = new Date(e.target.value);
-                  if (isValid(d)) handleInputChange("date", d);
-                }}
-                className="bg-gray-50 border-gray-200 hover:bg-gray-100 w-full h-10"
-              />
-            </div>
+  const handleEnterAsTab = (e: React.KeyboardEvent<HTMLElement>) => {
+    if (e.key === 'Enter') {
+      const target = e.target as HTMLElement;
+      if (!target.classList.contains('enter-field')) return;
 
-            <div className="space-y-2">
-              <Label htmlFor="shift" className="text-sm font-medium text-gray-700">
-                {t('shift')}
-              </Label>
-              <Select value={formData.shift} onValueChange={(value) => handleInputChange("shift", value)}>
-                <SelectTrigger className="bg-gray-50 border-gray-200 hover:bg-gray-100 w-full">
-                  <SelectValue placeholder="Select shift" />
-                </SelectTrigger>
-                <SelectContent className="bg-white">
-                  <SelectItem value="morning">{t('morning')}</SelectItem>
-                  <SelectItem value="evening">{t('evening')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+      e.preventDefault();
 
-            <div className="space-y-2">
-              <Label htmlFor="userId" className="text-sm font-medium text-gray-700">
-                {t('vlc_id')}
-              </Label>
-              <Select value={formData.userId} onValueChange={handleVLCIdChange}>
-                <SelectTrigger className="bg-gray-50 border-gray-200 hover:bg-gray-100 w-full">
-                  <SelectValue placeholder="Select VLC ID" />
-                </SelectTrigger>
-                <SelectContent className="bg-white">
-                  {branches?.length > 0 ? branches.map((branch) => 
-                    branch?.username ? (
-                      <SelectItem key={branch.username} value={branch.username}>
-                        {branch.username} - {branch.branchName}
-                      </SelectItem>
-                    ) : null
-                  ) : (
-                    <SelectItem value="" disabled>
-                      No VLC branches available
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+      const container = target.closest('.enter-nav-container');
+      if (!container) return;
 
-          {/* VLC Name and Type in one row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="vlcName" className="text-sm font-medium text-gray-700">
-                {t('vlc_name')}
-              </Label>
-              <Input
-                id="vlcName"
-                placeholder="VLC Name"
-                value={formData.vlcName}
-                readOnly
-                className="bg-gray-100 border-gray-200 text-gray-700"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="type" className="text-sm font-medium text-gray-700">
-                Type
-              </Label>
-              <Select value={formData.type} onValueChange={(value: 'Cow' | 'Buffalo' | 'Both') => handleInputChange("type", value)}>
-                <SelectTrigger className="bg-gray-50 border-gray-200 hover:bg-gray-100 w-full">
-                  <SelectValue placeholder="Select Type" />
-                </SelectTrigger>
-                <SelectContent className="bg-white">
-                  <SelectItem value="Cow">Cow</SelectItem>
-                  <SelectItem value="Buffalo">Buffalo</SelectItem>
-                  <SelectItem value="Both">Both</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Weight, Fat, SNF in one row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="weight" className="text-sm font-medium text-gray-700">
-                {t('weight')} (kg)
-              </Label>
-              <Input
-                id="weight"
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                value={formData.weight}
-                onChange={(e) => handleInputChange("weight", e.target.value)}
-                className="bg-gray-50 border-gray-200 focus:bg-white"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="fat" className="text-sm font-medium text-gray-700">
-                {t('fat')} (%)
-              </Label>
-              <Input
-                id="fat"
-                type="number"
-                step="0.1"
-                placeholder="0.0"
-                value={formData.fat}
-                onChange={(e) => handleInputChange("fat", e.target.value)}
-                className="bg-gray-50 border-gray-200 focus:bg-white"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="snf" className="text-sm font-medium text-gray-700">
-                {t('snf')} (%)
-              </Label>
-              <Input
-                id="snf"
-                type="number"
-                step="0.1"
-                placeholder="0.0"
-                value={formData.snf}
-                onChange={(e) => {
-                  handleInputChange("snf", e.target.value);
-                  if (e.target.value) setFormData(prev => ({ ...prev, clr: '' }));
-                }}
-                className="bg-gray-50 border-gray-200 focus:bg-white"
-              />
-            </div>
-          </div>
-
-          {/* CLR, Rate, Amount in one row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="clr" className="text-sm font-medium text-gray-700">
-                {t('clr')}
-              </Label>
-              <Input
-                id="clr"
-                type="number"
-                step="0.1"
-                placeholder="0.0"
-                value={formData.clr}
-                onChange={(e) => {
-                  handleInputChange("clr", e.target.value);
-                  if (e.target.value) setFormData(prev => ({ ...prev, snf: '' }));
-                }}
-                className="bg-gray-50 border-gray-200 focus:bg-white"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="rate" className="text-sm font-medium text-gray-700">
-                {t('rate_per_kg')}
-              </Label>
-              <Input
-                id="rate"
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                value={formData.rate}
-                readOnly
-                className="bg-gray-100 border-gray-200 text-gray-700"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="amount" className="text-sm font-medium text-gray-700">
-                {t('total_amount')}
-              </Label>
-              <Input
-                id="amount"
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                value={Number(formData.amount || 0).toFixed(2)}
-                readOnly
-                className="bg-gray-100 border-gray-200 text-gray-700 font-semibold"
-              />
-            </div>
-          </div>
-
-          {/* Submit Button */}
-          <div className="flex justify-center gap-4 pt-4">
-            {editingId && (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  const currentDate = formData.date;
-                  const currentShift = formData.shift;
-                  setEditingId(null);
-                  setFormData({
-                    date: currentDate,
-                    shift: currentShift,
-                    userId: "",
-                    vlcName: "",
-                    milkType: 'Cow',
-                    rateChartName: 'Rate Chart 1',
-                    weight: "",
-                    fat: "",
-                    snf: "",
-                    clr: "",
-                    rate: "",
-                    amount: 0,
-                    type: 'Both',
-                  });
-                }}
-                className="w-full sm:w-auto border-gray-300 text-gray-700 hover:bg-gray-50"
-              >
-                Cancel
-              </Button>
-            )}
-            <Button
-              onClick={handleSubmit}
-              disabled={isLoading || isUpdating}
-              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 text-sm font-medium transition-colors disabled:opacity-50"
-            >
-              {isLoading || isUpdating ? t('submitting') : editingId ? "Update Entry" : t('submit_entry')}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-      </div>
+      const fields = Array.from(
+        container.querySelectorAll('.enter-field:not([disabled]):not([readonly])')
+      ) as HTMLElement[];
       
+      const index = fields.indexOf(target);
+      if (index > -1 && index < fields.length - 1) {
+        fields[index + 1].focus();
+      } else if (index === fields.length - 1 && target.tagName === 'BUTTON') {
+        fields[index].click();
+      }
+    }
+  };
+
+  return (
+    <div className="flex flex-col lg:flex-row gap-4 md:gap-6 w-full p-4 md:p-6 max-w-7xl mx-auto" onKeyDown={handleEnterAsTab}>
+      <div className="w-full lg:w-[65%] space-y-4 md:space-y-6">
+        
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
+              <Building className="h-6 w-6" />
+            </div>
+            <h1 className="text-xl md:text-2xl font-bold text-gray-800 font-serif tracking-wide">
+              {t('vlc_collection_entry')}
+            </h1>
+          </div>
+          <div className="flex items-center gap-2.5">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  onChange={handleBulkImport}
+                  className="hidden"
+                />
+                <Button
+                  onClick={downloadTemplate}
+                  variant="outline"
+                  size="sm"
+                  className="text-green-700 bg-green-50 border-green-200 hover:bg-green-100 hover:border-green-300 hover:text-green-800 transition-colors shadow-sm rounded-lg px-3"
+                >
+                  <Download className="h-4 w-4 mr-1.5" />
+                  Template
+                </Button>
+                <Button
+                  onClick={() => setIsBulkDialogOpen(true)}
+                  disabled={isBulkLoading}
+                  variant="outline"
+                  size="sm"
+                  className="text-blue-700 bg-blue-50 border-blue-200 hover:bg-blue-100 hover:border-blue-300 hover:text-blue-800 transition-colors shadow-sm rounded-lg px-3"
+                >
+                  <Upload className="h-4 w-4 mr-1.5" />
+                  {isBulkLoading ? 'Importing...' : 'Bulk Import'}
+                </Button>
+              </div>
+            </div>
+
+
+        <Card className="shadow-sm border border-gray-200/60 bg-white/95 backdrop-blur-sm rounded-2xl overflow-hidden">
+          <CardContent className="p-6 space-y-6 enter-nav-container">
+            {/* Date, Shift, VLC ID in one row */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="space-y-1.5">
+                <Label htmlFor="date" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  {t('date')}
+                </Label>
+                <Input
+                  type="date"
+                  id="date"
+                  value={formData.date ? format(formData.date, "yyyy-MM-dd") : ""}
+                  onChange={(e) => {
+                    const d = new Date(e.target.value);
+                    if (isValid(d)) handleInputChange("date", d);
+                  }}
+                  className="bg-white border-gray-200 hover:border-blue-300 focus:border-blue-500 focus:ring-blue-500/20 transition-all w-full h-10 rounded-xl shadow-sm text-sm enter-field"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="shift" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  {t('shift')}
+                </Label>
+                <Select value={formData.shift} onValueChange={(value) => handleInputChange("shift", value)}>
+                  <SelectTrigger className="bg-white border-gray-200 hover:border-blue-300 focus:border-blue-500 focus:ring-blue-500/20 transition-all w-full h-10 rounded-xl shadow-sm text-sm enter-field">
+                    <SelectValue placeholder="Select shift" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white rounded-xl shadow-lg border-gray-100">
+                    <SelectItem value="morning" className="cursor-pointer hover:bg-gray-50 rounded-lg">{t('morning')}</SelectItem>
+                    <SelectItem value="evening" className="cursor-pointer hover:bg-gray-50 rounded-lg">{t('evening')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5 overflow-visible">
+                <Label htmlFor="userId" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  {t('vlc_id')}
+                </Label>
+                {(() => {
+                  const selectedBranch = branches?.find((b) => b.username === formData.userId);
+                  const filtered = branches?.filter((b) => {
+                    const q = vlcSearch.toLowerCase();
+                    return (
+                      !q ||
+                      String(b.username || "").toLowerCase().includes(q) ||
+                      String(b.branch_id || "").toLowerCase().includes(q) ||
+                      String(b.name || "").toLowerCase().includes(q) ||
+                      String(b.branchName || "").toLowerCase().includes(q)
+                    );
+                  }) || [];
+                  return (
+                    <div ref={vlcWrapperRef} className="relative w-full">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setVlcOpen((prev) => !prev);
+                          if (!vlcOpen) setTimeout(() => vlcSearchRef.current?.focus(), 0);
+                          else setVlcSearch("");
+                        }}
+                        className={cn(
+                          "w-full flex items-center justify-between px-3 py-2 h-10 text-sm rounded-xl border bg-white transition-all shadow-sm enter-field",
+                          vlcOpen ? "border-blue-500 ring-1 ring-blue-500/20" : "border-gray-200 hover:border-blue-300"
+                        )}
+                      >
+                        <span className={selectedBranch ? "text-gray-900 font-medium truncate" : "text-gray-500"}>
+                          {selectedBranch
+                            ? `${selectedBranch.username} - ${selectedBranch.branchName || selectedBranch.name}`
+                            : "Select VLC ID"}
+                        </span>
+                        <ChevronDown
+                          className={cn("h-4 w-4 text-gray-400 flex-shrink-0 ml-2 transition-transform duration-150", vlcOpen && "rotate-180")}
+                        />
+                      </button>
+
+                      {vlcOpen && (
+                        <div
+                          className="absolute z-50 mt-1 w-full bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden"
+                          style={{ top: "100%", left: 0 }}
+                        >
+                          <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100">
+                            <Search className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                            <input
+                              ref={vlcSearchRef}
+                              value={vlcSearch}
+                              onChange={(e) => setVlcSearch(e.target.value)}
+                              placeholder="Search VLC..."
+                              className="flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400"
+                            />
+                            {vlcSearch && (
+                              <button
+                                type="button"
+                                onMouseDown={(e) => { e.preventDefault(); setVlcSearch(""); vlcSearchRef.current?.focus(); }}
+                                className="text-gray-400 hover:text-gray-600 text-sm leading-none"
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </div>
+                          <div className="max-h-48 overflow-y-auto p-1">
+                            {filtered.length === 0 ? (
+                              <div className="px-3 py-4 text-center text-sm text-gray-400">No VLC branches found</div>
+                            ) : (
+                              filtered.map((branch) => {
+                                if (!branch?.username) return null;
+                                const val = branch.username;
+                                const isSelected = val === formData.userId;
+                                return (
+                                  <button
+                                    key={val}
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      handleVLCIdChange(val);
+                                      setVlcOpen(false);
+                                      setVlcSearch("");
+                                    }}
+                                    className={cn(
+                                      "w-full flex items-center justify-between px-3 py-2 text-sm text-left rounded-lg transition-colors",
+                                      isSelected ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700 hover:bg-gray-50"
+                                    )}
+                                  >
+                                    <span className="truncate">
+                                      {val} - {branch.branchName || branch.name}
+                                    </span>
+                                    {isSelected && <Check className="h-4 w-4 text-blue-600 flex-shrink-0 ml-2" />}
+                                  </button>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+
+            {/* VLC Name and Type in one row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="space-y-1.5">
+                <Label htmlFor="vlcName" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  {t('vlc_name')}
+                </Label>
+                <Input
+                  id="vlcName"
+                  placeholder="VLC Name"
+                  value={formData.vlcName}
+                  readOnly
+                  className="bg-gray-50/70 border-gray-200 text-gray-600 w-full h-10 rounded-xl cursor-not-allowed shadow-none"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="type" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Type
+                </Label>
+                <Select value={formData.type} onValueChange={(value: 'Cow' | 'Buffalo' | 'Both') => handleInputChange("type", value)}>
+                  <SelectTrigger className="bg-white border-gray-200 hover:border-blue-300 focus:border-blue-500 focus:ring-blue-500/20 transition-all w-full h-10 rounded-xl shadow-sm text-sm enter-field">
+                    <SelectValue placeholder="Select Type" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white rounded-xl shadow-lg border-gray-100">
+                    <SelectItem value="Cow" className="cursor-pointer hover:bg-gray-50 rounded-lg">Cow</SelectItem>
+                    <SelectItem value="Buffalo" className="cursor-pointer hover:bg-gray-50 rounded-lg">Buffalo</SelectItem>
+                    <SelectItem value="Both" className="cursor-pointer hover:bg-gray-50 rounded-lg">Both</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Weight, Fat, SNF in one row */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="space-y-1.5">
+                <Label htmlFor="weight" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  {t('weight')} <span className="text-gray-400 normal-case font-normal">(kg)</span>
+                </Label>
+                <Input
+                  id="weight"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.weight}
+                  onChange={(e) => handleInputChange("weight", e.target.value)}
+                  className="bg-white border-gray-200 hover:border-blue-300 focus:border-blue-500 focus:ring-blue-500/20 transition-all w-full h-10 rounded-xl shadow-sm font-medium text-gray-900 enter-field"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="fat" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  {t('fat')} <span className="text-gray-400 normal-case font-normal">(%)</span>
+                </Label>
+                <Input
+                  id="fat"
+                  type="number"
+                  step="0.1"
+                  placeholder="0.0"
+                  value={formData.fat}
+                  onChange={(e) => handleInputChange("fat", e.target.value)}
+                  className="bg-white border-gray-200 hover:border-blue-300 focus:border-blue-500 focus:ring-blue-500/20 transition-all w-full h-10 rounded-xl shadow-sm font-medium text-gray-900 enter-field"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="snf" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  {t('snf')} <span className="text-gray-400 normal-case font-normal">(%)</span>
+                </Label>
+                <Input
+                  id="snf"
+                  type="number"
+                  step="0.1"
+                  placeholder="0.0"
+                  value={formData.snf}
+                  onChange={(e) => {
+                    handleInputChange("snf", e.target.value);
+                    if (e.target.value) setFormData(prev => ({ ...prev, clr: '' }));
+                  }}
+                  className="bg-white border-gray-200 hover:border-blue-300 focus:border-blue-500 focus:ring-blue-500/20 transition-all w-full h-10 rounded-xl shadow-sm font-medium text-gray-900 enter-field"
+                />
+              </div>
+            </div>
+
+            {/* CLR, Rate, Amount in one row */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="space-y-1.5">
+                <Label htmlFor="clr" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  {t('clr')}
+                </Label>
+                <Input
+                  id="clr"
+                  type="number"
+                  step="0.1"
+                  placeholder="0.0"
+
+                  value={formData.clr}
+                  onChange={(e) => {
+                    handleInputChange("clr", e.target.value);
+                    if (e.target.value) setFormData(prev => ({ ...prev, snf: '' }));
+                  }}
+                  className="bg-white border-gray-200 hover:border-blue-300 focus:border-blue-500 focus:ring-blue-500/20 transition-all w-full h-10 rounded-xl shadow-sm font-medium text-gray-900 enter-field"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="rate" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  {t('rate_per_kg')}
+                </Label>
+                <Input
+                  id="rate"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.rate}
+                  readOnly
+                  className="bg-blue-50/30 border-blue-100 text-blue-900 font-semibold w-full h-10 rounded-xl shadow-inner cursor-not-allowed"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="amount" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  {t('total_amount')}
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">₹</span>
+                  <Input
+                    id="amount"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={Number(formData.amount || 0).toFixed(2)}
+                    readOnly
+                    className="bg-green-50/30 border-green-200 text-green-900 font-bold w-full h-10 rounded-xl shadow-inner pl-7 cursor-not-allowed"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Submit Button */}
+            <div className="flex justify-end gap-3 pt-6 border-t border-gray-100 mt-2">
+              {editingId && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const currentDate = formData.date;
+                    const currentShift = formData.shift;
+                    setEditingId(null);
+                    setFormData({
+                      date: currentDate,
+                      shift: currentShift,
+                      userId: "",
+                      vlcName: "",
+                      milkType: 'Cow',
+                      rateChartName: 'Rate Chart 1',
+                      weight: "",
+                      fat: "",
+                      snf: "",
+                      clr: "",
+                      rate: "",
+                      amount: 0,
+                      type: 'Both',
+                    });
+                  }}
+                  className="w-full sm:w-auto border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl px-6"
+                >
+                  Cancel
+                </Button>
+              )}
+              <Button
+                onClick={handleSubmit}
+                disabled={isLoading || isUpdating}
+                className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-8 h-10 shadow-md shadow-blue-500/20 font-semibold transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:hover:translate-y-0 enter-field"
+              >
+                {isLoading || isUpdating ? t('submitting') : editingId ? "Update Entry" : t('submit_entry')}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="w-full lg:w-[35%]">
-        <LastEntryDetails 
-          entries={getFilteredEntries()} 
+        <LastEntryDetails
+          entries={getFilteredEntries()}
           onEdit={handleEdit}
           onDelete={handleDelete}
         />
       </div>
 
       <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
-        <DialogContent className="sm:max-w-[550px] bg-white">
-          <DialogHeader className="border-b pb-4">
-            <DialogTitle className="text-xl font-semibold text-gray-800">Bulk Import VLC Entries</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-5 py-6">
-            <div className="grid grid-cols-2 gap-4">
+        <DialogContent 
+          className="sm:max-w-[550px] bg-white border-0 shadow-2xl p-0 overflow-hidden rounded-2xl [&>button]:right-6 [&>button]:top-5 [&>button]:text-white/80 hover:[&>button]:text-white [&>button]:focus:ring-white/20"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 pr-12">
+            <DialogHeader className="m-0 space-y-0 text-left">
+              <DialogTitle className="text-xl font-semibold text-white flex items-center gap-2">
+                <Upload className="h-5 w-5 text-blue-100" />
+                Bulk Import VLC Entries
+              </DialogTitle>
+            </DialogHeader>
+          </div>
+          
+          <div className="p-6 space-y-6 bg-slate-50/50 enter-nav-container">
+            <div className="grid grid-cols-2 gap-5">
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-gray-700">Date</Label>
+                <Label className="text-sm font-semibold text-slate-700">Date</Label>
                 <Input
                   type="date"
                   value={bulkFormData.date ? format(bulkFormData.date, "yyyy-MM-dd") : ""}
@@ -728,64 +883,160 @@ const VLCCollectionEntry = () => {
                     const d = new Date(e.target.value);
                     if (isValid(d)) setBulkFormData(prev => ({ ...prev, date: d }));
                   }}
-                  className="bg-gray-50 border-gray-200 hover:bg-gray-100 w-full h-10"
+                  className="bg-white border-slate-200 hover:border-blue-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 w-full h-11 rounded-xl transition-all shadow-sm text-slate-700 enter-field"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-gray-700">Shift</Label>
+                <Label className="text-sm font-semibold text-slate-700">Shift</Label>
                 <Select value={bulkFormData.shift} onValueChange={(value) => setBulkFormData(prev => ({ ...prev, shift: value }))}>
-                  <SelectTrigger className="bg-gray-50 border-gray-200 hover:bg-gray-100">
+                  <SelectTrigger className="bg-white border-slate-200 hover:border-blue-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 h-11 rounded-xl transition-all shadow-sm text-slate-700 enter-field">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    <SelectItem value="morning">Morning</SelectItem>
-                    <SelectItem value="evening">Evening</SelectItem>
+                  <SelectContent className="bg-white rounded-xl border-slate-200 shadow-lg">
+                    <SelectItem value="morning" className="rounded-lg focus:bg-blue-50 focus:text-blue-700 font-medium">Morning</SelectItem>
+                    <SelectItem value="evening" className="rounded-lg focus:bg-blue-50 focus:text-blue-700 font-medium">Evening</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-gray-700">VLC ID</Label>
-                <Select value={bulkFormData.vlcId} onValueChange={handleBulkVLCIdChange}>
-                  <SelectTrigger className="bg-gray-50 border-gray-200 hover:bg-gray-100">
-                    <SelectValue placeholder="Select VLC ID" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    {branches?.map((branch) => branch?.username && (
-                      <SelectItem key={branch.username} value={branch.username}>
-                        {branch.username}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <div className="grid grid-cols-2 gap-5">
+              <div className="space-y-2 overflow-visible">
+                <Label className="text-sm font-semibold text-slate-700">VLC ID</Label>
+                {(() => {
+                  const selectedBranch = branches?.find((b) => b.username === bulkFormData.vlcId);
+                  const filtered = branches?.filter((b) => {
+                    const q = bulkVlcSearch.toLowerCase();
+                    return (
+                      !q ||
+                      String(b.username || "").toLowerCase().includes(q) ||
+                      String(b.branch_id || "").toLowerCase().includes(q) ||
+                      String(b.name || "").toLowerCase().includes(q) ||
+                      String(b.branchName || "").toLowerCase().includes(q)
+                    );
+                  }) || [];
+                  return (
+                    <div ref={bulkVlcWrapperRef} className="relative w-full">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBulkVlcOpen((prev) => !prev);
+                          if (!bulkVlcOpen) setTimeout(() => bulkVlcSearchRef.current?.focus(), 0);
+                          else setBulkVlcSearch("");
+                        }}
+                        className={cn(
+                          "w-full flex items-center justify-between px-3 py-2 h-11 text-sm rounded-xl border bg-white transition-all shadow-sm enter-field",
+                          bulkVlcOpen 
+                            ? "border-blue-500 ring-4 ring-blue-500/10" 
+                            : "border-slate-200 hover:border-blue-300"
+                        )}
+                      >
+                        <span className={selectedBranch ? "text-slate-900 font-medium truncate" : "text-slate-400"}>
+                          {selectedBranch ? selectedBranch.username : "Select VLC ID"}
+                        </span>
+                        <ChevronDown
+                          className={cn("h-4 w-4 text-slate-400 flex-shrink-0 ml-2 transition-transform duration-200", bulkVlcOpen && "rotate-180")}
+                        />
+                      </button>
+
+                      {bulkVlcOpen && (
+                        <div
+                          className="absolute z-50 mt-2 w-full bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+                          style={{ top: "100%", left: 0 }}
+                        >
+                          <div className="flex items-center gap-2 px-3 py-2.5 border-b border-slate-100 bg-slate-50/50">
+                            <Search className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                            <input
+                              ref={bulkVlcSearchRef}
+                              value={bulkVlcSearch}
+                              onChange={(e) => setBulkVlcSearch(e.target.value)}
+                              placeholder="Search VLC..."
+                              className="flex-1 text-sm outline-none bg-transparent placeholder:text-slate-400 text-slate-700"
+                            />
+                            {bulkVlcSearch && (
+                              <button
+                                type="button"
+                                onMouseDown={(e) => { e.preventDefault(); setBulkVlcSearch(""); bulkVlcSearchRef.current?.focus(); }}
+                                className="text-slate-400 hover:text-slate-600 text-sm leading-none p-1 rounded-md hover:bg-slate-200 transition-colors"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            )}
+                          </div>
+                          <div className="max-h-56 overflow-y-auto p-1.5 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+                            {filtered.length === 0 ? (
+                              <div className="px-3 py-6 text-center text-sm text-slate-400 flex flex-col items-center gap-2">
+                                <Search className="h-6 w-6 text-slate-200" />
+                                No VLC branches found
+                              </div>
+                            ) : (
+                              filtered.map((branch) => {
+                                if (!branch?.username) return null;
+                                const val = branch.username;
+                                const isSelected = val === bulkFormData.vlcId;
+                                return (
+                                  <button
+                                    key={val}
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      handleBulkVLCIdChange(val);
+                                      setBulkVlcOpen(false);
+                                      setBulkVlcSearch("");
+                                    }}
+                                    className={cn(
+                                      "w-full flex items-center justify-between px-3 py-2.5 text-sm text-left rounded-lg transition-all mb-0.5",
+                                      isSelected 
+                                        ? "bg-blue-50 text-blue-700 font-semibold" 
+                                        : "text-slate-700 hover:bg-slate-100 font-medium"
+                                    )}
+                                  >
+                                    <span className="truncate">{val}</span>
+                                    {isSelected && <Check className="h-4 w-4 text-blue-600 flex-shrink-0 ml-2" />}
+                                  </button>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-gray-700">VLC Name</Label>
-                <Input value={bulkFormData.vlcName} readOnly className="bg-gray-100 border-gray-200 text-gray-700" placeholder="Auto-filled" />
+                <Label className="text-sm font-semibold text-slate-700">VLC Name</Label>
+                <Input 
+                  value={bulkFormData.vlcName} 
+                  readOnly 
+                  className="bg-slate-100/70 border-slate-200 text-slate-600 font-medium h-11 rounded-xl shadow-inner cursor-not-allowed placeholder:text-slate-400" 
+                  placeholder="Auto-filled" 
+                />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">Type (Default)</Label>
+              <Label className="text-sm font-semibold text-slate-700">Type (Default)</Label>
               <Select value={bulkFormData.type} onValueChange={(value: 'Cow' | 'Buffalo' | 'Both') => setBulkFormData(prev => ({ ...prev, type: value }))}>
-                <SelectTrigger className="bg-gray-50 border-gray-200 hover:bg-gray-100">
+                <SelectTrigger className="bg-white border-slate-200 hover:border-blue-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 h-11 rounded-xl transition-all shadow-sm text-slate-700 enter-field">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-white">
-                  <SelectItem value="Cow">Cow</SelectItem>
-                  <SelectItem value="Buffalo">Buffalo</SelectItem>
-                  <SelectItem value="Both">Both</SelectItem>
+                <SelectContent className="bg-white rounded-xl border-slate-200 shadow-lg">
+                  <SelectItem value="Cow" className="rounded-lg focus:bg-blue-50 focus:text-blue-700 font-medium">Cow</SelectItem>
+                  <SelectItem value="Buffalo" className="rounded-lg focus:bg-blue-50 focus:text-blue-700 font-medium">Buffalo</SelectItem>
+                  <SelectItem value="Both" className="rounded-lg focus:bg-blue-50 focus:text-blue-700 font-medium">Both</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="border-t pt-5">
-              <div className="space-y-3">
-                <Label className="text-sm font-medium text-gray-700">Upload Excel/CSV File</Label>
+            <div className="pt-2">
+              <div className="space-y-3 relative group">
+                <Label className="text-sm font-semibold text-slate-700 flex items-center justify-between">
+                  Upload Excel/CSV File
+                  <span className="text-xs font-normal text-slate-400 bg-white px-2.5 py-0.5 rounded-full border border-slate-200 shadow-sm">Max 5MB</span>
+                </Label>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -796,12 +1047,21 @@ const VLCCollectionEntry = () => {
                 <Button
                   onClick={() => fileInputRef.current?.click()}
                   variant="outline"
-                  className="w-full h-24 border-2 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                  className="w-full h-32 border-2 border-dashed border-slate-300 hover:border-blue-500 hover:bg-blue-50/50 transition-all rounded-2xl bg-white shadow-sm hover:shadow-md group-hover:border-blue-400 relative overflow-hidden"
                 >
-                  <div className="flex flex-col items-center gap-2">
-                    <Upload className="h-8 w-8 text-gray-400" />
-                    <span className="text-sm font-medium text-gray-600">Click to choose file</span>
-                    <span className="text-xs text-gray-400">Supports .csv, .xlsx, .xls</span>
+                  <div className="absolute inset-0 bg-gradient-to-b from-blue-50/0 to-blue-50/0 group-hover:from-blue-50/50 group-hover:to-blue-100/50 transition-all opacity-50 pointer-events-none" />
+                  <div className="flex flex-col items-center gap-3 relative z-10">
+                    <div className="p-3 bg-blue-50 rounded-full group-hover:bg-blue-100 group-hover:scale-110 transition-all duration-300 shadow-sm border border-blue-100">
+                      <Upload className="h-6 w-6 text-blue-600" />
+                    </div>
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="text-sm font-semibold text-slate-700 group-hover:text-blue-700 transition-colors">
+                        Click to browse or drag & drop
+                      </span>
+                      <span className="text-[13px] text-slate-500 font-medium">
+                        Supports <span className="text-slate-700 font-semibold">.csv</span>, <span className="text-slate-700 font-semibold">.xlsx</span>, <span className="text-slate-700 font-semibold">.xls</span>
+                      </span>
+                    </div>
                   </div>
                 </Button>
               </div>

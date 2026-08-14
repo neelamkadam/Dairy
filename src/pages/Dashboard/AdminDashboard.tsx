@@ -1,8 +1,8 @@
-import { MetricCard } from "@/components/MartricCard";
+import KPICard from "@/components/KPICard";
 import { Smartphone, Sprout, Globe, CheckCircle, XCircle, PlayCircle, TrendingUp, Zap } from "lucide-react";
 import {
-  AreaChart,
-  Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -68,9 +68,6 @@ const AdminDashboard = () => {
         setRawFarmers(farmers);
         setRawWebUsers(webUsers);
 
-        setMobileAppsCount(dairyManagers.length || 0);
-        setFarmerTotalCount(farmers.length || 0);
-        setWebAppsCount(webUsers.length || 0);
 
         // Helper to identify Demo users (within 1 month of trial start)
         const isDemoUser = (u: any) => {
@@ -86,7 +83,6 @@ const AdminDashboard = () => {
         const isPaidFarmer = (u: any) => !isDemoUser(u) && Number(u.is_mobile) === 1;
         const isPaidWeb = (u: any) => !isDemoUser(u) && Number(u.is_paid) === 1;
 
-        // Segregated Calculations using strict rules
         const getStats = (list: any[], statusField: string = 'is_paid') => {
           const demo = list.filter(isDemoUser).length;
           // Active if statusField is 1, and not counted as demo
@@ -111,6 +107,10 @@ const AdminDashboard = () => {
         setWebActive(wStats.active);
         setWebInactive(wStats.inactive);
         setWebDemo(wStats.demo);
+
+        setMobileAppsCount(dairyManagers.length || 0);
+        setFarmerTotalCount(fStats.active || 0);
+        setWebAppsCount(webUsers.length || 0);
 
         // Global Totals
         setActiveCount(mStats.active + fStats.active + wStats.active);
@@ -195,230 +195,246 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-50/50">
-      <main className="flex-1 p-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Admin Dashboard</h1>
-            <p className="text-slate-500 text-sm mt-1">Monitor your ecosystem across all platforms.</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <Dialog open={isTrendOpen} onOpenChange={setIsTrendOpen}>
-              <DialogTrigger asChild>
-                <button className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-bold shadow-lg shadow-slate-200 hover:bg-slate-800 transition-all hover:scale-105 active:scale-95">
-                  <TrendingUp size={16} className="text-emerald-400" />
-                  Analytics Hub
-                </button>
-              </DialogTrigger>
-              <DialogContent className="max-w-7xl w-[95vw] h-[85vh] bg-white border-slate-200 text-slate-900 p-0 flex flex-col overflow-hidden">
-                <div className="p-8 border-b border-slate-100 bg-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                  <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      <Zap size={20} className="text-amber-500 fill-amber-500" />
-                      <DialogTitle className="text-2xl font-black tracking-tighter uppercase text-slate-900">Neural Trends Hub</DialogTitle>
-                    </div>
-                    <p className="text-slate-500 text-sm font-medium">Real-time projection of ecosystem growth and subscription vectors.</p>
-                  </div>
-                  <div className="flex p-1 bg-slate-200/50 rounded-xl border border-slate-200">
-                    <button 
-                      onClick={() => { setActiveTrendFilter('all'); setTrendData(allTrendData); }}
-                      className={cn("px-4 py-2 rounded-lg text-xs font-bold transition-all", activeTrendFilter === 'all' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}
-                    >All Versions</button>
-                    <button 
-                      onClick={() => { setActiveTrendFilter('trial'); setTrendData(trialTrendData); }}
-                      className={cn("px-4 py-2 rounded-lg text-xs font-bold transition-all", activeTrendFilter === 'trial' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}
-                    >Trial</button>
-                    <button 
-                      onClick={() => { setActiveTrendFilter('paid'); setTrendData(paidTrendData); }}
-                      className={cn("px-4 py-2 rounded-lg text-xs font-bold transition-all", activeTrendFilter === 'paid' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}
-                    >Paid</button>
-                  </div>
-                </div>
-                <div className="flex-1 p-10 min-h-0 bg-white">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={trendData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="colorMobile" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#22d3ee" stopOpacity={0.1}/><stop offset="95%" stopColor="#22d3ee" stopOpacity={0}/></linearGradient>
-                        <linearGradient id="colorFarmer" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#fb7185" stopOpacity={0.1}/><stop offset="95%" stopColor="#fb7185" stopOpacity={0}/></linearGradient>
-                        <linearGradient id="colorWeb" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#a855f7" stopOpacity={0.1}/><stop offset="95%" stopColor="#a855f7" stopOpacity={0}/></linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                      <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                      <RechartsTooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', color: '#0f172a' }} itemStyle={{ fontSize: '12px', fontWeight: 'bold' }} />
-                      <Area type="monotone" dataKey="Mobile" stroke="#22d3ee" strokeWidth={4} fillOpacity={1} fill="url(#colorMobile)" />
-                      <Area type="monotone" dataKey="Farmer" stroke="#fb7185" strokeWidth={4} fillOpacity={1} fill="url(#colorFarmer)" />
-                      <Area type="monotone" dataKey="Web" stroke="#a855f7" strokeWidth={4} fillOpacity={1} fill="url(#colorWeb)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="p-6 bg-slate-50 flex justify-between items-center border-t border-slate-100">
-                  <div className="flex gap-6">
-                    <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#22d3ee] shadow-sm" /><span className="text-xs font-bold text-slate-500 uppercase tracking-tighter">Mobile Node</span></div>
-                    <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#fb7185] shadow-sm" /><span className="text-xs font-bold text-slate-500 uppercase tracking-tighter">Farmer Node</span></div>
-                    <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#a855f7] shadow-sm" /><span className="text-xs font-bold text-slate-500 uppercase tracking-tighter">Web Node</span></div>
-                  </div>
-                  <p className="text-[10px] text-slate-400 font-mono tracking-widest uppercase font-bold">Data Stream // Online</p>
-                </div>
-              </DialogContent>
-            </Dialog>
-            <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-200">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-xs font-medium text-slate-600">Live Updates: {new Date().toLocaleTimeString()}</span>
-            </div>
-          </div>
+    <div className="flex flex-col min-h-screen bg-slate-50 font-sans">
+      {/* Header */}
+      <header className="bg-white border-b border-slate-200 px-8 py-5 flex flex-col md:flex-row md:items-center justify-between gap-4 sticky top-0 z-20">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900 tracking-tight">Admin Console</h1>
+          <p className="text-slate-500 text-sm mt-0.5">Global ecosystem monitoring and metrics.</p>
         </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded bg-slate-50 border border-slate-200 shadow-sm">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span className="text-xs font-medium text-slate-600">System Normal</span>
+          </div>
+          
+          <Dialog open={isTrendOpen} onOpenChange={setIsTrendOpen}>
+            <DialogTrigger asChild>
+              <button className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-md text-sm font-medium shadow-sm hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-1 transition-all">
+                <TrendingUp size={16} />
+                Analytics
+              </button>
+            </DialogTrigger>
+            <DialogContent className="max-w-5xl w-[95vw] h-[75vh] bg-white border-slate-200 p-0 flex flex-col rounded-xl shadow-xl">
+              <div className="px-6 py-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <DialogTitle className="text-base font-semibold text-slate-900">Growth Trends</DialogTitle>
+                  <p className="text-slate-500 text-sm mt-0.5">Monthly user acquisition across platforms.</p>
+                </div>
+                <div className="flex bg-slate-100/50 p-1 rounded-md border border-slate-200/50">
+                  <button 
+                    onClick={() => { setActiveTrendFilter('all'); setTrendData(allTrendData); }}
+                    className={cn("px-3 py-1.5 rounded text-sm font-medium transition-all", activeTrendFilter === 'all' ? "bg-white text-slate-900 shadow-sm border border-slate-200" : "text-slate-600 hover:text-slate-900")}
+                  >All Users</button>
+                  <button 
+                    onClick={() => { setActiveTrendFilter('trial'); setTrendData(trialTrendData); }}
+                    className={cn("px-3 py-1.5 rounded text-sm font-medium transition-all", activeTrendFilter === 'trial' ? "bg-white text-slate-900 shadow-sm border border-slate-200" : "text-slate-600 hover:text-slate-900")}
+                  >Trial</button>
+                  <button 
+                    onClick={() => { setActiveTrendFilter('paid'); setTrendData(paidTrendData); }}
+                    className={cn("px-3 py-1.5 rounded text-sm font-medium transition-all", activeTrendFilter === 'paid' ? "bg-white text-slate-900 shadow-sm border border-slate-200" : "text-slate-600 hover:text-slate-900")}
+                  >Paid</button>
+                </div>
+              </div>
+              <div className="flex-1 p-6 min-h-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={trendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="month" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} dy={10} />
+                    <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+                    <RechartsTooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', color: '#0f172a', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} itemStyle={{ fontSize: '12px', fontWeight: '500' }} cursor={{fill: '#f8fafc'}} />
+                    <Bar name="Dairy Apps" dataKey="Mobile" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={12} />
+                    <Bar name="Farmer Apps" dataKey="Farmer" fill="#10b981" radius={[4, 4, 0, 0]} barSize={12} />
+                    <Bar name="Web Apps" dataKey="Web" fill="#8b5cf6" radius={[4, 4, 0, 0]} barSize={12} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="px-6 py-3 bg-slate-50 flex justify-end items-center border-t border-slate-100 rounded-b-xl gap-6">
+                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-500" /><span className="text-xs font-medium text-slate-600">Dairy Apps</span></div>
+                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500" /><span className="text-xs font-medium text-slate-600">Farmer Apps</span></div>
+                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-violet-500" /><span className="text-xs font-medium text-slate-600">Web Apps</span></div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </header>
 
-        <div className="mb-10">
-          <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4 px-1">Global Overview</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <MetricCard title="Total Applications" value={(mobileAppsCount + farmerTotalCount + webAppsCount).toString()} change="+0%" changeType="positive" icon={Smartphone} iconColor="bg-slate-800" className="border-slate-200 hover:border-slate-300 transition-colors" />
-            <MetricCard title="Global Active" value={activeCount.toString()} change="+0%" changeType="positive" icon={CheckCircle} iconColor="bg-emerald-500" className="border-slate-200 hover:border-slate-300 transition-colors" />
-            <MetricCard title="Global Inactive" value={inactiveCount.toString()} change="0%" changeType="negative" icon={XCircle} iconColor="bg-rose-500" className="border-slate-200 hover:border-slate-300 transition-colors" />
-            <MetricCard title="Global Demo" value={demoCount.toString()} change="0%" changeType="positive" icon={PlayCircle} iconColor="bg-amber-500" className="border-slate-200 hover:border-slate-300 transition-colors" />
+      <main className="flex-1 p-8 max-w-7xl mx-auto w-full flex flex-col gap-8">
+        
+        {/* Global Overview Panel */}
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Global Overview</h2>
           </div>
-        </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            <KPICard 
+                title="Total Apps" 
+                value={(mobileAppsCount + farmerTotalCount).toString()} 
+                icon={Smartphone} 
+                theme="blue" 
+            />
+            <KPICard 
+                title="Active Users" 
+                value={activeCount.toString()} 
+                icon={CheckCircle} 
+                theme="emerald" 
+            />
+            <KPICard 
+                title="Inactive Users" 
+                value={inactiveCount.toString()} 
+                icon={XCircle} 
+                theme="pink" 
+            />
+            <KPICard 
+                title="Demo Users" 
+                value={demoCount.toString()} 
+                icon={PlayCircle} 
+                theme="amber" 
+            />
+          </div>
+        </section>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
-          <div className="bg-white/50 p-6 rounded-2xl border border-blue-100/50 backdrop-blur-sm">
-            <div className="flex items-center gap-3 mb-6"><div className="p-2 bg-blue-100 rounded-lg text-blue-600"><Smartphone size={20} /></div><h3 className="font-bold text-slate-800">Mobile Platform</h3></div>
-            <div className="space-y-4">
-              <MetricCard title="Total Mobile" value={mobileAppsCount.toString()} change="" changeType="positive" icon={Smartphone} iconColor="bg-blue-500" className="shadow-none border-blue-50" />
-              <div className="grid grid-cols-3 gap-3">
-                <div 
-                  onClick={() => openExplorer("Active Mobile Users", rawManagers, 'active', 'is_paid')}
-                  className="bg-white p-3 rounded-xl border border-slate-100 cursor-pointer hover:border-blue-200 hover:bg-blue-50/30 transition-all group text-center"
-                >
-                  <p className="text-[10px] text-slate-500 mb-1 font-bold uppercase tracking-tighter">Active</p>
-                  <p className="text-lg font-black text-blue-600 group-hover:scale-105 transition-transform">{mobileActive}</p>
-                </div>
-                <div 
-                  onClick={() => openExplorer("Demo Mobile Users", rawManagers, 'demo')}
-                  className="bg-white p-3 rounded-xl border border-slate-100 cursor-pointer hover:border-amber-200 hover:bg-amber-50/30 transition-all group text-center"
-                >
-                  <p className="text-[10px] text-slate-500 mb-1 font-bold uppercase tracking-tighter">Demo</p>
-                  <p className="text-lg font-black text-amber-500 group-hover:scale-105 transition-transform">{mobileDemo}</p>
-                </div>
-                <div 
-                  onClick={() => openExplorer("Inactive Mobile Users", rawManagers, 'inactive', 'is_paid')}
-                  className="bg-white p-3 rounded-xl border border-slate-100 cursor-pointer hover:border-slate-300 hover:bg-slate-50 transition-all group text-center"
-                >
-                  <p className="text-[10px] text-slate-500 mb-1 font-bold uppercase tracking-tighter">Inactive</p>
-                  <p className="text-lg font-black text-slate-400 group-hover:scale-105 transition-transform">{mobileInactive}</p>
-                </div>
-              </div>
+        {/* Platform Breakdown */}
+        <section>
+          <h2 className="text-sm font-bold text-slate-800 mb-4 uppercase tracking-wider">Platform Distribution</h2>
+          <div className="bg-white border border-slate-200/60 rounded-2xl shadow-sm shadow-slate-200/50 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-slate-50/80 border-b border-slate-100">
+                  <tr>
+                    <th className="px-6 py-4 font-bold text-slate-600 text-xs uppercase tracking-wider">Platform Type</th>
+                    <th className="px-6 py-4 font-bold text-slate-600 text-xs uppercase tracking-wider text-right">Total Assigned</th>
+                    <th className="px-6 py-4 font-bold text-emerald-600 text-xs uppercase tracking-wider text-right">Active</th>
+                    <th className="px-6 py-4 font-bold text-amber-600 text-xs uppercase tracking-wider text-right">Demo / Trial</th>
+                    <th className="px-6 py-4 font-bold text-rose-600 text-xs uppercase tracking-wider text-right">Inactive</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {/* Mobile Row */}
+                  <tr className="hover:bg-blue-50/30 transition-colors group">
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-blue-100/50 text-blue-600 rounded-xl group-hover:bg-blue-100 transition-colors"><Smartphone size={20} /></div>
+                        <span className="font-bold text-slate-800 text-base">Dairy Apps</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5 text-right font-bold text-slate-800 text-lg">{mobileAppsCount}</td>
+                    <td className="px-6 py-5 text-right">
+                      <button onClick={() => openExplorer("Active Mobile Users", rawManagers, 'active', 'is_paid')} className="inline-flex items-center justify-end gap-2 px-3 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 transition-all font-semibold shadow-sm min-w-[90px]">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> {mobileActive}
+                      </button>
+                    </td>
+                    <td className="px-6 py-5 text-right">
+                      <button onClick={() => openExplorer("Demo Mobile Users", rawManagers, 'demo')} className="inline-flex items-center justify-end gap-2 px-3 py-1.5 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:border-amber-300 transition-all font-semibold shadow-sm min-w-[90px]">
+                        <div className="w-2 h-2 rounded-full bg-amber-500" /> {mobileDemo}
+                      </button>
+                    </td>
+                    <td className="px-6 py-5 text-right">
+                      <button onClick={() => openExplorer("Inactive Mobile Users", rawManagers, 'inactive', 'is_paid')} className="inline-flex items-center justify-end gap-2 px-3 py-1.5 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:border-rose-300 transition-all font-semibold shadow-sm min-w-[90px]">
+                        <div className="w-2 h-2 rounded-full bg-rose-500" /> {mobileInactive}
+                      </button>
+                    </td>
+                  </tr>
+                  {/* Farmer Row */}
+                  <tr className="hover:bg-emerald-50/30 transition-colors group">
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-emerald-100/50 text-emerald-600 rounded-xl group-hover:bg-emerald-100 transition-colors"><Sprout size={20} /></div>
+                        <span className="font-bold text-slate-800 text-base">Farmer Apps</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5 text-right font-bold text-slate-800 text-lg">{farmerTotalCount}</td>
+                    <td className="px-6 py-5 text-right">
+                      <button onClick={() => openExplorer("Active Farmers", rawFarmers, 'active', 'is_mobile')} className="inline-flex items-center justify-end gap-2 px-3 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 transition-all font-semibold shadow-sm min-w-[90px]">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> {farmerActive}
+                      </button>
+                    </td>
+                    <td className="px-6 py-5 text-right">
+                      <button onClick={() => openExplorer("Demo Farmers", rawFarmers, 'demo')} className="inline-flex items-center justify-end gap-2 px-3 py-1.5 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:border-amber-300 transition-all font-semibold shadow-sm min-w-[90px]">
+                        <div className="w-2 h-2 rounded-full bg-amber-500" /> {farmerDemo}
+                      </button>
+                    </td>
+                    <td className="px-6 py-5 text-right">
+                      <button onClick={() => openExplorer("Inactive Farmers", rawFarmers, 'inactive', 'is_mobile')} className="inline-flex items-center justify-end gap-2 px-3 py-1.5 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:border-rose-300 transition-all font-semibold shadow-sm min-w-[90px]">
+                        <div className="w-2 h-2 rounded-full bg-rose-500" /> {farmerInactive}
+                      </button>
+                    </td>
+                  </tr>
+                  {/* Web Row */}
+                  <tr className="hover:bg-violet-50/30 transition-colors group">
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-violet-100/50 text-violet-600 rounded-xl group-hover:bg-violet-100 transition-colors"><Globe size={20} /></div>
+                        <span className="font-bold text-slate-800 text-base">Web Apps</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5 text-right font-bold text-slate-800 text-lg">{webAppsCount}</td>
+                    <td className="px-6 py-5 text-right">
+                      <button onClick={() => openExplorer("Active Web Users", rawWebUsers, 'active', 'is_paid')} className="inline-flex items-center justify-end gap-2 px-3 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 transition-all font-semibold shadow-sm min-w-[90px]">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> {webActive}
+                      </button>
+                    </td>
+                    <td className="px-6 py-5 text-right">
+                      <button onClick={() => openExplorer("Demo Web Users", rawWebUsers, 'demo')} className="inline-flex items-center justify-end gap-2 px-3 py-1.5 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:border-amber-300 transition-all font-semibold shadow-sm min-w-[90px]">
+                        <div className="w-2 h-2 rounded-full bg-amber-500" /> {webDemo}
+                      </button>
+                    </td>
+                    <td className="px-6 py-5 text-right">
+                      <button onClick={() => openExplorer("Inactive Web Users", rawWebUsers, 'inactive', 'is_paid')} className="inline-flex items-center justify-end gap-2 px-3 py-1.5 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:border-rose-300 transition-all font-semibold shadow-sm min-w-[90px]">
+                        <div className="w-2 h-2 rounded-full bg-rose-500" /> {webInactive}
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
-          <div className="bg-white/50 p-6 rounded-2xl border border-emerald-100/50 backdrop-blur-sm">
-            <div className="flex items-center gap-3 mb-6"><div className="p-2 bg-emerald-100 rounded-lg text-emerald-600"><Sprout size={20} /></div><h3 className="font-bold text-slate-800">Farmer Platform</h3></div>
-            <div className="space-y-4">
-              <MetricCard title="Total Farmers" value={farmerTotalCount.toString()} change="" changeType="positive" icon={Sprout} iconColor="bg-emerald-500" className="shadow-none border-emerald-50" />
-              <div className="grid grid-cols-3 gap-3">
-                <div 
-                  onClick={() => openExplorer("Active Farmers", rawFarmers, 'active', 'is_mobile')}
-                  className="bg-white p-3 rounded-xl border border-slate-100 cursor-pointer hover:border-emerald-200 hover:bg-emerald-50/30 transition-all group text-center"
-                >
-                  <p className="text-[10px] text-slate-500 mb-1 font-bold uppercase tracking-tighter">Active</p>
-                  <p className="text-lg font-black text-emerald-600 group-hover:scale-105 transition-transform">{farmerActive}</p>
-                </div>
-                <div 
-                  onClick={() => openExplorer("Demo Farmers", rawFarmers, 'demo')}
-                  className="bg-white p-3 rounded-xl border border-slate-100 cursor-pointer hover:border-amber-200 hover:bg-amber-50/30 transition-all group text-center"
-                >
-                  <p className="text-[10px] text-slate-500 mb-1 font-bold uppercase tracking-tighter">Demo</p>
-                  <p className="text-lg font-black text-amber-500 group-hover:scale-105 transition-transform">{farmerDemo}</p>
-                </div>
-                <div 
-                  onClick={() => openExplorer("Inactive Farmers", rawFarmers, 'inactive', 'is_mobile')}
-                  className="bg-white p-3 rounded-xl border border-slate-100 cursor-pointer hover:border-slate-300 hover:bg-slate-50 transition-all group text-center"
-                >
-                  <p className="text-[10px] text-slate-500 mb-1 font-bold uppercase tracking-tighter">Pending</p>
-                  <p className="text-lg font-black text-slate-400 group-hover:scale-105 transition-transform">{farmerInactive}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white/50 p-6 rounded-2xl border border-purple-100/50 backdrop-blur-sm">
-            <div className="flex items-center gap-3 mb-6"><div className="p-2 bg-purple-100 rounded-lg text-purple-600"><Globe size={20} /></div><h3 className="font-bold text-slate-800">Web Platform</h3></div>
-            <div className="space-y-4">
-              <MetricCard title="Total Web" value={webAppsCount.toString()} change="" changeType="positive" icon={Globe} iconColor="bg-purple-500" className="shadow-none border-purple-50" />
-              <div className="grid grid-cols-3 gap-3">
-                <div 
-                  onClick={() => openExplorer("Active Web Users", rawWebUsers, 'active', 'is_paid')}
-                  className="bg-white p-3 rounded-xl border border-slate-100 cursor-pointer hover:border-purple-200 hover:bg-purple-50/30 transition-all group text-center"
-                >
-                  <p className="text-[10px] text-slate-500 mb-1 font-bold uppercase tracking-tighter">Active</p>
-                  <p className="text-lg font-black text-purple-600 group-hover:scale-105 transition-transform">{webActive}</p>
-                </div>
-                <div 
-                  onClick={() => openExplorer("Demo Web Users", rawWebUsers, 'demo')}
-                  className="bg-white p-3 rounded-xl border border-slate-100 cursor-pointer hover:border-amber-200 hover:bg-amber-50/30 transition-all group text-center"
-                >
-                  <p className="text-[10px] text-slate-500 mb-1 font-bold uppercase tracking-tighter">Demo</p>
-                  <p className="text-lg font-black text-amber-500 group-hover:scale-105 transition-transform">{webDemo}</p>
-                </div>
-                <div 
-                  onClick={() => openExplorer("Inactive Web Users", rawWebUsers, 'inactive', 'is_paid')}
-                  className="bg-white p-3 rounded-xl border border-slate-100 cursor-pointer hover:border-slate-300 hover:bg-slate-50 transition-all group text-center"
-                >
-                  <p className="text-[10px] text-slate-500 mb-1 font-bold uppercase tracking-tighter">Inactive</p>
-                  <p className="text-lg font-black text-slate-400 group-hover:scale-105 transition-transform">{webInactive}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        </section>
 
         {/* User List Explorer Modal */}
         <Dialog open={isExplorerOpen} onOpenChange={setIsExplorerOpen}>
-          <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col p-0 overflow-hidden bg-white">
-            <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+          <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden bg-white rounded-xl shadow-xl border border-slate-200">
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
               <div>
-                <DialogTitle className="text-xl font-bold text-slate-900">{explorerTitle}</DialogTitle>
-                <p className="text-xs text-slate-500 mt-1">Showing {explorerData.length} records</p>
+                <DialogTitle className="text-base font-semibold text-slate-900">{explorerTitle}</DialogTitle>
+                <p className="text-sm text-slate-500 mt-0.5">Found {explorerData.length} records in this category.</p>
               </div>
             </div>
             <div className="flex-1 overflow-auto p-0">
               {explorerData.length > 0 ? (
-                <table className="w-full text-left border-collapse">
-                  <thead className="bg-slate-50 sticky top-0 z-10">
+                <table className="w-full text-left border-collapse text-sm">
+                  <thead className="bg-white sticky top-0 z-10 border-b border-slate-200 shadow-sm">
                     <tr>
-                      <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Username</th>
-                      <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Mobile Number</th>
-                      <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Trial Start Date</th>
+                      <th className="px-6 py-3 font-medium text-slate-500 text-xs uppercase tracking-wider">Entity Name</th>
+                      <th className="px-6 py-3 font-medium text-slate-500 text-xs uppercase tracking-wider">Identifier</th>
+                      <th className="px-6 py-3 font-medium text-slate-500 text-xs uppercase tracking-wider text-right">Date Recorded</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-50">
+                  <tbody className="divide-y divide-slate-100 bg-white">
                     {explorerData.map((user, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs uppercase">
-                              {user.name?.charAt(0) || 'U'}
-                            </div>
-                            <span className="font-semibold text-slate-700">{user.name || 'N/A'}</span>
-                          </div>
+                      <tr key={idx} className="hover:bg-slate-50 transition-colors group">
+                        <td className="px-6 py-3">
+                          <span className="font-medium text-slate-900 group-hover:text-blue-600 transition-colors">{user.name || 'N/A'}</span>
                         </td>
-                        <td className="px-6 py-4 text-sm text-slate-600 font-medium">{user.phone || user.mobile_number || 'N/A'}</td>
-                        <td className="px-6 py-4">
-                          {user.trial_start_date ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-100">
-                              {new Date(user.trial_start_date).toLocaleDateString('en-GB')}
-                            </span>
-                          ) : (
-                            <span className="text-slate-300 text-xs italic">No Trial Data</span>
-                          )}
+                        <td className="px-6 py-3">
+                          <span className="text-slate-600 font-mono text-xs">
+                            {user.phone || user.mobile_number || 'N/A'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-3 text-right text-slate-500">
+                          {user.trial_start_date ? new Date(user.trial_start_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               ) : (
-                <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                  <div className="p-4 bg-slate-50 rounded-full mb-4">
-                    <Globe size={40} className="opacity-20" />
-                  </div>
-                  <p className="font-medium">No users found for this category</p>
+                <div className="flex flex-col items-center justify-center py-20 text-slate-500 bg-slate-50 h-full">
+                  <p className="text-sm font-medium text-slate-900">No records found</p>
+                  <p className="text-xs mt-1">This segment contains no data.</p>
                 </div>
               )}
             </div>

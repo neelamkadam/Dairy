@@ -218,7 +218,7 @@ export const WebApplicationActivation: React.FC = () => {
         setSaleType('self');
         setPaymentScreenshot(null);
         setScreenshotFile(null);
-        fetchUsers();
+        fetchWebUsers();
       }
     } catch (error) {
       console.error('Error toggling user status:', error);

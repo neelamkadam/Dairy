@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
-import { FlaskConical, Search, Save, Loader2, Calculator, CheckCircle2, AlertCircle, TrendingUp, Droplets, Gauge, Calendar as CalendarIcon, MapPin, RefreshCcw } from "lucide-react";
+import { FlaskConical, Search, Save, Loader2, Calculator, CheckCircle2, AlertCircle, TrendingUp, Droplets, Gauge, Calendar as CalendarIcon, MapPin, RefreshCcw, ChevronDown } from "lucide-react";
 import { useAppSelector } from "@/redux/store";
 import { ccCollectionApi } from "@/services/ccCollectionApi";
 import { userApi as reportsUserApi } from "@/services/reportsApi";
@@ -51,6 +51,21 @@ const AnalyserCollection = () => {
   const clrRef = useRef<HTMLInputElement>(null);
   const snfRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+
+  const vlcWrapperRef = useRef<HTMLDivElement>(null);
+  const vlcSearchRef = useRef<HTMLInputElement>(null);
+  const [vlcOpen, setVlcOpen] = useState(false);
+  const [vlcSearch, setVlcSearch] = useState("");
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (vlcWrapperRef.current && !vlcWrapperRef.current.contains(event.target as Node)) {
+        setVlcOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (branches.length > 0 && !selectedBranch) {
@@ -357,21 +372,103 @@ const AnalyserCollection = () => {
 
         <div className="flex flex-wrap items-center gap-4 bg-gray-100 dark:bg-gray-800 p-1.5 rounded-xl">
            {/* VLC Selector */}
-           <div className="flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-700 rounded-lg shadow-sm min-w-[200px]">
-            <MapPin className="h-4 w-4 text-gray-400" />
-            <select
-              value={selectedBranch?.toString() || ""}
-              onChange={(e) => handleVLCChange(e.target.value)}
-              className="bg-transparent border-none text-sm font-semibold focus:ring-0 outline-none text-gray-700 dark:text-gray-200 w-full"
-            >
-              <option value="">{t('select_vlc')}</option>
-              {branches.map((branch) => (
-                <option key={branch.branch_id} value={branch.branch_id.toString()}>
-                   {branch.username} - {branch.name} - {branch.branchName || ''}
-                </option>
-              ))}
-            </select>
-          </div>
+           <div className="flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-700 rounded-lg shadow-sm min-w-[300px]">
+             <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0" />
+             {(() => {
+               const selectedBranchObj = branches?.find((b) => b.branch_id === selectedBranch);
+               const filtered = branches?.filter((b) => {
+                 const q = vlcSearch.toLowerCase();
+                 return (
+                   !q ||
+                   String(b.username || "").toLowerCase().includes(q) ||
+                   String(b.branch_id || "").toLowerCase().includes(q) ||
+                   String(b.name || "").toLowerCase().includes(q) ||
+                   String(b.branchName || "").toLowerCase().includes(q)
+                 );
+               }) || [];
+               return (
+                 <div ref={vlcWrapperRef} className="relative w-full">
+                   <button
+                     type="button"
+                     onClick={() => {
+                       setVlcOpen((prev) => !prev);
+                       if (!vlcOpen) setTimeout(() => vlcSearchRef.current?.focus(), 0);
+                       else setVlcSearch("");
+                     }}
+                     className="w-full flex items-center justify-between text-sm font-semibold text-gray-700 dark:text-gray-200 bg-transparent border-none outline-none py-1.5"
+                   >
+                     <span className="truncate pr-2">
+                       {selectedBranchObj
+                         ? `${selectedBranchObj.username} - ${selectedBranchObj.name} ${selectedBranchObj.branchName ? `- ${selectedBranchObj.branchName}` : ''}`
+                         : t('select_vlc')}
+                     </span>
+                     <ChevronDown
+                       className={cn("h-4 w-4 text-gray-400 flex-shrink-0 transition-transform duration-150", vlcOpen && "rotate-180")}
+                     />
+                   </button>
+
+                   {vlcOpen && (
+                     <div
+                       className="absolute z-50 mt-2 w-[350px] bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden right-0 md:left-0 md:right-auto"
+                       style={{ top: "100%" }}
+                     >
+                       <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100">
+                         <Search className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                         <input
+                           ref={vlcSearchRef}
+                           value={vlcSearch}
+                           onChange={(e) => setVlcSearch(e.target.value)}
+                           placeholder="Search VLC..."
+                           className="flex-1 text-sm font-medium outline-none bg-transparent placeholder:text-gray-400 placeholder:font-normal py-1"
+                         />
+                         {vlcSearch && (
+                           <button
+                             type="button"
+                             onMouseDown={(e) => { e.preventDefault(); setVlcSearch(""); vlcSearchRef.current?.focus(); }}
+                             className="text-gray-400 hover:text-gray-600 p-1"
+                           >
+                             ✕
+                           </button>
+                         )}
+                       </div>
+                       <div className="max-h-64 overflow-y-auto p-1.5">
+                         {filtered.length === 0 ? (
+                           <div className="px-3 py-6 text-center text-sm text-gray-400 font-medium">No VLC branches found</div>
+                         ) : (
+                           filtered.map((branch) => {
+                             if (!branch?.branch_id) return null;
+                             const val = branch.branch_id;
+                             const isSelected = val === selectedBranch;
+                             return (
+                               <button
+                                 key={val}
+                                 type="button"
+                                 onMouseDown={(e) => {
+                                   e.preventDefault();
+                                   handleVLCChange(val.toString());
+                                   setVlcOpen(false);
+                                   setVlcSearch("");
+                                 }}
+                                 className={cn(
+                                   "w-full flex items-center justify-between px-3 py-2.5 text-sm text-left rounded-lg transition-colors mb-0.5",
+                                   isSelected ? "bg-purple-50 text-purple-700 font-bold" : "text-gray-700 hover:bg-gray-50 font-medium"
+                                 )}
+                               >
+                                 <span className="truncate">
+                                   {branch.username} - {branch.name} {branch.branchName ? `- ${branch.branchName}` : ''}
+                                 </span>
+                                 {isSelected && <CheckCircle2 className="h-4 w-4 text-purple-600 flex-shrink-0 ml-2" />}
+                               </button>
+                             );
+                           })
+                         )}
+                       </div>
+                     </div>
+                   )}
+                 </div>
+               );
+             })()}
+           </div>
 
           <div className="flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-700 rounded-lg shadow-sm">
             <CalendarIcon className="h-4 w-4 text-gray-400" />
@@ -413,7 +510,7 @@ const AnalyserCollection = () => {
       <div className="flex flex-1 overflow-hidden">
         {/* Main Content Area */}
         <div className="flex-1 overflow-y-auto p-6 md:p-8">
-          <div className="max-w-4xl mx-auto space-y-6">
+          <div className="w-full max-w-5xl mx-auto space-y-6">
             {!selectedBranch ? (
               <div className="h-64 flex flex-col items-center justify-center bg-white dark:bg-gray-900 rounded-2xl border border-dashed border-gray-200 dark:border-gray-800">
                 <MapPin className="h-12 w-12 text-gray-200 mb-4" />

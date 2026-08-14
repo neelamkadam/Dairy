@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import AppButton from "@/components/AppButton";
 import AppInputField from "@/components/AppInput";
 import { ROUTES } from "@/constatnts/routesConstants";
@@ -6,9 +7,11 @@ import { SubmitHandler, useForm, UseFormReturn } from "react-hook-form";
 import { NavLink, useNavigate } from "react-router-dom";
 import { SignUpFormType } from "@/types/form-types";
 import { yupResolver } from "@hookform/resolvers/yup";
+import NeoDairyLogo from "@/assets/NeoDairy_Logo.png";
 
 const SignUp = () => {
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
   const form: UseFormReturn<SignUpFormType> = useForm<SignUpFormType>({
     resolver: yupResolver(SignupInputSchema),
     defaultValues: {
@@ -32,239 +35,183 @@ const SignUp = () => {
 
   const onSubmit: SubmitHandler<SignUpFormType> = (data) => {
     console.log(data);
-    navigate(ROUTES.DASHBOARD);
+    setIsLoading(true);
+    // Simulate API call
+    setTimeout(() => {
+        setIsLoading(false);
+        navigate(ROUTES.DASHBOARD);
+    }, 1000);
   };
+
   return (
-    <>
-      <div className="grid lg:grid-cols-2 w-full h-screen">
-        {/* left div */}
-        <div className="h-screen hidden lg:block bg-gray-200 text-left">
-          <div className="mt-8 ml-8">
-            <img
-              src="/Image/notebookImg.jpg"
-              alt="Logo"
-              className="w-6 h-6 mb-3"
-            />
-            <h1 className="text-[25px] font-bold">Digital Diary</h1>
-            <p>Document your journey, one page at a time</p>
+    <div className="min-h-screen flex">
+      {/* Left side - Hero section (Same as Login) */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-green-600 via-emerald-600 to-teal-700 relative overflow-hidden">
+        {/* Animated background elements */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute bottom-0 left-0 right-0 h-24 md:h-32 bg-gray-800 opacity-20"></div>
+          <div className="absolute bottom-12 md:bottom-16 left-0 right-0 h-1 bg-yellow-400 opacity-40"></div>
+          <div className="absolute bottom-16 md:bottom-20 left-8 md:left-12 text-5xl md:text-7xl opacity-80">🏭</div>
+          <div className="absolute bottom-16 md:bottom-20 left-1/2 animate-[slide_8s_linear_infinite]">
+            <div className="text-4xl md:text-6xl">🚜</div>
           </div>
-          <img
-            src="/Image/notebookImg.jpg"
-            alt="Image"
-            className="mt-10 ml-9 xl:w-[650px] xl:h-[350px] lg:h-[250px] lg:w-[450px] rounded-xl"
-          />
-          <div className="shadow-lg rounded-xl p-3 bg-white max-w-md h-[120px] w-[350px] ml-8 mt-5 ">
-            <p className="text-gray-700 italic mb-2">
-              "The perfect way to preserve your daily memories and thoughts in a
-              secure digital space."
-            </p>
-            <div className="flex items-center">
-              <img
-                className="w-10 h-10 rounded-full"
-                src="/Image/notebookImg.jpg"
-                alt="User Avatar"
-              />
-              <div className="ml-4">
-                <h3 className="font-semibold text-gray-900">Sarah Mitchell</h3>
-                <p className="text-sm text-gray-500">
-                  Digital Journal Enthusiast
-                </p>
-              </div>
+          <div className="absolute top-16 md:top-20 left-16 md:left-20 text-2xl md:text-3xl animate-[float_3s_ease-in-out_infinite]">🥛</div>
+          <div className="absolute top-32 md:top-40 right-24 md:right-32 text-xl md:text-2xl animate-[float_4s_ease-in-out_infinite_0.5s]">🥛</div>
+          <div className="absolute top-48 md:top-60 left-32 md:left-40 text-2xl md:text-3xl animate-[float_3.5s_ease-in-out_infinite_1s]">🥛</div>
+        </div>
+        
+        <div className="relative z-10 flex flex-col justify-center items-center p-6 xl:p-12 pb-24 xl:pb-32 text-white w-full h-full">
+          <div className="space-y-3 xl:space-y-4 text-center bg-black/20 backdrop-blur-sm rounded-3xl p-6 xl:p-8 max-w-lg">
+            <img 
+              src={NeoDairyLogo} 
+              alt="Neo Dairy Logo" 
+              className="w-20 xl:w-24 h-auto mx-auto mb-4 bg-white rounded-2xl p-2"
+            />
+            <div>
+              <h1 className="text-2xl xl:text-4xl font-bold mb-2 leading-tight">Neo Dairy Sales and Services</h1>
+              <p className="text-base xl:text-lg text-green-100">Pvt Ltd.</p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm xl:text-base text-green-50">Empowering Dairy with Technology</p>
             </div>
           </div>
-          <div className="mt-5 ml-8 flex text-sm gap-5 text-[#526279]">
-            <NavLink to="#">Secure Storage</NavLink>
-            <NavLink to="#">End-to-End Encrypted</NavLink>
-          </div>
         </div>
-        {/* right div */}
-        <div className="w-full h-screen flex items-left justify-center m-auto">
-          <div className="mt-10 w-[300px] xl:h-[700px] xl:w-[400px] lg:w-[300px] lg:h-full
-          md:w-[480px] justify-items-center items-left text-left">
-            <h1 className="font-bold text-[22px] text-left lg:text-left">Create Account</h1>
-            <p className="mb-5 text-sm text-left">
-              Start your digital journaling experience today
-            </p>
-            <form onSubmit={handleSubmit(onSubmit)} className="w-full">
-              {/* Input for User ID */}
+      </div>
+
+      {/* Right side - SignUp form */}
+      <div className="flex-1 lg:w-1/2 flex items-center justify-center bg-gray-50 p-6 md:p-8 overflow-y-auto max-h-screen">
+        <div className="w-full max-w-xl my-auto py-8">
+          {/* Mobile logo */}
+          <div className="lg:hidden text-center mb-8">
+            <h2 className="text-2xl font-bold text-blue-600">Neo Dairy Sales and Services</h2>
+            <p className="text-sm text-gray-600">Pvt Ltd.</p>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-lg border border-slate-200 p-6 md:p-8 space-y-6">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold text-gray-900">Create Account</h2>
+              <p className="text-gray-600 mt-2">Start your digital dairy experience today</p>
+            </div>
+
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
               <AppInputField<SignUpFormType>
                 name="diaryName"
                 form={form}
                 type="text"
-                placeholder="Enter your diary's name"
-                label="Diary Name"
-                className="mb-2"
+                placeholder="Enter your dairy's name"
+                label="Dairy Name"
               />
-              {errors.diaryName && (
-                <p className="text-red-500 text-sm text-left mb-3">
-                  {errors.diaryName.message}
-                </p>
-              )}
-              {/* Input for fullName */}
               <AppInputField<SignUpFormType>
                 name="fullName"
                 form={form}
                 type="text"
                 placeholder="Enter your full name"
-                label="Owner name"
-                className="mb-2"
+                label="Owner Name"
               />
-              {errors.fullName && (
-                <p className="text-red-500 text-sm text-left mb-3">
-                  {errors.fullName.message}
-                </p>
-              )}
-              <h3 className="text-left w-full text-[18px] font-bold mb-2">
-                Location Details
-              </h3>
-              <div className="grid grid-cols-2 gap-4 w-full mb-3 ">
-                <div className="">
+              
+              <div className="pt-2">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3 border-b border-gray-100 pb-2">Location Details</h3>
+                <div className="grid grid-cols-2 gap-4">
                   <AppInputField<SignUpFormType>
                     name="pincode"
                     form={form}
                     type="number"
-                    placeholder="Enter pincode"
+                    placeholder="Pincode"
                     label="Pincode"
-                    className=""
                   />
-                  {errors.pincode && (
-                    <p className="text-red-500 text-sm text-left ">
-                      {errors.pincode.message}
-                    </p>
-                  )}
-                </div>
-                <div>
                   <AppInputField<SignUpFormType>
                     name="villageName"
                     form={form}
                     type="text"
-                    placeholder="Enter village name"
+                    placeholder="Village"
                     label="Village Name"
-                    className=""
                   />
-                  {errors.villageName && (
-                    <p className="text-red-500 text-sm text-left">
-                      {errors.villageName.message}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4 w-full mb-3 ">
-                <div>
                   <AppInputField<SignUpFormType>
                     name="talukaName"
                     form={form}
                     type="text"
-                    placeholder="Enter taluka name"
+                    placeholder="Taluka"
                     label="Taluka Name"
-                    className=""
                   />
-                  {errors.talukaName && (
-                    <p className="text-red-500 text-sm text-left">
-                      {errors.talukaName.message}
-                    </p>
-                  )}
-                </div>
-                <div>
                   <AppInputField<SignUpFormType>
                     name="state"
                     form={form}
                     type="text"
-                    placeholder="Select State"
+                    placeholder="State"
                     label="State"
-                    className=""
                   />
-                  {errors.state && (
-                    <p className="text-red-500 text-sm text-left">
-                      {errors.state.message}
-                    </p>
-                  )}
                 </div>
               </div>
-              <h3 className="text-left w-full text-[18px] font-bold mb-2">
-                Mobile Verification
-              </h3>
-              <div className="grid grid-cols-4 gap-4 w-full mb-3 ">
-                <div className="col-start-1 col-end-4">
+
+              <div className="pt-2">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3 border-b border-gray-100 pb-2">Mobile Verification</h3>
+                <div className="flex gap-4 items-end">
+                  <div className="flex-1">
+                    <AppInputField<SignUpFormType>
+                      name="mobileNumber"
+                      form={form}
+                      type="number"
+                      placeholder="Mobile number"
+                      label="Mobile Number"
+                    />
+                  </div>
+                  <AppButton
+                    type="button"
+                    className="h-[46px] w-[100px] text-sm text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md font-semibold transition-colors"
+                    label="Send OTP"
+                  />
+                </div>
+                <div className="flex gap-4 items-end mt-4">
+                  <div className="flex-1">
+                    <AppInputField<SignUpFormType>
+                      name="enterOtp"
+                      form={form}
+                      type="number"
+                      placeholder="Enter OTP"
+                      label="OTP"
+                    />
+                  </div>
+                  <AppButton
+                    type="button"
+                    className="h-[46px] w-[100px] text-sm text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-md font-semibold transition-colors"
+                    label="Verify"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3 border-b border-gray-100 pb-2">Security</h3>
+                <div className="grid md:grid-cols-2 gap-4">
                   <AppInputField<SignUpFormType>
-                    name="mobileNumber"
+                    name="password"
                     form={form}
-                    type="number"
-                    placeholder="Enter mobile number"
-                    label="Mobile Number"
-                    className=""
+                    type="password"
+                    placeholder="Create password"
+                    label="Password"
                   />
-                  {errors.mobileNumber && (
-                    <p className="text-red-500 text-sm text-left">
-                      {errors.mobileNumber.message}
-                    </p>
-                  )}
-                </div>
-                <AppButton
-                  type="submit"
-                  className="w-full h-[48.28px] mt-6.5 text-left col-start-4 col-end-5 text-white bg-blue-700 rounded-md hover:bg-blue-600"
-                  label="Send OTP"
-                />
-              </div>
-              <div className="grid grid-cols-4 gap-4 w-full mb-3">
-                <div className="col-start-1 col-end-4">
                   <AppInputField<SignUpFormType>
-                    name="enterOtp"
+                    name="confirmPassword"
                     form={form}
-                    type="number"
-                    placeholder="Enter OTP"
-                    label="Enter OTP"
-                    className=""
+                    type="password"
+                    placeholder="Repeat password"
+                    label="Repeat Password"
                   />
-                  {errors.enterOtp && (
-                    <p className="text-red-500 text-sm text-left">
-                      {errors.enterOtp.message}
-                    </p>
-                  )}
                 </div>
-                <AppButton
-                  type="submit"
-                  className="w-full h-[48.28px] mt-6.5 col-start-4 col-end-5 px-3 py-3 text-white  bg-green-600 rounded-md hover:bg-blue-600"
-                  label="Verify"
-                />
               </div>
-              <AppInputField<SignUpFormType>
-                name="password"
-                form={form}
-                type="password"
-                placeholder="Create password"
-                label="Password"
-                className="w-full mb-2"
-              />
-              {errors.password && (
-                <p className="text-red-500 text-sm text-left mb-3">
-                  {errors.password.message}
-                </p>
-              )}
-              <AppInputField<SignUpFormType>
-                name="confirmPassword"
-                form={form}
-                type="password"
-                placeholder="Repeat password"
-                label="Repeat Password"
-                className="w-full mb-3"
-              />
-              {errors.confirmPassword && (
-                <p className="text-red-500 text-sm text-left mb-3">
-                  {errors.confirmPassword.message}
-                </p>
-              )}
+
               <AppButton
                 type="submit"
-                className="w-full text-white mt-2 bg-blue-700  rounded-md hover:bg-blue-600"
+                className="w-full text-white bg-blue-600 hover:bg-blue-700 py-2.5 rounded-md font-semibold transition-colors shadow-sm mt-6"
                 label="Create Account"
+                isLoading={isLoading}
               />
-              <div className="text-center mt-5">
-                <span className="text-sm font-light text-[#526279]">
+              
+              <div className="text-center mt-6">
+                <span className="text-sm text-gray-500">
                   Already have an account?{" "}
                   <NavLink
                     to={ROUTES.AUTH.LOGIN}
-                    className="text-blue-700 font-semibold hover:underline"
+                    className="text-blue-600 font-semibold hover:underline"
                   >
                     Sign in
                   </NavLink>
@@ -272,9 +219,13 @@ const SignUp = () => {
               </div>
             </form>
           </div>
+          
+          <p className="text-center text-sm text-gray-500 mt-6">
+            © {new Date().getFullYear()} Neo Dairy Sales and Services Pvt Ltd. All rights reserved.
+          </p>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

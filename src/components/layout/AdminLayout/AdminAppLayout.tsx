@@ -2,6 +2,7 @@ import { useState,} from "react";
 import { Outlet } from "react-router-dom";
 import AdminAppSidebar from "./AdminAppSidebar";
 import AppNavbar from "../AppNavbar";
+import { cn } from "@/lib/utils";
 
 
 const AdminAppLayout = () => {
@@ -48,7 +49,10 @@ const AdminAppLayout = () => {
       <AdminAppSidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
       
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className={cn(
+        "flex-1 flex flex-col overflow-hidden transition-all duration-300",
+        sidebarOpen ? "ml-0 lg:ml-64" : "ml-0 lg:ml-16"
+      )}>
         {/* Navbar */}
         <AppNavbar theme={theme} onThemeToggle={toggleTheme} />
         

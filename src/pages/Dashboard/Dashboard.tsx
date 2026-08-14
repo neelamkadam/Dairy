@@ -106,49 +106,49 @@ const Dashboard = () => {
       value: `${activeCenters} (${branches.length})`,
       change: "",
       icon: Users,
-      gradient: "bg-gradient-to-br from-cyan-400 to-cyan-600"
+      theme: "cyan"
     },
     {
       title: t('total_active_farmers'),
       value: `${kpis.totalFarmers} (${kpis.totalRegisteredFarmers})`,
       change: "",
       icon: Users,
-      gradient: "bg-gradient-to-br from-green-400 to-green-600"
+      theme: "emerald"
     },
     {
       title: t('total_milk_collection'),
       value: `${kpis.totalQuantity.toFixed(1)}L`,
       change: "",
       icon: Droplets,
-      gradient: "bg-gradient-to-br from-blue-400 to-blue-600"
+      theme: "blue"
     },
     {
       title: t('total_amount'),
       value: `₹${kpis.totalAmount.toFixed(2)}`,
       change: "",
       icon: IndianRupee,
-      gradient: "bg-gradient-to-br from-purple-400 to-purple-600"
+      theme: "violet"
     },
     {
       title: "Average per Farmer",
       value: `${avgPerFarmer.toFixed(2)}L`,
       change: "",
       icon: Users,
-      gradient: "bg-gradient-to-br from-pink-400 to-pink-600"
+      theme: "pink"
     },
     {
       title: t('average_quantity'),
       value: `${kpis.avgQuantity.toFixed(2)}L`,
       change: "",
       icon: Droplets,
-      gradient: "bg-gradient-to-br from-indigo-400 to-indigo-600"
+      theme: "indigo"
     },
     {
       title: t('average_rate'),
       value: `₹${kpis.avgRate.toFixed(2)}`,
       change: "",
       icon: IndianRupee,
-      gradient: "bg-gradient-to-br from-orange-400 to-orange-600"
+      theme: "amber"
     }
   ];
 
@@ -164,50 +164,42 @@ const Dashboard = () => {
           
           {/* Date, Time & Shift Selector */}
           <div className="flex items-center justify-center lg:justify-end w-full">
-            <Card className="shadow-sm w-full lg:w-auto">
-              <CardContent className="p-3 lg:p-2">
-                <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 w-full justify-center sm:justify-start">
-                  <div className="flex items-center gap-2 min-w-0 flex-shrink">
-                    <AppDatePicker
-                      date={selectedDate}
-                      onChange={setSelectedDate}
-                      className="border-none shadow-none p-0"
-                    />
-                  </div>
-                  
-                  <div className="hidden sm:block h-4 w-px bg-gray-300 flex-shrink-0"></div>
-                  
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <Clock className="w-4 h-4 text-gray-500" />
-                    <span className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">{getCurrentTime()}</span>
-                  </div>
-                  
-                  <div className="hidden sm:block h-4 w-px bg-gray-300 flex-shrink-0"></div>
-                  
-                  <div className="min-w-0 flex-shrink">
-                    <Select value={selectedShift} onValueChange={setSelectedShift}>
-                      <SelectTrigger className="w-full sm:w-32 h-8 border-none shadow-none bg-white">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white border border-gray-200 shadow-lg">
-                        <SelectItem value="morning" className="hover:bg-gray-50">
-                          <div className="flex items-center gap-2">
-                            <Sun className="w-4 h-4 text-orange-500" />
-                            {t('morning')}
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="evening" className="hover:bg-gray-50">
-                          <div className="flex items-center gap-2">
-                            <Moon className="w-4 h-4 text-blue-500" />
-                            {t('evening')}
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-1.5 flex flex-col sm:flex-row items-center gap-2 sm:gap-3 w-full lg:w-auto">
+              <AppDatePicker
+                date={selectedDate}
+                onChange={setSelectedDate}
+                className="w-full sm:w-auto min-w-[150px] border-none shadow-none hover:bg-slate-50 focus-visible:ring-0"
+              />
+              
+              <div className="hidden sm:block h-5 w-px bg-slate-200"></div>
+              
+              <div className="flex items-center gap-2 px-3 text-slate-600">
+                <Clock className="w-4 h-4" />
+                <span className="text-sm font-medium whitespace-nowrap">{getCurrentTime()}</span>
+              </div>
+              
+              <div className="hidden sm:block h-5 w-px bg-slate-200"></div>
+              
+              <Select value={selectedShift} onValueChange={setSelectedShift}>
+                <SelectTrigger className="w-full sm:w-[120px] h-9 border-none shadow-none bg-transparent hover:bg-slate-50 focus:ring-0 text-slate-700 font-medium">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-white border border-slate-200 shadow-md rounded-lg">
+                  <SelectItem value="morning" className="cursor-pointer font-medium">
+                    <div className="flex items-center gap-2">
+                      <Sun className="w-4 h-4 text-amber-500" />
+                      {t('morning')}
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="evening" className="cursor-pointer font-medium">
+                    <div className="flex items-center gap-2">
+                      <Moon className="w-4 h-4 text-blue-500" />
+                      {t('evening')}
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
         
@@ -229,7 +221,7 @@ const Dashboard = () => {
                   value={kpi.value}
                   change={kpi.change}
                   icon={kpi.icon}
-                  gradient={kpi.gradient}
+                  theme={kpi.theme as any}
                 />
               ))}
               <FatSnfCard fat={kpis.avgFat} snf={kpis.avgSnf} />
@@ -240,7 +232,7 @@ const Dashboard = () => {
                   value={kpi.value}
                   change={kpi.change}
                   icon={kpi.icon}
-                  gradient={kpi.gradient}
+                  theme={kpi.theme as any}
                 />
               ))}
             </>

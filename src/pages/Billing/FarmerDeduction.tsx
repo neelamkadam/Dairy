@@ -303,7 +303,7 @@ const FarmerDeduction = () => {
           
           // Source 2: Check if farmer has finalized bills from detailed API data
           const billDetail = billDetailsMap.get(farmer.farmer_id);
-          if (billDetail && billDetail.is_finalized === 1) {
+          if (billDetail && (billDetail as any).is_finalized === 1) {
             return true;
           }
           
@@ -315,14 +315,14 @@ const FarmerDeduction = () => {
         processedData.forEach(farmer => {
           const billDetail = billDetailsMap.get(farmer.farmer_id);
           if (billDetail) {
-            const advTotal = parseFloat(billDetail.advance_total || 0);
-            const advRemaining = parseFloat(billDetail.advance_remaining || 0);
-            const cfTotal = parseFloat(billDetail.cattlefeed_total || 0);
-            const cfRemaining = parseFloat(billDetail.cattlefeed_remaining || 0);
-            const o1Total = parseFloat(billDetail.other1_total || 0);
-            const o1Remaining = parseFloat(billDetail.other1_remaining || 0);
-            const o2Total = parseFloat(billDetail.other2_total || 0);
-            const o2Remaining = parseFloat(billDetail.other2_remaining || 0);
+            const advTotal = parseFloat((billDetail as any).advance_total || 0);
+            const advRemaining = parseFloat((billDetail as any).advance_remaining || 0);
+            const cfTotal = parseFloat((billDetail as any).cattlefeed_total || 0);
+            const cfRemaining = parseFloat((billDetail as any).cattlefeed_remaining || 0);
+            const o1Total = parseFloat((billDetail as any).other1_total || 0);
+            const o1Remaining = parseFloat((billDetail as any).other1_remaining || 0);
+            const o2Total = parseFloat((billDetail as any).other2_total || 0);
+            const o2Remaining = parseFloat((billDetail as any).other2_remaining || 0);
 
             const hasData = advTotal > 0 || advRemaining > 0 || cfTotal > 0 || cfRemaining > 0 || 
                            o1Total > 0 || o1Remaining > 0 || o2Total > 0 || o2Remaining > 0;

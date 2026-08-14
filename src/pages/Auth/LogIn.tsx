@@ -22,6 +22,7 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { isAuthenticated, userRole } = useAppSelector(state => state.authData);
+  const [isLoading, setIsLoading] = React.useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -43,6 +44,7 @@ const Login: React.FC = () => {
   const { handleSubmit, formState: { errors } } = form;
 
   const onSubmit: SubmitHandler<LoginFormType> = async (data) => {
+    setIsLoading(true);
     try {
       // User login API call
       const { data: result } = await api.post("/web-users/login", {
@@ -87,12 +89,15 @@ const Login: React.FC = () => {
           dispatch(fetchUserBranches(result.email));
           
           navigate(userRole === "admin" ? ROUTES.ADMIN_DASHBOARD : ROUTES.DASHBOARD);
+          toast.success(result.message || "Logged in successfully");
         }
       } else {
         toast.error(result.message || "Invalid username or password");
       }
     } catch (error) {
       toast.error("Invalid username or password");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -120,19 +125,19 @@ const Login: React.FC = () => {
           <div className="absolute top-48 md:top-60 left-32 md:left-40 text-2xl md:text-3xl animate-[float_3.5s_ease-in-out_infinite_1s]">🥛</div>
         </div>
         
-        <div className="relative z-10 flex flex-col justify-center items-center p-6 xl:p-12 text-white w-full">
-          <div className="space-y-4 xl:space-y-8 text-center bg-black/20 backdrop-blur-sm rounded-3xl p-6 xl:p-8 max-w-xl">
+        <div className="relative z-10 flex flex-col justify-center items-center p-6 xl:p-12 pb-24 xl:pb-32 text-white w-full h-full">
+          <div className="space-y-3 xl:space-y-4 text-center bg-black/20 backdrop-blur-sm rounded-3xl p-6 xl:p-8 max-w-lg">
             <img 
               src={NeoDairyLogo} 
               alt="Neo Dairy Logo" 
-              className="w-24 xl:w-32 h-auto mx-auto mb-4 xl:mb-8 bg-white rounded-2xl p-2"
+              className="w-20 xl:w-24 h-auto mx-auto mb-4 bg-white rounded-2xl p-2"
             />
             <div>
-              <h1 className="text-3xl xl:text-5xl font-bold mb-2 xl:mb-4 leading-tight">Neo Dairy Sales and Services</h1>
-              <p className="text-lg xl:text-xl text-green-100">Pvt Ltd.</p>
+              <h1 className="text-2xl xl:text-4xl font-bold mb-2 leading-tight">Neo Dairy Sales and Services</h1>
+              <p className="text-base xl:text-lg text-green-100">Pvt Ltd.</p>
             </div>
-            <div className="space-y-2 xl:space-y-4">
-              <p className="text-base xl:text-lg text-green-50">Empowering Dairy with Technology</p>
+            <div className="space-y-2">
+              <p className="text-sm xl:text-base text-green-50">Empowering Dairy with Technology</p>
             </div>
           </div>
         </div>
@@ -148,7 +153,7 @@ const Login: React.FC = () => {
           </div>
 
           {/* Login Card */}
-          <div className="bg-white rounded-2xl shadow-xl p-8 space-y-6">
+          <div className="bg-white rounded-lg shadow-lg border border-slate-200 p-8 space-y-6">
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
                 <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -204,8 +209,9 @@ const Login: React.FC = () => {
 
                 <AppButton
                   type="submit"
-                  className="w-full text-white bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-semibold transition-colors duration-200"
+                  className="w-full text-white bg-blue-600 hover:bg-blue-700 py-2.5 rounded-md font-semibold transition-colors shadow-sm"
                   label={t("sign_in_button")}
+                  isLoading={isLoading}
                 />
               </form>
             </div>

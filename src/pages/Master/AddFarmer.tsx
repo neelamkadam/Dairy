@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
-import { ChevronLeft, Upload, Download } from 'lucide-react';
+import { ChevronLeft, Upload, Download, ChevronDown, Search, UserPlus } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/redux/store';
 import { useNavigate, useParams } from 'react-router-dom';
 import { authApi } from '@/services/authApi';
@@ -61,6 +62,21 @@ export const AddFarmer: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [bulkUploading, setBulkUploading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  
+  const [vlcOpen, setVlcOpen] = useState(false);
+  const [vlcSearch, setVlcSearch] = useState('');
+  const vlcSearchRef = useRef<HTMLInputElement>(null);
+  const vlcWrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (vlcWrapperRef.current && !vlcWrapperRef.current.contains(event.target as Node)) {
+        setVlcOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const downloadTemplate = () => {
     const template = [
@@ -277,7 +293,7 @@ export const AddFarmer: React.FC = () => {
           ...prev,
           fullName: farmer.fullName || '',
           phoneNumber: farmer.mobile_number || '',
-          email: farmer.email || '',
+          email: (farmer as any).email || '',
           address: farmer.address || '',
           milkType: farmer.milkType || '',
           rateChart: farmer.milkType === 'Both' ? '' : (farmer.rateChart || ''),
@@ -332,7 +348,7 @@ export const AddFarmer: React.FC = () => {
           farmerId: displayId,
           fullName: farmer.fullName || '',
           phoneNumber: farmer.mobile_number || '',
-          email: farmer.email || '',
+          email: (farmer as any).email || '',
           address: farmer.address || '',
           milkType: farmer.milkType || '',
           rateChart: farmer.milkType === 'Both' ? '' : (farmer.rateChart || ''),
@@ -577,7 +593,7 @@ export const AddFarmer: React.FC = () => {
           ifscCode: formData.ifscCode,
           bankPassbookPhoto: bankPassbookUrl,
           rateChart: rateChartValue,
-          milkType: formData.milkType,
+          milkType: formData.milkType as "Cow" | "Buffalo" | "Both",
           role: 'farmer',
           address: formData.address,
           confirm: true,
@@ -625,7 +641,7 @@ export const AddFarmer: React.FC = () => {
           mobile_number: formData.phoneNumber,
           email: formData.email,
           address: formData.address,
-          milkType: formData.milkType,
+          milkType: formData.milkType as "Cow" | "Buffalo" | "Both",
           rateChart: rateChartValue,
           panCard: formData.panCard,
           aadhaarCard: formData.aadhaarCard,
@@ -674,18 +690,25 @@ export const AddFarmer: React.FC = () => {
   };
 
   return (
-    <div className="w-full px-4 md:max-w-2xl mx-auto space-y-4 md:space-y-6 py-4">
-      <div className="flex justify-between items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <span className="font-semibold">{isEditMode ? t('edit_farmer') : t('add_farmer')}</span>
-        <div className="flex gap-2">
+    <div className="w-full px-4 md:max-w-7xl mx-auto space-y-4 md:space-y-6 py-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-2">
+        <div className="flex items-center space-x-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0 hover:bg-gray-100 rounded-xl mr-1">
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+          <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
+            <UserPlus className="h-6 w-6" />
+          </div>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-800 font-serif tracking-wide">
+            {isEditMode ? t('edit_farmer') : t('add_farmer')}
+          </h1>
+        </div>
+        <div className="flex items-center gap-3 shrink-0 z-10">
           <Button
             variant="outline"
             size="sm"
             onClick={downloadTemplate}
-            className="text-blue-600 border-blue-600 flex items-center gap-1"
+            className="text-blue-600 border-blue-200 bg-white hover:bg-blue-50 flex items-center gap-1.5 rounded-lg h-9 px-4 shadow-sm"
           >
             <Download className="h-4 w-4" />
             Template
@@ -702,7 +725,7 @@ export const AddFarmer: React.FC = () => {
             variant="outline"
             size="sm"
             onClick={() => document.getElementById('excel-upload')?.click()}
-            className="text-green-600 border-green-600 flex items-center gap-1"
+            className="text-emerald-600 border-emerald-200 bg-white hover:bg-emerald-50 flex items-center gap-1.5 rounded-lg h-9 px-4 shadow-sm"
             disabled={bulkUploading}
           >
             <Upload className="h-4 w-4" />
@@ -711,27 +734,116 @@ export const AddFarmer: React.FC = () => {
         </div>
       </div>
 
-      <Card className='bg-white border-none'>
-        <CardContent className="p-4 md:p-6">
-          <form onSubmit={handleSubmit} className="space-y-6 md:space-y-8 text-left">
-            {/* Basic Information */}
+      <Card className="bg-white border border-gray-100 shadow-sm rounded-2xl overflow-hidden">
+        <CardContent className="p-6 md:p-8">
+          <form onSubmit={handleSubmit} className="text-left">
+            <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
+              {/* Left Column */}
+              <div className="w-full lg:w-1/2 space-y-8 md:space-y-10">
+                {/* Basic Information */}
             <div>
-              <h3 className="text-lg font-semibold mb-4">{t('basic_information')}</h3>
-              <div className="">
-              <Label htmlFor="VLC" className='mb-1'>VLC<span className='text-red-600'>*</span></Label>
-                  <Select value={formData.VLC} onValueChange={(value) => setFormData({...formData, VLC: value})}>
-                    <SelectTrigger className='w-full bg-gray-50 border-gray-200'>
-                      <SelectValue placeholder={t('select_vlc')} />
-                    </SelectTrigger>
-                    <SelectContent className='bg-white'>
-                      {branches?.map((branch) => (
-                        <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
-                          {branch.username} - {branch.name} - {branch.branchName || ''}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Label htmlFor="farmerId" className='mt-3 mb-1'>{t('farmer_id')}<span className='text-red-600'>*</span></Label>
+              <h3 className="text-lg font-bold text-gray-900 font-serif mb-5">{t('basic_information')}</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
+                <div>
+                  <Label htmlFor="VLC" className="text-sm font-medium text-gray-700 mb-1.5 block">VLC <span className="text-red-500">*</span></Label>
+                  {(() => {
+                    const selectedBranch = branches?.find((b) => b.branch_id.toString() === formData.VLC);
+                    const filtered = branches?.filter((b) => {
+                      const q = vlcSearch.toLowerCase();
+                      return (
+                        !q ||
+                        String(b.username || "").toLowerCase().includes(q) ||
+                        String(b.branch_id || "").toLowerCase().includes(q) ||
+                        String(b.name || "").toLowerCase().includes(q) ||
+                        String(b.branchName || "").toLowerCase().includes(q)
+                      );
+                    }) || [];
+                    return (
+                      <div ref={vlcWrapperRef} className="relative w-full">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setVlcOpen((prev) => !prev);
+                            if (!vlcOpen) setTimeout(() => vlcSearchRef.current?.focus(), 0);
+                            else setVlcSearch("");
+                          }}
+                          className={cn(
+                            "w-full flex items-center justify-between px-3 py-2 h-11 text-sm rounded-xl border bg-white transition-all shadow-sm",
+                            vlcOpen ? "border-blue-500 ring-2 ring-blue-500/20" : "border-gray-200 hover:border-blue-300"
+                          )}
+                        >
+                          <span className={selectedBranch ? "text-gray-900 font-medium truncate" : "text-gray-500"}>
+                            {selectedBranch
+                              ? `${selectedBranch.username} - ${selectedBranch.branchName || selectedBranch.name}`
+                              : t('select_vlc')}
+                          </span>
+                          <ChevronDown
+                            className={cn("h-4 w-4 text-gray-400 flex-shrink-0 ml-2 transition-transform duration-150", vlcOpen && "rotate-180")}
+                          />
+                        </button>
+
+                        {vlcOpen && (
+                          <div
+                            className="absolute z-50 mt-1 w-full bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden"
+                            style={{ top: "100%", left: 0 }}
+                          >
+                            <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100">
+                              <Search className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                              <input
+                                ref={vlcSearchRef}
+                                value={vlcSearch}
+                                onChange={(e) => setVlcSearch(e.target.value)}
+                                placeholder="Search VLC..."
+                                className="flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400 h-8"
+                              />
+                              {vlcSearch && (
+                                <button
+                                  type="button"
+                                  onMouseDown={(e) => { e.preventDefault(); setVlcSearch(""); vlcSearchRef.current?.focus(); }}
+                                  className="text-gray-400 hover:text-gray-600 text-sm leading-none"
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </div>
+                            <div className="max-h-48 overflow-y-auto p-1">
+                              {filtered.length === 0 ? (
+                                <div className="px-3 py-4 text-center text-sm text-gray-400">No VLC branches found</div>
+                              ) : (
+                                filtered.map((branch) => {
+                                  if (!branch?.branch_id) return null;
+                                  const val = branch.branch_id.toString();
+                                  const isSelected = val === formData.VLC;
+                                  return (
+                                    <button
+                                      key={val}
+                                      type="button"
+                                      onClick={() => {
+                                        setFormData({...formData, VLC: val});
+                                        setVlcOpen(false);
+                                        setVlcSearch("");
+                                      }}
+                                      className={cn(
+                                        "w-full text-left px-3 py-2 text-sm rounded-lg transition-colors flex items-center justify-between",
+                                        isSelected ? "bg-blue-50 text-blue-700 font-medium" : "hover:bg-gray-50 text-gray-700"
+                                      )}
+                                    >
+                                      <span className="truncate">{branch.username} - {branch.branchName || branch.name}</span>
+                                    </button>
+                                  );
+                                })
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+
+                <div>
+                  <Label htmlFor="farmerId" className="text-sm font-medium text-gray-700 mb-1.5 block">{t('farmer_id')} <span className="text-red-500">*</span></Label>
                   <Input
                     id="farmerId"
                     value={formData.farmerId}
@@ -740,34 +852,122 @@ export const AddFarmer: React.FC = () => {
                       const value = e.target.value.replace(/\D/g, '');
                       setFormData({...formData, farmerId: value});
                     }}
-                    className='border-gray-200'
+                    className="h-11 bg-white border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 shadow-sm"
                   />
-                  <Label htmlFor="fullName" className='mt-3 mb-1'>{t('full_name')}<span className='text-red-600'>*</span></Label>
+                </div>
+                
+                <div>
+                  <Label htmlFor="fullName" className="text-sm font-medium text-gray-700 mb-1.5 block">{t('full_name')} <span className="text-red-500">*</span></Label>
                   <Input
                     id="fullName"
                     placeholder={t('enter_full_name')}
                     value={formData.fullName}
                     onChange={(e) => setFormData({...formData, fullName: e.target.value})}
                     required
-                    className='border-gray-200'
+                    className="h-11 bg-white border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 shadow-sm"
                   />
+                </div>
 
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-2">
+                    <span>{t('milk_type')} <span className="text-red-500">*</span></span>
+                    {!formData.VLC && (
+                      <span className="text-red-500 text-xs font-normal">({t('please_select_vlc_first')})</span>
+                    )}
+                  </Label>
+                  <div className="flex items-center h-11">
+                    <RadioGroup
+                      value={formData.milkType}
+                      onValueChange={(value) => {
+                        if (!formData.VLC) {
+                          toast.warning('Please select VLC first');
+                          return;
+                        }
+                        setFormData({...formData, milkType: value as any, rateChart: '', cowRateChart: '', buffaloRateChart: ''});
+                      }}
+                      disabled={!formData.VLC}
+                      className="w-full"
+                    >
+                      <div className="flex items-center gap-6">
+                        <div className="flex items-center space-x-2.5">
+                          <RadioGroupItem value="Cow" id="cow" className="border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4" disabled={!formData.VLC} />
+                          <Label htmlFor="cow" className={`text-sm font-medium ${!formData.VLC ? 'text-gray-400' : 'text-gray-700'}`}>{t('cow')}</Label>
+                        </div>
+                        <div className="flex items-center space-x-2.5">
+                          <RadioGroupItem value="Buffalo" id="buffalo" className="border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4" disabled={!formData.VLC} />
+                          <Label htmlFor="buffalo" className={`text-sm font-medium ${!formData.VLC ? 'text-gray-400' : 'text-gray-700'}`}>{t('buffalo')}</Label>
+                        </div>
+                        <div className="flex items-center space-x-2.5">
+                          <RadioGroupItem value="Both" id="both" className="border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4" disabled={!formData.VLC} />
+                          <Label htmlFor="both" className={`text-sm font-medium ${!formData.VLC ? 'text-gray-400' : 'text-gray-700'}`}>{t('both')}</Label>
+                        </div>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                </div>
+
+                {/* Rate Chart */}
+                {formData.milkType === 'Both' ? (
+                  <>
+                    <div>
+                      <Label htmlFor="cowRateChart" className="text-sm font-medium text-gray-700 mb-1.5 block">{t('cow_rate_chart')} <span className="text-red-500">*</span></Label>
+                      <Select value={formData.cowRateChart} onValueChange={(value) => setFormData({...formData, cowRateChart: value})}>
+                        <SelectTrigger className="h-11 bg-white border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 shadow-sm w-full">
+                          <SelectValue placeholder={t('select_cow_rate_chart')} />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white">
+                          {cowRateNames.map((name) => (
+                            <SelectItem key={name} value={name}>{name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="buffaloRateChart" className="text-sm font-medium text-gray-700 mb-1.5 block">{t('buffalo_rate_chart')} <span className="text-red-500">*</span></Label>
+                      <Select value={formData.buffaloRateChart} onValueChange={(value) => setFormData({...formData, buffaloRateChart: value})}>
+                        <SelectTrigger className="h-11 bg-white border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 shadow-sm w-full">
+                          <SelectValue placeholder={t('select_buffalo_rate_chart')} />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white">
+                          {buffaloRateNames.map((name) => (
+                            <SelectItem key={name} value={name}>{name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                ) : formData.milkType ? (
+                  <div>
+                    <Label htmlFor="rateChart" className="text-sm font-medium text-gray-700 mb-1.5 block">{t('rate_chart')} <span className="text-red-500">*</span></Label>
+                    <Select value={formData.rateChart} onValueChange={(value) => setFormData({...formData, rateChart: value})}>
+                      <SelectTrigger className="h-11 bg-white border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 shadow-sm w-full">
+                        <SelectValue placeholder={t('select_rate_chart')} />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white">
+                        {(formData.milkType === 'Cow' ? cowRateNames : buffaloRateNames).map((name) => (
+                          <SelectItem key={name} value={name}>{name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : null}
               </div>
             </div>
 
             {/* Contact Information */}
             <div>
-              <h3 className="text-lg font-semibold mb-4">{t('contact_information')}</h3>
-              <div className="">
-                  <Label htmlFor="phoneNumber" className='mb-1'>{t('phone_number')}<span className='text-red-600'>*</span></Label>
-                  <div className="flex">
-                    <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500">
+              <h3 className="text-lg font-bold text-gray-900 font-serif mb-5">{t('contact_information')}</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
+                <div>
+                  <Label htmlFor="phoneNumber" className="text-sm font-medium text-gray-700 mb-1.5 block">{t('phone_number')} <span className="text-red-500">*</span></Label>
+                  <div className="flex shadow-sm rounded-xl overflow-hidden">
+                    <span className="inline-flex items-center px-4 border border-r-0 border-gray-200 bg-gray-50 text-gray-500 font-medium text-sm">
                       +91
                     </span>
                     <Input
                       id="phoneNumber"
                       placeholder={t('enter_phone_number')}
-                      className="rounded border-gray-200"
+                      className="h-11 rounded-none rounded-r-xl border-gray-200 focus:ring-2 focus:ring-blue-500/20 border-l-0 shadow-none w-full"
                       value={formData.phoneNumber}
                       onChange={(e) => {
                         const value = Validator.formatMobile(e.target.value);
@@ -776,115 +976,45 @@ export const AddFarmer: React.FC = () => {
                       required
                     />
                   </div>
-                  <Label htmlFor="email" className='mt-3 mb-1'>{t('email_address_optional')}</Label>
+                </div>
+                
+                <div>
+                  <Label htmlFor="email" className="text-sm font-medium text-gray-700 mb-1.5 block">{t('email_address_optional')}</Label>
                   <Input
                     id="email"
                     type="email"
                     placeholder={t('enter_email_address')}
                     value={formData.email}
                     onChange={(e) => setFormData({...formData, email: e.target.value})}
-                      className='border-gray-200'
+                    className="h-11 bg-white border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 shadow-sm"
                   />
+                </div>
 
-                <div className="md:col-span-2 mt-3 mb-1">
-                  <Label htmlFor="address" className='mb-1'>{t('address')}<span className='text-red-600'>*</span></Label>
+                <div className="md:col-span-2">
+                  <Label htmlFor="address" className="text-sm font-medium text-gray-700 mb-1.5 block">{t('address')} <span className="text-red-500">*</span></Label>
                   <Textarea
                     id="address"
                     placeholder={t('enter_complete_address')}
                     value={formData.address}
                     onChange={(e) => setFormData({...formData, address: e.target.value})}
                     required
-                      className='border-gray-200'
+                    className="bg-white border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 shadow-sm min-h-[100px] resize-y"
                   />
                 </div>
               </div>
             </div>
 
-            {/* Milk Type */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">{t('milk_type')}<span className='text-red-600'>*</span></h3>
-              {!formData.VLC && (
-                <p className="text-sm text-amber-600 mb-2">{t('please_select_vlc_first')}</p>
-              )}
-              <RadioGroup
-                value={formData.milkType}
-                onValueChange={(value) => {
-                  if (!formData.VLC) {
-                    toast.warning('Please select VLC first');
-                    return;
-                  }
-                  setFormData({...formData, milkType: value as any, rateChart: '', cowRateChart: '', buffaloRateChart: ''});
-                }}
-                disabled={!formData.VLC}
-              >
-                <div className="flex items-center space-x-6">
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Cow" id="cow" className='border-gray-300' disabled={!formData.VLC} />
-                    <Label htmlFor="cow" className={!formData.VLC ? 'text-gray-400' : ''}>{t('cow')}</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Buffalo" id="buffalo" className='border-gray-300' disabled={!formData.VLC} />
-                    <Label htmlFor="buffalo" className={!formData.VLC ? 'text-gray-400' : ''}>{t('buffalo')}</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Both" id="both" className='border-gray-300' disabled={!formData.VLC} />
-                    <Label htmlFor="both" className={!formData.VLC ? 'text-gray-400' : ''}>{t('both')}</Label>
-                  </div>
-                </div>
-              </RadioGroup>
-            </div>
 
-            {/* Rate Chart */}
-            {formData.milkType === 'Both' ? (
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="cowRateChart" className='mb-1'>{t('cow_rate_chart')}<span className='text-red-600'>*</span></Label>
-                  <Select value={formData.cowRateChart} onValueChange={(value) => setFormData({...formData, cowRateChart: value})}>
-                    <SelectTrigger className='bg-gray-50 w-full border-gray-200'>
-                      <SelectValue placeholder={t('select_cow_rate_chart')} />
-                    </SelectTrigger>
-                    <SelectContent className='bg-white'>
-                      {cowRateNames.map((name) => (
-                        <SelectItem key={name} value={name}>{name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="buffaloRateChart" className='mb-1'>{t('buffalo_rate_chart')}<span className='text-red-600'>*</span></Label>
-                  <Select value={formData.buffaloRateChart} onValueChange={(value) => setFormData({...formData, buffaloRateChart: value})}>
-                    <SelectTrigger className='bg-gray-50 w-full border-gray-200'>
-                      <SelectValue placeholder={t('select_buffalo_rate_chart')} />
-                    </SelectTrigger>
-                    <SelectContent className='bg-white'>
-                      {buffaloRateNames.map((name) => (
-                        <SelectItem key={name} value={name}>{name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
-            ) : formData.milkType ? (
-              <div>
-                <Label htmlFor="rateChart" className='mb-1'>{t('rate_chart')}<span className='text-red-600'>*</span></Label>
-                <Select value={formData.rateChart} onValueChange={(value) => setFormData({...formData, rateChart: value})}>
-                  <SelectTrigger className='bg-gray-50 w-full border-gray-200'>
-                    <SelectValue placeholder={t('select_rate_chart')} />
-                  </SelectTrigger>
-                  <SelectContent className='bg-white'>
-                    {(formData.milkType === 'Cow' ? cowRateNames : buffaloRateNames).map((name) => (
-                      <SelectItem key={name} value={name}>{name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : null}
 
-            {/* Personal Documents */}
+              {/* Right Column */}
+              <div className="w-full lg:w-1/2 space-y-8 md:space-y-10">
+                {/* Personal Documents */}
             <div>
-              <h3 className="text-lg font-semibold mb-4">{t('personal_documents')}</h3>
-              <div className="">
-                  <Label htmlFor="panCard" className='mb-1'>{t('pan_card_optional')}</Label>
+              <h3 className="text-lg font-bold text-gray-900 font-serif mb-5">{t('personal_documents')}</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
+                <div>
+                  <Label htmlFor="panCard" className="text-sm font-medium text-gray-700 mb-1.5 block">{t('pan_card_optional')}</Label>
                   <Input
                     id="panCard"
                     placeholder={t('enter_pan_number')}
@@ -893,9 +1023,12 @@ export const AddFarmer: React.FC = () => {
                       const value = Validator.formatPanCard(e.target.value);
                       setFormData({...formData, panCard: value});
                     }}
-                    className='border-gray-200'
+                    className="h-11 bg-white border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 shadow-sm uppercase"
                   />
-                  <Label htmlFor="aadhaarCard" className='mt-3 mb-1'>{t('aadhaar_card_optional')}</Label>
+                </div>
+                
+                <div>
+                  <Label htmlFor="aadhaarCard" className="text-sm font-medium text-gray-700 mb-1.5 block">{t('aadhaar_card_optional')}</Label>
                   <Input
                     id="aadhaarCard"
                     placeholder={t('enter_aadhaar_number')}
@@ -904,24 +1037,29 @@ export const AddFarmer: React.FC = () => {
                       const value = e.target.value.replace(/\D/g, '').slice(0, 12);
                       setFormData({...formData, aadhaarCard: value});
                     }}
-                    className='border-gray-200'
+                    className="h-11 bg-white border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 shadow-sm"
                   />
+                </div>
               </div>
             </div>
 
             {/* Bank Details */}
             <div>
-              <h3 className="text-lg font-semibold mb-4">{t('bank_details_optional')}</h3>
-              <div className="">
-                  <Label htmlFor="bankName" className='mb-1'>{t('bank_name')}</Label>
+              <h3 className="text-lg font-bold text-gray-900 font-serif mb-5">{t('bank_details_optional')}</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
+                <div>
+                  <Label htmlFor="bankName" className="text-sm font-medium text-gray-700 mb-1.5 block">{t('bank_name')}</Label>
                   <Input
                     id="bankName"
                     placeholder={t('enter_bank_name')}
                     value={formData.bankName}
                     onChange={(e) => setFormData({...formData, bankName: e.target.value})}
-                    className='border-gray-200'
+                    className="h-11 bg-white border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 shadow-sm"
                   />
-                  <Label htmlFor="accountNumber" className='mt-3 mb-1'>{t('account_number')}</Label>
+                </div>
+                
+                <div>
+                  <Label htmlFor="accountNumber" className="text-sm font-medium text-gray-700 mb-1.5 block">{t('account_number')}</Label>
                   <Input
                     id="accountNumber"
                     placeholder={t('enter_account_number')}
@@ -930,17 +1068,23 @@ export const AddFarmer: React.FC = () => {
                       const value = e.target.value.replace(/\D/g, '');
                       setFormData({...formData, accountNumber: value});
                     }}
-                    className='border-gray-200'
+                    className="h-11 bg-white border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 shadow-sm"
                   />
-                  <Label htmlFor="ifscCode" className='mt-3 mb-1'>{t('ifsc_code')}</Label>
+                </div>
+                
+                <div>
+                  <Label htmlFor="ifscCode" className="text-sm font-medium text-gray-700 mb-1.5 block">{t('ifsc_code')}</Label>
                   <Input
                     id="ifscCode"
                     placeholder={t('enter_ifsc_code')}
                     value={formData.ifscCode}
                     onChange={(e) => setFormData({...formData, ifscCode: e.target.value.toUpperCase()})}
-                    className='border-gray-200'
+                    className="h-11 bg-white border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 shadow-sm uppercase"
                   />
-                  <Label htmlFor="bankPassbook" className='mt-3 mb-1'>{t('bank_passbook_cheque')}</Label>
+                </div>
+                
+                <div>
+                  <Label htmlFor="bankPassbook" className="text-sm font-medium text-gray-700 mb-1.5 block">{t('bank_passbook_cheque')}</Label>
                   <input
                     type="file"
                     accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
@@ -949,18 +1093,18 @@ export const AddFarmer: React.FC = () => {
                     id="bankPassbook"
                   />
                   {bankPassbookFile || formData.bankPassbookPhoto ? (
-                    <div className="flex items-center justify-between gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
+                    <div className="flex items-center justify-between gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 shadow-sm">
                       {formData.bankPassbookPhoto && !bankPassbookFile ? (
                         <a
                           href={formData.bankPassbookPhoto}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-sm text-blue-600 underline truncate"
+                          className="text-sm font-medium text-blue-600 hover:text-blue-700 underline truncate"
                         >
                           {bankPassbookName || 'View uploaded document'}
                         </a>
                       ) : (
-                        <span className="text-sm text-gray-700 truncate">{bankPassbookName || 'Uploaded document'}</span>
+                        <span className="text-sm font-medium text-gray-700 truncate">{bankPassbookName || 'Uploaded document'}</span>
                       )}
                       <div className="flex items-center gap-2 shrink-0">
                         <Button
@@ -968,7 +1112,7 @@ export const AddFarmer: React.FC = () => {
                           variant="outline"
                           size="sm"
                           onClick={previewBankPassbook}
-                          className="text-blue-600 border-blue-600"
+                          className="text-blue-600 border-blue-200 hover:bg-blue-50 h-8 px-3 rounded-lg"
                         >
                           {t('preview')}
                         </Button>
@@ -977,6 +1121,7 @@ export const AddFarmer: React.FC = () => {
                           variant="outline"
                           size="sm"
                           onClick={() => document.getElementById('bankPassbook')?.click()}
+                          className="h-8 px-3 rounded-lg border-gray-200"
                         >
                           {t('replace')}
                         </Button>
@@ -985,7 +1130,7 @@ export const AddFarmer: React.FC = () => {
                           variant="outline"
                           size="sm"
                           onClick={removeBankPassbook}
-                          className="text-red-600 border-red-600"
+                          className="text-red-600 border-red-200 hover:bg-red-50 h-8 px-3 rounded-lg"
                         >
                           {t('remove')}
                         </Button>
@@ -996,19 +1141,21 @@ export const AddFarmer: React.FC = () => {
                       type="button"
                       variant="outline"
                       onClick={() => document.getElementById('bankPassbook')?.click()}
-                      className="w-full flex items-center justify-center gap-2 border-gray-200"
+                      className="w-full flex items-center justify-center gap-2 border-gray-200 h-11 rounded-xl bg-gray-50/50 hover:bg-gray-50 text-gray-700"
                     >
                       <Upload className="h-4 w-4" />
                       {t('upload_bank_passbook_cheque')}
                     </Button>
                   )}
-                  <p className="text-xs text-gray-400 mt-1">{t('accepted_formats_passbook')}</p>
+                  <p className="text-xs text-gray-500 mt-2">{t('accepted_formats_passbook')}</p>
+                </div>
               </div>
             </div>
 
-            <Button 
-              type="submit" 
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white h-11"
+                <div className="pt-2 space-y-4">
+                  <Button 
+                    type="submit" 
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white h-12 rounded-xl text-[15px] font-semibold shadow-sm transition-all"
               disabled={loading}
             >
               {loading ? t('saving') : (isEditMode ? t('update_farmer') : t('create_farmer'))}
@@ -1018,12 +1165,15 @@ export const AddFarmer: React.FC = () => {
               <Button 
                 type="button"
                 onClick={handleDeleteFarmer}
-                className="w-full bg-red-600 hover:bg-red-700 text-white h-11 mt-2"
+                className="w-full bg-red-600 hover:bg-red-700 text-white h-12 rounded-xl text-[15px] font-semibold shadow-sm transition-all mt-3"
                 disabled={loading}
               >
                 {loading ? t('deleting') : t('delete_farmer')}
               </Button>
-            )}
+                  )}
+                </div>
+              </div>
+            </div>
           </form>
         </CardContent>
       </Card>
