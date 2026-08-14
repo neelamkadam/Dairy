@@ -572,6 +572,7 @@ const VLCCollectionEntry = () => {
                 </Label>
                 {(() => {
                   const selectedBranch = branches?.find((b) => b.username === formData.userId);
+                  const selectedUsername = branches?.find((b) => b.name === formData.name);
                   const filtered = branches?.filter((b) => {
                     const q = vlcSearch.toLowerCase();
                     return (
@@ -598,7 +599,7 @@ const VLCCollectionEntry = () => {
                       >
                         <span className={selectedBranch ? "text-gray-900 font-medium truncate" : "text-gray-500"}>
                           {selectedBranch
-                            ? `${selectedBranch.username} - ${selectedBranch.branchName || selectedBranch.name}`
+                            ? `${selectedBranch.username} - ${selectedBranch.name} - ${selectedBranch.branchName} `
                             : "Select VLC ID"}
                         </span>
                         <ChevronDown
@@ -654,7 +655,7 @@ const VLCCollectionEntry = () => {
                                     )}
                                   >
                                     <span className="truncate">
-                                      {val} - {branch.branchName || branch.name}
+                                      {val} - {branch.branchName} -{branch.name}
                                     </span>
                                     {isSelected && <Check className="h-4 w-4 text-blue-600 flex-shrink-0 ml-2" />}
                                   </button>
