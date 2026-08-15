@@ -9,14 +9,14 @@ type ConfigType = {
   [key: string]: VariableType;
 };
 
-const API_BASE_URL = "https://api.neodairysales.com/";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 const CONFIG: ConfigType = {
   test: {
     API_BASE: API_BASE_URL,
   },
   development: {
-    API_BASE: "https://api.neodairysales.com",
+    API_BASE: API_BASE_URL,
   },
   production: {
     API_BASE: API_BASE_URL,

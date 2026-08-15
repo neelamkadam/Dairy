@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
+import { ENV_VARIABLES } from "@/services/config";
 
 interface AccountStatusMonitorProps {
   userId: string | number;
@@ -11,7 +12,7 @@ const AccountStatusMonitor = ({ userId }: AccountStatusMonitorProps) => {
   useEffect(() => {
     if (!userId) return;
 
-    const url = `https://api.neodairysales.com/web-users/user-status/${userId}`;
+    const url = `${ENV_VARIABLES.API_BASE}/web-users/user-status/${userId}`;
     const eventSource = new EventSource(url);
 
     eventSource.onmessage = (event) => {

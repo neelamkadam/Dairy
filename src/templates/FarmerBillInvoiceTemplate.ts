@@ -2092,7 +2092,7 @@ export const generateTemplate5MilkBill = (templateData: Template2Data, _language
   const subTotal = milkAmount + totalAdditions;
   const netAmount = subTotal - totalDeductions;
 
-  const unitLine = `${templateData.dairyCode || ''} ${templateData.dairyName}${templateData.branchName ? ` (${templateData.branchName})` : ''}`;
+  const unitLine = `${templateData.dairyCode || ''} ${templateData.dairyName}`;
   const centerLine = `${templateData.farmerCode} ${templateData.farmerName}`;
 
   return `<!DOCTYPE html>
@@ -2171,7 +2171,7 @@ export const generateTemplate5MilkBill = (templateData: Template2Data, _language
     </table>
 
     <div class="panels">
-      <table class="panel" style="width: 21%;">
+      <table class="panel" style="width: 26%;">
         <tr><td class="panel-title" colspan="2">Gross Total</td></tr>
         <tr><td>Total Liters</td><td class="val">${totalQty.toFixed(2)}</td></tr>
         <tr><td>Milk Amount</td><td class="val">${milkAmount}.00</td></tr>
@@ -2179,27 +2179,19 @@ export const generateTemplate5MilkBill = (templateData: Template2Data, _language
         <tr><td>Rate Diff. B</td><td class="val">0.00</td></tr>
         <tr><td>Total A + B</td><td class="val">0.00</td></tr>
       </table>
-      <table class="panel" style="width: 19%;">
-        <tr><td class="panel-title" colspan="2">GST Amount</td></tr>
-        <tr><td>Type</td><td>Amount</td></tr>
-        <tr><td>CGST</td><td class="val">0.00</td></tr>
-        <tr><td>SGST</td><td class="val">0.00</td></tr>
-        <tr><td>IGST</td><td class="val">0.00</td></tr>
-        <tr><td>Total</td><td class="val">0.00</td></tr>
-      </table>
-      <table class="panel" style="width: 32%;">
+      <table class="panel" style="width: 40%;">
         <tr><td class="panel-title" colspan="2">Deductions</td></tr>
         <tr><td style="font-weight: bold;">Deduction</td><td style="font-weight: bold;">Amount</td></tr>
         <tr><td>Advance (BMC)</td><td class="val">${advanceAmt}.00</td></tr>
         <tr><td>Cattle (BMC)</td><td class="val">${cattleAmt}.00</td></tr>
       </table>
-      <table class="panel" style="width: 28%;">
+      <table class="panel" style="width: 34%;">
         <tr><td class="panel-title" colspan="2">Net Amount</td></tr>
         <tr><td>Milk Amount</td><td class="val" style="font-weight: bold;">${milkAmount}.00</td></tr>
         <tr><td>Total Additions</td><td class="val">${totalAdditions}.00</td></tr>
         <tr><td>Sub Total</td><td class="val">${subTotal}.00</td></tr>
         <tr><td>Total Deductions</td><td class="val">${totalDeductions}.00</td></tr>
-        <tr><td colspan="2" style="text-align: center; font-weight: bold; font-size: 13px;">${netAmount}.00</td></tr>
+        <tr><td style="font-weight: bold; font-size: 13px;">Net Payable</td><td class="val" style="font-weight: bold; font-size: 13px;">${netAmount}.00</td></tr>
       </table>
     </div>
 

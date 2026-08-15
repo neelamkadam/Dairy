@@ -1,4 +1,6 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+import { ENV_VARIABLES } from './config';
+
+const BASE_URL = ENV_VARIABLES.API_BASE;
 
 export interface DeleteFarmerResponse {
   success: boolean;
