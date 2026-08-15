@@ -1,4 +1,4 @@
-import { useState,} from "react";
+import { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import AdminAppSidebar from "./AdminAppSidebar";
 import AppNavbar from "../AppNavbar";
@@ -8,6 +8,12 @@ import { cn } from "@/lib/utils";
 const AdminAppLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+
+  useEffect(() => {
+    const handleToggle = () => setSidebarOpen(prev => !prev);
+    window.addEventListener('toggleSidebar', handleToggle);
+    return () => window.removeEventListener('toggleSidebar', handleToggle);
+  }, []);
 
   // Initialize theme from localStorage or system preference
   // useEffect(() => {
