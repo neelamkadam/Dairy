@@ -105,8 +105,12 @@ const PaymentAndReceipt: React.FC = () => {
         paymentApi.getFarmerPaymentLogs(queryParams)
       ]);
       
-      const paymentsData = (paymentsRes.data.data || []).map((p: any) => ({ ...p, _source: 'payment' }));
-      const logsData = (logsRes.data.data || []).map((l: any) => ({ ...l, _source: 'log' }));
+      const paymentsData = (paymentsRes.data.data || [])
+        .filter((p: any) => p.payment_type?.toLowerCase()?.replace(/\s+/g, "") !== "cattlefeed")
+        .map((p: any) => ({ ...p, _source: 'payment' }));
+      const logsData = (logsRes.data.data || [])
+        .filter((l: any) => l.payment_type?.toLowerCase()?.replace(/\s+/g, "") === "cattlefeed")
+        .map((l: any) => ({ ...l, _source: 'log' }));
       
       const combinedData = [...paymentsData, ...logsData];
       
