@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import {
   Select,
   SelectContent,
@@ -191,7 +192,7 @@ const CattleFeedFarmerWiseReport = () => {
 
     setLoading(true);
     try {
-      const response = await paymentApi.getFarmerPaymentLogs(dairyId);
+      const response = await paymentApi.getFarmerPaymentLogs({ dairyid: dairyId });
 
       const farmerFilter = normalizeFarmerId(farmerId);
       const cattleFeedPayments: FarmerPayment[] = ((response.data as FarmerPaymentLogsResponse)?.data || []).filter((p: FarmerPayment) => {
@@ -291,18 +292,13 @@ const CattleFeedFarmerWiseReport = () => {
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 p-3 bg-gray-50 rounded-lg">
             <div>
               <Label className="mb-1">Dairy</Label>
-              <Select value={dairyId} onValueChange={setDairyId}>
-                <SelectTrigger className="w-full border-gray-200">
-                  <SelectValue placeholder="Select dairy" />
-                </SelectTrigger>
-                <SelectContent className="bg-white">
-                  {branches?.map((branch) => (
-                    <SelectItem key={branch.branch_id} value={String(branch.branch_id)}>
-                      {branch.username} - {branch.name} - {branch.branchName || ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <VLCDropdown
+                branches={branches || []}
+                value={dairyId}
+                onChange={setDairyId}
+                valueKey="branch_id"
+                placeholder="Select dairy"
+              />
             </div>
 
             <div>

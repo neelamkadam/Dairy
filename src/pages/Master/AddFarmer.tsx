@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
+import { VLCDropdown } from '@/components/ui/vlc-dropdown';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { ChevronLeft, Upload, Download, ChevronDown, Search, UserPlus } from 'lucide-react';
@@ -62,21 +63,6 @@ export const AddFarmer: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [bulkUploading, setBulkUploading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  
-  const [vlcOpen, setVlcOpen] = useState(false);
-  const [vlcSearch, setVlcSearch] = useState('');
-  const vlcSearchRef = useRef<HTMLInputElement>(null);
-  const vlcWrapperRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (vlcWrapperRef.current && !vlcWrapperRef.current.contains(event.target as Node)) {
-        setVlcOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const downloadTemplate = () => {
     const template = [
@@ -693,9 +679,6 @@ export const AddFarmer: React.FC = () => {
     <div className="w-full px-4 md:max-w-7xl mx-auto space-y-4 md:space-y-6 py-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-2">
         <div className="flex items-center space-x-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0 hover:bg-gray-100 rounded-xl mr-1">
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
           <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
             <UserPlus className="h-6 w-6" />
           </div>
@@ -746,99 +729,14 @@ export const AddFarmer: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
                 <div>
                   <Label htmlFor="VLC" className="text-sm font-medium text-gray-700 mb-1.5 block">VLC <span className="text-red-500">*</span></Label>
-                  {(() => {
-                    const selectedBranch = branches?.find((b) => b.branch_id.toString() === formData.VLC);
-                    const filtered = branches?.filter((b) => {
-                      const q = vlcSearch.toLowerCase();
-                      return (
-                        !q ||
-                        String(b.username || "").toLowerCase().includes(q) ||
-                        String(b.branch_id || "").toLowerCase().includes(q) ||
-                        String(b.name || "").toLowerCase().includes(q) ||
-                        String(b.branchName || "").toLowerCase().includes(q)
-                      );
-                    }) || [];
-                    return (
-                      <div ref={vlcWrapperRef} className="relative w-full">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setVlcOpen((prev) => !prev);
-                            if (!vlcOpen) setTimeout(() => vlcSearchRef.current?.focus(), 0);
-                            else setVlcSearch("");
-                          }}
-                          className={cn(
-                            "w-full flex items-center justify-between px-3 py-2 h-11 text-sm rounded-xl border bg-white transition-all shadow-sm",
-                            vlcOpen ? "border-blue-500 ring-2 ring-blue-500/20" : "border-gray-200 hover:border-blue-300"
-                          )}
-                        >
-                          <span className={selectedBranch ? "text-gray-900 font-medium truncate" : "text-gray-500"}>
-                            {selectedBranch
-                              ? `${selectedBranch.username} - ${selectedBranch.branchName || selectedBranch.name}`
-                              : t('select_vlc')}
-                          </span>
-                          <ChevronDown
-                            className={cn("h-4 w-4 text-gray-400 flex-shrink-0 ml-2 transition-transform duration-150", vlcOpen && "rotate-180")}
-                          />
-                        </button>
-
-                        {vlcOpen && (
-                          <div
-                            className="absolute z-50 mt-1 w-full bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden"
-                            style={{ top: "100%", left: 0 }}
-                          >
-                            <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100">
-                              <Search className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                              <input
-                                ref={vlcSearchRef}
-                                value={vlcSearch}
-                                onChange={(e) => setVlcSearch(e.target.value)}
-                                placeholder="Search VLC..."
-                                className="flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400 h-8"
-                              />
-                              {vlcSearch && (
-                                <button
-                                  type="button"
-                                  onMouseDown={(e) => { e.preventDefault(); setVlcSearch(""); vlcSearchRef.current?.focus(); }}
-                                  className="text-gray-400 hover:text-gray-600 text-sm leading-none"
-                                >
-                                  ✕
-                                </button>
-                              )}
-                            </div>
-                            <div className="max-h-48 overflow-y-auto p-1">
-                              {filtered.length === 0 ? (
-                                <div className="px-3 py-4 text-center text-sm text-gray-400">No VLC branches found</div>
-                              ) : (
-                                filtered.map((branch) => {
-                                  if (!branch?.branch_id) return null;
-                                  const val = branch.branch_id.toString();
-                                  const isSelected = val === formData.VLC;
-                                  return (
-                                    <button
-                                      key={val}
-                                      type="button"
-                                      onClick={() => {
-                                        setFormData({...formData, VLC: val});
-                                        setVlcOpen(false);
-                                        setVlcSearch("");
-                                      }}
-                                      className={cn(
-                                        "w-full text-left px-3 py-2 text-sm rounded-lg transition-colors flex items-center justify-between",
-                                        isSelected ? "bg-blue-50 text-blue-700 font-medium" : "hover:bg-gray-50 text-gray-700"
-                                      )}
-                                    >
-                                      <span className="truncate">{branch.username} - {branch.branchName || branch.name}</span>
-                                    </button>
-                                  );
-                                })
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
+                  <VLCDropdown
+                    branches={branches || []}
+                    value={formData.VLC}
+                    onChange={(val) => setFormData(prev => ({ ...prev, VLC: val }))}
+                    placeholder={t('select_vlc')}
+                    className="h-11 rounded-xl shadow-sm"
+                    valueKey="branch_id"
+                  />
                 </div>
 
 

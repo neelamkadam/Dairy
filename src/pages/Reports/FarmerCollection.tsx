@@ -23,6 +23,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/redux/store";
 import { toast } from "react-toastify";
@@ -209,123 +210,71 @@ const FarmerCollection = () => {
         <hr className="text-gray-300" />
         <Tabs defaultValue="collection" className="w-full border-none">
           <TabsContent value="collection" className="space-y-6">
-            <Card className="border-none w-full px-4 md:w-[90%] lg:w-[85%] m-auto mt-5 bg-white text-left">
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                  <div>
-                    <label className="text-sm font-medium">{t('vlc_name')}</label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-between text-left font-normal border-gray-200 bg-white h-10 shadow-none">
-                          <span className="truncate">
-                            {selectedVLCs.length > 0 
-                              ? `${selectedVLCs.length} VLC(s) selected` 
-                              : "Select VLC Centers"}
-                          </span>
-                          <CalendarIcon className="ml-2 h-4 w-4 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[350px] p-0 bg-white shadow-lg border" align="start">
-                        <div className="p-2 border-b">
-                          <Input 
-                            placeholder="Search VLC..." 
-                            value={vlcSearch}
-                            onChange={(e) => setVlcSearch(e.target.value)}
-                            className="h-9 shadow-none text-sm"
-                          />
-                        </div>
-                        <div className="max-h-[300px] overflow-y-auto p-2">
-                          <div className="flex items-center space-x-2 pb-2 mb-2 border-b px-2">
-                            <Checkbox 
-                              id="select-all-vlc"
-                              checked={selectedVLCs.length === branches.length && branches.length > 0}
-                              onCheckedChange={(checked) => {
-                                if (checked) setSelectedVLCs(branches.map(b => b.branch_id.toString()));
-                                else setSelectedVLCs([]);
-                              }}
-                            />
-                            <label htmlFor="select-all-vlc" className="text-sm font-semibold cursor-pointer">Select All VLCs</label>
-                          </div>
-                          {filteredBranches.length > 0 ? (
-                            filteredBranches.map((branch) => (
-                              <div key={branch.branch_id} className="flex items-center space-x-2 py-1.5 px-2 hover:bg-gray-50 rounded-sm">
-                                <Checkbox 
-                                  id={`vlc-${branch.branch_id}`}
-                                  checked={selectedVLCs.includes(branch.branch_id.toString())}
-                                  onCheckedChange={(checked) => {
-                                    if (checked) setSelectedVLCs([...selectedVLCs, branch.branch_id.toString()]);
-                                    else setSelectedVLCs(selectedVLCs.filter(id => id !== branch.branch_id.toString()));
-                                  }}
-                                />
-                                <label htmlFor={`vlc-${branch.branch_id}`} className="text-sm cursor-pointer truncate">
-                                  {branch.username} - {branch.name}
-                                </label>
-                              </div>
-                            ))
-                          ) : (
-                            <div className="p-4 text-center text-sm text-gray-500">No VLC centers found.</div>
-                          )}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">{t('milk_type')}</label>
-                    <Select value={milkType} onValueChange={setMilkType}>
-                      <SelectTrigger className="w-full border-gray-200">
-                        <SelectValue placeholder="Cow" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white">
-                        <SelectItem value="All">{t('all')}</SelectItem>
-                        <SelectItem value="Cow">{t('cow')}</SelectItem>
-                        <SelectItem value="Buffalo">{t('buffalo')}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">{t('shift')}</label>
-                    <Select value={shift} onValueChange={setShift}>
-                      <SelectTrigger className="w-full border-gray-200">
-                        <SelectValue placeholder="Morning" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white">
-                        <SelectItem value="All">{t('all')}</SelectItem>
-                        <SelectItem value="Morning">{t('morning')}</SelectItem>
-                        <SelectItem value="Evening">{t('evening')}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">{t('from_date')}</label>
-                    <AppDatePicker
-                      date={fromDate}
-                      onChange={(dateStr) => {
-                        const parsed = parseISO(dateStr);
-                        if (isValid(parsed)) setFromDate(parsed);
-                      }}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">{t('to_date')}</label>
-                    <AppDatePicker
-                      date={toDate}
-                      onChange={(dateStr) => {
-                        const parsed = parseISO(dateStr);
-                        if (isValid(parsed)) setToDate(parsed);
-                      }}
-                    />
-                  </div>
-                </div>
-                <Button onClick={handleSubmit} disabled={loading} className="bg-blue-600 hover:bg-blue-700 w-full h-11 text-white">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-end bg-white p-3 sm:p-4 rounded-lg shadow-sm mx-2 mb-4 text-left">
+              <div>
+                <label className="text-sm font-medium">{t('vlc_name')}</label>
+                <VLCDropdown
+                  branches={branches || []}
+                  value={selectedVLCs}
+                  onChange={(value) => setSelectedVLCs(value)}
+                  valueKey="branch_id"
+                  placeholder="Select VLC Centers"
+                  isMultiSelect={true}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">{t('milk_type')}</label>
+                <Select value={milkType} onValueChange={setMilkType}>
+                  <SelectTrigger className="w-full border-gray-200">
+                    <SelectValue placeholder="Cow" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="All">{t('all')}</SelectItem>
+                    <SelectItem value="Cow">{t('cow')}</SelectItem>
+                    <SelectItem value="Buffalo">{t('buffalo')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium">{t('shift')}</label>
+                <Select value={shift} onValueChange={setShift}>
+                  <SelectTrigger className="w-full border-gray-200">
+                    <SelectValue placeholder="Morning" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="All">{t('all')}</SelectItem>
+                    <SelectItem value="Morning">{t('morning')}</SelectItem>
+                    <SelectItem value="Evening">{t('evening')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{t('from_date')}</label>
+                <AppDatePicker
+                  date={fromDate}
+                  onChange={(dateStr) => {
+                    const parsed = parseISO(dateStr);
+                    if (isValid(parsed)) setFromDate(parsed);
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{t('to_date')}</label>
+                <AppDatePicker
+                  date={toDate}
+                  onChange={(dateStr) => {
+                    const parsed = parseISO(dateStr);
+                    if (isValid(parsed)) setToDate(parsed);
+                  }}
+                />
+              </div>
+              <div className="lg:col-span-4 xl:col-span-5 flex justify-end">
+                <Button onClick={handleSubmit} disabled={loading} className="bg-blue-600 hover:bg-blue-700 w-[120px] text-white">
                   {loading ? t('loading') : t('submit')}
                 </Button>
-              </CardContent>
-            </Card>
-            <div className="flex justify-end flex-wrap gap-3 px-4 md:px-0 md:w-[90%] lg:w-[85%] m-auto mt-4">
+              </div>
+            </div>
+            <div className="flex justify-end flex-wrap gap-3 mx-2 mb-4">
               <Button 
                 onClick={exportToText}
                 disabled={!collectionData || collectionData.length === 0}

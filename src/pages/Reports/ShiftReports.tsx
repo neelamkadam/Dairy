@@ -7,6 +7,7 @@ import { AppDatePicker } from "@/components/ui/date-picker";
 import { format, parseISO, isValid } from "date-fns";
 import { generateShiftReportExcel } from "@/templates/ShiftReportExcelTemplate";
 import PdfLoader from "@/components/PdfLoader";
+import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import {
   Select,
   SelectContent,
@@ -320,95 +321,70 @@ const ShiftReports:React.FC = () => {
   const paginatedData = farmerData.slice(startIndex, endIndex);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="p-2 sm:p-4 bg-gray-50 min-h-screen text-left">
       <PdfLoader isLoading={pdfLoading} />
       {/* Header */}
-      <header className="bg-slate-700 text-white p-4 shadow-lg">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-white p-2 rounded">
-              <FileText className="h-6 w-6 text-slate-700" />
-            </div>
-            <h1 className="text-xl md:text-2xl font-semibold">
-              Daily Shift Report
-            </h1>
-          </div>
-        </div>
-      </header>
-      <div className="p-4">
-        <div className="w-[85%] text-left grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
-          <div className="space-y-2 w-full">
-            <label className="text-sm font-medium text-gray-700">
-              VLC Name
-            </label>
-            <Select value={formData.selectedDairy} onValueChange={(value) => setFormData({...formData, selectedDairy: value})}>
-              <SelectTrigger className=" w-full bg-white border-gray-200">
-                <SelectValue placeholder="Select VLC">
-                  {formData.selectedDairy && (() => {
-                    const selected = branches.find(b => b.branch_id.toString() === formData.selectedDairy);
-                    if (selected) {
-                      const text = `${selected.username} - ${selected.name} - ${selected.branchName || ''}`;
-                      return text.length > 30 ? text.substring(0, 30) + '...' : text;
-                    }
-                    return 'Select VLC';
-                  })()}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent className="bg-white">
-                {(branches || []).map((branch) => (
-                  <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
-                    {branch.username} - {branch.name} - {branch.branchName || ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">
-              Milk Type
-            </label>
-            <Select value={formData.milkType} onValueChange={(value) => setFormData({...formData, milkType: value})}>
-              <SelectTrigger className=" w-full bg-white border-gray-200">
-                <SelectValue placeholder="Select Type" />
-              </SelectTrigger>
-              <SelectContent className="bg-white">
-                <SelectItem value="mixed">All</SelectItem>
-                <SelectItem value="cow">Cow Milk</SelectItem>
-                <SelectItem value="buffalo">Buffalo Milk</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4 mt-5">
-          <div className="space-y-2 text-left ">
-            <Label>Date From</Label>
-            <AppDatePicker
-              date={formData.date}
-              onChange={(dateStr) => {
-                const parsed = parseISO(dateStr);
-                if (isValid(parsed)) setFormData({ ...formData, date: parsed });
-              }}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">
-              Shift Type
-            </label>
-            <Select value={formData.shift} onValueChange={(value) => setFormData({...formData, shift: value})}>
-              <SelectTrigger className="w-full bg-white border-gray-200">
-                <SelectValue placeholder="Select Shift" />
-              </SelectTrigger>
-              <SelectContent className="bg-white">
-                <SelectItem value="morning">Morning</SelectItem>
-                <SelectItem value="evening">Evening</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+      <div className="flex flex-col items-start text-left gap-1 animate-in fade-in slide-in-from-top-4 duration-700 px-2 mb-2">
+        <h1 className="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600">
+          Daily Shift Report
+        </h1>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-end bg-white p-3 sm:p-4 rounded-lg shadow-sm mx-2 mb-4 text-left">
+        <div className="space-y-2 w-full">
+          <label className="text-sm font-medium text-gray-700">
+            VLC Name
+          </label>
+          <VLCDropdown
+            branches={branches || []}
+            value={formData.selectedDairy}
+            onChange={(value) => setFormData({...formData, selectedDairy: String(value)})}
+            valueKey="branch_id"
+            placeholder="Select VLC"
+          />
         </div>
 
-        <div className="flex flex-nowrap items-center gap-3 mt-5 overflow-x-auto">
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">
+            Milk Type
+          </label>
+          <Select value={formData.milkType} onValueChange={(value) => setFormData({...formData, milkType: value})}>
+            <SelectTrigger className=" w-full bg-white border-gray-200">
+              <SelectValue placeholder="Select Type" />
+            </SelectTrigger>
+            <SelectContent className="bg-white">
+              <SelectItem value="mixed">All</SelectItem>
+              <SelectItem value="cow">Cow Milk</SelectItem>
+              <SelectItem value="buffalo">Buffalo Milk</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>Date From</Label>
+          <AppDatePicker
+            date={formData.date}
+            onChange={(dateStr) => {
+              const parsed = parseISO(dateStr);
+              if (isValid(parsed)) setFormData({ ...formData, date: parsed });
+            }}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">
+            Shift Type
+          </label>
+          <Select value={formData.shift} onValueChange={(value) => setFormData({...formData, shift: value})}>
+            <SelectTrigger className="w-full bg-white border-gray-200">
+              <SelectValue placeholder="Select Shift" />
+            </SelectTrigger>
+            <SelectContent className="bg-white">
+              <SelectItem value="morning">Morning</SelectItem>
+              <SelectItem value="evening">Evening</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="xl:col-span-5 flex flex-wrap items-center gap-3 mt-4">
             <Button
               onClick={fetchCollectionReport}
               disabled={loading}
@@ -465,8 +441,8 @@ const ShiftReports:React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6 bg-white">
-        <Table className="border-none text-center">
+      <div className="mx-2 p-2 sm:p-4 bg-white rounded-lg shadow-sm overflow-x-auto space-y-4">
+        <Table className="border-none text-center whitespace-nowrap text-sm border-collapse [&_th]:h-auto [&_th]:py-2 [&_th]:px-3 [&_td]:py-2 [&_td]:px-3 [&_th]:align-middle">
           <TableHeader>
               <TableRow className="bg-slate-50 hover:bg-slate-50 border-b border-slate-200">
               <TableHead className="font-semibold text-slate-500 text-xs uppercase tracking-wider text-center border-r border-slate-200 last:border-r-0">

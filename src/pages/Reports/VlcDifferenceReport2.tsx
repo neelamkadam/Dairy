@@ -15,15 +15,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChevronDown } from "lucide-react";
 import { useState } from "react";
+import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import { Label } from "@/components/ui/label";
 import { useAppSelector } from "@/redux/store";
 import { reportsApi } from "@/services/reportsApi";
@@ -133,19 +126,7 @@ const VlcDifferenceReport2 = () => {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [language, setLanguage] = useState<string>(i18n.language || 'en');
 
-  const isAllSelected = !!branches?.length && vlcIds.length === branches.length;
 
-  const toggleVlc = (username: string) => {
-    setVlcIds((prev) =>
-      prev.includes(username)
-        ? prev.filter((id) => id !== username)
-        : [...prev, username]
-    );
-  };
-
-  const toggleSelectAll = () => {
-    setVlcIds(isAllSelected ? [] : (branches?.map((b) => b.username) ?? []));
-  };
 
   // Process a single VLC's raw API rows into display rows (with summaries).
   const processVlcRawData = (rawData: any[]) => {
@@ -709,7 +690,7 @@ const VlcDifferenceReport2 = () => {
       return (
         <TableCell
           key={field}
-          className={`border border-gray-200 text-center font-bold ${isSummaryRow ? bgSummary : bg} ${n < 0 ? 'text-red-600' : n > 0 ? 'text-green-600' : 'text-gray-700'}`}
+          className={`border border-gray-200 text-right font-bold ${isSummaryRow ? bgSummary : bg} ${n < 0 ? 'text-red-600' : n > 0 ? 'text-green-600' : 'text-gray-700'}`}
         >
           {display}
         </TableCell>
@@ -719,64 +700,25 @@ const VlcDifferenceReport2 = () => {
   const consolidatedRows = buildConsolidatedRows();
 
   return (
-    <div className="p-6 bg-white w-full h-screen">
+    <div className="p-2 sm:p-4 bg-white w-full min-h-screen flex flex-col">
       <PdfLoader isLoading={pdfLoading} />
-      <h1 className="text-lg font-bold mb-7">VLCC Difference Report 2</h1>
-      <div className="p-3 rounded-lg space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      {/* Header */}
+      <div className="flex flex-col items-start text-left gap-1 animate-in fade-in slide-in-from-top-4 duration-700 px-2 mb-2">
+        <h1 className="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600">
+          VLCC Difference Report 2
+        </h1>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 items-end bg-white p-3 sm:p-4 rounded-lg shadow-sm mx-2 mb-4 text-left">
           <div>
             <Label className="mb-1">VLC Name</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full justify-between border-gray-200 font-normal"
-                >
-                  <span className="truncate">
-                    {vlcIds.length === 0
-                      ? "Select VLC"
-                      : isAllSelected
-                        ? "All VLCs selected"
-                        : `${vlcIds.length} VLC${vlcIds.length > 1 ? 's' : ''} selected`}
-                  </span>
-                  <ChevronDown size={16} className="ml-2 shrink-0 opacity-60" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-72 p-0 bg-white" align="start">
-                <div className="flex items-center justify-between border-b px-3 py-2">
-                  <span className="text-sm font-medium">VLCs</span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 text-xs text-blue-600 hover:text-blue-700"
-                    onClick={toggleSelectAll}
-                  >
-                    {isAllSelected ? "Clear All" : "Select All"}
-                  </Button>
-                </div>
-                <ScrollArea className="h-64">
-                  <div className="p-1">
-                    {branches?.map((branch) => (
-                      <label
-                        key={branch.username}
-                        htmlFor={`vlc-${branch.username}`}
-                        className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-gray-100"
-                      >
-                        <Checkbox
-                          id={`vlc-${branch.username}`}
-                          checked={vlcIds.includes(branch.username)}
-                          onCheckedChange={() => toggleVlc(branch.username)}
-                        />
-                        <span className="truncate">
-                          {branch.username} - {branch.name} - {branch.branchName || ''}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </PopoverContent>
-            </Popover>
+          <VLCDropdown
+            branches={branches || []}
+            value={vlcIds}
+            onChange={(val) => setVlcIds(val as string[])}
+            valueKey="username"
+            placeholder="Select VLC"
+            isMultiSelect={true}
+          />
           </div>
           <div>
             <Label className="mb-1">From Date</Label>
@@ -822,15 +764,17 @@ const VlcDifferenceReport2 = () => {
               </SelectContent>
             </Select>
           </div>
-        </div>
-        <div className="flex items-center gap-3">
+        <div className="xl:col-span-6 flex justify-end">
           <Button
             onClick={handleShow}
             disabled={loading}
-            className="text-white bg-blue-600 w-[90px]"
+            className="text-white bg-blue-600 w-[120px]"
           >
             {loading ? "Loading..." : "Show"}
           </Button>
+        </div>
+      </div>
+      <div className="flex justify-end gap-2 mx-2 mb-4">
           <Button
             onClick={handleExportPDF}
             disabled={!reportData || reportData.length === 0}
@@ -847,69 +791,68 @@ const VlcDifferenceReport2 = () => {
             <FileSpreadsheet size={16} />
             Export Excel
           </Button>
-        </div>
       </div>
-      <div className="overflow-x-auto mt-4 border border-gray-200 rounded-lg shadow-sm">
-        <Table className="text-xs [&_th]:h-auto [&_th]:py-2 [&_th]:px-2 [&_td]:py-1.5 [&_td]:px-2 [&_th]:align-middle">
+      <div className="overflow-x-auto mt-2 border border-gray-200 rounded-lg shadow-sm">
+        <Table className="whitespace-nowrap text-xs [&_th]:h-auto [&_th]:py-2 [&_th]:px-2 [&_td]:py-1.5 [&_td]:px-2 [&_th]:align-middle">
           <TableHeader>
             <TableRow className="bg-gradient-to-r from-blue-50 to-blue-100">
-              <TableHead rowSpan={2} className="text-center border border-gray-200 font-bold text-gray-900">Type</TableHead>
-              <TableHead colSpan={7} className="text-center border border-gray-200 font-bold text-green-900 py-3">
+              <TableHead rowSpan={2} className="text-left border border-gray-200 font-bold text-gray-900">Type</TableHead>
+              <TableHead colSpan={7} className="text-center border border-gray-200 font-bold text-green-900 py-2">
                 Composite
               </TableHead>
-              <TableHead colSpan={7} className="text-center border border-gray-200 font-bold text-gray-700 bg-gray-200 py-3">
+              <TableHead colSpan={7} className="text-center border border-gray-200 font-bold text-gray-700 bg-gray-200 py-2">
                 Dispatch
               </TableHead>
-              <TableHead colSpan={7} className="text-center border border-gray-200 font-bold text-blue-900 py-3">
+              <TableHead colSpan={7} className="text-center border border-gray-200 font-bold text-blue-900 py-2">
                 Actual
               </TableHead>
-              <TableHead colSpan={5} className="text-center border border-gray-200 font-bold text-purple-900 py-3">
+              <TableHead colSpan={5} className="text-center border border-gray-200 font-bold text-purple-900 py-2">
                 Composite - Actual
               </TableHead>
-              <TableHead colSpan={5} className="text-center border border-gray-200 font-bold text-orange-900 bg-orange-50 py-3">
+              <TableHead colSpan={5} className="text-center border border-gray-200 font-bold text-orange-900 bg-orange-50 py-2">
                 Dispatch - Actual
               </TableHead>
-              <TableHead colSpan={5} className="text-center border border-gray-200 font-bold text-teal-900 bg-teal-50 py-3">
+              <TableHead colSpan={5} className="text-center border border-gray-200 font-bold text-teal-900 bg-teal-50 py-2">
                 Composite - Dispatch
               </TableHead>
             </TableRow>
             <TableRow>
-              <TableHead className="text-center font-semibold bg-green-50 border border-gray-200 text-green-800">Weight</TableHead>
-              <TableHead className="text-center font-semibold bg-green-50 border border-gray-200 text-green-800">Fat</TableHead>
-              <TableHead className="text-center font-semibold bg-green-50 border border-gray-200 text-green-800">SNF</TableHead>
-              <TableHead className="text-center font-semibold bg-green-50 border border-gray-200 text-green-800">Kg Fat</TableHead>
-              <TableHead className="text-center font-semibold bg-green-50 border border-gray-200 text-green-800">Kg SNF</TableHead>
-              <TableHead className="text-center font-semibold bg-green-50 border border-gray-200 text-green-800">Rate</TableHead>
-              <TableHead className="text-center font-semibold bg-green-50 border border-gray-200 text-green-800">Amount</TableHead>
-              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">Weight</TableHead>
-              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">Fat</TableHead>
-              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">SNF</TableHead>
-              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">Kg Fat</TableHead>
-              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">Kg SNF</TableHead>
-              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">Rate</TableHead>
-              <TableHead className="text-center font-semibold bg-gray-100 border border-gray-200 text-gray-700">Amount</TableHead>
-              <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Weight</TableHead>
-              <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Fat</TableHead>
-              <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">SNF</TableHead>
-              <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Kg Fat</TableHead>
-              <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Kg SNF</TableHead>
-              <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Rate</TableHead>
-              <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Amount</TableHead>
-              <TableHead className="text-center font-semibold bg-purple-50 border border-gray-200 text-purple-800">Weight</TableHead>
-              <TableHead className="text-center font-semibold bg-purple-50 border border-gray-200 text-purple-800">Fat</TableHead>
-              <TableHead className="text-center font-semibold bg-purple-50 border border-gray-200 text-purple-800">SNF</TableHead>
-              <TableHead className="text-center font-semibold bg-purple-50 border border-gray-200 text-purple-800">Rate</TableHead>
-              <TableHead className="text-center font-semibold bg-purple-50 border border-gray-200 text-purple-800">Amount</TableHead>
-              <TableHead className="text-center font-semibold bg-orange-50 border border-gray-200 text-orange-800">Weight</TableHead>
-              <TableHead className="text-center font-semibold bg-orange-50 border border-gray-200 text-orange-800">Fat</TableHead>
-              <TableHead className="text-center font-semibold bg-orange-50 border border-gray-200 text-orange-800">SNF</TableHead>
-              <TableHead className="text-center font-semibold bg-orange-50 border border-gray-200 text-orange-800">Rate</TableHead>
-              <TableHead className="text-center font-semibold bg-orange-50 border border-gray-200 text-orange-800">Amount</TableHead>
-              <TableHead className="text-center font-semibold bg-teal-50 border border-gray-200 text-teal-800">Weight</TableHead>
-              <TableHead className="text-center font-semibold bg-teal-50 border border-gray-200 text-teal-800">Fat</TableHead>
-              <TableHead className="text-center font-semibold bg-teal-50 border border-gray-200 text-teal-800">SNF</TableHead>
-              <TableHead className="text-center font-semibold bg-teal-50 border border-gray-200 text-teal-800">Rate</TableHead>
-              <TableHead className="text-center font-semibold bg-teal-50 border border-gray-200 text-teal-800">Amount</TableHead>
+              <TableHead className="text-right font-semibold bg-green-50 border border-gray-200 text-green-800">Weight</TableHead>
+              <TableHead className="text-right font-semibold bg-green-50 border border-gray-200 text-green-800">Fat</TableHead>
+              <TableHead className="text-right font-semibold bg-green-50 border border-gray-200 text-green-800">SNF</TableHead>
+              <TableHead className="text-right font-semibold bg-green-50 border border-gray-200 text-green-800">Kg Fat</TableHead>
+              <TableHead className="text-right font-semibold bg-green-50 border border-gray-200 text-green-800">Kg SNF</TableHead>
+              <TableHead className="text-right font-semibold bg-green-50 border border-gray-200 text-green-800">Rate</TableHead>
+              <TableHead className="text-right font-semibold bg-green-50 border border-gray-200 text-green-800">Amount</TableHead>
+              <TableHead className="text-right font-semibold bg-gray-100 border border-gray-200 text-gray-700">Weight</TableHead>
+              <TableHead className="text-right font-semibold bg-gray-100 border border-gray-200 text-gray-700">Fat</TableHead>
+              <TableHead className="text-right font-semibold bg-gray-100 border border-gray-200 text-gray-700">SNF</TableHead>
+              <TableHead className="text-right font-semibold bg-gray-100 border border-gray-200 text-gray-700">Kg Fat</TableHead>
+              <TableHead className="text-right font-semibold bg-gray-100 border border-gray-200 text-gray-700">Kg SNF</TableHead>
+              <TableHead className="text-right font-semibold bg-gray-100 border border-gray-200 text-gray-700">Rate</TableHead>
+              <TableHead className="text-right font-semibold bg-gray-100 border border-gray-200 text-gray-700">Amount</TableHead>
+              <TableHead className="text-right font-semibold bg-blue-50 border border-gray-200 text-blue-800">Weight</TableHead>
+              <TableHead className="text-right font-semibold bg-blue-50 border border-gray-200 text-blue-800">Fat</TableHead>
+              <TableHead className="text-right font-semibold bg-blue-50 border border-gray-200 text-blue-800">SNF</TableHead>
+              <TableHead className="text-right font-semibold bg-blue-50 border border-gray-200 text-blue-800">Kg Fat</TableHead>
+              <TableHead className="text-right font-semibold bg-blue-50 border border-gray-200 text-blue-800">Kg SNF</TableHead>
+              <TableHead className="text-right font-semibold bg-blue-50 border border-gray-200 text-blue-800">Rate</TableHead>
+              <TableHead className="text-right font-semibold bg-blue-50 border border-gray-200 text-blue-800">Amount</TableHead>
+              <TableHead className="text-right font-semibold bg-purple-50 border border-gray-200 text-purple-800">Weight</TableHead>
+              <TableHead className="text-right font-semibold bg-purple-50 border border-gray-200 text-purple-800">Fat</TableHead>
+              <TableHead className="text-right font-semibold bg-purple-50 border border-gray-200 text-purple-800">SNF</TableHead>
+              <TableHead className="text-right font-semibold bg-purple-50 border border-gray-200 text-purple-800">Rate</TableHead>
+              <TableHead className="text-right font-semibold bg-purple-50 border border-gray-200 text-purple-800">Amount</TableHead>
+              <TableHead className="text-right font-semibold bg-orange-50 border border-gray-200 text-orange-800">Weight</TableHead>
+              <TableHead className="text-right font-semibold bg-orange-50 border border-gray-200 text-orange-800">Fat</TableHead>
+              <TableHead className="text-right font-semibold bg-orange-50 border border-gray-200 text-orange-800">SNF</TableHead>
+              <TableHead className="text-right font-semibold bg-orange-50 border border-gray-200 text-orange-800">Rate</TableHead>
+              <TableHead className="text-right font-semibold bg-orange-50 border border-gray-200 text-orange-800">Amount</TableHead>
+              <TableHead className="text-right font-semibold bg-teal-50 border border-gray-200 text-teal-800">Weight</TableHead>
+              <TableHead className="text-right font-semibold bg-teal-50 border border-gray-200 text-teal-800">Fat</TableHead>
+              <TableHead className="text-right font-semibold bg-teal-50 border border-gray-200 text-teal-800">SNF</TableHead>
+              <TableHead className="text-right font-semibold bg-teal-50 border border-gray-200 text-teal-800">Rate</TableHead>
+              <TableHead className="text-right font-semibold bg-teal-50 border border-gray-200 text-teal-800">Amount</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -930,28 +873,28 @@ const VlcDifferenceReport2 = () => {
 
                 return (
                   <TableRow key={index} className="hover:bg-gray-50">
-                    <TableCell className="border border-gray-200 text-center font-medium bg-gray-50">{row.type}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-green-50/30">{row.dairy!.total_weight}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-green-50/30">{row.dairy!.avg_fat}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-green-50/30">{row.dairy!.avg_snf}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-green-50/30">{row.dairy!.kg_fat}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-green-50/30">{row.dairy!.kg_snf}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-green-50/30">{row.dairy!.avg_rate}</TableCell>
-                    <TableCell className="border border-gray-200 text-center font-semibold bg-green-50/30">{row.dairy!.total_amount}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-gray-100">{row.milk_collection!.total_weight}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-gray-100">{row.milk_collection!.avg_fat}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-gray-100">{row.milk_collection!.avg_snf}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-gray-100">{row.milk_collection!.kg_fat}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-gray-100">{row.milk_collection!.kg_snf}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-gray-100">{row.milk_collection!.avg_rate}</TableCell>
-                    <TableCell className="border border-gray-200 text-center font-semibold bg-gray-100">{row.milk_collection!.total_amount}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-blue-50/30">{row.vlc!.total_weight}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-blue-50/30">{row.vlc!.avg_fat}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-blue-50/30">{row.vlc!.avg_snf}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-blue-50/30">{row.vlc!.kg_fat}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-blue-50/30">{row.vlc!.kg_snf}</TableCell>
-                    <TableCell className="border border-gray-200 text-center bg-blue-50/30">{row.vlc!.avg_rate}</TableCell>
-                    <TableCell className="border border-gray-200 text-center font-semibold bg-blue-50/30">{row.vlc!.total_amount}</TableCell>
+                    <TableCell className="border border-gray-200 text-left font-medium bg-gray-50">{row.type}</TableCell>
+                    <TableCell className="border border-gray-200 text-right bg-green-50/30">{row.dairy!.total_weight}</TableCell>
+                    <TableCell className="border border-gray-200 text-right bg-green-50/30">{row.dairy!.avg_fat}</TableCell>
+                    <TableCell className="border border-gray-200 text-right bg-green-50/30">{row.dairy!.avg_snf}</TableCell>
+                    <TableCell className="border border-gray-200 text-right bg-green-50/30">{row.dairy!.kg_fat}</TableCell>
+                    <TableCell className="border border-gray-200 text-right bg-green-50/30">{row.dairy!.kg_snf}</TableCell>
+                    <TableCell className="border border-gray-200 text-right bg-green-50/30">{row.dairy!.avg_rate}</TableCell>
+                    <TableCell className="border border-gray-200 text-right font-semibold bg-green-50/30">{row.dairy!.total_amount}</TableCell>
+                    <TableCell className="border border-gray-200 text-right bg-gray-100">{row.milk_collection!.total_weight}</TableCell>
+                    <TableCell className="border border-gray-200 text-right bg-gray-100">{row.milk_collection!.avg_fat}</TableCell>
+                    <TableCell className="border border-gray-200 text-right bg-gray-100">{row.milk_collection!.avg_snf}</TableCell>
+                    <TableCell className="border border-gray-200 text-right bg-gray-100">{row.milk_collection!.kg_fat}</TableCell>
+                    <TableCell className="border border-gray-200 text-right bg-gray-100">{row.milk_collection!.kg_snf}</TableCell>
+                    <TableCell className="border border-gray-200 text-right bg-gray-100">{row.milk_collection!.avg_rate}</TableCell>
+                    <TableCell className="border border-gray-200 text-right font-semibold bg-gray-100">{row.milk_collection!.total_amount}</TableCell>
+                    <TableCell className="border border-gray-200 text-right bg-blue-50/30">{row.vlc!.total_weight}</TableCell>
+                    <TableCell className="border border-gray-200 text-right bg-blue-50/30">{row.vlc!.avg_fat}</TableCell>
+                    <TableCell className="border border-gray-200 text-right bg-blue-50/30">{row.vlc!.avg_snf}</TableCell>
+                    <TableCell className="border border-gray-200 text-right bg-blue-50/30">{row.vlc!.kg_fat}</TableCell>
+                    <TableCell className="border border-gray-200 text-right bg-blue-50/30">{row.vlc!.kg_snf}</TableCell>
+                    <TableCell className="border border-gray-200 text-right bg-blue-50/30">{row.vlc!.avg_rate}</TableCell>
+                    <TableCell className="border border-gray-200 text-right font-semibold bg-blue-50/30">{row.vlc!.total_amount}</TableCell>
                     {renderDiffCells(row.difference, false, 'bg-purple-50/30', 'bg-purple-100')}
                     {renderDiffCells(row.vlc_milk_collection_diff, false, 'bg-orange-50/30', 'bg-orange-100')}
                     {renderDiffCells(row.milk_collection_dairy_diff, false, 'bg-teal-50/30', 'bg-teal-100')}

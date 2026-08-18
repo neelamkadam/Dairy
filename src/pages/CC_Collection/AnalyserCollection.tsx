@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
-import { FlaskConical, Search, Save, Loader2, Calculator, CheckCircle2, AlertCircle, TrendingUp, Droplets, Gauge, Calendar as CalendarIcon, MapPin, RefreshCcw, ChevronDown } from "lucide-react";
+import { FlaskConical, Search, Save, Loader2, Calculator, CheckCircle2, AlertCircle, TrendingUp, Droplets, Gauge, Calendar as CalendarIcon, MapPin, RefreshCcw, ChevronDown, ArrowLeft } from "lucide-react";
 import { useAppSelector } from "@/redux/store";
 import { ccCollectionApi } from "@/services/ccCollectionApi";
 import { userApi as reportsUserApi } from "@/services/reportsApi";
@@ -20,6 +21,7 @@ import { calculateSNFFromFatAndCLR, calculateCLRFromFatAndSNF } from "@/utils/mi
 
 const AnalyserCollection = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const branches = useAppSelector((state) => state.branch.branches);
   const [selectedBranch, setSelectedBranch] = useState<number | null>(() => {
     const saved = localStorage.getItem('cc_selected_vlc');
@@ -357,10 +359,13 @@ const AnalyserCollection = () => {
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
       {/* Top Header */}
-      <div className="flex flex-col md:flex-row items-center justify-between px-6 py-4 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm gap-4">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between px-4 md:px-6 py-4 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-            <FlaskConical className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0">
+            <ArrowLeft className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+          </Button>
+          <div className="p-2.5 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-md shadow-blue-500/20 shrink-0">
+            <FlaskConical className="h-5 w-5 text-white" />
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-900 dark:text-white">
@@ -370,9 +375,9 @@ const AnalyserCollection = () => {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4 bg-gray-100 dark:bg-gray-800 p-1.5 rounded-xl">
+        <div className="flex flex-wrap items-center gap-4 bg-gray-100 dark:bg-gray-800 p-1.5 rounded-xl w-full md:w-auto">
            {/* VLC Selector */}
-           <div className="flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-700 rounded-lg shadow-sm min-w-[300px]">
+           <div className="flex items-center gap-2 px-3 py-1 bg-white dark:bg-gray-700 rounded-lg shadow-sm w-full md:w-auto md:min-w-[300px]">
              <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0" />
              {(() => {
                const selectedBranchObj = branches?.find((b) => b.branch_id === selectedBranch);
@@ -507,9 +512,9 @@ const AnalyserCollection = () => {
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-col lg:flex-row flex-1 overflow-y-auto lg:overflow-hidden">
         {/* Main Content Area */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-8">
+        <div className="flex-1 lg:overflow-y-auto p-4 md:p-8">
           <div className="w-full max-w-5xl mx-auto space-y-6">
             {!selectedBranch ? (
               <div className="h-64 flex flex-col items-center justify-center bg-white dark:bg-gray-900 rounded-2xl border border-dashed border-gray-200 dark:border-gray-800">
@@ -710,7 +715,7 @@ const AnalyserCollection = () => {
         </div>
 
         {/* Right Sidebar - Recent Finalized */}
-        <div className="w-80 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 flex flex-col shadow-xl">
+        <div className="w-full lg:w-80 bg-white dark:bg-gray-900 border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-gray-800 flex flex-col shadow-xl min-h-[400px] lg:min-h-0">
           <div className="p-6 border-b border-gray-100 dark:border-gray-800">
             <h2 className="text-sm font-bold text-gray-900 dark:text-white flex items-center justify-between">
               <div className="flex items-center gap-2">

@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import { Download } from "lucide-react";
 import { useState } from "react";
 import { useAppSelector } from "@/redux/store";
@@ -88,88 +89,83 @@ const TotalCollectionReport = () => {
   };
 
   return (
-    <div className="p-4">
-      <div className="text-left p-4">
-        <h1 className="font-bold text-2xl">Total Collection Report</h1>
+    <div className="p-2 sm:p-4 bg-gray-50 min-h-screen">
+      <div className="text-left px-2 mb-2">
+        {/* Header */}
+      <div className="flex flex-col items-start text-left gap-1 animate-in fade-in slide-in-from-top-4 duration-700 mb-2">
+        <h1 className="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600">
+          Total Collection Report
+        </h1>
+      </div>
         <p className="text-sm text-gray-600">
           View and analyze milk collection data across VLCCs
         </p>
       </div>
-      <Card className="border-gray-300 mb-7">
-        <CardContent className="space-y-6">
-          {/* Filter Form */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 p-3 bg-gray-50 rounded-lg">
-            <div>
-              <Label className="mb-1">VLC Name</Label>
-              <Select value={dairyId} onValueChange={setDairyId}>
-                <SelectTrigger className="w-full border-gray-200">
-                  <SelectValue placeholder="Select VLC" />
-                </SelectTrigger>
-                <SelectContent className="bg-white">
-                  {branches?.map((branch) => (
-                    <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
-                      {branch.username} - {branch.name} - {branch.branchName || ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="mb-1">From Date</Label>
-              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border-gray-200"/>
-            </div>
-            <div>
-              <Label className="mb-1">Start Shift</Label>
-              <Select value={startShift} onValueChange={setStartShift}>
-                <SelectTrigger className="w-full border-gray-200">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-white">
-                  <SelectItem value="Morning">Morning</SelectItem>
-                  <SelectItem value="Evening">Evening</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="mb-1">To Date</Label>
-              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border-gray-200" />
-            </div>
-            <div>
-              <Label className="mb-1">End Shift</Label>
-              <Select value={endShift} onValueChange={setEndShift}>
-                <SelectTrigger className="w-full border-gray-200">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-white">
-                  <SelectItem value="Morning">Morning</SelectItem>
-                  <SelectItem value="Evening">Evening</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="flex justify-between items-center p-3">
-            <div className="flex gap-4">
-              <Select value={milkType} onValueChange={setMilkType}>
-                <SelectTrigger className="w-48 border-gray-200">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-white">
-                  <SelectItem value="All">All</SelectItem>
-                  <SelectItem value="Cow">Cow</SelectItem>
-                  <SelectItem value="Buffalo">Buffalo</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button onClick={handleShowReport} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white">
-              {loading ? "Loading..." : "Show Report"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 items-end bg-white p-3 sm:p-4 rounded-lg shadow-sm mx-2 mb-4 text-left">
+        <div>
+          <Label className="mb-1">VLC Name</Label>
+          <VLCDropdown
+            branches={branches || []}
+            value={dairyId}
+            onChange={setDairyId}
+            valueKey="branch_id"
+            placeholder="Select VLC"
+          />
+        </div>
+        <div>
+          <Label className="mb-1">From Date</Label>
+          <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border-gray-200 h-10"/>
+        </div>
+        <div>
+          <Label className="mb-1">Start Shift</Label>
+          <Select value={startShift} onValueChange={setStartShift}>
+            <SelectTrigger className="w-full border-gray-200 h-10">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-white">
+              <SelectItem value="Morning">Morning</SelectItem>
+              <SelectItem value="Evening">Evening</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="mb-1">To Date</Label>
+          <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border-gray-200 h-10" />
+        </div>
+        <div>
+          <Label className="mb-1">End Shift</Label>
+          <Select value={endShift} onValueChange={setEndShift}>
+            <SelectTrigger className="w-full border-gray-200 h-10">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-white">
+              <SelectItem value="Morning">Morning</SelectItem>
+              <SelectItem value="Evening">Evening</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="mb-1">Milk Type</Label>
+          <Select value={milkType} onValueChange={setMilkType}>
+            <SelectTrigger className="w-full border-gray-200 h-10">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-white">
+              <SelectItem value="All">All</SelectItem>
+              <SelectItem value="Cow">Cow</SelectItem>
+              <SelectItem value="Buffalo">Buffalo</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="xl:col-span-6 flex justify-end">
+          <Button onClick={handleShowReport} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white w-[120px]">
+            {loading ? "Loading..." : "Show Report"}
+          </Button>
+        </div>
+      </div>
       
       {/* Export Buttons */}
-      <div className="flex justify-end gap-2 mb-4">
+      <div className="flex justify-end gap-2 mb-4 mx-2">
         <Button 
           onClick={handleExportExcel}
           disabled={!summary || summary.total_liters === "0"}
@@ -192,11 +188,11 @@ const TotalCollectionReport = () => {
       {/* Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-5 text-center">
         <Card className="bg-white border-blue-200">
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-4">
             <div className="flex items-center gap-3">
-                <div className="bg-blue-500 p-3 rounded-lg">
+                <div className="bg-blue-500 p-2 sm:p-3 rounded-lg">
                   <svg
-                    className="w-6 h-6 text-white"
+                    className="w-5 h-5 sm:w-6 sm:h-6 text-white"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -209,20 +205,20 @@ const TotalCollectionReport = () => {
                   />
                 </svg>
               </div>
-              <div>
-                <p className="text-sm text-gray-600">Total Collection</p>
-                <p className="text-2xl font-bold text-gray-900">{parseFloat(summary.total_liters).toFixed(2)} L</p>
+              <div className="text-left">
+                <p className="text-xs sm:text-sm text-gray-600">Total Collection</p>
+                <p className="text-lg sm:text-xl font-bold text-gray-900">{parseFloat(summary.total_liters).toFixed(2)} L</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-white border-blue-200">
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-4">
             <div className="flex items-center gap-3">
-              <div className="bg-blue-500 p-3 rounded-lg">
+              <div className="bg-blue-500 p-2 sm:p-3 rounded-lg">
                 <svg
-                  className="w-6 h-6 text-white"
+                  className="w-5 h-5 sm:w-6 sm:h-6 text-white"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -235,20 +231,20 @@ const TotalCollectionReport = () => {
                   />
                 </svg>
               </div>
-              <div>
-                <p className="text-sm text-gray-600">Average FAT</p>
-                <p className="text-2xl font-bold text-gray-900">{parseFloat(summary.avg_fat).toFixed(2)}%</p>
+              <div className="text-left">
+                <p className="text-xs sm:text-sm text-gray-600">Average FAT</p>
+                <p className="text-lg sm:text-xl font-bold text-gray-900">{parseFloat(summary.avg_fat).toFixed(2)}%</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-white border-blue-200">
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-4">
             <div className="flex items-center gap-3">
-              <div className="bg-blue-500 p-3 rounded-lg">
+              <div className="bg-blue-500 p-2 sm:p-3 rounded-lg">
                 <svg
-                  className="w-6 h-6 text-white"
+                  className="w-5 h-5 sm:w-6 sm:h-6 text-white"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -261,20 +257,20 @@ const TotalCollectionReport = () => {
                   />
                 </svg>
               </div>
-              <div>
-                <p className="text-sm text-gray-600">Average SNF</p>
-                <p className="text-2xl font-bold text-gray-900">{parseFloat(summary.avg_snf).toFixed(2)}%</p>
+              <div className="text-left">
+                <p className="text-xs sm:text-sm text-gray-600">Average SNF</p>
+                <p className="text-lg sm:text-xl font-bold text-gray-900">{parseFloat(summary.avg_snf).toFixed(2)}%</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-white border-blue-200">
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-4">
             <div className="flex items-center gap-3">
-              <div className="bg-blue-500 p-3 rounded-lg">
+              <div className="bg-blue-500 p-2 sm:p-3 rounded-lg">
                 <svg
-                  className="w-6 h-6 text-white"
+                  className="w-5 h-5 sm:w-6 sm:h-6 text-white"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -287,9 +283,9 @@ const TotalCollectionReport = () => {
                   />
                 </svg>
               </div>
-              <div>
-                <p className="text-sm text-gray-600">Total Amount</p>
-                <p className="text-2xl font-bold text-gray-900">₹{parseFloat(summary.total_amount).toFixed(2)}</p>
+              <div className="text-left">
+                <p className="text-xs sm:text-sm text-gray-600">Total Amount</p>
+                <p className="text-lg sm:text-xl font-bold text-gray-900">₹{parseFloat(summary.total_amount).toFixed(2)}</p>
               </div>
             </div>
           </CardContent>

@@ -15,15 +15,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChevronDown } from "lucide-react";
 import { useState } from "react";
+import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import { Label } from "@/components/ui/label";
 import { useAppSelector } from "@/redux/store";
 import { reportsApi } from "@/services/reportsApi";
@@ -56,19 +49,7 @@ const VlcDifferenceReport = () => {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [language, setLanguage] = useState<string>(i18n.language || 'en');
 
-  const isAllSelected = !!branches?.length && vlcIds.length === branches.length;
 
-  const toggleVlc = (username: string) => {
-    setVlcIds((prev) =>
-      prev.includes(username)
-        ? prev.filter((id) => id !== username)
-        : [...prev, username]
-    );
-  };
-
-  const toggleSelectAll = () => {
-    setVlcIds(isAllSelected ? [] : (branches?.map((b) => b.username) ?? []));
-  };
 
   // Process a single VLC's raw API rows into display rows (with summaries).
   const processVlcRawData = (rawData: any[]) => {
@@ -484,63 +465,24 @@ const VlcDifferenceReport = () => {
   };
 
   return (
-    <div className="p-6 bg-white w-full h-screen">
+    <div className="p-2 sm:p-4 bg-white w-full min-h-screen flex flex-col">
       <PdfLoader isLoading={pdfLoading} />
-      <h1 className="text-lg font-bold mb-7">VLCC Difference Report</h1>
-      <div className="grid grid-cols-1 md:grid-cols-7 gap-4 p-3 rounded-lg">
+      <div className="flex flex-col items-start text-left gap-1 animate-in fade-in slide-in-from-top-4 duration-700 px-2 mb-2">
+        <h1 className="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600">
+          VLCC Difference Report
+        </h1>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 items-end bg-white p-3 sm:p-4 rounded-lg shadow-sm mx-2 mb-4 text-left">
         <div>
           <Label className="mb-1">VLC Name</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className="w-full justify-between border-gray-200 font-normal"
-              >
-                <span className="truncate">
-                  {vlcIds.length === 0
-                    ? "Select VLC"
-                    : isAllSelected
-                      ? "All VLCs selected"
-                      : `${vlcIds.length} VLC${vlcIds.length > 1 ? 's' : ''} selected`}
-                </span>
-                <ChevronDown size={16} className="ml-2 shrink-0 opacity-60" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-72 p-0 bg-white" align="start">
-              <div className="flex items-center justify-between border-b px-3 py-2">
-                <span className="text-sm font-medium">VLCs</span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs text-blue-600 hover:text-blue-700"
-                  onClick={toggleSelectAll}
-                >
-                  {isAllSelected ? "Clear All" : "Select All"}
-                </Button>
-              </div>
-              <ScrollArea className="h-64">
-                <div className="p-1">
-                  {branches?.map((branch) => (
-                    <label
-                      key={branch.username}
-                      htmlFor={`vlc-${branch.username}`}
-                      className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-gray-100"
-                    >
-                      <Checkbox
-                        id={`vlc-${branch.username}`}
-                        checked={vlcIds.includes(branch.username)}
-                        onCheckedChange={() => toggleVlc(branch.username)}
-                      />
-                      <span className="truncate">
-                        {branch.username} - {branch.name} - {branch.branchName || ''}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </ScrollArea>
-            </PopoverContent>
-          </Popover>
+          <VLCDropdown
+            branches={branches || []}
+            value={vlcIds}
+            onChange={(val) => setVlcIds(val as string[])}
+            valueKey="username"
+            placeholder="Select VLC"
+            isMultiSelect={true}
+          />
         </div>
         <div>
           <Label className="mb-1">From Date</Label>
@@ -586,13 +528,17 @@ const VlcDifferenceReport = () => {
             </SelectContent>
           </Select>
         </div>
-        <Button 
-          onClick={handleShow} 
-          disabled={loading}
-          className="text-white bg-blue-600 w-[90px] mt-4.5"
-        >
-          {loading ? "Loading..." : "Show"}
-        </Button>
+        <div className="xl:col-span-6 flex justify-end">
+          <Button 
+            onClick={handleShow} 
+            disabled={loading}
+            className="text-white bg-blue-600 w-[120px]"
+          >
+            {loading ? "Loading..." : "Show"}
+          </Button>
+        </div>
+      </div>
+      <div className="flex justify-end gap-2 mx-2 mb-4">
         <Button 
           onClick={handleExportPDF} 
           disabled={!reportData || reportData.length === 0}
@@ -610,39 +556,39 @@ const VlcDifferenceReport = () => {
           Export Excel
         </Button>
       </div>
-      <div className="overflow-x-auto mt-4 border border-gray-200 rounded-lg shadow-sm">
-        <Table>
+      <div className="overflow-x-auto mt-2 border border-gray-200 rounded-lg shadow-sm">
+        <Table className="whitespace-nowrap text-sm [&_th]:h-auto [&_th]:py-2 [&_th]:px-3 [&_td]:py-2 [&_td]:px-3 [&_th]:align-middle">
           <TableHeader>
             <TableRow className="bg-gradient-to-r from-blue-50 to-blue-100">
-              <TableHead rowSpan={2} className="text-center border border-gray-200 font-bold text-gray-900 py-3">Period</TableHead>
-              <TableHead rowSpan={2} className="text-center border border-gray-200 font-bold text-gray-900 py-3">Shift</TableHead>
-              <TableHead rowSpan={2} className="text-center border border-gray-200 font-bold text-gray-900 py-3">Type</TableHead>
-              <TableHead colSpan={5} className="text-center border border-gray-200 font-bold text-blue-900 py-3">
+              <TableHead rowSpan={2} className="text-left border border-gray-200 font-bold text-gray-900">Period</TableHead>
+              <TableHead rowSpan={2} className="text-left border border-gray-200 font-bold text-gray-900">Shift</TableHead>
+              <TableHead rowSpan={2} className="text-left border border-gray-200 font-bold text-gray-900">Type</TableHead>
+              <TableHead colSpan={5} className="text-center border border-gray-200 font-bold text-blue-900 py-2">
                 VLC Collection Data
               </TableHead>
-              <TableHead colSpan={5} className="text-center border border-gray-200 font-bold text-green-900 py-3">
+              <TableHead colSpan={5} className="text-center border border-gray-200 font-bold text-green-900 py-2">
                 Dairy Entry
               </TableHead>
-              <TableHead colSpan={5} className="text-center border border-gray-200 font-bold text-purple-900 py-3">
+              <TableHead colSpan={5} className="text-center border border-gray-200 font-bold text-purple-900 py-2">
                 Difference (VLC - Dairy)
               </TableHead>
             </TableRow>
             <TableRow>
-              <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Weight</TableHead>
-              <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Fat</TableHead>
-              <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">SNF</TableHead>
-              <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Rate</TableHead>
-              <TableHead className="text-center font-semibold bg-blue-50 border border-gray-200 text-blue-800">Amount</TableHead>
-              <TableHead className="text-center font-semibold bg-green-50 border border-gray-200 text-green-800">Weight</TableHead>
-              <TableHead className="text-center font-semibold bg-green-50 border border-gray-200 text-green-800">Fat</TableHead>
-              <TableHead className="text-center font-semibold bg-green-50 border border-gray-200 text-green-800">SNF</TableHead>
-              <TableHead className="text-center font-semibold bg-green-50 border border-gray-200 text-green-800">Rate</TableHead>
-              <TableHead className="text-center font-semibold bg-green-50 border border-gray-200 text-green-800">Amount</TableHead>
-              <TableHead className="text-center font-semibold bg-purple-50 border border-gray-200 text-purple-800">Weight</TableHead>
-              <TableHead className="text-center font-semibold bg-purple-50 border border-gray-200 text-purple-800">Fat</TableHead>
-              <TableHead className="text-center font-semibold bg-purple-50 border border-gray-200 text-purple-800">SNF</TableHead>
-              <TableHead className="text-center font-semibold bg-purple-50 border border-gray-200 text-purple-800">Rate</TableHead>
-              <TableHead className="text-center font-semibold bg-purple-50 border border-gray-200 text-purple-800">Amount</TableHead>
+              <TableHead className="text-right font-semibold bg-blue-50 border border-gray-200 text-blue-800">Weight</TableHead>
+              <TableHead className="text-right font-semibold bg-blue-50 border border-gray-200 text-blue-800">Fat</TableHead>
+              <TableHead className="text-right font-semibold bg-blue-50 border border-gray-200 text-blue-800">SNF</TableHead>
+              <TableHead className="text-right font-semibold bg-blue-50 border border-gray-200 text-blue-800">Rate</TableHead>
+              <TableHead className="text-right font-semibold bg-blue-50 border border-gray-200 text-blue-800">Amount</TableHead>
+              <TableHead className="text-right font-semibold bg-green-50 border border-gray-200 text-green-800">Weight</TableHead>
+              <TableHead className="text-right font-semibold bg-green-50 border border-gray-200 text-green-800">Fat</TableHead>
+              <TableHead className="text-right font-semibold bg-green-50 border border-gray-200 text-green-800">SNF</TableHead>
+              <TableHead className="text-right font-semibold bg-green-50 border border-gray-200 text-green-800">Rate</TableHead>
+              <TableHead className="text-right font-semibold bg-green-50 border border-gray-200 text-green-800">Amount</TableHead>
+              <TableHead className="text-right font-semibold bg-purple-50 border border-gray-200 text-purple-800">Weight</TableHead>
+              <TableHead className="text-right font-semibold bg-purple-50 border border-gray-200 text-purple-800">Fat</TableHead>
+              <TableHead className="text-right font-semibold bg-purple-50 border border-gray-200 text-purple-800">SNF</TableHead>
+              <TableHead className="text-right font-semibold bg-purple-50 border border-gray-200 text-purple-800">Rate</TableHead>
+              <TableHead className="text-right font-semibold bg-purple-50 border border-gray-200 text-purple-800">Amount</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -665,32 +611,32 @@ const VlcDifferenceReport = () => {
 
                 return (
                 <TableRow key={index} className={isSummaryRow ? "bg-amber-50 hover:bg-amber-100" : "hover:bg-gray-50"}>
-                  <TableCell className={`border border-gray-200 text-center font-medium ${isSummaryRow ? 'bg-amber-100 text-gray-900 font-bold' : 'bg-gray-50'}`}>{period.period}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center font-medium ${isSummaryRow ? 'bg-amber-100 text-gray-900 font-bold' : 'bg-gray-50'}`}>{period.shift}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center font-medium ${isSummaryRow ? 'bg-amber-100 text-gray-900 font-bold' : 'bg-gray-50'}`}>{period.type}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center ${isSummaryRow ? 'bg-blue-100 text-blue-900 font-bold' : 'bg-blue-50/30'}`}>{period.vlc.total_weight}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center ${isSummaryRow ? 'bg-blue-100 text-blue-900 font-bold' : 'bg-blue-50/30'}`}>{period.vlc.avg_fat}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center ${isSummaryRow ? 'bg-blue-100 text-blue-900 font-bold' : 'bg-blue-50/30'}`}>{period.vlc.avg_snf}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center ${isSummaryRow ? 'bg-blue-100 text-blue-900 font-bold' : 'bg-blue-50/30'}`}>{period.vlc.avg_rate || '0.00'}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center font-semibold ${isSummaryRow ? 'bg-blue-100 text-blue-900 font-bold' : 'bg-blue-50/30'}`}>{period.vlc.total_amount}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center ${isSummaryRow ? 'bg-green-100 text-green-900 font-bold' : 'bg-green-50/30'}`}>{period.dairy.total_weight}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center ${isSummaryRow ? 'bg-green-100 text-green-900 font-bold' : 'bg-green-50/30'}`}>{period.dairy.avg_fat}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center ${isSummaryRow ? 'bg-green-100 text-green-900 font-bold' : 'bg-green-50/30'}`}>{period.dairy.avg_snf}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center ${isSummaryRow ? 'bg-green-100 text-green-900 font-bold' : 'bg-green-50/30'}`}>{period.dairy.avg_rate || '0.00'}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center font-semibold ${isSummaryRow ? 'bg-green-100 text-green-900 font-bold' : 'bg-green-50/30'}`}>{period.dairy.total_amount}</TableCell>
-                  <TableCell className={`border border-gray-200 text-center font-bold ${isSummaryRow ? 'bg-purple-100' : 'bg-purple-50/30'} ${parseFloat(period.difference.weight) < 0 ? 'text-red-600' : parseFloat(period.difference.weight) > 0 ? 'text-green-600' : 'text-gray-700'}`}>
+                  <TableCell className={`border border-gray-200 text-left font-medium ${isSummaryRow ? 'bg-amber-100 text-gray-900 font-bold' : 'bg-gray-50'}`}>{period.period}</TableCell>
+                  <TableCell className={`border border-gray-200 text-left font-medium ${isSummaryRow ? 'bg-amber-100 text-gray-900 font-bold' : 'bg-gray-50'}`}>{period.shift}</TableCell>
+                  <TableCell className={`border border-gray-200 text-left font-medium ${isSummaryRow ? 'bg-amber-100 text-gray-900 font-bold' : 'bg-gray-50'}`}>{period.type}</TableCell>
+                  <TableCell className={`border border-gray-200 text-right ${isSummaryRow ? 'bg-blue-100 text-blue-900 font-bold' : 'bg-blue-50/30'}`}>{period.vlc.total_weight}</TableCell>
+                  <TableCell className={`border border-gray-200 text-right ${isSummaryRow ? 'bg-blue-100 text-blue-900 font-bold' : 'bg-blue-50/30'}`}>{period.vlc.avg_fat}</TableCell>
+                  <TableCell className={`border border-gray-200 text-right ${isSummaryRow ? 'bg-blue-100 text-blue-900 font-bold' : 'bg-blue-50/30'}`}>{period.vlc.avg_snf}</TableCell>
+                  <TableCell className={`border border-gray-200 text-right ${isSummaryRow ? 'bg-blue-100 text-blue-900 font-bold' : 'bg-blue-50/30'}`}>{period.vlc.avg_rate || '0.00'}</TableCell>
+                  <TableCell className={`border border-gray-200 text-right font-semibold ${isSummaryRow ? 'bg-blue-100 text-blue-900 font-bold' : 'bg-blue-50/30'}`}>{period.vlc.total_amount}</TableCell>
+                  <TableCell className={`border border-gray-200 text-right ${isSummaryRow ? 'bg-green-100 text-green-900 font-bold' : 'bg-green-50/30'}`}>{period.dairy.total_weight}</TableCell>
+                  <TableCell className={`border border-gray-200 text-right ${isSummaryRow ? 'bg-green-100 text-green-900 font-bold' : 'bg-green-50/30'}`}>{period.dairy.avg_fat}</TableCell>
+                  <TableCell className={`border border-gray-200 text-right ${isSummaryRow ? 'bg-green-100 text-green-900 font-bold' : 'bg-green-50/30'}`}>{period.dairy.avg_snf}</TableCell>
+                  <TableCell className={`border border-gray-200 text-right ${isSummaryRow ? 'bg-green-100 text-green-900 font-bold' : 'bg-green-50/30'}`}>{period.dairy.avg_rate || '0.00'}</TableCell>
+                  <TableCell className={`border border-gray-200 text-right font-semibold ${isSummaryRow ? 'bg-green-100 text-green-900 font-bold' : 'bg-green-50/30'}`}>{period.dairy.total_amount}</TableCell>
+                  <TableCell className={`border border-gray-200 text-right font-bold ${isSummaryRow ? 'bg-purple-100' : 'bg-purple-50/30'} ${parseFloat(period.difference.weight) < 0 ? 'text-red-600' : parseFloat(period.difference.weight) > 0 ? 'text-green-600' : 'text-gray-700'}`}>
                     {period.difference.weight}
                   </TableCell>
-                  <TableCell className={`border border-gray-200 text-center font-bold ${isSummaryRow ? 'bg-purple-100' : 'bg-purple-50/30'} ${parseFloat(period.difference.fat) < 0 ? 'text-red-600' : parseFloat(period.difference.fat) > 0 ? 'text-green-600' : 'text-gray-700'}`}>
+                  <TableCell className={`border border-gray-200 text-right font-bold ${isSummaryRow ? 'bg-purple-100' : 'bg-purple-50/30'} ${parseFloat(period.difference.fat) < 0 ? 'text-red-600' : parseFloat(period.difference.fat) > 0 ? 'text-green-600' : 'text-gray-700'}`}>
                     {period.difference.fat}
                   </TableCell>
-                  <TableCell className={`border border-gray-200 text-center font-bold ${isSummaryRow ? 'bg-purple-100' : 'bg-purple-50/30'} ${parseFloat(period.difference.snf) < 0 ? 'text-red-600' : parseFloat(period.difference.snf) > 0 ? 'text-green-600' : 'text-gray-700'}`}>
+                  <TableCell className={`border border-gray-200 text-right font-bold ${isSummaryRow ? 'bg-purple-100' : 'bg-purple-50/30'} ${parseFloat(period.difference.snf) < 0 ? 'text-red-600' : parseFloat(period.difference.snf) > 0 ? 'text-green-600' : 'text-gray-700'}`}>
                     {period.difference.snf}
                   </TableCell>
-                  <TableCell className={`border border-gray-200 text-center font-bold ${isSummaryRow ? 'bg-purple-100' : 'bg-purple-50/30'} ${parseFloat(period.difference.rate) < 0 ? 'text-red-600' : parseFloat(period.difference.rate) > 0 ? 'text-green-600' : 'text-gray-700'}`}>
+                  <TableCell className={`border border-gray-200 text-right font-bold ${isSummaryRow ? 'bg-purple-100' : 'bg-purple-50/30'} ${parseFloat(period.difference.rate) < 0 ? 'text-red-600' : parseFloat(period.difference.rate) > 0 ? 'text-green-600' : 'text-gray-700'}`}>
                     {period.difference.rate || '0.00'}
                   </TableCell>
-                  <TableCell className={`border border-gray-200 text-center font-bold ${isSummaryRow ? 'bg-purple-100' : 'bg-purple-50/30'} ${parseFloat(period.difference.amount) < 0 ? 'text-red-600' : parseFloat(period.difference.amount) > 0 ? 'text-green-600' : 'text-gray-700'}`}>
+                  <TableCell className={`border border-gray-200 text-right font-bold ${isSummaryRow ? 'bg-purple-100' : 'bg-purple-50/30'} ${parseFloat(period.difference.amount) < 0 ? 'text-red-600' : parseFloat(period.difference.amount) > 0 ? 'text-green-600' : 'text-gray-700'}`}>
                     {period.difference.amount}
                   </TableCell>
                 </TableRow>

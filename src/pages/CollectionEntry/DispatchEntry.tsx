@@ -8,6 +8,8 @@ import { format, isValid } from "date-fns";
 import { HelpCircle, Truck, Scale, Droplets, Banknote, Save, RefreshCcw, Loader2, IndianRupee } from "lucide-react";
 import { usePostApi } from "@/services/use-api";
 import { toast } from "react-toastify";
+import { useAppSelector } from "@/redux/store";
+import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 
 const DispatchEntry = () => {
   const { t } = useTranslation();
@@ -15,8 +17,11 @@ const DispatchEntry = () => {
     path: "/web/collection/dispatch-entry"
   });
 
+  const { branches } = useAppSelector((state) => state.branch);
+
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [formData, setFormData] = useState({
+    vlcId: "",
     weight: "",
     avgFat: "",
     avgSnf: "",
@@ -40,8 +45,15 @@ const DispatchEntry = () => {
     setFormData(updatedData);
   };
 
+  const handleVLCIdChange = (val: string) => {
+    setFormData(prev => ({
+      ...prev,
+      vlcId: val
+    }));
+  };
+
   const handleSubmit = async () => {
-    if (!formData.weight || !formData.avgFat || !formData.avgSnf ||
+    if (!formData.vlcId || !formData.weight || !formData.avgFat || !formData.avgSnf ||
       !formData.ratePerLiter || !formData.commissionPerLiter || !formData.totalAmount) {
       toast.error("All fields are required");
       return;
@@ -50,6 +62,7 @@ const DispatchEntry = () => {
     try {
       const payload = {
         date: format(selectedDate, 'yyyy-MM-dd HH:mm:ss'),
+        vlc_id: formData.vlcId,
         weight: parseFloat(formData.weight),
         avg_fat: parseFloat(formData.avgFat),
         avg_snf: parseFloat(formData.avgSnf),
@@ -71,6 +84,7 @@ const DispatchEntry = () => {
 
   const handleClear = () => {
     setFormData({
+      vlcId: "",
       weight: "",
       avgFat: "",
       avgSnf: "",
@@ -106,27 +120,42 @@ const DispatchEntry = () => {
 
   return (
     <div className="min-h-screen bg-gray-50/50 p-4 md:p-8 space-y-6" onKeyDown={handleEnterAsTab}>
-      <div className="w-full max-w-5xl mx-auto space-y-6">
+      <div className="w-full max-w-7xl mx-auto space-y-6">
         
         {/* Header Card */}
-        <div className="flex items-center bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100">
-          <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl shrink-0">
-            <Truck className="h-6 w-6" />
+        <div className="flex items-center justify-between bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl shrink-0">
+              <Truck className="h-6 w-6" />
+            </div>
+            <h1 className="text-xl md:text-2xl font-bold text-gray-800 font-serif tracking-wide">
+              {t('tanker_dispatch') || 'Tanker Dispatch'}
+            </h1>
           </div>
-          <h1 className="flex-1 text-center text-xl md:text-2xl font-bold text-gray-800 font-serif tracking-wide">
-            {t('tanker_dispatch') || 'Tanker Dispatch'}
-          </h1>
           <HelpCircle className="h-6 w-6 text-gray-400 stroke-[1.5] shrink-0" />
         </div>
 
         {/* Form Card */}
         <Card className="shadow-sm border border-gray-100 bg-white rounded-2xl overflow-hidden">
-          <CardContent className="p-6 md:p-12 space-y-12 enter-nav-container">
+          <CardContent className="p-4 md:p-6 space-y-6 enter-nav-container">
             
-            {/* Row 1: Date and Weight */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
-              <div className="flex flex-col justify-end">
-                <Label className="text-[11px] font-bold uppercase tracking-widest text-gray-500 font-serif mb-4 block text-left">
+            {/* Row 1: VLC Dropdown, Date and Weight */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+              <div className="flex flex-col justify-end space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 block text-left">
+                  {t('select_vlc') || 'Select VLC'}
+                </Label>
+                <VLCDropdown
+                  branches={branches || []}
+                  value={formData.vlcId}
+                  onChange={handleVLCIdChange}
+                  valueKey="username"
+                  className="h-11"
+                />
+              </div>
+
+              <div className="flex flex-col justify-end space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 block text-left">
                   {t('dispatch_date')}
                 </Label>
                 <Input
@@ -136,13 +165,13 @@ const DispatchEntry = () => {
                     const d = new Date(e.target.value);
                     if (isValid(d)) setSelectedDate(d);
                   }}
-                  className="h-12 bg-white border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 text-sm font-medium text-gray-800 shadow-sm enter-field"
+                  className="h-11 bg-white border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 text-sm font-medium text-gray-800 shadow-sm enter-field"
                 />
               </div>
 
-              <div className="flex flex-col justify-end">
-                <Label className="text-[11px] font-bold uppercase tracking-widest text-gray-500 font-serif mb-4 flex flex-col items-center justify-center gap-2">
-                  <Scale className="h-5 w-5 text-blue-500 stroke-[1.5]" />
+              <div className="flex flex-col justify-end space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-2">
+                  <Scale className="h-4 w-4 text-blue-500 stroke-[1.5]" />
                   <span>{t('weight')} (LTR)</span>
                 </Label>
                 <Input
@@ -151,16 +180,16 @@ const DispatchEntry = () => {
                   placeholder="0.00"
                   value={formData.weight}
                   onChange={(e) => handleInputChange("weight", e.target.value)}
-                  className="h-12 bg-white border-gray-200 focus:border-blue-400 text-blue-500 text-sm font-semibold rounded-xl text-center shadow-sm enter-field"
+                  className="h-11 bg-white border-gray-200 focus:border-blue-400 text-blue-500 text-sm font-semibold rounded-xl text-center shadow-sm enter-field"
                 />
               </div>
             </div>
 
             {/* Row 2: Fat and SNF */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
-              <div className="flex flex-col justify-end">
-                <Label className="text-[11px] font-bold uppercase tracking-widest text-gray-500 font-serif mb-4 flex flex-col items-center justify-center gap-2">
-                  <Droplets className="h-5 w-5 text-fuchsia-500 stroke-[1.5]" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+              <div className="flex flex-col justify-end space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-2">
+                  <Droplets className="h-4 w-4 text-fuchsia-500 stroke-[1.5]" />
                   <span>{t('avg_fat')}</span>
                 </Label>
                 <Input
@@ -169,12 +198,12 @@ const DispatchEntry = () => {
                   placeholder="0.0"
                   value={formData.avgFat}
                   onChange={(e) => handleInputChange("avgFat", e.target.value)}
-                  className="h-12 bg-white border-gray-200 focus:ring-2 focus:ring-fuchsia-500/20 text-sm font-semibold rounded-xl text-center text-gray-800 shadow-sm enter-field"
+                  className="h-11 bg-white border-gray-200 focus:ring-2 focus:ring-fuchsia-500/20 text-sm font-semibold rounded-xl text-center text-gray-800 shadow-sm enter-field"
                 />
               </div>
-              <div className="flex flex-col justify-end">
-                <Label className="text-[11px] font-bold uppercase tracking-widest text-gray-500 font-serif mb-4 flex flex-col items-center justify-center gap-2">
-                  <Droplets className="h-5 w-5 text-fuchsia-500 stroke-[1.5]" />
+              <div className="flex flex-col justify-end space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-2">
+                  <Droplets className="h-4 w-4 text-fuchsia-500 stroke-[1.5]" />
                   <span>{t('avg_snf')}</span>
                 </Label>
                 <Input
@@ -183,16 +212,16 @@ const DispatchEntry = () => {
                   placeholder="0.0"
                   value={formData.avgSnf}
                   onChange={(e) => handleInputChange("avgSnf", e.target.value)}
-                  className="h-12 bg-white border-gray-200 focus:ring-2 focus:ring-fuchsia-500/20 text-sm font-semibold rounded-xl text-center text-gray-800 shadow-sm enter-field"
+                  className="h-11 bg-white border-gray-200 focus:ring-2 focus:ring-fuchsia-500/20 text-sm font-semibold rounded-xl text-center text-gray-800 shadow-sm enter-field"
                 />
               </div>
             </div>
 
             {/* Row 3: Rate, Commission, Total */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-              <div className="flex flex-col justify-end">
-                <Label className="text-[11px] font-bold uppercase tracking-widest text-gray-500 font-serif mb-4 flex flex-col items-center justify-center gap-2">
-                  <Banknote className="h-5 w-5 text-emerald-500 stroke-[1.5]" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+              <div className="flex flex-col justify-end space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-2">
+                  <Banknote className="h-4 w-4 text-emerald-500 stroke-[1.5]" />
                   <span>{t('rate_per_liter')}</span>
                 </Label>
                 <Input
@@ -201,12 +230,12 @@ const DispatchEntry = () => {
                   placeholder="0.00"
                   value={formData.ratePerLiter}
                   onChange={(e) => handleInputChange("ratePerLiter", e.target.value)}
-                  className="h-12 bg-white border-gray-200 focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold rounded-xl text-center text-gray-800 shadow-sm enter-field"
+                  className="h-11 bg-white border-gray-200 focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold rounded-xl text-center text-gray-800 shadow-sm enter-field"
                 />
               </div>
-              <div className="flex flex-col justify-end">
-                <Label className="text-[11px] font-bold uppercase tracking-widest text-gray-500 font-serif mb-4 flex flex-col items-center justify-center gap-2">
-                  <Banknote className="h-5 w-5 text-emerald-500 stroke-[1.5]" />
+              <div className="flex flex-col justify-end space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-2">
+                  <Banknote className="h-4 w-4 text-emerald-500 stroke-[1.5]" />
                   <span>{t('commission_per_liter') || 'Commission Amount Per Liter'}</span>
                 </Label>
                 <Input
@@ -215,12 +244,12 @@ const DispatchEntry = () => {
                   placeholder="0.00"
                   value={formData.commissionPerLiter}
                   onChange={(e) => handleInputChange("commissionPerLiter", e.target.value)}
-                  className="h-12 bg-white border-gray-200 focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold rounded-xl text-center text-gray-800 shadow-sm enter-field"
+                  className="h-11 bg-white border-gray-200 focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold rounded-xl text-center text-gray-800 shadow-sm enter-field"
                 />
               </div>
 
-              <div className="flex flex-col justify-end">
-                <Label className="text-[11px] font-bold uppercase tracking-widest text-emerald-600 font-serif mb-4 flex flex-col items-center justify-center gap-2">
+              <div className="flex flex-col justify-end space-y-1.5">
+                <Label className="text-xs font-bold uppercase tracking-widest text-emerald-600 flex items-center gap-2">
                   <span>{t('total_amount')}</span>
                 </Label>
                 <div className="relative">
@@ -233,7 +262,7 @@ const DispatchEntry = () => {
                     placeholder="0.00"
                     value={formData.totalAmount}
                     readOnly
-                    className="h-12 pl-10 pr-10 text-sm font-bold text-center bg-emerald-50/30 border-emerald-100 rounded-xl text-emerald-700 cursor-not-allowed shadow-sm"
+                    className="h-11 pl-10 pr-10 text-sm font-bold text-center bg-emerald-50/30 border-emerald-100 rounded-xl text-emerald-700 cursor-not-allowed shadow-sm"
                   />
                 </div>
               </div>

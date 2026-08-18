@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AppDatePicker } from "@/components/ui/date-picker";
+import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import { Download } from "lucide-react";
 import * as XLSX from "xlsx";
 import { format, lastDayOfMonth, parseISO, isValid } from "date-fns";
@@ -182,41 +183,33 @@ const BankSummary: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-2 sm:p-4">
       <div className="max-w-7xl mx-auto">
         <Card className="shadow-sm border-none">
-          <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
-            <CardTitle className="text-2xl font-bold text-gray-800">🏦 Payment Bank Summary</CardTitle>
-            <p className="text-sm text-gray-600 mt-1">{t('bank_summary_description')}</p>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div>
-                <Label className="text-sm font-medium text-gray-700 mb-2">VLC Name</Label>
-                <Select value={dairyId} onValueChange={setDairyId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select VLC">
-                      {dairyId && (() => {
-                        const selected = branches.find(b => b.branch_id.toString() === dairyId);
-                        if (selected) {
-                          const text = `${selected.username} - ${selected.name} - ${selected.branchName || ''}`;
-                          return text.length > 30 ? text.substring(0, 30) + '...' : text;
-                        }
-                        return 'Select VLC';
-                      })()}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    {branches.map((branch) => (
-                      <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
-                        {branch.username} - {branch.name} - {branch.branchName || ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          {/* Header */}
+          <div className="flex flex-col items-start text-left gap-1 animate-in fade-in slide-in-from-top-4 duration-700 mb-4 px-4 pt-4 sm:px-6 sm:pt-6">
+            <h1 className="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600">
+              🏦 Payment Bank Summary
+            </h1>
+            <p className="text-sm font-medium text-slate-500">
+              {t('bank_summary_description')}
+            </p>
+          </div>
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 items-end mb-6">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">VLC Name</Label>
+                <VLCDropdown
+                  branches={branches || []}
+                  value={dairyId}
+                  onChange={(val) => setDairyId(String(val))}
+                  valueKey="branch_id"
+                  placeholder="Select VLC"
+                />
               </div>
 
-              <div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">Date Range</Label>
                 <AppDatePicker
                   date={startDate}
                   onChange={(dateStr) => {
@@ -228,13 +221,13 @@ const BankSummary: React.FC = () => {
                     }
                   }}
                 />
-                <div className="mt-2 text-xs text-gray-500 text-left">
-                  Range: {format(startDate, "dd-MM-yyyy")} to {format(endDate, "dd-MM-yyyy")}
+                <div className="text-xs text-gray-500 text-left truncate">
+                  {format(startDate, "dd-MM-yyyy")} to {format(endDate, "dd-MM-yyyy")}
                 </div>
               </div>
 
-              <div className="flex items-end">
-                <Button onClick={fetchData} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700">
+              <div className="lg:col-span-2 flex justify-end pb-[20px]">
+                <Button onClick={fetchData} disabled={loading} className="w-[120px] bg-blue-600 hover:bg-blue-700 text-white h-10">
                   {loading ? t('loading') : t('fetch_data')}
                 </Button>
               </div>
@@ -275,37 +268,37 @@ const BankSummary: React.FC = () => {
             )}
 
             <div className="overflow-x-auto rounded-lg border shadow-sm">
-              <table className="w-full border-collapse bg-white">
+              <table className="w-full border-collapse bg-white whitespace-nowrap text-sm">
                 <thead>
                   <tr className="bg-gray-100">
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Farmer ID</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Name</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Mobile</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Email</th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-700">Amount</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Bank Name</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Account Number</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">IFSC Code</th>
+                    <th className="text-left py-2 px-3 font-medium text-gray-700">Farmer ID</th>
+                    <th className="text-left py-2 px-3 font-medium text-gray-700">Name</th>
+                    <th className="text-left py-2 px-3 font-medium text-gray-700">Mobile</th>
+                    <th className="text-left py-2 px-3 font-medium text-gray-700">Email</th>
+                    <th className="text-right py-2 px-3 font-medium text-gray-700">Amount</th>
+                    <th className="text-left py-2 px-3 font-medium text-gray-700">Bank Name</th>
+                    <th className="text-left py-2 px-3 font-medium text-gray-700">Account Number</th>
+                    <th className="text-left py-2 px-3 font-medium text-gray-700">IFSC Code</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="text-center py-8 text-gray-500">
+                      <td colSpan={8} className="text-center py-6 text-gray-500">
                         {t('no_data_available')}. {t('select_filters_fetch_data')}.
                       </td>
                     </tr>
                   ) : (
                     data.map((row, idx) => (
                       <tr key={idx} className="hover:bg-gray-50 border-b">
-                        <td className="py-3 px-4">{row.farmer_id}</td>
-                        <td className="py-3 px-4">{row.fullName}</td>
-                        <td className="py-3 px-4">{row.mobile_number}</td>
-                        <td className="py-3 px-4">{row.email || "-"}</td>
-                        <td className="py-3 px-4 text-right">₹{parseFloat(row.milk_total?.toString() || "0").toFixed(2)}</td>
-                        <td className="py-3 px-4">{row.bankName || "-"}</td>
-                        <td className="py-3 px-4">{row.accountNumber || "-"}</td>
-                        <td className="py-3 px-4">{row.ifscCode || "-"}</td>
+                        <td className="py-2 px-3">{row.farmer_id}</td>
+                        <td className="py-2 px-3">{row.fullName}</td>
+                        <td className="py-2 px-3">{row.mobile_number}</td>
+                        <td className="py-2 px-3">{row.email || "-"}</td>
+                        <td className="py-2 px-3 text-right">₹{parseFloat(row.milk_total?.toString() || "0").toFixed(2)}</td>
+                        <td className="py-2 px-3">{row.bankName || "-"}</td>
+                        <td className="py-2 px-3">{row.accountNumber || "-"}</td>
+                        <td className="py-2 px-3">{row.ifscCode || "-"}</td>
                       </tr>
                     ))
                   )}

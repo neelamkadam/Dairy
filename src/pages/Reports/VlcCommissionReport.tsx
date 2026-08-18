@@ -6,6 +6,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import {
   Table,
   TableBody,
@@ -24,7 +25,7 @@ import { generateVlcCommissionReportExcel } from "@/templates/VlcCommissionRepor
 import { useTranslation } from 'react-i18next';
 import { useState } from "react";
 import { Label } from "@/components/ui/label";
-import { ChevronLeft, ChevronRight, FileDown } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileDown, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const VlcCommissionReport = () => {
@@ -126,28 +127,26 @@ const VlcCommissionReport = () => {
     toast.success("Excel exported successfully");
   };
   return (
-    <div className="bg-white w-full h-screen">
-      <h1 className="text-lg font-bold p-5">VLCC Commission Report</h1>
-      <hr className="text-gray-300"/>
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-15 p-6 rounded-lg">
-        <div>
+    <div className="p-2 sm:p-4 bg-gray-50 min-h-screen text-left w-full">
+      {/* Header */}
+      <div className="flex flex-col items-start text-left gap-1 animate-in fade-in slide-in-from-top-4 duration-700 px-2 mb-2">
+        <h1 className="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600">
+          VLCC Commission Report
+        </h1>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-end bg-white p-3 sm:p-4 rounded-lg shadow-sm mx-2 mb-4 text-left">
+        <div className="space-y-2">
           <Label className="mb-1">VLCC Name</Label>
-          <Select value={vlcId} onValueChange={(value) => {
-            setVlcId(value);
-            setReportData([]);
-          }}>
-            <SelectTrigger className="w-full border-gray-200">
-              <SelectValue placeholder="Select VLCC" />
-            </SelectTrigger>
-            <SelectContent className="bg-white">
-              <SelectItem value="all">All</SelectItem>
-              {branches?.map((branch) => (
-                <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
-                  {branch.username} - {branch.name} - {branch.branchName || ''}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <VLCDropdown
+            branches={[{branch_id: 'all' as any, username: 'All', name: 'VLCCs', branchName: ''}, ...(branches || [])]}
+            value={vlcId}
+            onChange={(value) => {
+              setVlcId(value);
+              setReportData([]);
+            }}
+            valueKey="branch_id"
+            placeholder="Select VLCC"
+          />
         </div>
         <div className="space-y-2 text-left ">
           <Label>From Date</Label>
@@ -159,7 +158,7 @@ const VlcCommissionReport = () => {
             }}
           />
         </div>
-        <div className="space-y-2 text-left ">
+        <div className="space-y-2 text-left">
           <Label>To Date</Label>
           <AppDatePicker
             date={toDate}
@@ -169,38 +168,39 @@ const VlcCommissionReport = () => {
             }}
           />
         </div>
-        <Button onClick={handleShowReport} disabled={loading} className="text-white bg-blue-600 w-[90px] mt-4.5">
-          {loading ? "Loading..." : "Show"}
-        </Button>
+        
+        <div className="xl:col-span-2 flex flex-wrap gap-2 justify-end">
+          <Button onClick={handleShowReport} disabled={loading} className="text-white bg-blue-600 w-[120px] h-10">
+            {loading ? "Loading..." : "Show"}
+          </Button>
+          <Button 
+            onClick={handleExportExcel}
+            disabled={reportData.length === 0}
+            className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2 h-10"
+          >
+            <FileDown size={16} />
+            Excel Export
+          </Button>
+          <Button 
+            onClick={handleExportPDF}
+            disabled={reportData.length === 0}
+            className="text-white bg-red-600 hover:bg-red-700 flex items-center gap-2 h-10"
+          >
+            <FileDown size={16} />
+            PDF Export
+          </Button>
+        </div>
       </div>
-      <div className="flex gap-3 justify-end px-6">
-        <Button 
-          onClick={handleExportExcel}
-          disabled={reportData.length === 0}
-          className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
-        >
-          <FileDown size={16} />
-          Excel Export
-        </Button>
-        <Button 
-          onClick={handleExportPDF}
-          disabled={reportData.length === 0}
-          className="text-white bg-red-600 hover:bg-red-700 flex items-center gap-2"
-        >
-          <FileDown size={16} />
-          PDF Export
-        </Button>
-      </div>
-      <div className="overflow-x-auto p-6">
-              <Table className="border border-gray-200 rounded-3xl">
+      <div className="mx-2 p-2 sm:p-4 bg-white rounded-lg shadow-sm overflow-x-auto space-y-4">
+              <Table className="whitespace-nowrap text-sm border-collapse [&_th]:h-auto [&_th]:py-2 [&_th]:px-3 [&_td]:py-2 [&_td]:px-3 [&_th]:align-middle">
                 <TableHeader className="bg-gray-50">
                   <TableRow>
                     <TableHead className="border border-gray-50 text-gray-700">DATE</TableHead>
-                    <TableHead className="border border-gray-50 text-gray-700">TOTAL QUANTITY (L)</TableHead>
+                    <TableHead className="border border-gray-50 text-gray-700 text-right">TOTAL QUANTITY (L)</TableHead>
                     <TableHead className="border border-gray-50 text-gray-700">TYPE</TableHead>
-                    <TableHead className="border border-gray-50 text-gray-700">RATE (₹)</TableHead>
-                    <TableHead className="border border-gray-50 text-gray-700">AMOUNT (₹)</TableHead>
-                    <TableHead className="border border-gray-50 text-gray-700">TRAVEL COMMISSION (₹)</TableHead>
+                    <TableHead className="border border-gray-50 text-gray-700 text-right">RATE (₹)</TableHead>
+                    <TableHead className="border border-gray-50 text-gray-700 text-right">AMOUNT (₹)</TableHead>
+                    <TableHead className="border border-gray-50 text-gray-700 text-right">TRAVEL COMMISSION (₹)</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -214,19 +214,19 @@ const VlcCommissionReport = () => {
                         <TableCell className="font-medium text-left border border-gray-50">
                           {row.date}
                         </TableCell>
-                        <TableCell className="font-medium text-left border border-gray-50">
+                        <TableCell className="font-medium text-right border border-gray-50">
                           {parseFloat(row.total_quantity).toFixed(2)}
                         </TableCell>
                         <TableCell className="font-medium text-left border border-gray-50">
                           {row.type}
                         </TableCell>
-                        <TableCell className="font-medium text-left border border-gray-50">
+                        <TableCell className="font-medium text-right border border-gray-50">
                           {parseFloat(row.rate).toFixed(2)}
                         </TableCell>
-                        <TableCell className="font-medium text-left border border-gray-50">
+                        <TableCell className="font-medium text-right border border-gray-50">
                           {amount.toFixed(2)}
                         </TableCell>
-                        <TableCell className="font-medium text-left border border-gray-50">
+                        <TableCell className="font-medium text-right border border-gray-50">
                           {row.travel_commission}
                         </TableCell>
                       </TableRow>
@@ -242,8 +242,7 @@ const VlcCommissionReport = () => {
                 </TableBody>
               </Table>
             </div>
-      <hr className="text-gray-300 mt-10"/>
-      <div className="flex items-center justify-between p-6">
+      <div className="flex items-center justify-between p-2 mx-2">
         <div className="flex items-center justify-start gap-2">
           <span className="text-sm text-gray-600">Rows per page:</span>
           <Select value={itemsPerPage.toString()} onValueChange={(value) => {

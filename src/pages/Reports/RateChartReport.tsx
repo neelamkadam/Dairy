@@ -7,7 +7,8 @@ import { useAppSelector } from "@/redux/store";
 import { reportsApi } from "@/services/reportsApi";
 import { toast } from "react-toastify";
 import { generateRateChartReportExcel } from "@/templates/RateChartReportExcelTemplate";
-import { Download } from "lucide-react";
+import { Download, FileSpreadsheet } from "lucide-react";
+import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 
 const RateChartReport = () => {
   const { branches } = useAppSelector((state) => state.branch);
@@ -116,30 +117,30 @@ const RateChartReport = () => {
   };
   
   return (
-    <div className="w-full h-screen bg-white">
-      <h1 className="p-4 text-left font-bold bg-gray-100">VLCC Rate Chart</h1>
+    <div className="w-full min-h-screen bg-gray-50 p-2 sm:p-4 text-left">
+      {/* Header */}
+      <div className="flex flex-col items-start text-left gap-1 animate-in fade-in slide-in-from-top-4 duration-700 px-2 mb-2">
+        <h1 className="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600">
+          VLCC Rate Chart
+        </h1>
+      </div>
       
-      <div className="flex flex-col sm:flex-row gap-4 items-end bg-white p-4">
-        <div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-end bg-white p-3 sm:p-4 rounded-lg shadow-sm mx-2 mb-4 text-left">
+        <div className="space-y-2">
           <Label className="mb-1">VLC Name</Label>
-          <Select value={vlcId} onValueChange={setVlcId}>
-            <SelectTrigger className="w-48 border-gray-200">
-              <SelectValue placeholder="Select VLC" />
-            </SelectTrigger>
-            <SelectContent className="bg-white">
-              {branches?.map((branch) => (
-                <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
-                  {branch.username} - {branch.name} - {branch.branchName || ''}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <VLCDropdown
+            branches={branches || []}
+            value={vlcId}
+            onChange={setVlcId}
+            valueKey="branch_id"
+            placeholder="Select VLC"
+          />
         </div>
         
-        <div>
+        <div className="space-y-2">
           <Label className="mb-1">Milk Type</Label>
           <Select value={milkType} onValueChange={setMilkType}>
-            <SelectTrigger className="w-48 border-gray-200">
+            <SelectTrigger className="w-full border-gray-200 bg-white">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-white">
@@ -149,10 +150,10 @@ const RateChartReport = () => {
           </Select>
         </div>
         
-        <div>
+        <div className="space-y-2">
           <Label className="mb-1">Rate Chart</Label>
           <Select value={rateChartName} onValueChange={setRateChartName}>
-            <SelectTrigger className="w-48 border-gray-200">
+            <SelectTrigger className="w-full border-gray-200 bg-white">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-white">
@@ -163,19 +164,19 @@ const RateChartReport = () => {
           </Select>
         </div>
         
-        <Button onClick={handleShow} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white">
-          {loading ? "Loading..." : "Show"}
-        </Button>
-        
-        <div className="ml-auto">
+        <div className="xl:col-span-2 flex flex-wrap gap-2 justify-end">
+          <Button onClick={handleShow} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white w-[120px] h-10">
+            {loading ? "Loading..." : "Show"}
+          </Button>
+          
           <Button 
             onClick={handleExportExcel}
             disabled={(!rateMatrix || rateMatrix.length === 0) && (!matrices || matrices.length === 0)}
             variant="outline" 
-            className="bg-green-600 text-white hover:bg-green-700 flex items-center gap-2"
+            className="bg-green-600 text-white hover:bg-green-700 flex items-center gap-2 h-10"
           >
-            <Download className="h-4 w-4" />
-            Excel Export
+            <FileSpreadsheet size={16} />
+            Export Excel
           </Button>
         </div>
       </div>

@@ -262,33 +262,35 @@ const AddBranch = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50/50 p-4 md:p-6">
-      <div className="max-w-6xl mx-auto space-y-4 md:space-y-6 mt-2 md:mt-4">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200/60 p-4 md:p-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-md flex items-center justify-center shrink-0">
-                <Building2 className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-semibold text-gray-800">Branch Assignment</h1>
-                <p className="text-sm text-gray-500">View user's assigned branches</p>
-              </div>
+    <div className="p-2 md:p-4 bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 min-h-[calc(100vh-80px)] space-y-4 md:space-y-5">
+      {/* ── Page Header ─────────────────────────────────────────── */}
+      <div className="relative overflow-hidden bg-white rounded-xl border border-gray-100/80 shadow-sm p-4 w-full">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-blue-500/5 to-transparent rounded-bl-full" />
+        <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/25">
+              <Building2 className="w-5 h-5 text-white" />
             </div>
-            <Button
-              onClick={() => (showManager ? setShowManager(false) : openManager())}
-              className={
-                showManager
-                  ? "h-9 bg-gray-600 hover:bg-gray-700 text-white text-sm px-4 rounded-md shadow-sm transition-colors"
-                  : "h-9 bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 rounded-md shadow-sm transition-colors"
-              }
-            >
-              <Users className="w-4 h-4 mr-2" />
-              {showManager ? "Back to Search" : "Manage User Dairies"}
-            </Button>
+            <div>
+              <h1 className="text-lg md:text-xl font-bold text-gray-900 tracking-tight">Branch Assignment</h1>
+              <p className="text-xs text-gray-500 mt-0.5">View user's assigned branches</p>
+            </div>
           </div>
+          <Button
+            onClick={() => (showManager ? setShowManager(false) : openManager())}
+            className={
+              showManager
+                ? "h-9 bg-gray-600 hover:bg-gray-700 text-white font-medium px-4 rounded-lg shadow-sm transition-all"
+                : "h-9 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium px-4 rounded-lg shadow-sm shadow-blue-500/25 transition-all"
+            }
+          >
+            <Users className="w-4 h-4 mr-2" />
+            {showManager ? "Back to Search" : "Manage User Dairies"}
+          </Button>
         </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto space-y-4 md:space-y-5">
 
         {showManager ? (
           <>

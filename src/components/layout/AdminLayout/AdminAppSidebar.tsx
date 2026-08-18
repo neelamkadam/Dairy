@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { 
-  ChevronDown, Menu, X, 
-  LayoutDashboard, Building2, Settings, 
-  ShieldAlert, UserCheck, Smartphone, 
+import {
+  ChevronDown, Menu, X,
+  LayoutDashboard, Building2, Settings,
+  ShieldAlert, UserCheck, Smartphone,
   Monitor, ShieldCheck, Dot
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -28,40 +28,40 @@ const menuItems: MenuItem[] = [
     title: "Branch",
     icon: <Building2 size={20} className="stroke-[1.5]" />,
     children: [
-      { title: "Create User", icon: <Dot size={24} />, href: ROUTES.ADMIN_CREATE_USER},
-      { title: "Add Branch", icon: <Dot size={24} />, href: ROUTES.ADMIN_MASTER.ADD_BRANCH},
-      { title: "Upload Rate Chart", icon: <Dot size={24} />, href: ROUTES.ADMIN_MASTER.UPLOAD_RATE_CHART},
-      { title: "Sidebar Access", icon: <Dot size={24} />, href: ROUTES.ADMIN_MASTER.SIDEBAR_ACCESS}
-    ] 
+      { title: "Create User", icon: <Dot size={24} />, href: ROUTES.ADMIN_CREATE_USER },
+      { title: "Add Branch", icon: <Dot size={24} />, href: ROUTES.ADMIN_MASTER.ADD_BRANCH },
+      { title: "Upload Rate Chart", icon: <Dot size={24} />, href: ROUTES.ADMIN_MASTER.UPLOAD_RATE_CHART },
+      { title: "Sidebar Access", icon: <Dot size={24} />, href: ROUTES.ADMIN_MASTER.SIDEBAR_ACCESS }
+    ]
   },
   {
     title: "Master",
     icon: <Settings size={20} className="stroke-[1.5]" />,
     children: [
-      { title: "Mobile Application", icon: <Dot size={24} />, href:ROUTES.ADMIN_MASTER.MOBILE_APPLICATION},
-      { title: "Web Application", icon: <Dot size={24} />, href:ROUTES.ADMIN_MASTER.WEB_APPLICATION},
-      { title: "Farmer Application", icon: <Dot size={24} />, href: ROUTES.ADMIN_MASTER.FARMER_APPLICATION}
+      { title: "Mobile Application", icon: <Dot size={24} />, href: ROUTES.ADMIN_MASTER.MOBILE_APPLICATION },
+      { title: "Web Application", icon: <Dot size={24} />, href: ROUTES.ADMIN_MASTER.WEB_APPLICATION },
+      { title: "Farmer Application", icon: <Dot size={24} />, href: ROUTES.ADMIN_MASTER.FARMER_APPLICATION }
     ]
   },
   {
     title: "Activation",
     icon: <Monitor size={20} className="stroke-[1.5]" />,
     children: [
-      { title: "Activation", icon: <Dot size={24} />, href:ROUTES.ACTIVATION.ACTIVATION},
-      { title: "Web Application Activation", icon: <Dot size={24} />, href: ROUTES.ACTIVATION.WEB_APPLICATION_ACTIVATION}
+      { title: "Activation", icon: <Dot size={24} />, href: ROUTES.ACTIVATION.ACTIVATION },
+      { title: "Web Application Activation", icon: <Dot size={24} />, href: ROUTES.ACTIVATION.WEB_APPLICATION_ACTIVATION }
     ]
   },
   {
     title: "Admin",
     icon: <ShieldAlert size={20} className="stroke-[1.5]" />,
     children: [
-      { title: "Create Admin", icon: <Dot size={24} />, href: ROUTES.ADMIN_CREATE_ADMIN},
+      { title: "Create Admin", icon: <Dot size={24} />, href: ROUTES.ADMIN_CREATE_ADMIN },
     ]
   },
   {
     title: "Attendance & Supervisior",
     icon: <UserCheck size={20} className="stroke-[1.5]" />,
-    href: ROUTES.ATTENDANCE.SUPERVISOR 
+    href: ROUTES.ATTENDANCE.SUPERVISOR
   }
 ];
 
@@ -103,12 +103,12 @@ const AdminAppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
             level === 0 ? "rounded-xl mt-1" : "rounded-lg mt-0.5",
             level > 0 && "ml-4 text-[13.5px]",
             isActive
-              ? (level === 0 
-                  ? "bg-blue-600 shadow-md text-white font-medium hover:bg-blue-700"
-                  : "bg-blue-50 text-blue-700 font-semibold before:absolute before:left-[-16px] before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-8 before:bg-blue-600 before:rounded-r-md")
+              ? (level === 0
+                ? "bg-blue-600 shadow-md text-white font-medium hover:bg-blue-700"
+                : "bg-blue-50 text-blue-700 font-semibold before:absolute before:left-[-16px] before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-8 before:bg-blue-600 before:rounded-r-md")
               : (level === 0
-                  ? "text-slate-600 hover:bg-slate-100 hover:text-slate-900 font-medium dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
-                  : "text-slate-500 hover:text-blue-600 hover:bg-slate-50 font-medium dark:text-slate-400 dark:hover:text-blue-400 dark:hover:bg-slate-800")
+                ? "text-slate-600 hover:bg-slate-100 hover:text-slate-900 font-medium dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+                : "text-slate-500 hover:text-blue-600 hover:bg-slate-50 font-medium dark:text-slate-400 dark:hover:text-blue-400 dark:hover:bg-slate-800")
           )}
           onClick={() => hasChildren ? toggleExpanded(item.title) : handleNavigation(item.href)}
         >
@@ -116,20 +116,20 @@ const AdminAppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
             {hasIcon && (
               <span className={cn(
                 "flex items-center justify-center transition-colors duration-300",
-                isActive 
+                isActive
                   ? (level === 0 ? "text-white" : "text-blue-600 dark:text-blue-400")
                   : (level === 0 ? "text-slate-500 group-hover:text-blue-600 dark:text-slate-400 dark:group-hover:text-blue-400" : "text-slate-400 group-hover:text-blue-500 dark:text-slate-500")
               )}>
                 {item.icon}
               </span>
             )}
-            
+
             {isOpen && <span className="tracking-wide leading-tight">{item.title}</span>}
           </div>
           {hasChildren && isOpen && (
             <div className={cn(
               "transition-transform duration-300",
-              isExpanded 
+              isExpanded
                 ? (isActive && level === 0 ? "text-white rotate-180" : "text-slate-600 rotate-180 dark:text-slate-300")
                 : (isActive && level === 0 ? "text-white/80" : "text-slate-400 group-hover:text-blue-500")
             )}>
@@ -137,7 +137,7 @@ const AdminAppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
             </div>
           )}
         </div>
-        
+
         {hasChildren && isExpanded && isOpen && (
           <div className="mt-1 flex flex-col gap-0.5 relative">
             {level === 0 && (
@@ -152,21 +152,30 @@ const AdminAppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
 
   return (
     <>
-      <div 
+      <div
         className={cn(
           "fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-all duration-300 z-30 lg:hidden",
           isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
         onClick={onToggle}
       />
-      
+
       <div className={cn(
         "bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-300 flex flex-col h-screen fixed left-0 top-0 z-40 shadow-sm",
         isOpen ? "w-64 translate-x-0" : "w-64 -translate-x-full lg:w-16 lg:translate-x-0"
       )}>
-        <div className="flex flex-col p-5 border-b border-slate-100 dark:border-slate-800 flex-shrink-0 bg-slate-50/50 dark:bg-slate-900/50">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className={cn(
+          "flex flex-col border-b border-slate-100 dark:border-slate-800 flex-shrink-0 bg-slate-50/50 dark:bg-slate-900/50 transition-all duration-300",
+          isOpen ? "p-5" : "p-4 items-center"
+        )}>
+          <div className={cn(
+            "flex items-center w-full",
+            isOpen ? "justify-between" : "justify-center"
+          )}>
+            <div className={cn(
+              "items-center gap-3 flex-1 min-w-0",
+              isOpen ? "flex" : "hidden"
+            )}>
               <div className={cn(
                 "flex items-center justify-center bg-blue-600 rounded-xl shadow-sm transition-all duration-300",
                 isOpen ? "w-10 h-10" : "w-8 h-8"

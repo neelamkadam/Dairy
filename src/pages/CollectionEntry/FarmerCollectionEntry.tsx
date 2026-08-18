@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/dialog";
 import { settingsApi } from "@/services/settingsApi";
 import BulkCollectionUpload from "@/pages/Collection/BulkCollectionUpload";
+import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 
 interface Collection {
   id: number;
@@ -95,21 +96,6 @@ const FarmerCollectionEntry = () => {
   const modalPrimaryActionRef = useRef<HTMLButtonElement>(null);
   const formContainerRef = useRef<HTMLDivElement>(null);
   const [showWater, setShowWater] = useState(false);
-
-  const [vlcOpen, setVlcOpen] = useState(false);
-  const [vlcSearch, setVlcSearch] = useState("");
-  const vlcWrapperRef = useRef<HTMLDivElement>(null);
-  const vlcSearchRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (vlcWrapperRef.current && !vlcWrapperRef.current.contains(event.target as Node)) {
-        setVlcOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   // Serial (wired machine) connection — logic lives in useSerialAnalyzer hook
   const { serialStatus, errorMessage, connectMachine, disconnectMachine } = useSerialAnalyzer({
@@ -679,8 +665,8 @@ const FarmerCollectionEntry = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50/50">
-      <div className="max-w-7xl mx-auto p-4 lg:p-6 space-y-6">
+    <div className="min-h-screen bg-gray-50/50 min-w-0 max-w-full overflow-x-hidden">
+      <div className="max-w-7xl mx-auto p-4 lg:p-6 space-y-6 min-w-0">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
           <div className="flex items-center space-x-3">
@@ -691,22 +677,24 @@ const FarmerCollectionEntry = () => {
               {t('farmer_collection_entry')}
             </h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
             <Button
               onClick={() => navigate(ROUTES.CC_COLLECTION.ANALYSER_COLLECTION)}
-              className="bg-white text-blue-600 hover:bg-blue-50 border border-blue-200 shadow-sm transition-all rounded-xl h-10 px-4 font-medium"
+              className="flex-1 sm:flex-none bg-white text-blue-600 hover:bg-blue-50 border border-blue-200 shadow-sm transition-all rounded-xl h-10 px-4 font-medium"
               variant="outline"
             >
               Analyser
             </Button>
             <Button
               onClick={() => navigate(ROUTES.CC_COLLECTION.WEIGHT_COLLECTION)}
-              className="bg-white text-indigo-600 hover:bg-indigo-50 border border-indigo-200 shadow-sm transition-all rounded-xl h-10 px-4 font-medium"
+              className="flex-1 sm:flex-none bg-white text-indigo-600 hover:bg-indigo-50 border border-indigo-200 shadow-sm transition-all rounded-xl h-10 px-4 font-medium"
               variant="outline"
             >
               Weight Collection
             </Button>
-            <BulkCollectionUpload />
+            <div className="w-full sm:w-auto [&>button]:w-full">
+              <BulkCollectionUpload />
+            </div>
           </div>
         </div>
 
@@ -721,103 +709,12 @@ const FarmerCollectionEntry = () => {
                     <Label className="text-xs font-semibold text-gray-600 uppercase tracking-wider block">
                       {t('vlc_name')}
                     </Label>
-                    {(() => {
-                      const selectedBranchObj = branches?.find((b) => b.branch_id === selectedBranch);
-                      const filtered = branches?.filter((b) => {
-                        const q = vlcSearch.toLowerCase();
-                        return (
-                          !q ||
-                          String(b.username || "").toLowerCase().includes(q) ||
-                          String(b.branch_id || "").toLowerCase().includes(q) ||
-                          String(b.name || "").toLowerCase().includes(q) ||
-                          String(b.branchName || "").toLowerCase().includes(q)
-                        );
-                      }) || [];
-                      return (
-                        <div ref={vlcWrapperRef} className="relative w-full">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setVlcOpen((prev) => !prev);
-                              if (!vlcOpen) setTimeout(() => vlcSearchRef.current?.focus(), 0);
-                              else setVlcSearch("");
-                            }}
-                            className={cn(
-                              "w-full flex items-center justify-between px-3 py-2 h-10 text-sm rounded-xl border bg-white transition-all shadow-sm enter-field",
-                              vlcOpen ? "border-blue-500 ring-1 ring-blue-500/20" : "border-gray-200 hover:border-blue-300"
-                            )}
-                          >
-                            <span className={selectedBranchObj ? "text-gray-900 font-medium truncate" : "text-gray-500"}>
-                              {selectedBranchObj
-                                ? `${selectedBranchObj.username} - ${selectedBranchObj.name} ${selectedBranchObj.branchName ? `- ${selectedBranchObj.branchName}` : ''}`
-                                : t('select_vlc')}
-                            </span>
-                            <ChevronDown
-                              className={cn("h-4 w-4 text-gray-400 flex-shrink-0 ml-2 transition-transform duration-150", vlcOpen && "rotate-180")}
-                            />
-                          </button>
-
-                          {vlcOpen && (
-                            <div
-                              className="absolute z-50 mt-1 w-full bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden"
-                              style={{ top: "100%", left: 0 }}
-                            >
-                              <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100">
-                                <Search className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                                <input
-                                  ref={vlcSearchRef}
-                                  value={vlcSearch}
-                                  onChange={(e) => setVlcSearch(e.target.value)}
-                                  placeholder="Search VLC..."
-                                  className="flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400"
-                                />
-                                {vlcSearch && (
-                                  <button
-                                    type="button"
-                                    onMouseDown={(e) => { e.preventDefault(); setVlcSearch(""); vlcSearchRef.current?.focus(); }}
-                                    className="text-gray-400 hover:text-gray-600 text-sm leading-none"
-                                  >
-                                    ✕
-                                  </button>
-                                )}
-                              </div>
-                              <div className="max-h-48 overflow-y-auto p-1">
-                                {filtered.length === 0 ? (
-                                  <div className="px-3 py-4 text-center text-sm text-gray-400">No VLC branches found</div>
-                                ) : (
-                                  filtered.map((branch) => {
-                                    if (!branch?.branch_id) return null;
-                                    const val = branch.branch_id;
-                                    const isSelected = val === selectedBranch;
-                                    return (
-                                      <button
-                                        key={val}
-                                        type="button"
-                                        onMouseDown={(e) => {
-                                          e.preventDefault();
-                                          void handleBranchChange(val.toString());
-                                          setVlcOpen(false);
-                                          setVlcSearch("");
-                                        }}
-                                        className={cn(
-                                          "w-full flex items-center justify-between px-3 py-2 text-sm text-left rounded-lg transition-colors",
-                                          isSelected ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700 hover:bg-gray-50"
-                                        )}
-                                      >
-                                        <span className="truncate">
-                                          {branch.username} - {branch.name} {branch.branchName ? `- ${branch.branchName}` : ''}
-                                        </span>
-                                        {isSelected && <span className="text-blue-600 text-xs">✓</span>}
-                                      </button>
-                                    );
-                                  })
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
+                    <VLCDropdown
+                      branches={branches || []}
+                      value={selectedBranch ? String(selectedBranch) : ""}
+                      onChange={handleBranchChange}
+                      valueKey="branch_id"
+                    />
                   </div>
 
                   <div className="space-y-1.5">

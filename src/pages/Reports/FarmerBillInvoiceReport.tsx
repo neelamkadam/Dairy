@@ -2,6 +2,7 @@ import React, { useState, useEffect, Fragment } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { api } from '@/services/config';
@@ -1111,36 +1112,25 @@ const FarmerBillInvoiceReport = () => {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-2 sm:p-4 bg-gray-50 min-h-screen text-left">
       <PdfLoader isLoading={pdfLoading} />
-      <h1 className="text-2xl font-bold">{t('farmer_bill_invoice_report')}</h1>
+      {/* Header */}
+      <div className="flex flex-col items-start text-left gap-1 animate-in fade-in slide-in-from-top-4 duration-700 px-2 mb-2">
+        <h1 className="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600">
+          {t('farmer_bill_invoice_report')}
+        </h1>
+      </div>
 
-      <Card>
-        <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 items-end">
-            <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-end bg-white p-3 sm:p-4 rounded-lg shadow-sm mx-2 mb-4 text-left">
+        <div>
               <Label>{t('vlcc_center')}</Label>
-              <Select value={selectedVLC} onValueChange={setSelectedVLC}>
-                <SelectTrigger className="bg-white">
-                  <SelectValue placeholder={t('select_vlc_center')}>
-                    {selectedVLC && (() => {
-                      const selected = branches.find(b => b.branch_id.toString() === selectedVLC);
-                      if (selected) {
-                        const text = `${selected.username} - ${selected.name}`;
-                        return text.length > 25 ? text.substring(0, 40) + '...' : text;
-                      }
-                      return t('select_vlc_center');
-                    })()}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent className="bg-white w-full min-w-[400px]">
-                  {branches.map(vlc => (
-                    <SelectItem key={vlc.branch_id} value={vlc.branch_id.toString()}>
-                      {vlc.username} - {vlc.name} - {vlc.branchName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <VLCDropdown
+                branches={branches || []}
+                value={selectedVLC}
+                onChange={setSelectedVLC}
+                valueKey="branch_id"
+                placeholder={t('select_vlc_center')}
+              />
             </div>
 
             <div>
@@ -1171,23 +1161,20 @@ const FarmerBillInvoiceReport = () => {
                 </SelectContent>
               </Select>
             </div>
-          </div>
-          
-          <div className="flex gap-2 mt-4">
-            <Button className='bg-blue-600 text-white' onClick={handleShow} disabled={loading}>
-              {loading ? t('loading') : t('show')}
-            </Button>
-            <Button 
-              className='bg-red-600 text-white' 
-              onClick={() => setShowExportModal(true)} 
-              disabled={!selectedVLC || pdfLoading} 
-              variant="outline"
-            >
-              {t('export_pdf')}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        <div className="xl:col-span-5 flex flex-wrap gap-2 justify-end">
+          <Button className='bg-blue-600 text-white w-[120px]' onClick={handleShow} disabled={loading}>
+            {loading ? t('loading') : t('show')}
+          </Button>
+          <Button 
+            className='bg-red-600 text-white flex items-center gap-2' 
+            onClick={() => setShowExportModal(true)} 
+            disabled={!selectedVLC || pdfLoading} 
+            variant="outline"
+          >
+            {t('export_pdf')}
+          </Button>
+        </div>
+      </div>
 
       {collectionData.length === 0 && fromDate && toDate && (
         <Card>

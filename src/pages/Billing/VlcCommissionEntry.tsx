@@ -6,19 +6,17 @@ import { useAppSelector } from "@/redux/store";
 import { vlcCommissionApi } from "@/services/vlcCommissionApi";
 import { toast } from "react-toastify";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { format, subDays, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import FileCopyIcon from "@mui/icons-material/FileCopy";
 import { reportsApi } from "@/services/reportsApi";
+import { History, TrendingUp, Wallet, Calendar, CheckCircle2, Copy } from "lucide-react";
 
 const VlcCCommissionEntry: React.FC = () => {
   const { branches } = useAppSelector((state) => state.branch);
@@ -36,7 +34,7 @@ const VlcCCommissionEntry: React.FC = () => {
   const handleCopy = () => {
     navigator.clipboard.writeText(inputValue).then(
       () => {
-        alert("Copied to clipboard!");
+        toast.success("Copied to clipboard!");
       },
       (err) => {
         console.error("Failed to copy: ", err);
@@ -97,7 +95,7 @@ const VlcCCommissionEntry: React.FC = () => {
         setInputValue(`VLC-${response.data.id}-${Date.now()}`);
         setIsSubmitted(true);
         fetchCommissionData();
-        setTimeout(() => setIsSubmitted(false), 3000);
+        setTimeout(() => setIsSubmitted(false), 5000);
       }
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to submit commission");
@@ -107,216 +105,295 @@ const VlcCCommissionEntry: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-2">
-      <Card className="shadow-lg border-0">
-        <CardHeader className="border-b bg-gradient-to-r from-blue-50 to-indigo-50">
-          <CardTitle className="text-2xl font-bold text-gray-800">
-            VLC Commission Entry
-          </CardTitle>
-          <p className="text-gray-600 text-sm mt-1">
-            Configure commission rates for VLC operations
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-50 via-slate-50 to-white p-4 md:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        
+        {/* Header Section */}
+        <div className="flex flex-col items-start text-left gap-1.5 animate-in fade-in slide-in-from-top-4 duration-700">
+          <h1 className="text-xl md:text-2xl font-semibold text-slate-800 tracking-tight">
+            VLC Commission Configuration
+          </h1>
+          <p className="text-sm text-slate-500 max-w-2xl">
+            Set and manage commission rates or fixed payments for Village Level Collection Centers.
           </p>
-        </CardHeader>
-        <CardContent className="p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="vlcc" className="text-sm font-medium text-gray-700">Select VLC <span className="text-red-500">*</span></Label>
-              <Select
-                value={formData.vlcc}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, vlcc: value })
-                }
-              >
-                <SelectTrigger className="w-full bg-gray-50 border-gray-200">
-                  <SelectValue placeholder="Choose a VLC" />
-                </SelectTrigger>
-                <SelectContent className="bg-white">
-                  {branches.map((branch) => (
-                    <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
-                      {branch.username} - {branch.name} - {branch.branchName || ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        </div>
 
-            <div className="space-y-3">
-              <Label className="text-sm font-medium text-gray-700">Commission Type <span className="text-red-500">*</span></Label>
-              <RadioGroup
-                value={formData.commissionType}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, commissionType: value })
-                }
-                className="grid grid-cols-2 gap-4"
-              >
-                <Label
-                  htmlFor="per-liter"
-                  className={cn(
-                    "flex items-center space-x-3 px-4 py-3 rounded-lg border-2 cursor-pointer transition-all",
-                    formData.commissionType === "per-liter" 
-                      ? "border-blue-500 bg-blue-50" 
-                      : "border-gray-200 bg-gray-50 hover:border-gray-300"
-                  )}
-                >
-                  <RadioGroupItem value="per-liter" id="per-liter" />
-                  <span className="font-medium">Per Liter Commission</span>
-                </Label>
-                <Label
-                  htmlFor="fixed"
-                  className={cn(
-                    "flex items-center space-x-3 px-4 py-3 rounded-lg border-2 cursor-pointer transition-all",
-                    formData.commissionType === "fixed" 
-                      ? "border-blue-500 bg-blue-50" 
-                      : "border-gray-200 bg-gray-50 hover:border-gray-300"
-                  )}
-                >
-                  <RadioGroupItem value="fixed" id="fixed" />
-                  <span className="font-medium">Fixed Payment</span>
-                </Label>
-              </RadioGroup>
-            </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
+          
+          {/* Main Form Area */}
+          <div className="lg:col-span-2">
+            <Card className="bg-white/70 backdrop-blur-xl border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-visible transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] rounded-2xl">
+              <CardHeader className="px-6 py-5 border-b border-slate-100/50 bg-white/50 rounded-t-2xl">
+                <CardTitle className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                  <Wallet className="w-5 h-5 text-indigo-600" />
+                  Commission Entry
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  
+                  {/* VLC Selection */}
+                  <div className="space-y-2 group">
+                    <Label htmlFor="vlcc" className="text-sm font-semibold text-slate-700 group-hover:text-indigo-600 transition-colors">
+                      Select VLC <span className="text-red-500">*</span>
+                    </Label>
+                    <div className="relative">
+                      <VLCDropdown
+                        branches={branches}
+                        value={formData.vlcc}
+                        onChange={(value) => setFormData({ ...formData, vlcc: value })}
+                        valueKey="branch_id"
+                        placeholder="Choose a VLC center..."
+                      />
+                    </div>
+                  </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="commissionAmount" className="text-sm font-medium text-gray-700">Commission Amount <span className="text-red-500">*</span></Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
-                  ₹
-                </span>
-                <Input
-                  id="commissionAmount"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  className="pl-8 bg-gray-50 border-gray-200"
-                  value={formData.commissionAmount}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      commissionAmount: e.target.value,
-                    })
-                  }
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">Effective Date From <span className="text-red-500">*</span></Label>
-              <Input
-                type="date"
-                value={formData.effectiveDate ? format(formData.effectiveDate, "yyyy-MM-dd") : ""}
-                onChange={(e) => {
-                  const d = new Date(e.target.value);
-                  if (isValid(d)) setFormData({ ...formData, effectiveDate: d });
-                }}
-                className="bg-gray-50 border-gray-200 w-full h-10"
-              />
-            </div>
-
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white h-11 text-base font-medium"
-            >
-              {loading ? "Submitting..." : "Submit Commission Entry"}
-            </Button>
-          </form>
-
-          {isSubmitted && (
-            <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <div className="flex items-center gap-2 text-green-800 font-medium mb-3">
-                <CheckCircleIcon className="text-green-600" />
-                Commission entry submitted successfully
-              </div>
-              <div className="relative">
-                <Label className="text-sm text-gray-600 mb-2 block">Transaction ID</Label>
-                <Input
-                  type="text"
-                  value={inputValue}
-                  readOnly
-                  className="pr-10 bg-white border-gray-300 font-mono text-sm"
-                />
-                <span
-                  onClick={handleCopy}
-                  className="absolute right-3 top-9 cursor-pointer hover:text-blue-600 transition-colors"
-                >
-                  <FileCopyIcon className="text-gray-500" fontSize="small" />
-                </span>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      </div>
-
-      <div>
-        {commissionData && commissionData.commissions?.length > 0 ? (
-          <div>
-            <h3 className="text-sm font-semibold text-gray-800 mb-2">Commission History</h3>
-            <div className="space-y-2 max-h-[calc(100vh-200px)] overflow-y-auto pr-2">
-              {commissionData.commissions.map((comm: any, idx: number) => {
-                const isActive = idx === 0;
-                const effectiveFrom = new Date(comm.effective_from);
-                
-                // Calculate end date (day before the newer commission's effective date)
-                let endDate = null;
-                if (!isActive) {
-                  const newerCommEffectiveDate = new Date(commissionData.commissions[idx - 1].effective_from);
-                  endDate = subDays(newerCommEffectiveDate, 1);
-                }
-                
-                return (
-                  <Card key={idx} className={cn(
-                    "border shadow-sm",
-                    isActive ? "border-green-300 bg-green-50" : "border-purple-200"
-                  )}>
-                    <CardContent className="p-2">
-                      <div className="space-y-1.5">
-                        {isActive && (
-                          <div className="flex items-center gap-1 mb-1">
-                            <span className="px-2 py-0.5 bg-green-600 text-white text-xs font-semibold rounded">
-                              Active
-                            </span>
-                          </div>
+                  {/* Commission Type */}
+                  <div className="space-y-3">
+                    <Label className="text-sm font-semibold text-slate-700">
+                      Commission Type <span className="text-red-500">*</span>
+                    </Label>
+                    <RadioGroup
+                      value={formData.commissionType}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, commissionType: value })
+                      }
+                      className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+                    >
+                      <Label
+                        htmlFor="per-liter"
+                        className={cn(
+                          "flex items-center space-x-3 px-4 py-3.5 rounded-xl border-2 cursor-pointer transition-all duration-200",
+                          formData.commissionType === "per-liter" 
+                            ? "border-indigo-600 bg-indigo-50/50 shadow-[0_0_15px_rgba(79,70,229,0.15)]" 
+                            : "border-transparent bg-slate-50 hover:bg-slate-100 hover:scale-[1.02]"
                         )}
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-medium text-gray-600">Type</span>
-                          <span className="text-xs font-semibold text-gray-900">
-                            {comm.type === 'Commission' ? 'Per Liter Commision' : 'Fixed Payment'}
-                          </span>
+                      >
+                        <RadioGroupItem value="per-liter" id="per-liter" className="text-indigo-600" />
+                        <div className="flex flex-col">
+                          <span className="font-bold text-sm text-slate-900">Per Liter</span>
+                          <span className="text-xs text-slate-500 font-medium">Commission based on volume</span>
                         </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-medium text-gray-600">Amount</span>
-                          <span className="text-xs font-bold text-purple-600">₹{parseFloat(comm.amount).toFixed(2)}</span>
+                      </Label>
+                      
+                      <Label
+                        htmlFor="fixed"
+                        className={cn(
+                          "flex items-center space-x-3 px-4 py-3.5 rounded-xl border-2 cursor-pointer transition-all duration-200",
+                          formData.commissionType === "fixed" 
+                            ? "border-indigo-600 bg-indigo-50/50 shadow-[0_0_15px_rgba(79,70,229,0.15)]" 
+                            : "border-transparent bg-slate-50 hover:bg-slate-100 hover:scale-[1.02]"
+                        )}
+                      >
+                        <RadioGroupItem value="fixed" id="fixed" className="text-indigo-600" />
+                        <div className="flex flex-col">
+                          <span className="font-bold text-sm text-slate-900">Fixed Payment</span>
+                          <span className="text-xs text-slate-500 font-medium">Flat amount per cycle</span>
                         </div>
-                        <div className="pt-1.5 border-t border-gray-200">
-                          <span className="text-xs text-gray-500">
-                            {isActive ? 'Effective From' : 'Effective Period'}
-                          </span>
-                          <p className="text-xs font-medium text-gray-700">
-                            {isActive 
-                              ? format(effectiveFrom, 'dd-MM-yyyy')
-                              : endDate 
-                                ? `${format(effectiveFrom, 'dd-MM-yyyy')} to ${format(endDate, 'dd-MM-yyyy')}`
-                                : format(effectiveFrom, 'dd-MM-yyyy')
-                            }
-                          </p>
-                        </div>
+                      </Label>
+                    </RadioGroup>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    {/* Amount */}
+                    <div className="space-y-2 group">
+                      <Label htmlFor="commissionAmount" className="text-sm font-semibold text-slate-700 group-hover:text-indigo-600 transition-colors">
+                        Amount <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="relative group/input">
+                        <span className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-500 font-semibold group-hover/input:text-indigo-600 transition-colors">
+                          ₹
+                        </span>
+                        <Input
+                          id="commissionAmount"
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          className="pl-8 bg-slate-50/50 border-slate-200 rounded-xl shadow-sm h-11 focus-visible:ring-indigo-500 focus-visible:border-indigo-500 transition-all font-medium text-slate-900 text-lg"
+                          value={formData.commissionAmount}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              commissionAmount: e.target.value,
+                            })
+                          }
+                          required
+                        />
                       </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
+                    </div>
+
+                    {/* Effective Date */}
+                    <div className="space-y-2 group">
+                      <Label className="text-sm font-semibold text-slate-700 group-hover:text-indigo-600 transition-colors">
+                        Effective Date From <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          type="date"
+                          value={formData.effectiveDate ? format(formData.effectiveDate, "yyyy-MM-dd") : ""}
+                          onChange={(e) => {
+                            const d = new Date(e.target.value);
+                            if (isValid(d)) setFormData({ ...formData, effectiveDate: d });
+                          }}
+                          className="bg-slate-50/50 border-slate-200 w-full h-11 rounded-xl shadow-sm focus-visible:ring-indigo-500 focus-visible:border-indigo-500 transition-all font-medium text-slate-700"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <Button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full h-12 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-xl text-base font-bold shadow-md shadow-indigo-200 hover:shadow-lg hover:shadow-indigo-300 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                    >
+                      {loading ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          <span>Processing...</span>
+                        </>
+                      ) : (
+                        "Save Configuration"
+                      )}
+                    </Button>
+                  </div>
+                </form>
+
+                {isSubmitted && (
+                  <div className="mt-6 p-5 bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200/60 rounded-xl animate-in slide-in-from-bottom-2 fade-in duration-300">
+                    <div className="flex items-center gap-2.5 text-green-800 font-bold mb-3">
+                      <CheckCircle2 className="w-6 h-6 text-green-600 animate-in zoom-in duration-300 delay-100" />
+                      Configuration saved successfully
+                    </div>
+                    <div className="relative group/copy">
+                      <Label className="text-xs font-semibold text-green-700 uppercase tracking-wider mb-1.5 block">
+                        Reference ID
+                      </Label>
+                      <div className="flex items-center">
+                        <Input
+                          type="text"
+                          value={inputValue}
+                          readOnly
+                          className="pr-12 bg-white/60 border-green-200/60 font-mono text-sm text-slate-700 rounded-l-lg rounded-r-none h-10 border-r-0 focus-visible:ring-0"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={handleCopy}
+                          className="h-10 rounded-l-none rounded-r-lg border-green-200/60 bg-white hover:bg-green-100/50 hover:text-green-700 text-green-600 border-l-0 px-3 transition-colors"
+                          title="Copy to clipboard"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
-        ) : (
-          <div className="text-center py-12 text-gray-500">
-            <p className="text-sm">Select VLC to view commission history</p>
+
+          {/* History Column */}
+          <div className="lg:col-span-1">
+            <Card className="bg-white/70 backdrop-blur-xl border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl h-[550px] flex flex-col">
+              <CardHeader className="px-5 py-4 border-b border-slate-100/50 bg-white/50 rounded-t-2xl shrink-0">
+                <CardTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <History className="w-5 h-5 text-indigo-500" />
+                  Commission History
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0 flex-1 overflow-hidden relative">
+                {commissionData && commissionData.commissions?.length > 0 ? (
+                  <div className="absolute inset-0 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                    {commissionData.commissions.map((comm: any, idx: number) => {
+                      const isActive = idx === 0;
+                      const effectiveFrom = new Date(comm.effective_from);
+                      
+                      let endDate = null;
+                      if (!isActive) {
+                        const newerCommEffectiveDate = new Date(commissionData.commissions[idx - 1].effective_from);
+                        endDate = subDays(newerCommEffectiveDate, 1);
+                      }
+                      
+                      return (
+                        <div 
+                          key={idx} 
+                          className={cn(
+                            "relative overflow-hidden rounded-xl border transition-all duration-300 hover:shadow-md",
+                            isActive 
+                              ? "bg-gradient-to-br from-indigo-50/80 to-blue-50/50 border-indigo-200/60" 
+                              : "bg-white border-slate-100 hover:border-indigo-100"
+                          )}
+                        >
+                          {isActive && (
+                            <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />
+                          )}
+                          <div className="p-4">
+                            {isActive && (
+                              <div className="flex items-center gap-1.5 mb-2.5">
+                                <span className="px-2.5 py-0.5 bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-wider rounded-full shadow-sm">
+                                  Currently Active
+                                </span>
+                              </div>
+                            )}
+                            
+                            <div className="flex justify-between items-start mb-3">
+                              <div className="space-y-1">
+                                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider ml-5">
+                                  Type
+                                </p>
+                                <p className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                                  <TrendingUp className="w-3.5 h-3.5 text-slate-400" />
+                                  {comm.type === 'Commission' ? 'Per Liter' : 'Fixed Payment'}
+                                </p>
+                              </div>
+                              <div className="space-y-1 text-right">
+                                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                  Rate
+                                </p>
+                                <p className="text-lg font-black text-indigo-600 tracking-tight leading-none">
+                                  ₹{parseFloat(comm.amount).toFixed(2)}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="pt-3 border-t border-slate-200/60 mt-1 flex items-center gap-2">
+                              <Calendar className="w-4 h-4 text-slate-400" />
+                              <div className="flex-1">
+                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">
+                                  {isActive ? 'Effective Since' : 'Active Period'}
+                                </p>
+                                <p className="text-xs font-medium text-slate-700">
+                                  {isActive 
+                                    ? format(effectiveFrom, 'MMM dd, yyyy')
+                                    : endDate 
+                                      ? `${format(effectiveFrom, 'MMM dd, yyyy')} - ${format(endDate, 'MMM dd, yyyy')}`
+                                      : format(effectiveFrom, 'MMM dd, yyyy')
+                                  }
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
+                    <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mb-4 border border-slate-100 shadow-sm">
+                      <History className="w-8 h-8 text-slate-300" />
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-800 mb-1">No History Found</h3>
+                    <p className="text-xs font-medium text-slate-500 max-w-[200px]">
+                      Select a VLC center to view its past and current commission configurations.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
-        )}
-      </div>
+
+        </div>
       </div>
     </div>
   );

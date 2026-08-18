@@ -61,9 +61,26 @@ const CreateUser = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50/50 p-4 md:p-6">
-      <div className="max-w-2xl mx-auto space-y-4 md:space-y-6 mt-2 md:mt-4">
-        
+    <div className="p-2 md:p-4 bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 min-h-[calc(100vh-80px)] space-y-4 md:space-y-5">
+      {/* ── Page Header ─────────────────────────────────────────── */}
+      <div className="relative overflow-hidden bg-white rounded-xl border border-gray-100/80 shadow-sm p-4 w-full">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-blue-500/5 to-transparent rounded-bl-full" />
+        <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/25">
+              <UserPlus className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-lg md:text-xl font-bold text-gray-900 tracking-tight">Create User</h1>
+              <p className="text-xs text-gray-500 mt-0.5">Add a new user to the system</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-2xl mx-auto space-y-4 md:space-y-5">
+
+
         <Card className="shadow-sm border border-gray-200/60 bg-white rounded-lg">
           <CardHeader className="border-b border-gray-100 bg-white pb-4 pt-5">
             <CardTitle className="flex items-center gap-2 text-lg font-semibold text-gray-800">

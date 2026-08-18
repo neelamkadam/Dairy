@@ -201,34 +201,35 @@ const SidebarAccessManagement = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50/50 p-4 md:p-6">
-      <div className="max-w-5xl mx-auto space-y-4 md:space-y-6 mt-2 md:mt-4">
-        
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200/60 p-4 md:p-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-md flex items-center justify-center shrink-0">
-                <ShieldCheck className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-semibold text-gray-800">Sidebar Access Management</h1>
-                <p className="text-sm text-gray-500">Control which features each user can access</p>
-              </div>
+    <div className="p-2 md:p-4 bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 min-h-[calc(100vh-80px)] space-y-4 md:space-y-5">
+      {/* ── Page Header ─────────────────────────────────────────── */}
+      <div className="relative overflow-hidden bg-white rounded-xl border border-gray-100/80 shadow-sm p-4 w-full">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-blue-500/5 to-transparent rounded-bl-full" />
+        <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/25">
+              <ShieldCheck className="w-5 h-5 text-white" />
             </div>
-            {selectedUserId && (
-              <Button
-                onClick={() => setShowPasswordModal(true)}
-                variant="outline"
-                className="h-9 text-amber-600 border-amber-200 bg-white hover:bg-amber-50 flex items-center gap-2 rounded-md px-4 shadow-sm font-medium text-sm transition-colors"
-                title="Reset Password"
-              >
-                <KeyRound className="w-4 h-4" />
-                Reset Password
-              </Button>
-            )}
+            <div>
+              <h1 className="text-lg md:text-xl font-bold text-gray-900 tracking-tight">Sidebar Access Management</h1>
+              <p className="text-xs text-gray-500 mt-0.5">Control which features each user can access</p>
+            </div>
           </div>
+          {selectedUserId && (
+            <Button
+              onClick={() => setShowPasswordModal(true)}
+              variant="outline"
+              className="h-9 text-amber-600 border-amber-200 bg-white hover:bg-amber-50 flex items-center gap-2 rounded-lg px-4 shadow-sm font-medium transition-all"
+              title="Reset Password"
+            >
+              <KeyRound className="w-4 h-4" />
+              Reset Password
+            </Button>
+          )}
         </div>
+      </div>
+
+      <div className="max-w-5xl mx-auto space-y-4 md:space-y-5">
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Column: User Selection */}

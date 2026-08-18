@@ -3,13 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import { Lock, CheckCircle, Unlock, Loader2 } from "lucide-react";
 import { billApi } from "@/services/billApi";
 import { deductionApi } from "@/services/deductionApi";
@@ -794,280 +788,263 @@ const GenerateBill = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-300">
-        <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-2">
-            <div className="flex items-center space-x-4">
-              <div>
-                <h1 className="text-2xl text-left font-bold text-gray-900">
-                  Generate Bill
-                </h1>
-              </div>
-            </div>
-          </div>
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-50 via-slate-50 to-white p-2 md:p-4">
+      <div className="max-w-7xl mx-auto space-y-4">
+        {/* Header */}
+        <div className="flex flex-col items-start text-left gap-1.5 animate-in fade-in slide-in-from-top-4 duration-700">
+          <h1 className="text-xl font-extrabold tracking-tight text-slate-900">
+            Generate Bill
+          </h1>
+          <p className="text-sm font-medium text-slate-500">
+            Select criteria to generate bills for farmers
+          </p>
         </div>
-      </header>
-
-      {/* Main Content */}
-      <main className=" max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-left bg-white">
-        <Card className="mb-5 border-none">
-          <CardHeader>
-            <CardTitle>Select Bill Cycle</CardTitle>
+        
+        {/* Header & Controls Card */}
+        <Card className="bg-white/70 backdrop-blur-xl border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-visible transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] rounded-2xl py-0 gap-0">
+          <CardHeader className="px-4 py-3 !pb-2 border-b border-slate-100/50 bg-white/50">
+            <CardTitle className="text-lg font-semibold text-slate-800">
+              Select Bill Cycle
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <Label>Select VLC:</Label>
-                  <Select value={selectedDairy.toString()} onValueChange={(value) => setSelectedDairy(parseInt(value))}>
-                    <SelectTrigger className="w-48 bg-white border-gray-300">
-                      <SelectValue placeholder="Select VLC" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white border border-gray-300 shadow-lg">
-                      {branches.map((branch) => (
-                        <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
-                          {branch.username} - {branch.name} - {branch.branchName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Label>Start Date:</Label>
-                  <Input
-                    type="date"
-                    value={format(startDate, "yyyy-MM-dd")}
-                    onChange={(e) => handleStartDateChange(e.target.value)}
-                    className="border-gray-300"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Label>End Date:</Label>
-                  <Input
-                    type="date"
-                    value={format(endDate, "yyyy-MM-dd")}
-                    disabled
-                    className="border-gray-300 bg-gray-100 cursor-not-allowed"
-                  />
-                </div>
+          <CardContent className="px-4 py-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+              <div className="space-y-1.5">
+                <Label className="text-sm font-semibold text-gray-700">Select VLC</Label>
+                <VLCDropdown
+                  branches={branches}
+                  value={String(selectedDairy)}
+                  onChange={(val) => setSelectedDairy(Number(val))}
+                  valueKey="branch_id"
+                  placeholder="Select VLC"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-sm font-semibold text-gray-700">Start Date</Label>
+                <Input
+                  type="date"
+                  value={format(startDate, "yyyy-MM-dd")}
+                  onChange={(e) => handleStartDateChange(e.target.value)}
+                  className="w-full h-10 border-gray-200 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-white"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-sm font-semibold text-gray-700">End Date</Label>
+                <Input
+                  type="date"
+                  value={format(endDate, "yyyy-MM-dd")}
+                  disabled
+                  className="w-full h-10 border-gray-200 bg-gray-50 cursor-not-allowed text-gray-500"
+                />
+              </div>
+              
+              <div className="space-y-1.5">
                 <Button
                   onClick={fetchBillData}
                   disabled={fetchLoading}
-                  className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+                  className="w-full h-10 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white shadow-sm transition-all active:scale-[0.98]"
                 >
-                  {fetchLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-                  {fetchLoading ? "Fetching..." : "Show"}
+                  {fetchLoading ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Fetching...</span>
+                    </div>
+                  ) : (
+                    "Fetch Data"
+                  )}
                 </Button>
               </div>
-              {farmersData.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-semibold whitespace-nowrap ${
-                    isBillFinalized 
-                      ? 'bg-gray-200 text-gray-700' 
-                      : 'bg-green-100 text-green-700'
-                  }`}>
-                    {isBillFinalized ? (
-                      <>
-                        <Lock className="w-4 h-4" />
-                        <span>Bills Already Finalized</span>
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="w-4 h-4" />
-                        <span>Bills Not Finalized</span>
-                      </>
-                    )}
-                  </div>
-                  {isBillFinalized && (
-                    <Button
-                      onClick={handleResetToUnfinalized}
-                      disabled={resetting}
-                      className="bg-orange-500 hover:bg-orange-600 text-white text-sm px-4 py-2 flex items-center gap-1.5"
-                    >
-                      {resetting ? (
-                        'Resetting...'
-                      ) : (
-                        <>
-                          <Unlock className="w-4 h-4" />
-                          <span>Reset to Unfinalized</span>
-                        </>
-                      )}
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
-          </CardContent>
-          <CardContent className="p-2">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                      ID
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                      Name
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                      Liter
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                      Amount
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                      Advance
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                      Cattle Feed
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                      Other1
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                      Other2
-                    </th>
-                    {shouldShowTravelCommission() && (
-                      <th className="px-3 py-2 text-left text-xs font-medium text-orange-500 uppercase bg-orange-50">
-                        Travel Comm
-                      </th>
-                    )}
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                      Bonus
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                      Fixed
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                      Remaining
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                      Final Amount
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {farmersData.map((farmer) => (
-                    <tr key={farmer.farmer_id} className="hover:bg-gray-50">
-                      <td className="px-3 py-2 text-xs font-medium text-gray-900">
-                        {farmer.farmer_id}
-                      </td>
-                      <td className="px-3 py-2 text-xs text-gray-900">
-                        {farmer.name}
-                      </td>
-                      <td className="px-3 py-2 text-xs text-gray-900">
-                        {farmer.quantity?.toFixed(2) || "0.00"}
-                      </td>
-                      <td className="px-3 py-2 text-xs text-gray-900">
-                        ₹{(farmer.milk_total).toFixed(2)}
-                      </td>
-                      <td className="px-3 py-2 text-xs">
-                        <div className="text-red-600 font-medium">₹{(farmer.advanceDeduction || 0).toFixed(2)}</div>
-                        {(farmer.advance_remaining_display > 0) && (
-                           <div className="text-[10px] text-yellow-600">
-                            ₹{(farmer.advance_remaining_display || 0).toFixed(2)}
-                           </div>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-xs">
-                        <div className="text-red-600 font-medium">₹{(farmer.cattleFeedDeduction || 0).toFixed(2)}</div>
-                        {(farmer.cattlefeed_remaining_display > 0) && (
-                          <div className="text-[10px] text-yellow-600">
-                           ₹{(farmer.cattlefeed_remaining_display || 0).toFixed(2)}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-xs">
-                        <div className="text-red-600 font-medium">₹{(farmer.other1Deduction || 0).toFixed(2)}</div>
-                        {(farmer.other1_remaining_display > 0) && (
-                          <div className="text-[10px] text-yellow-600">
-                           ₹{(farmer.other1_remaining_display || 0).toFixed(2)}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-xs">
-                        <div className="text-red-600 font-medium">₹{(farmer.other2Deduction || 0).toFixed(2)}</div>
-                        {(farmer.other2_remaining_display > 0) && (
-                          <div className="text-[10px] text-yellow-600">
-                           ₹{(farmer.other2_remaining_display || 0).toFixed(2)}
-                          </div>
-                        )}
-                      </td>
-                      {shouldShowTravelCommission() && (
-                        <td className="px-3 py-2 text-xs text-orange-600 font-medium bg-orange-50">
-                          {(farmer.travelCommissionAmount || 0) > 0
-                            ? `₹${(farmer.travelCommissionAmount as number).toFixed(2)}`
-                            : '-'}
-                        </td>
-                      )}
-                      <td className="px-3 py-2 text-xs text-red-600 font-medium">
-                        ₹{(farmer.bonusAmount || 0).toFixed(2)}
-                        {farmer.bonusRate > 0 && (
-                          <div className="text-[10px] text-gray-500">
-                            @₹{farmer.bonusRate.toFixed(2)}/L
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-xs text-red-600 font-medium">
-                        ₹{(farmer.fixedAmount || 0).toFixed(2)}
-                      </td>
-                      <td className="px-3 py-2 text-xs text-yellow-600 font-medium">
-                        ₹{(farmer.totalRemaining || 0).toFixed(2)}
-                      </td>
-                      <td className="px-3 py-2 text-xs font-bold text-green-600">
-                        ₹{(farmer.finalAmount || 0).toFixed(2)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Totals */}
-            <div className="bg-gray-50 px-4 py-3 border-t border-gray-300">
-              <div className="flex justify-between items-center text-sm">
-                <div className="flex gap-6">
-                  <div>
-                    <span className="text-xs font-medium text-gray-600">Total Amount</span>
-                    <p className="text-sm font-bold text-gray-900">₹{totals.totalAmount.toFixed(2)}</p>
-                  </div>
-                  <div>
-                    <span className="text-xs font-medium text-gray-600">Total Deduction</span>
-                    <p className="text-sm font-bold text-red-600">₹{totals.totalDeduction.toFixed(2)}</p>
-                  </div>
-                  <div>
-                    <span className="text-xs font-medium text-gray-600">Total Bonus</span>
-                    <p className="text-sm font-bold text-red-600">₹{totals.totalBonus.toFixed(2)}</p>
-                  </div>
-                  <div>
-                    <span className="text-xs font-medium text-gray-600">Total Fixed</span>
-                    <p className="text-sm font-bold text-red-600">₹{totals.totalFixed.toFixed(2)}</p>
-                  </div>
-                  <div>
-                    <span className="text-xs font-medium text-gray-600">Total Remaining</span>
-                    <p className="text-sm font-bold text-yellow-600">₹{totals.totalRemaining.toFixed(2)}</p>
-                  </div>
-                  <div>
-                    <span className="text-xs font-medium text-gray-600">Total Net Payable</span>
-                    <p className="text-sm font-bold text-green-600">₹{totals.totalNetPayable.toFixed(2)}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="w-full text-center">
-              <Button
-                onClick={handleGenerateBill}
-                disabled={loading || isBillFinalized}
-                className="bg-blue-600 hover:bg-blue-700 text-white w-[17%] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? "Generating..." : "Generate Bill"}
-              </Button>
             </div>
           </CardContent>
         </Card>
-      </main>
+
+        {/* Generate Bill Section (Only shown if data exists) */}
+        {farmersData.length > 0 && (
+          <div className="animate-in slide-in-from-bottom-4 fade-in duration-500 space-y-6">
+            
+            {/* Status & Actions Bar */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
+              <div className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap shadow-sm backdrop-blur-sm ${
+                isBillFinalized 
+                  ? 'bg-gray-100/80 text-gray-700 border border-gray-200' 
+                  : 'bg-emerald-50/80 text-emerald-700 border border-emerald-100'
+              }`}>
+                {isBillFinalized ? (
+                  <>
+                    <Lock className="w-4 h-4" />
+                    <span>Bills Finalized</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Ready to Generate</span>
+                  </>
+                )}
+              </div>
+
+              <div className="flex gap-3 w-full sm:w-auto">
+                {isBillFinalized && (
+                  <Button
+                    onClick={handleResetToUnfinalized}
+                    disabled={resetting}
+                    variant="outline"
+                    className="flex-1 sm:flex-none h-11 bg-white hover:bg-orange-50 text-orange-600 border-orange-200 hover:border-orange-300 shadow-sm transition-all"
+                  >
+                    {resetting ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Unlock className="w-4 h-4 mr-2" />
+                    )}
+                    Reset Status
+                  </Button>
+                )}
+                
+                <Button
+                  onClick={handleGenerateBill}
+                  disabled={loading || isBillFinalized}
+                  className={`flex-1 sm:flex-none h-11 px-8 font-semibold shadow-md transition-all active:scale-[0.98] ${
+                    isBillFinalized 
+                      ? "bg-slate-300 text-slate-500 cursor-not-allowed shadow-none" 
+                      : "bg-blue-600 hover:bg-blue-700 text-white hover:shadow-blue-500/20"
+                  }`}
+                >
+                  {loading ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Generating...</span>
+                    </div>
+                  ) : (
+                    "Generate Bills"
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {/* Totals Summary */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-white/50 shadow-sm">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Total Amount</p>
+                <p className="text-lg font-bold text-gray-900">₹{totals.totalAmount.toFixed(2)}</p>
+              </div>
+              <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-white/50 shadow-sm">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Total Deduction</p>
+                <p className="text-lg font-bold text-rose-600">₹{totals.totalDeduction.toFixed(2)}</p>
+              </div>
+              <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-white/50 shadow-sm">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Total Bonus</p>
+                <p className="text-lg font-bold text-emerald-600">₹{totals.totalBonus.toFixed(2)}</p>
+              </div>
+              <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-white/50 shadow-sm">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Total Fixed</p>
+                <p className="text-lg font-bold text-rose-600">₹{totals.totalFixed.toFixed(2)}</p>
+              </div>
+              <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-white/50 shadow-sm">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Total Remaining</p>
+                <p className="text-lg font-bold text-yellow-600">₹{totals.totalRemaining.toFixed(2)}</p>
+              </div>
+              <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-emerald-100 shadow-sm ring-1 ring-emerald-500/10">
+                <p className="text-xs font-medium text-emerald-600 uppercase tracking-wider mb-1">Net Payable</p>
+                <p className="text-xl font-bold text-emerald-600">₹{totals.totalNetPayable.toFixed(2)}</p>
+              </div>
+            </div>
+
+            {/* Data Table */}
+            <Card className="bg-white/70 backdrop-blur-xl border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden rounded-2xl py-0 gap-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-100/80">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">ID</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Name</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Liter</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Amount</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Advance</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Cattle Feed</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Other1</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Other2</th>
+                      {shouldShowTravelCommission() && (
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-orange-600 bg-orange-50 uppercase tracking-wider">Travel Comm</th>
+                      )}
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Bonus</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Fixed</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Remaining</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Final Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100/50">
+                    {farmersData.map((farmer) => (
+                      <tr key={farmer.farmer_id} className="hover:bg-white/50 transition-colors">
+                        <td className="px-4 py-3 text-xs font-medium text-slate-900">{farmer.farmer_id}</td>
+                        <td className="px-4 py-3 text-xs font-medium text-slate-900">{farmer.name}</td>
+                        <td className="px-4 py-3 text-xs text-slate-600">{farmer.quantity?.toFixed(2) || "0.00"}</td>
+                        <td className="px-4 py-3 text-xs text-slate-600 font-medium">₹{(farmer.milk_total).toFixed(2)}</td>
+                        <td className="px-4 py-3 text-xs">
+                          <div className="text-rose-600 font-medium">₹{(farmer.advanceDeduction || 0).toFixed(2)}</div>
+                          {(farmer.advance_remaining_display > 0) && (
+                             <div className="text-[10px] text-yellow-600/80 font-medium">
+                              Bal: ₹{(farmer.advance_remaining_display || 0).toFixed(2)}
+                             </div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-xs">
+                          <div className="text-rose-600 font-medium">₹{(farmer.cattleFeedDeduction || 0).toFixed(2)}</div>
+                          {(farmer.cattlefeed_remaining_display > 0) && (
+                            <div className="text-[10px] text-yellow-600/80 font-medium">
+                             Bal: ₹{(farmer.cattlefeed_remaining_display || 0).toFixed(2)}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-xs">
+                          <div className="text-rose-600 font-medium">₹{(farmer.other1Deduction || 0).toFixed(2)}</div>
+                          {(farmer.other1_remaining_display > 0) && (
+                            <div className="text-[10px] text-yellow-600/80 font-medium">
+                             Bal: ₹{(farmer.other1_remaining_display || 0).toFixed(2)}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-xs">
+                          <div className="text-rose-600 font-medium">₹{(farmer.other2Deduction || 0).toFixed(2)}</div>
+                          {(farmer.other2_remaining_display > 0) && (
+                            <div className="text-[10px] text-yellow-600/80 font-medium">
+                             Bal: ₹{(farmer.other2_remaining_display || 0).toFixed(2)}
+                            </div>
+                          )}
+                        </td>
+                        {shouldShowTravelCommission() && (
+                          <td className="px-4 py-3 text-xs text-orange-600 font-medium bg-orange-50/50">
+                            {(farmer.travelCommissionAmount || 0) > 0
+                              ? `₹${(farmer.travelCommissionAmount as number).toFixed(2)}`
+                              : '-'}
+                          </td>
+                        )}
+                        <td className="px-4 py-3 text-xs">
+                          <div className="text-emerald-600 font-medium">₹{(farmer.bonusAmount || 0).toFixed(2)}</div>
+                          {farmer.bonusRate > 0 && (
+                            <div className="text-[10px] text-slate-500">
+                              @₹{farmer.bonusRate.toFixed(2)}/L
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-rose-600 font-medium">
+                          ₹{(farmer.fixedAmount || 0).toFixed(2)}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-yellow-600 font-medium">
+                          ₹{(farmer.totalRemaining || 0).toFixed(2)}
+                        </td>
+                        <td className="px-4 py-3 text-xs font-bold text-emerald-600 bg-emerald-50/30">
+                          ₹{(farmer.finalAmount || 0).toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

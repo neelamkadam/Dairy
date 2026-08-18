@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import {
   Table,
   TableBody,
@@ -190,9 +191,10 @@ const BonusReport = () => {
   );
 
   return (
-    <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-800">Bonus Deductions Report</h1>
+    <div className="p-2 sm:p-4 space-y-4 bg-gray-50 min-h-screen">
+      {/* Header */}
+      <div className="flex justify-between items-start text-left gap-1 animate-in fade-in slide-in-from-top-4 duration-700 mb-2 px-2">
+        <h1 className="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600">Bonus Deductions Report</h1>
         <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
           <DialogTrigger asChild>
           </DialogTrigger>
@@ -248,60 +250,53 @@ const BonusReport = () => {
         </Dialog>
       </div>
 
-      <Card className="border-none shadow-sm">
-        <CardContent className="pt-6">
-          <div className="flex flex-wrap gap-4 items-end">
-            <div className="flex-1 min-w-[200px]">
-              <Label>VLC Center</Label>
-              <Select value={selectedVLC} onValueChange={setSelectedVLC}>
-                <SelectTrigger className="bg-white">
-                  <SelectValue placeholder="Select VLC Center" />
-                </SelectTrigger>
-                <SelectContent className="bg-white">
-                  {branches.map((vlc) => (
-                    <SelectItem key={vlc.branch_id} value={vlc.branch_id.toString()}>
-                      {vlc.username} - {vlc.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-end bg-white p-3 sm:p-4 rounded-lg shadow-sm mx-2 mb-4 text-left">
+        <div className="space-y-2 w-full">
+          <Label>VLC Center</Label>
+          <VLCDropdown
+            branches={branches || []}
+            value={selectedVLC}
+            onChange={setSelectedVLC}
+            valueKey="branch_id"
+            placeholder="Select VLC Center"
+          />
+        </div>
 
-            <div className="flex-1 min-w-[150px]">
-              <AppDatePicker
-                date={fromDate}
-                onChange={setFromDate}
-              />
-            </div>
+        <div className="space-y-2">
+          <Label>From Date</Label>
+          <AppDatePicker
+            date={fromDate}
+            onChange={setFromDate}
+          />
+        </div>
 
-            <div className="flex-1 min-w-[150px]">
-              <AppDatePicker
-                date={toDate}
-                onChange={setToDate}
-              />
-            </div>
+        <div className="space-y-2">
+          <Label>To Date</Label>
+          <AppDatePicker
+            date={toDate}
+            onChange={setToDate}
+          />
+        </div>
 
-            <div className="flex-1 min-w-[150px]">
-              <Label>Farmer ID (Optional)</Label>
-              <Input 
-                placeholder="Enter ID" 
-                value={farmerId} 
-                onChange={(e) => setFarmerId(e.target.value)} 
-              />
-            </div>
+        <div className="space-y-2">
+          <Label>Farmer ID (Optional)</Label>
+          <Input 
+            placeholder="Enter ID" 
+            value={farmerId} 
+            onChange={(e) => setFarmerId(e.target.value)} 
+          />
+        </div>
 
-            <div className="flex gap-2">
-              <Button 
-                className="bg-blue-600 hover:bg-blue-700 text-white min-w-[100px]" 
-                onClick={fetchBonusData}
-                disabled={loading}
-              >
-                {loading ? <Loader2 className="animate-spin" /> : "Show"}
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        <div className="flex gap-2">
+          <Button 
+            className="bg-blue-600 hover:bg-blue-700 text-white min-w-[100px] h-10" 
+            onClick={fetchBonusData}
+            disabled={loading}
+          >
+            {loading ? <Loader2 className="animate-spin" /> : "Show"}
+          </Button>
+        </div>
+      </div>
 
       <Card className="border-none shadow-sm overflow-hidden">
         <CardHeader className="bg-white border-b border-gray-100 flex flex-row items-center justify-between">
@@ -318,13 +313,13 @@ const BonusReport = () => {
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table>
+            <Table className="whitespace-nowrap text-sm [&_th]:h-auto [&_th]:py-2 [&_th]:px-3 [&_td]:py-2 [&_td]:px-3 [&_th]:align-middle">
               <TableHeader className="bg-gray-50">
                 <TableRow>
-                  <TableHead className="font-bold">Date</TableHead>
-                  <TableHead className="font-bold">Farmer ID</TableHead>
-                  <TableHead className="font-bold">Period Start</TableHead>
-                  <TableHead className="font-bold">Period End</TableHead>
+                  <TableHead className="font-bold text-left">Date</TableHead>
+                  <TableHead className="font-bold text-left">Farmer ID</TableHead>
+                  <TableHead className="font-bold text-left">Period Start</TableHead>
+                  <TableHead className="font-bold text-left">Period End</TableHead>
                   <TableHead className="font-bold text-right">Bonus Deduction</TableHead>
                   <TableHead className="font-bold text-right">Fixed Deduction</TableHead>
                   <TableHead className="font-bold text-right">Total Deduction</TableHead>
@@ -334,10 +329,10 @@ const BonusReport = () => {
                 {filteredData.length > 0 ? (
                   filteredData.map((bonus) => (
                     <TableRow key={bonus.id} className="hover:bg-gray-50 transition-colors">
-                      <TableCell>{bonus.created_at ? format(new Date(bonus.created_at), "dd-MM-yyyy") : "-"}</TableCell>
-                      <TableCell className="font-medium text-blue-600">{bonus.farmer_id}</TableCell>
-                      <TableCell>{fromDate ? format(new Date(fromDate), "dd-MM-yyyy") : "-"}</TableCell>
-                      <TableCell>{toDate ? format(new Date(toDate), "dd-MM-yyyy") : "-"}</TableCell>
+                      <TableCell className="text-left">{bonus.created_at ? format(new Date(bonus.created_at), "dd-MM-yyyy") : "-"}</TableCell>
+                      <TableCell className="font-medium text-blue-600 text-left">{bonus.farmer_id}</TableCell>
+                      <TableCell className="text-left">{fromDate ? format(new Date(fromDate), "dd-MM-yyyy") : "-"}</TableCell>
+                      <TableCell className="text-left">{toDate ? format(new Date(toDate), "dd-MM-yyyy") : "-"}</TableCell>
                       <TableCell className="text-right text-red-500 font-medium">₹{Number(bonus.bonus_deduction).toFixed(2)}</TableCell>
                       <TableCell className="text-right text-red-500 font-medium">₹{Number(bonus.fixed_deduction).toFixed(2)}</TableCell>
                       <TableCell className="text-right font-bold">₹{(Number(bonus.bonus_deduction) + Number(bonus.fixed_deduction)).toFixed(2)}</TableCell>

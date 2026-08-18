@@ -29,6 +29,12 @@ import {
   Users,
   TrendingUp,
   IndianRupee,
+  Filter,
+  Building2,
+  Droplets,
+  CalendarDays,
+  ChevronRight,
+  DatabaseZap
 } from "lucide-react";
 import * as XLSX from 'xlsx';
 import {
@@ -39,6 +45,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { bmcApi } from "@/services/routeBmcCcApi";
 
 const BMCCollection = () => {
@@ -65,6 +72,7 @@ const BMCCollection = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isFiltersExpanded, setIsFiltersExpanded] = useState(true);
 
   const toggleEntity = (id: number) => {
     setSelectedEntities(prev => 
@@ -261,86 +269,141 @@ const BMCCollection = () => {
 
   const centerStats = [
     {
-      label: 'BMC Center',
+      label: 'BMC Centers',
       value: selectedEntities.length.toString(),
-      icon: Users,
-      color: "bg-gradient-to-br from-blue-500 to-blue-600",
+      icon: Building2,
+      gradient: "from-blue-100 to-blue-50",
+      border: "border-blue-200",
+      accent: "border-l-blue-500",
+      text: "text-blue-700",
+      bg: "bg-blue-200",
     },
     {
       label: t('total_milk_collection'),
       value: `${totalMilk.toFixed(1)}L`,
-      icon: TrendingUp,
-      color: "bg-gradient-to-br from-green-500 to-green-600",
+      icon: Droplets,
+      gradient: "from-emerald-100 to-emerald-50",
+      border: "border-emerald-200",
+      accent: "border-l-emerald-500",
+      text: "text-emerald-700",
+      bg: "bg-emerald-200",
     },
     {
       label: t('average_fat'),
       value: `${avgFat}%`,
       icon: TrendingUp,
-      color: "bg-gradient-to-br from-purple-500 to-purple-600",
+      gradient: "from-violet-100 to-violet-50",
+      border: "border-violet-200",
+      accent: "border-l-violet-500",
+      text: "text-violet-700",
+      bg: "bg-violet-200",
     },
     {
       label: t('average_snf'),
       value: `${avgSNF}%`,
       icon: TrendingUp,
-      color: "bg-gradient-to-br from-orange-500 to-orange-600",
+      gradient: "from-amber-100 to-amber-50",
+      border: "border-amber-200",
+      accent: "border-l-amber-500",
+      text: "text-amber-700",
+      bg: "bg-amber-200",
     },
     {
       label: t('total_payments'),
       value: `₹${totalPayments.toFixed(2)}`,
       icon: IndianRupee,
-      color: "bg-gradient-to-br from-teal-500 to-teal-600",
+      gradient: "from-teal-100 to-teal-50",
+      border: "border-teal-200",
+      accent: "border-l-teal-500",
+      text: "text-teal-700",
+      bg: "bg-teal-200",
     },
   ];
 
   return (
-    <div className="space-y-4 bg-gray-50 min-h-screen p-4">
-      <div className="text-xl font-bold text-gray-800">
-        BMC Collection Dashboard
+    <div className="space-y-5 bg-slate-50/50 min-h-screen p-4 md:p-6 min-w-0 max-w-full overflow-x-hidden">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-sm border border-slate-100 mb-6">
+        <div className="flex items-center space-x-3">
+          <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
+            <Building2 className="h-6 w-6" />
+          </div>
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold text-gray-800 font-serif tracking-wide">
+              BMC Collection Dashboard
+            </h1>
+            <p className="text-xs text-slate-500 mt-0.5 font-sans">Monitor and manage your bulk milk collections across centers.</p>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
         {centerStats.map((stat, index) => (
-          <Card
+          <div
             key={index}
             className={cn(
-              "hover:shadow-xl transition-all duration-300 border-0",
-              stat.color
+              "relative overflow-hidden bg-gradient-to-br rounded-xl border border-l-4 p-4 shadow-sm hover:shadow-md transition-all duration-300 group cursor-default",
+              stat.gradient,
+              stat.border,
+              stat.accent
             )}
           >
-            <CardContent className="p-4">
-              <div className="flex flex-col space-y-2">
-                <div className="flex items-center justify-between">
-                  <stat.icon className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-white/90">
-                    {stat.label}
-                  </p>
-                  <p className="text-2xl font-bold text-white mt-1">
-                    {stat.value}
-                  </p>
-                </div>
+            {/* Decorative circle */}
+            <div className={cn("absolute -right-3 -top-3 w-14 h-14 rounded-full opacity-20 transition-transform group-hover:scale-150 duration-700", stat.bg)} />
+
+            <div className="relative z-10 flex items-start justify-between mb-2 gap-2">
+              <p className="text-slate-600 text-xs font-semibold tracking-wide uppercase line-clamp-2">
+                {stat.label}
+              </p>
+              <div className={cn("p-1.5 rounded-lg bg-opacity-60 shadow-sm shrink-0", stat.bg)}>
+                <stat.icon className={cn("h-3.5 w-3.5", stat.text)} />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+
+            <div className="relative z-10">
+              <p className="text-xl md:text-2xl font-bold text-slate-800 tracking-tight">
+                {stat.value}
+              </p>
+            </div>
+          </div>
         ))}
       </div>
 
-      <Card className="border-0 shadow-lg bg-white">
-        <CardHeader className="border-b">
-          <CardTitle className="text-xl font-semibold text-gray-800">{t('filter_options')}</CardTitle>
+      {/* Filters Card */}
+      <Card className="border border-slate-200/80 shadow-sm bg-white rounded-xl overflow-visible">
+        <CardHeader 
+          className="border-b border-slate-100 bg-slate-50/50 py-3 px-4 cursor-pointer hover:bg-slate-50 transition-colors"
+          onClick={() => setIsFiltersExpanded(!isFiltersExpanded)}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-blue-100 rounded-lg">
+                <Filter className="h-3.5 w-3.5 text-blue-600" />
+              </div>
+              <CardTitle className="text-sm font-semibold text-slate-700">{t('filter_options')}</CardTitle>
+            </div>
+            <ChevronRight className={cn(
+              "h-4 w-4 text-slate-400 transition-transform duration-200",
+              isFiltersExpanded && "rotate-90"
+            )} />
+          </div>
         </CardHeader>
+        <div className={cn(
+          "transition-all duration-300 ease-in-out overflow-visible",
+          isFiltersExpanded ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0 overflow-hidden"
+        )}>
         <CardContent className="space-y-4 p-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">
+              <Label className="text-xs font-semibold text-slate-700">
                 BMC ID
               </Label>
               <Popover open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-start text-left font-normal bg-gray-50 border-gray-200"
+                    className="w-full justify-start text-left font-normal bg-slate-50 hover:bg-slate-100 border-slate-200 h-10 rounded-lg text-sm transition-colors"
                   >
                     {selectedEntities.length === 0 
                       ? `Select BMCs` 
@@ -396,11 +459,11 @@ const BMCCollection = () => {
               </Popover>
             </div>
             <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">
+              <Label className="text-xs font-semibold text-slate-700">
                 {t('milk_type')}
               </Label>
               <Select value={selectedType} onValueChange={setSelectedType}>
-                <SelectTrigger className="w-full bg-gray-50 border-gray-200">
+                <SelectTrigger className="w-full bg-slate-50 border-slate-200 h-10 rounded-lg text-sm transition-colors">
                   <SelectValue placeholder={t('cow')} />
                 </SelectTrigger>
                 <SelectContent className="bg-white">
@@ -411,9 +474,9 @@ const BMCCollection = () => {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">{t('shift')}</Label>
+              <Label className="text-xs font-semibold text-slate-700">{t('shift')}</Label>
               <Select value={selectedShift} onValueChange={setSelectedShift}>
-                <SelectTrigger className="w-full bg-gray-50 border-gray-200">
+                <SelectTrigger className="w-full bg-slate-50 border-slate-200 h-10 rounded-lg text-sm transition-colors">
                   <SelectValue placeholder={t('morning')} />
                 </SelectTrigger>
                 <SelectContent className="bg-white">
@@ -426,7 +489,7 @@ const BMCCollection = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">
+              <Label className="text-xs font-semibold text-slate-700">
                 {t('from_date')}
               </Label>
               <Input
@@ -436,11 +499,11 @@ const BMCCollection = () => {
                   const d = new Date(e.target.value);
                   if (isValid(d)) setFromDate(d);
                 }}
-                className="bg-gray-50 border-gray-200 w-full h-10"
+                className="bg-slate-50 border-slate-200 w-full h-10 rounded-lg px-4 text-sm transition-colors"
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">
+              <Label className="text-xs font-semibold text-slate-700">
                 {t('to_date')}
               </Label>
               <Input
@@ -450,38 +513,49 @@ const BMCCollection = () => {
                   const d = new Date(e.target.value);
                   if (isValid(d)) setToDate(d);
                 }}
-                className="bg-gray-50 border-gray-200 w-full h-10"
+                className="bg-slate-50 border-slate-200 w-full h-10 rounded-lg px-4 text-sm transition-colors"
               />
             </div>
           </div>
           <Button 
             onClick={handleApplyFilters}
             disabled={isLoading}
-            className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 disabled:opacity-50"
+            className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 h-10 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all"
           >
             {isLoading ? t('loading') : t('apply')}
           </Button>
         </CardContent>
+        </div>
       </Card>
 
-      <Card className="border-0 shadow-lg bg-white">
-        <CardHeader className="border-b">
-          <div className="flex flex-wrap justify-between items-center gap-4">
-            <CardTitle className="text-xl font-semibold text-gray-800">BMC List</CardTitle>
-            <div className="flex flex-wrap gap-3 items-center">
-              <div className="relative w-full sm:w-auto">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+      <Card className="border border-slate-200/80 shadow-sm bg-white rounded-xl overflow-hidden">
+        <CardHeader className="border-b border-slate-100 bg-white py-3 px-4">
+          <div className="flex flex-wrap justify-between items-center gap-3">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-emerald-100 rounded-lg">
+                <DatabaseZap className="h-3.5 w-3.5 text-emerald-600" />
+              </div>
+              <CardTitle className="text-sm font-semibold text-slate-700">BMC List</CardTitle>
+              {aggregatedData.length > 0 && (
+                <Badge className="bg-slate-100 text-slate-600 hover:bg-slate-100 text-xs font-medium px-2 py-0.5 rounded-md">
+                  {aggregatedData.length}
+                </Badge>
+              )}
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center w-full sm:w-auto mt-3 sm:mt-0 min-w-0">
+              <div className="relative flex-grow sm:flex-grow-0">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                 <Input
                   placeholder={t('search')}
-                  className="pl-10 w-full sm:w-64 bg-gray-50 border-gray-200"
+                  className="pl-9 h-9 w-full sm:w-64 text-sm bg-slate-50/50 border-slate-200 focus-visible:ring-blue-500 rounded-lg transition-shadow"
                 />
               </div>
               <Button
                 variant="outline"
                 onClick={handleExportToExcel}
-                className="border-gray-200 flex bg-green-600 text-white items-center gap-2 hover:bg-green-50"
+                className="h-9 border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 flex items-center gap-2 rounded-lg bg-white shadow-sm w-full sm:w-auto justify-center"
               >
-                <FileSpreadsheet className="h-4 w-4" />
+                <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
                 {t('export')}
               </Button>
             </div>
@@ -491,15 +565,15 @@ const BMCCollection = () => {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-gray-50">
-                  <TableHead className="text-gray-700 font-semibold px-4 py-3">BMC ID</TableHead>
-                  <TableHead className="text-gray-700 font-semibold px-4 py-3">BMC Name</TableHead>
-                  <TableHead className="text-gray-700 font-semibold px-4 py-3">{t('total_milk_ltr')}</TableHead>
-                  <TableHead className="text-gray-700 font-semibold px-4 py-3">{t('average_fat')}</TableHead>
-                  <TableHead className="text-gray-700 font-semibold px-4 py-3">{t('average_snf')}</TableHead>
-                  <TableHead className="text-gray-700 font-semibold px-4 py-3">{t('average_rate')}</TableHead>
-                  <TableHead className="text-gray-700 font-semibold px-4 py-3">{t('total_amount')}</TableHead>
-                  <TableHead className="text-gray-700 font-semibold px-4 py-3">{t('milk_type')}</TableHead>
+                <TableRow className="bg-slate-50/80 border-b border-slate-100 hover:bg-slate-50/80">
+                  <TableHead className="text-slate-500 font-semibold text-xs uppercase tracking-wider px-4 py-3">BMC ID</TableHead>
+                  <TableHead className="text-slate-500 font-semibold text-xs uppercase tracking-wider px-4 py-3">BMC Name</TableHead>
+                  <TableHead className="text-slate-500 font-semibold text-xs uppercase tracking-wider px-4 py-3">{t('total_milk_ltr')}</TableHead>
+                  <TableHead className="text-slate-500 font-semibold text-xs uppercase tracking-wider px-4 py-3">{t('average_fat')}</TableHead>
+                  <TableHead className="text-slate-500 font-semibold text-xs uppercase tracking-wider px-4 py-3">{t('average_snf')}</TableHead>
+                  <TableHead className="text-slate-500 font-semibold text-xs uppercase tracking-wider px-4 py-3">{t('average_rate')}</TableHead>
+                  <TableHead className="text-slate-500 font-semibold text-xs uppercase tracking-wider px-4 py-3">{t('total_amount')}</TableHead>
+                  <TableHead className="text-slate-500 font-semibold text-xs uppercase tracking-wider px-4 py-3">{t('milk_type')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -515,21 +589,25 @@ const BMCCollection = () => {
                   const avgRate = data.totalMilkLtr > 0 ? (totalAmount / data.totalMilkLtr).toFixed(2) : '0.00';
                   
                   return (
-                    <TableRow key={index} className="hover:bg-blue-100 transition-colors">
-                      <TableCell className="font-medium px-4 py-3">
+                    <TableRow key={index} className="hover:bg-blue-50/50 transition-colors duration-150 cursor-pointer border-b border-slate-50 group">
+                      <TableCell className="font-medium text-slate-700 px-4 py-3">
                         {entity?.bmc_id ?? entity?.id ?? data.entityId}
                       </TableCell>
-                      <TableCell className="px-4 py-3">
+                      <TableCell className="px-4 py-3 text-slate-600 font-medium">
                         {entity?.name || 'N/A'}
                       </TableCell>
-                      <TableCell className="px-4 py-3 text-gray-600">
+                      <TableCell className="px-4 py-3 text-slate-600">
                         {data.totalMilkLtr.toFixed(2)} Ltr
                       </TableCell>
-                      <TableCell className="px-4 py-3">{avgFat}%</TableCell>
-                      <TableCell className="px-4 py-3">{avgSNF}%</TableCell>
-                      <TableCell className="px-4 py-3">₹{avgRate}</TableCell>
-                      <TableCell className="px-4 py-3">₹{totalAmount.toFixed(2)}</TableCell>
-                      <TableCell className="px-4 py-3">{data.milkTypes.join(', ')}</TableCell>
+                      <TableCell className="px-4 py-3 text-slate-600">{avgFat}%</TableCell>
+                      <TableCell className="px-4 py-3 text-slate-600">{avgSNF}%</TableCell>
+                      <TableCell className="px-4 py-3 text-slate-600">₹{avgRate}</TableCell>
+                      <TableCell className="px-4 py-3 text-slate-700 font-semibold">₹{totalAmount.toFixed(2)}</TableCell>
+                      <TableCell className="px-4 py-3">
+                        <Badge variant="outline" className="text-xs bg-slate-50 text-slate-600 border-slate-200">
+                          {data.milkTypes.join(', ')}
+                        </Badge>
+                      </TableCell>
                     </TableRow>
                   );
                 })}
@@ -539,17 +617,17 @@ const BMCCollection = () => {
         </CardContent>
 
         {aggregatedData.length > 0 && (
-          <div className="flex flex-wrap items-center justify-between border-t bg-gray-50 px-4 py-3">
-            <div className="text-sm text-gray-600">
-              {t('showing')} {startIndex + 1} {t('to')} {Math.min(endIndex, aggregatedData.length)} {t('of')} {aggregatedData.length} {t('entries')}
-            </div>
-            <div className="flex items-center gap-2 mt-2 md:mt-0">
+          <div className="flex flex-wrap items-center justify-between border-t border-slate-100 bg-slate-50/50 px-4 py-3">
+            <p className="text-xs text-slate-500">
+              {t('showing')} <span className="font-medium text-slate-700">{startIndex + 1}</span> {t('to')} <span className="font-medium text-slate-700">{Math.min(endIndex, aggregatedData.length)}</span> {t('of')} <span className="font-medium text-slate-700">{aggregatedData.length}</span> {t('entries')}
+            </p>
+            <div className="flex items-center gap-1.5 mt-3 sm:mt-0">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setCurrentPage(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="border-gray-200"
+                className="h-8 border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 rounded-md"
               >
                 {t('previous')}
               </Button>
@@ -560,8 +638,10 @@ const BMCCollection = () => {
                   size="sm"
                   onClick={() => setCurrentPage(page)}
                   className={cn(
-                    "border-gray-200",
-                    currentPage === page && "bg-blue-600 hover:bg-blue-700 text-white"
+                    "h-8 w-8 p-0 border-slate-200 text-xs font-medium rounded-md",
+                    currentPage === page 
+                      ? "bg-blue-600 hover:bg-blue-700 text-white border-blue-600 shadow-sm" 
+                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                   )}
                 >
                   {page}
@@ -572,7 +652,7 @@ const BMCCollection = () => {
                 size="sm"
                 onClick={() => setCurrentPage(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className="border-gray-200"
+                className="h-8 border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 rounded-md"
               >
                 {t('next')}
               </Button>

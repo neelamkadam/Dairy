@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AppDatePicker } from "@/components/ui/date-picker";
+import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import { format, isValid, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/redux/store";
@@ -64,106 +65,6 @@ const handleEnterKey = (e: React.KeyboardEvent<HTMLElement>) => {
 };
 
 // ─── Searchable VLCC Dropdown (shared between tabs) ───────────────────────────
-
-interface VlccSearchDropdownProps {
-  branches: any[];
-  selectedIds: string[];
-  onSelectionChange: (ids: string[]) => void;
-  multiSelect?: boolean;
-  placeholder?: string;
-}
-
-const VlccSearchDropdown = ({ branches, selectedIds, onSelectionChange, multiSelect = false, placeholder = "Select VLCC" }: VlccSearchDropdownProps) => {
-  const [search, setSearch] = useState("");
-
-  const filtered = branches.filter(b => {
-    const q = search.toLowerCase();
-    return !q || String(b.username || "").toLowerCase().includes(q) || String(b.name || "").toLowerCase().includes(q);
-  });
-
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          data-focusable
-          className="w-full h-auto min-h-[44px] justify-start text-left bg-gray-50/80 border-gray-200 rounded-xl shadow-sm hover:bg-white hover:border-blue-300 hover:shadow-md transition-all"
-        >
-          {selectedIds.length === 0 ? (
-            <span className="text-gray-400 text-sm">{placeholder}</span>
-          ) : (
-            <div className="flex flex-wrap gap-1">
-              {selectedIds.map((id) => {
-                const branch = branches.find(b => b.branch_id.toString() === id);
-                return (
-                  <Badge key={id} className="bg-blue-100 text-blue-700 border-0 text-xs font-medium px-2 py-0.5">
-                    {branch?.username || id}
-                  </Badge>
-                );
-              })}
-            </div>
-          )}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-80 p-0 bg-white border border-gray-100 rounded-xl shadow-xl" align="start">
-        <div className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-100 bg-gray-50/50">
-          <Search className="h-4 w-4 text-gray-400 flex-shrink-0" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search VLCC..."
-            className="flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400 h-7"
-            autoFocus
-          />
-          {search && (
-            <button
-              type="button"
-              onMouseDown={(e) => { e.preventDefault(); setSearch(""); }}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-        <div className="space-y-0.5 max-h-60 overflow-y-auto p-1.5">
-          {filtered.slice(0, 100).map((branch) => {
-            const branchIdStr = branch.branch_id.toString();
-            const isChecked = selectedIds.includes(branchIdStr);
-            return (
-              <div
-                key={branch.branch_id}
-                className="flex items-center space-x-2.5 px-2.5 py-2 hover:bg-blue-50/60 rounded-lg transition-colors cursor-pointer"
-                onClick={() => {
-                  if (multiSelect) {
-                    if (isChecked) {
-                      onSelectionChange(selectedIds.filter(id => id !== branchIdStr));
-                    } else {
-                      onSelectionChange([...selectedIds, branchIdStr]);
-                    }
-                  } else {
-                    onSelectionChange([branchIdStr]);
-                  }
-                }}
-              >
-                <Checkbox
-                  checked={isChecked}
-                  onCheckedChange={() => {}}
-                  className="pointer-events-none"
-                />
-                <span className="text-sm flex-1">
-                  {branch.username} - {branch.name}
-                </span>
-              </div>
-            );
-          })}
-          {filtered.length === 0 && (
-            <div className="px-3 py-4 text-center text-sm text-gray-400">No VLCC branches found</div>
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-};
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -452,12 +353,14 @@ const AddRateChart = () => {
                   {/* Select VLCC */}
                   <div className="space-y-1.5">
                     <FormLabel required>{t('select_vlcc')}</FormLabel>
-                    <VlccSearchDropdown
-                      branches={branches}
-                      selectedIds={formData.vlcc}
-                      onSelectionChange={(ids) => setFormData({ ...formData, vlcc: ids })}
-                      multiSelect={true}
+                    <VLCDropdown
+                      branches={branches || []}
+                      value={formData.vlcc}
+                      onChange={(ids) => setFormData({ ...formData, vlcc: ids })}
+                      isMultiSelect={true}
                       placeholder={t('select_vlcc')}
+                      valueKey="branch_id"
+                      className="h-11 bg-gray-50/80 rounded-xl"
                     />
                   </div>
 
@@ -883,12 +786,13 @@ const ManualRateChartForm = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="space-y-1.5">
               <FormLabel required>Select VLCC</FormLabel>
-              <VlccSearchDropdown
-                branches={branches}
-                selectedIds={vlcc}
-                onSelectionChange={setVlcc}
-                multiSelect={false}
+              <VLCDropdown
+                branches={branches || []}
+                value={vlcc[0] || ""}
+                onChange={(val) => setVlcc([val])}
+                isMultiSelect={false}
                 placeholder="Search & select VLCC"
+                valueKey="branch_id"
               />
             </div>
 

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { VLCDropdown } from '@/components/ui/vlc-dropdown';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { api } from '@/services/config';
@@ -157,54 +158,50 @@ const FarmerPassbook = () => {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Farmer Passbook</h1>
+    <div className="p-2 sm:p-4 space-y-4 text-left">
+      {/* Header */}
+      <div className="flex flex-col items-start text-left gap-1 animate-in fade-in slide-in-from-top-4 duration-700 mb-2">
+        <h1 className="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600">
+          Farmer Passbook
+        </h1>
+      </div>
 
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-wrap gap-4 items-end">
-            <div className="flex-1 min-w-[200px]">
-              <Label>VLC Center</Label>
-              <Select value={selectedVLC} onValueChange={setSelectedVLC}>
-                <SelectTrigger className="bg-white">
-                  <SelectValue placeholder="Select VLC Center" />
-                </SelectTrigger>
-                <SelectContent className="bg-white">
-                  {branches.map(vlc => (
-                    <SelectItem key={vlc.branch_id} value={vlc.branch_id.toString()}>
-                      {vlc.username} - {vlc.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-end bg-white p-3 sm:p-4 rounded-lg shadow-sm mx-2 mb-4 text-left">
+        <div className="space-y-2 w-full">
+          <Label>VLC Center</Label>
+          <VLCDropdown
+            branches={branches || []}
+            value={selectedVLC}
+            onChange={setSelectedVLC}
+            valueKey="branch_id"
+            placeholder="Select VLC Center"
+          />
+        </div>
 
-            <div className="flex-1 min-w-[150px]">
-              <Label>From Date</Label>
-              <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-            </div>
+        <div className="space-y-2">
+          <Label>From Date</Label>
+          <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+        </div>
 
-            <div className="flex-1 min-w-[150px]">
-              <Label>To Date</Label>
-              <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
-            </div>
+        <div className="space-y-2">
+          <Label>To Date</Label>
+          <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+        </div>
 
-            <div className="flex-1 min-w-[150px]">
-              <Label>Farmer Code (Optional)</Label>
-              <Input placeholder="Enter code" value={farmerCode} onChange={(e) => setFarmerCode(e.target.value)} />
-            </div>
+        <div className="space-y-2">
+          <Label>Farmer Code (Optional)</Label>
+          <Input placeholder="Enter code" value={farmerCode} onChange={(e) => setFarmerCode(e.target.value)} />
+        </div>
 
-            <div className="flex gap-2">
-              <Button onClick={handleShow} disabled={loading}>
-                {loading ? 'Loading...' : 'Show'}
-              </Button>
-              <Button onClick={exportToPDF} disabled={farmersData.length === 0} variant="outline">
-                Export PDF
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        <div className="flex gap-2">
+          <Button onClick={handleShow} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white min-w-[100px] h-10">
+            {loading ? 'Loading...' : 'Show'}
+          </Button>
+          <Button onClick={exportToPDF} disabled={farmersData.length === 0} variant="outline" className="h-10">
+            Export PDF
+          </Button>
+        </div>
+      </div>
 
       {farmersData.length === 0 && fromDate && toDate && (
         <Card>
@@ -264,42 +261,42 @@ const FarmerPassbook = () => {
                   <CardHeader>
                     <CardTitle>Farmer: {farmer.farmer_id}</CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="p-2 sm:p-4">
                     <div className="overflow-x-auto">
-                      <table className="w-full border-collapse">
+                      <table className="w-full border-collapse whitespace-nowrap text-sm [&_th]:h-auto [&_th]:py-2 [&_th]:px-3 [&_td]:py-2 [&_td]:px-3 [&_th]:align-middle">
                         <thead>
                           <tr className="bg-gray-100">
-                            <th className="border p-2">Period</th>
-                            <th className="border p-2">Milk Total</th>
-                            <th className="border p-2">Previous Balance</th>
-                            <th className="border p-2">Advance</th>
-                            <th className="border p-2">Cattle Feed</th>
-                            <th className="border p-2">Other1</th>
-                            <th className="border p-2">Other2</th>
-                            <th className="border p-2">Received</th>
-                            <th className="border p-2">Total Deduction</th>
-                            <th className="border p-2">Net Payable</th>
-                            <th className="border p-2">Total Remaining</th>
+                            <th className="border border-gray-300 p-2 text-left">Period</th>
+                            <th className="border border-gray-300 p-2 text-right">Milk Total</th>
+                            <th className="border border-gray-300 p-2 text-right">Previous Balance</th>
+                            <th className="border border-gray-300 p-2 text-right">Advance</th>
+                            <th className="border border-gray-300 p-2 text-right">Cattle Feed</th>
+                            <th className="border border-gray-300 p-2 text-right">Other1</th>
+                            <th className="border border-gray-300 p-2 text-right">Other2</th>
+                            <th className="border border-gray-300 p-2 text-right">Received</th>
+                            <th className="border border-gray-300 p-2 text-right">Total Deduction</th>
+                            <th className="border border-gray-300 p-2 text-right">Net Payable</th>
+                            <th className="border border-gray-300 p-2 text-right">Total Remaining</th>
                           </tr>
                         </thead>
                         <tbody>
                           <tr className="hover:bg-gray-50">
-                            <td className="border p-2">{row.period}</td>
-                            <td className="border p-2 text-right">{row.milk_total.toFixed(2)}</td>
-                            <td className="border p-2 text-right">{row.previous_balance.toFixed(2)}</td>
-                            <td className="border p-2 text-right">{row.advance.toFixed(2)}</td>
-                            <td className="border p-2 text-right">{row.cattle_feed.toFixed(2)}</td>
-                            <td className="border p-2 text-right">{row.other1.toFixed(2)}</td>
-                            <td className="border p-2 text-right">{row.other2.toFixed(2)}</td>
-                            <td className="border p-2 text-right">{row.received.toFixed(2)}</td>
-                            <td className="border p-2 text-right">{row.total_deduction.toFixed(2)}</td>
-                            <td className="border p-2 text-right">{row.net_payable.toFixed(2)}</td>
-                            <td className="border p-2 text-right">{row.total_remaining.toFixed(2)}</td>
+                            <td className="border border-gray-300 p-2 text-left">{row.period}</td>
+                            <td className="border border-gray-300 p-2 text-right">{row.milk_total.toFixed(2)}</td>
+                            <td className="border border-gray-300 p-2 text-right">{row.previous_balance.toFixed(2)}</td>
+                            <td className="border border-gray-300 p-2 text-right">{row.advance.toFixed(2)}</td>
+                            <td className="border border-gray-300 p-2 text-right">{row.cattle_feed.toFixed(2)}</td>
+                            <td className="border border-gray-300 p-2 text-right">{row.other1.toFixed(2)}</td>
+                            <td className="border border-gray-300 p-2 text-right">{row.other2.toFixed(2)}</td>
+                            <td className="border border-gray-300 p-2 text-right">{row.received.toFixed(2)}</td>
+                            <td className="border border-gray-300 p-2 text-right">{row.total_deduction.toFixed(2)}</td>
+                            <td className="border border-gray-300 p-2 text-right">{row.net_payable.toFixed(2)}</td>
+                            <td className="border border-gray-300 p-2 text-right">{row.total_remaining.toFixed(2)}</td>
                           </tr>
                           <tr className="bg-blue-50 font-bold">
-                            <td colSpan={9} className="border p-2"></td>
-                            <td className="border p-2 text-right">Remaining Balance</td>
-                            <td className="border p-2 text-right">{row.total_remaining.toFixed(2)}</td>
+                            <td colSpan={9} className="border border-gray-300 p-2"></td>
+                            <td className="border border-gray-300 p-2 text-right">Remaining Balance</td>
+                            <td className="border border-gray-300 p-2 text-right">{row.total_remaining.toFixed(2)}</td>
                           </tr>
                         </tbody>
                       </table>

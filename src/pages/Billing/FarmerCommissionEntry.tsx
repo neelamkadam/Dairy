@@ -25,6 +25,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import { useAppSelector } from "@/redux/store";
 import { vlcCommissionApi } from "@/services/vlcCommissionApi";
 import { userApi } from "@/services/reportsApi";
@@ -425,50 +426,46 @@ const FarmerCommissionEntry = () => {
   );
 
   return (
-    <div className="w-full px-4 mx-auto space-y-4 mt-6 pb-10">
-      <Card className="bg-white shadow-sm">
-        <CardHeader className="border-b bg-gradient-to-r from-indigo-50 to-purple-50">
-          <div className="flex items-start justify-between">
-            <div>
-              <CardTitle className="text-2xl font-bold text-gray-800">
-                Farmer Commission Entry
-              </CardTitle>
-              <p className="text-sm text-gray-500 mt-1">
-                Set per-farmer commission amounts for a billing period
-              </p>
-            </div>
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-50 via-slate-50 to-white p-4 md:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        
+        {/* Header Section */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-700">
+          <div className="flex flex-col gap-1.5 text-left">
+            <h1 className="text-xl md:text-2xl font-semibold text-slate-800 tracking-tight">
+              Farmer Commission Entry
+            </h1>
+            <p className="text-sm text-slate-500 max-w-2xl">
+              Set per-farmer commission amounts for a billing period
+            </p>
+          </div>
+          <div className="shrink-0 w-full sm:w-auto">
             <Button
               onClick={fetchSummary}
-              variant="outline"
-              className="flex items-center gap-2 border-indigo-300 text-indigo-700 hover:bg-indigo-50"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white text-indigo-700 hover:bg-indigo-50 border border-indigo-200 shadow-sm transition-all"
             >
               <LayoutList className="w-4 h-4" />
               Summary
             </Button>
           </div>
-        </CardHeader>
+        </div>
 
-        <CardContent className="p-6 space-y-6 text-left">
+        <Card className="bg-white/70 backdrop-blur-xl border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-visible transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] rounded-2xl">
+          <CardContent className="p-6 space-y-6 text-left">
           {/* ── VLC selector ─────────────────────────────── */}
-          <div className="max-w-sm">
-            <Label className="mb-2 font-medium">
-              VLC <span className="text-red-600">*</span>
+          <div className="max-w-sm space-y-2 group">
+            <Label className="text-sm font-semibold text-slate-700 group-hover:text-indigo-600 transition-colors">
+              Select VLC <span className="text-red-500">*</span>
             </Label>
-            <Select value={selectedVlc} onValueChange={setSelectedVlc}>
-              <SelectTrigger className="w-full bg-white border-gray-300 h-11">
-                <SelectValue placeholder="Select VLC" />
-              </SelectTrigger>
-              <SelectContent className="bg-white">
-                {branches?.map((branch) => (
-                  <SelectItem
-                    key={branch.branch_id}
-                    value={branch.branch_id.toString()}
-                  >
-                    {branch.username} - {branch.name} - {branch.branchName || ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="relative">
+              <VLCDropdown
+                branches={branches}
+                value={selectedVlc}
+                onChange={(val) => setSelectedVlc(String(val))}
+                valueKey="branch_id"
+                placeholder="Choose a VLC center..."
+              />
+            </div>
           </div>
 
           {selectedVlc && farmers.length > 0 && (
@@ -1077,6 +1074,7 @@ const FarmerCommissionEntry = () => {
           )}
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 };

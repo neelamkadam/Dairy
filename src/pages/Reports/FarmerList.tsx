@@ -7,6 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import {
   Table,
   TableBody,
@@ -83,66 +84,64 @@ const FarmerList = () => {
   const currentFarmers = farmers.slice(startIndex, endIndex);
 
   return (
-    <div className="p-6 text-left">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Farmer List</h1>
-        <p className="text-gray-600">Manage and view all farmers</p>
+    <div className="p-2 sm:p-4 text-left">
+      {/* Header */}
+      <div className="flex flex-col items-start text-left gap-1 animate-in fade-in slide-in-from-top-4 duration-700 mb-4">
+        <h1 className="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600">Farmer List</h1>
+        <p className="text-sm font-medium text-slate-500">Manage and view all farmers</p>
       </div>
-      <div className="flex gap-5 mb-5">
-        <Select value={selectedVlcc} onValueChange={(value) => {
-          setSelectedVlcc(value);
-          setFarmers([]);
-          setCurrentPage(1);
-        }}>
-          <SelectTrigger className="w-48 border-gray-300">
-            <SelectValue placeholder="Select VLC" />
-          </SelectTrigger>
-          <SelectContent className="bg-white">
-            {branches?.map((branch) => (
-              <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
-                {branch.username} - {branch.name} - {branch.branchName || ''}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button onClick={handleShow} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white w-[150px]">
-          {loading ? "Loading..." : "Show"}
-        </Button>
-      </div>
-      
-      <div className="flex justify-end gap-3 mb-4">
-        <Button 
-          onClick={handleExportExcel}
-          disabled={!farmers || farmers.length === 0}
-          className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
-        >
-          <Download className="h-4 w-4" />
-          Excel Export
-        </Button>
-        <Button 
-          onClick={handleExportPDF}
-          disabled={!farmers || farmers.length === 0}
-          variant="default" 
-          className="bg-red-500 text-white flex items-center gap-2"
-        >
-          <Download className="h-4 w-4" />
-          PDF Export
-        </Button>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-end bg-white p-3 sm:p-4 rounded-lg shadow-sm mb-4 text-left">
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Select VLC</label>
+          <VLCDropdown
+            branches={branches || []}
+            value={selectedVlcc}
+            onChange={(value) => {
+              setSelectedVlcc(value);
+              setFarmers([]);
+              setCurrentPage(1);
+            }}
+            valueKey="branch_id"
+            placeholder="Select VLC"
+          />
+        </div>
+        <div className="xl:col-span-4 flex flex-wrap gap-2 justify-end">
+          <Button onClick={handleShow} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white w-[120px] h-10">
+            {loading ? "Loading..." : "Show"}
+          </Button>
+          <Button 
+            onClick={handleExportExcel}
+            disabled={!farmers || farmers.length === 0}
+            className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2 h-10"
+          >
+            <Download className="h-4 w-4" />
+            Excel Export
+          </Button>
+          <Button 
+            onClick={handleExportPDF}
+            disabled={!farmers || farmers.length === 0}
+            variant="default" 
+            className="bg-red-500 hover:bg-red-600 text-white flex items-center gap-2 h-10"
+          >
+            <Download className="h-4 w-4" />
+            PDF Export
+          </Button>
+        </div>
       </div>
 
-      <div className="border border-gray-200 rounded-lg">
-        <Table className="">
+      <div className="border border-gray-200 rounded-lg overflow-x-auto">
+        <Table className="whitespace-nowrap text-sm [&_th]:h-auto [&_th]:py-2 [&_th]:px-3 [&_td]:py-2 [&_td]:px-3 [&_th]:align-middle">
           <TableHeader className="bg-gray-200">
-            <TableRow className="">
-              <TableHead>Farmer ID</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Contact</TableHead>
-              <TableHead>Milk Type</TableHead>
-              <TableHead>Rate Chart</TableHead>
-              <TableHead>Bank Name</TableHead>
-              <TableHead>Account Number</TableHead>
-              <TableHead>IFSC Code</TableHead>
-              <TableHead>Passbook</TableHead>
+            <TableRow>
+              <TableHead className="border border-gray-300">Farmer ID</TableHead>
+              <TableHead className="border border-gray-300">Name</TableHead>
+              <TableHead className="border border-gray-300">Contact</TableHead>
+              <TableHead className="border border-gray-300">Milk Type</TableHead>
+              <TableHead className="border border-gray-300">Rate Chart</TableHead>
+              <TableHead className="border border-gray-300">Bank Name</TableHead>
+              <TableHead className="border border-gray-300">Account Number</TableHead>
+              <TableHead className="border border-gray-300">IFSC Code</TableHead>
+              <TableHead className="border border-gray-300 text-center">Passbook</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -157,7 +156,7 @@ const FarmerList = () => {
                   <TableCell className="border border-gray-300">{farmer.bankName || '-'}</TableCell>
                   <TableCell className="border border-gray-300">{farmer.accountNumber || '-'}</TableCell>
                   <TableCell className="border border-gray-300">{farmer.ifscCode || '-'}</TableCell>
-                  <TableCell className="border border-gray-300">
+                  <TableCell className="border border-gray-300 text-center">
                     {farmer.bankPassbookPhoto ? (
                       <a
                         href={farmer.bankPassbookPhoto}

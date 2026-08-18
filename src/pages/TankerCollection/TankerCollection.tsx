@@ -127,13 +127,15 @@ const TankerCollection = () => {
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-2xl mx-auto">
         <Card className="shadow-lg border-0">
-          <CardHeader className="border-b bg-gradient-to-r from-blue-50 to-indigo-50">
-            <CardTitle className="text-2xl font-bold text-gray-800">
-              Tanker Collection
-            </CardTitle>
-            <p className="text-gray-600 text-sm mt-1">
-              Register a new milk user for tanker collection
-            </p>
+          <CardHeader className="border-b bg-white px-6 py-5">
+            <div className="flex flex-col items-start text-left gap-1.5 animate-in fade-in slide-in-from-top-4 duration-700">
+              <CardTitle className="text-2xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600">
+                Tanker Collection
+              </CardTitle>
+              <p className="text-gray-500 text-sm mt-1 font-medium">
+                Register a new milk user for tanker collection
+              </p>
+            </div>
           </CardHeader>
           <CardContent className="p-6">
             <form onSubmit={handleSubmit} className="space-y-6">

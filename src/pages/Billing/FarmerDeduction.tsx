@@ -14,7 +14,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Filter, Search, CalendarIcon, Settings, ArrowUp, ArrowDown, GripVertical, Loader2 } from "lucide-react";
+import { Filter, Search, CalendarIcon, Settings, ArrowUp, ArrowDown, GripVertical, Loader2, CircleUserRound, Receipt } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import SummaryCards from "@/components/SummaryCards";
@@ -27,7 +27,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { deductionApi } from "@/services/deductionApi";
 import { bonusApi } from "@/services/bonusApi";
@@ -638,106 +640,108 @@ const FarmerDeduction = () => {
   const paginatedData = filteredData.slice(startIndex, endIndex);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="w-full mx-auto">
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-50 via-slate-50 to-white p-2 md:p-4">
+      <div className="max-w-7xl mx-auto space-y-4">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between bg-white p-4">
-            <h1 className="text-2xl font-bold text-gray-900">
-              Farmer Deduction
-            </h1>
-            <div className="flex items-center gap-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  placeholder="Search farmers..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-64"
+        <div className="flex flex-col items-start text-left gap-1.5 animate-in fade-in slide-in-from-top-4 duration-700">
+          <h1 className="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600">
+            Farmer Deduction
+          </h1>
+          <p className="text-sm font-medium text-slate-500">
+            Manage auto-deductions for farmers per billing cycle efficiently.
+          </p>
+        </div>
+
+        {/* Top Filter Card */}
+        <Card className="bg-white/70 backdrop-blur-xl border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-visible transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] rounded-2xl py-0 gap-0">
+          <CardHeader className="px-4 py-3 !pb-3 border-b border-slate-100/50 bg-white/50">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                <Receipt className="w-5 h-5 text-indigo-500" />
+                Filter & Configuration
+              </CardTitle>
+              <div className="flex items-center gap-3">
+                {farmerData.length > 0 && (
+                  <div className={`px-3 py-1.5 rounded-md text-xs font-semibold whitespace-nowrap shadow-sm border ${
+                    isBillFinalized 
+                      ? 'bg-gray-100 text-gray-700 border-gray-200' 
+                      : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  }`}>
+                    {isBillFinalized ? '🔒 Bills Finalized' : '✅ Bills Not Finalized'}
+                  </div>
+                )}
+                
+                <Dialog open={priorityOpen} onOpenChange={setPriorityOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="h-8 px-3 text-xs flex items-center gap-2 border-gray-200 shadow-sm">
+                      <Settings className="h-3.5 w-3.5" />
+                      Priority
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="bg-white">
+                    <DialogHeader>
+                      <DialogTitle>Set Deduction Priority</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-2 mt-4">
+                      {priority.map((item, index) => (
+                        <div 
+                          key={item} 
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, index)}
+                          onDragOver={handleDragOver}
+                          onDrop={(e) => handleDrop(e, index)}
+                          className="flex items-center justify-between p-3 bg-gray-50 rounded cursor-move hover:bg-gray-100 transition-colors"
+                        >
+                          <div className="flex items-center gap-2">
+                            <GripVertical className="h-4 w-4 text-gray-400" />
+                            <span className="capitalize">
+                              {item === 'cattleFeed' ? 'Cattle Feed' : 
+                               item === 'bonus' ? 'Bonus' :
+                               item === 'fixed' ? 'Fixed' :
+                               item}
+                            </span>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={index === 0}
+                              onClick={() => movePriority(index, 'up')}
+                            >
+                              <ArrowUp className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={index === priority.length - 1}
+                              onClick={() => movePriority(index, 'down')}
+                            >
+                              <ArrowDown className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+              <div className="space-y-1.5 group lg:col-span-1">
+                <Label className="text-sm font-medium text-gray-700">Select VLC</Label>
+                <VLCDropdown
+                  branches={branches}
+                  value={vlcName}
+                  onChange={setVlcName}
+                  valueKey="branch_id"
+                  placeholder="Select VLC"
                 />
               </div>
-              <Button variant="outline" className="flex items-center gap-2">
-                <Filter className="h-4 w-4" />
-                Filter
-              </Button>
-              <Dialog open={priorityOpen} onOpenChange={setPriorityOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" className="flex items-center gap-2">
-                    <Settings className="h-4 w-4" />
-                    Priority
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="bg-white">
-                  <DialogHeader>
-                    <DialogTitle>Set Deduction Priority</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-2 mt-4">
-                    {priority.map((item, index) => (
-                      <div 
-                        key={item} 
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, index)}
-                        onDragOver={handleDragOver}
-                        onDrop={(e) => handleDrop(e, index)}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded cursor-move hover:bg-gray-100 transition-colors"
-                      >
-                        <div className="flex items-center gap-2">
-                          <GripVertical className="h-4 w-4 text-gray-400" />
-                          <span className="capitalize">
-                            {item === 'cattleFeed' ? 'Cattle Feed' : 
-                             item === 'bonus' ? 'Bonus' :
-                             item === 'fixed' ? 'Fixed' :
-                             item}
-                          </span>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={index === 0}
-                            onClick={() => movePriority(index, 'up')}
-                          >
-                            <ArrowUp className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={index === priority.length - 1}
-                            onClick={() => movePriority(index, 'down')}
-                          >
-                            <ArrowDown className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </div>
-          {/* Filters */}
-          <hr className="text-gray-300 "/>
-          <div className="flex items-center gap-2 mb-4 p-4 bg-white mt-0">
-            <label className="text-sm font-medium text-gray-700">
-              Select VLC
-            </label>
-            <Select value={vlcName} onValueChange={setVlcName}>
-              <SelectTrigger className="w-32 bg-white border-gray-300">
-                <SelectValue placeholder="Select VLC" />
-              </SelectTrigger>
-              <SelectContent className="bg-white border border-gray-300 shadow-lg">
-                {branches.map((branch) => (
-                  <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
-                    {branch.username} - {branch.name} - {branch.branchName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center justify-between mb-5 pl-4 pr-4">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700">Start Date:</label>
+
+              <div className="space-y-1.5 group lg:col-span-1">
+                <Label className="text-sm font-medium text-gray-700">Start Date</Label>
                 <Input
                   type="date"
                   value={startDate ? format(startDate, "yyyy-MM-dd") : ""}
@@ -747,41 +751,52 @@ const FarmerDeduction = () => {
                       handleStartDateChange(new Date(newDateStr));
                     }
                   }}
-                  className="border-gray-300"
+                  className="w-full h-10 border-gray-200"
                 />
               </div>
 
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700">End Date:</label>
+              <div className="space-y-1.5 group lg:col-span-1">
+                <Label className="text-sm font-medium text-gray-700">End Date</Label>
                 <Input
                   type="date"
                   value={endDate ? format(endDate, "yyyy-MM-dd") : ""}
                   disabled
-                  className="border-gray-300 bg-gray-100 cursor-not-allowed"
+                  className="w-full h-10 border-gray-200 bg-gray-50 cursor-not-allowed text-gray-500"
                 />
               </div>
               
-              <Button
-                onClick={fetchDeductions}
-                disabled={fetchLoading}
-                className="bg-red-600 hover:bg-red-700 text-white px-8 flex items-center gap-2"
-              >
-                {fetchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {fetchLoading ? 'Fetching...' : 'Fetch Data'}
-              </Button>
-            </div>
-
-            {farmerData.length > 0 && (
-              <div className={`px-3 py-1.5 rounded-md text-sm font-semibold whitespace-nowrap ${
-                isBillFinalized 
-                  ? 'bg-gray-200 text-gray-700' 
-                  : 'bg-green-100 text-green-700'
-              }`}>
-                {isBillFinalized ? '🔒 Bills Already Finalized' : '✅ Bills Not Finalized'}
+              <div className="space-y-1.5 group lg:col-span-1">
+                <Label className="text-sm font-medium text-gray-700">Search</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    placeholder="Search farmers..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9 h-10 border-gray-200 w-full"
+                  />
+                </div>
               </div>
-            )}
-          </div>
-        </div>
+
+              <div className="space-y-1.5 group lg:col-span-1">
+                <Button
+                  onClick={fetchDeductions}
+                  disabled={fetchLoading}
+                  className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white shadow-md hover:shadow-indigo-500/20 transition-all active:scale-[0.98] h-10"
+                >
+                  {fetchLoading ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Fetching...</span>
+                    </div>
+                  ) : (
+                    "Fetch Data"
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Summary Cards */}
         <SummaryCards 
@@ -796,84 +811,91 @@ const FarmerDeduction = () => {
 
         {/* Save Button */}
         {farmerData.length > 0 && (
-          <div className="flex justify-end gap-2 px-4 mb-4">
-            <Dialog open={previousRemainingOpen} onOpenChange={setPreviousRemainingOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="px-6">
-                  Previous Remaining
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="bg-white max-w-4xl max-h-[80vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Previous Remaining Balances</DialogTitle>
-                </DialogHeader>
-                <div className="mt-4">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Farmer Name</TableHead>
-                        <TableHead>Advance</TableHead>
-                        <TableHead>Cattle Feed</TableHead>
-                        <TableHead>Other1</TableHead>
-                        <TableHead>Other2</TableHead>
-                        <TableHead>Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {farmerData.filter(f => f.previousRemaining > 0).map((farmer) => (
-                        <TableRow key={farmer.farmer_id}>
-                          <TableCell className="font-medium">{farmer.name}</TableCell>
-                          <TableCell className="text-red-600">
-                            {farmer.previousBillDetails?.advance > 0 ? `₹${farmer.previousBillDetails.advance.toFixed(2)}` : '-'}
-                          </TableCell>
-                          <TableCell className="text-red-600">
-                            {farmer.previousBillDetails?.cattleFeed > 0 ? `₹${farmer.previousBillDetails.cattleFeed.toFixed(2)}` : '-'}
-                          </TableCell>
-                          <TableCell className="text-red-600">
-                            {farmer.previousBillDetails?.other1 > 0 ? `₹${farmer.previousBillDetails.other1.toFixed(2)}` : '-'}
-                          </TableCell>
-                          <TableCell className="text-red-600">
-                            {farmer.previousBillDetails?.other2 > 0 ? `₹${farmer.previousBillDetails.other2.toFixed(2)}` : '-'}
-                          </TableCell>
-                          <TableCell className="font-semibold text-red-600">
-                            ₹{farmer.previousRemaining.toFixed(2)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      {farmerData.filter(f => f.previousRemaining > 0).length === 0 && (
+          <div className="animate-in slide-in-from-bottom-4 fade-in duration-500 space-y-4">
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-3 items-center px-2">
+              <Dialog open={previousRemainingOpen} onOpenChange={setPreviousRemainingOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="h-10 px-5 border-gray-200 shadow-sm font-medium text-slate-700 hover:text-slate-900">
+                    Previous Remaining
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-white max-w-4xl max-h-[80vh] overflow-y-auto rounded-2xl">
+                  <DialogHeader>
+                    <DialogTitle className="text-xl font-bold">Previous Remaining Balances</DialogTitle>
+                  </DialogHeader>
+                  <div className="mt-4">
+                    <Table>
+                      <TableHeader className="bg-gray-50/80">
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center text-gray-500">
-                            No previous remaining balances found
-                          </TableCell>
+                          <TableHead className="font-semibold text-slate-700">Farmer Name</TableHead>
+                          <TableHead className="font-semibold text-slate-700">Advance</TableHead>
+                          <TableHead className="font-semibold text-slate-700">Cattle Feed</TableHead>
+                          <TableHead className="font-semibold text-slate-700">Other 1</TableHead>
+                          <TableHead className="font-semibold text-slate-700">Other 2</TableHead>
+                          <TableHead className="font-semibold text-slate-700 text-right">Total</TableHead>
                         </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </DialogContent>
-            </Dialog>
-            {shouldShowAdvance() && (
+                      </TableHeader>
+                      <TableBody>
+                        {farmerData.filter(f => f.previousRemaining > 0).map((farmer) => (
+                          <TableRow key={farmer.farmer_id} className="hover:bg-gray-50/50">
+                            <TableCell className="font-medium text-slate-800">{farmer.name}</TableCell>
+                            <TableCell className="text-rose-600 font-medium">
+                              {farmer.previousBillDetails?.advance > 0 ? `₹${farmer.previousBillDetails.advance.toFixed(2)}` : '-'}
+                            </TableCell>
+                            <TableCell className="text-rose-600 font-medium">
+                              {farmer.previousBillDetails?.cattleFeed > 0 ? `₹${farmer.previousBillDetails.cattleFeed.toFixed(2)}` : '-'}
+                            </TableCell>
+                            <TableCell className="text-rose-600 font-medium">
+                              {farmer.previousBillDetails?.other1 > 0 ? `₹${farmer.previousBillDetails.other1.toFixed(2)}` : '-'}
+                            </TableCell>
+                            <TableCell className="text-rose-600 font-medium">
+                              {farmer.previousBillDetails?.other2 > 0 ? `₹${farmer.previousBillDetails.other2.toFixed(2)}` : '-'}
+                            </TableCell>
+                            <TableCell className="font-bold text-rose-600 text-right">
+                              ₹{farmer.previousRemaining.toFixed(2)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {farmerData.filter(f => f.previousRemaining > 0).length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center text-gray-500 py-8">
+                              No previous remaining balances found
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              {shouldShowAdvance() && (
+                <Button 
+                  onClick={handleClearAdvanceDeductions}
+                  variant="outline"
+                  className="h-10 px-5 text-rose-600 border-rose-200 bg-rose-50 hover:bg-rose-100 hover:border-rose-300 font-medium shadow-sm transition-colors"
+                  disabled={isBillFinalized}
+                >
+                  Clear Advance
+                </Button>
+              )}
+              
               <Button 
-                onClick={handleClearAdvanceDeductions}
-                variant="outline"
-                className="px-6 text-red-600 border-red-600 hover:bg-red-50"
+                onClick={handleSave}
+                className={`h-10 px-6 font-semibold shadow-md transition-all active:scale-[0.98] ${
+                  isBillFinalized 
+                    ? "bg-slate-300 text-slate-500 cursor-not-allowed shadow-none" 
+                    : "bg-emerald-600 hover:bg-emerald-700 text-white hover:shadow-emerald-500/20"
+                }`}
                 disabled={isBillFinalized}
               >
-                Clear Advance Deductions
+                {isBillFinalized ? 'Cannot Save - Bills Finalized' : 'Save Changes'}
               </Button>
-            )}
-            <Button 
-              onClick={handleSave}
-              className={isBillFinalized ? "bg-gray-400 cursor-not-allowed text-white px-8" : "bg-green-600 hover:bg-green-700 text-white px-8"}
-              disabled={isBillFinalized}
-            >
-              {isBillFinalized ? 'Cannot Save - Bills Finalized' : 'Save Changes'}
-            </Button>
-          </div>
-        )}
+            </div>
 
-        {/* Farmer Table */}
-        <Card className="bg-white shadow-sm border border-gray-200 mb-6 mt-0 pl-4 pr-4">
+            {/* Farmer Table */}
+            <Card className="bg-white/70 backdrop-blur-xl border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden rounded-2xl py-0 gap-0">
           <div className="overflow-x-auto">
             <Table className="min-w-max">
               <TableHeader className="bg-gray-200">
@@ -1086,6 +1108,8 @@ const FarmerDeduction = () => {
             setItemsPerPage={setItemsPerPage}
             totalItems={filteredData.length}
           />
+        )}
+          </div>
         )}
       </div>
     </div>

@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import {
   Table,
   TableBody,
@@ -17,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, FileDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, FileDown, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { useAppSelector } from "@/redux/store";
 import { reportsApi } from "@/services/reportsApi";
 import { toast } from "react-toastify";
@@ -121,43 +122,42 @@ const RemainingBalanceReport = () => {
   };
 
   return (
-    <div className="p-4 space-y-4 bg-white w-full h-screen">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <h1 className="text-xl font-bold">Remaining Amount Report</h1>
-        </div>
+    <div className="p-2 sm:p-4 space-y-4 bg-gray-50 min-h-screen text-left w-full">
+      {/* Header */}
+      <div className="flex flex-col items-start text-left gap-1 animate-in fade-in slide-in-from-top-4 duration-700 px-2 mb-2">
+        <h1 className="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600">
+          Remaining Amount Report
+        </h1>
       </div>
-      <div className="flex flex-col sm:flex-row gap-4">
+      
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-end bg-white p-3 sm:p-4 rounded-lg shadow-sm mx-2 mb-4 text-left">
         <div>
           <Label className="mb-1">Select VLC</Label>
-          <Select value={vlcId} onValueChange={(value) => {
-            setVlcId(value);
-            setFarmers([]);
-          }}>
-            <SelectTrigger className="border-gray-300 w-48">
-              <SelectValue placeholder="Select VLC" />
-            </SelectTrigger>
-            <SelectContent className="bg-white">
-              {branches?.map((branch) => (
-                <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
-                  {branch.username} - {branch.name} - {branch.branchName || ''}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <VLCDropdown
+            branches={branches || []}
+            value={vlcId}
+            onChange={(value) => {
+              setVlcId(value);
+              setFarmers([]);
+            }}
+            valueKey="branch_id"
+            placeholder="Select VLC"
+          />
         </div>
         <div>
           <Label className="mb-1">Date</Label>
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="border-gray-300" />
+          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="border-gray-200 h-10" />
         </div>
         
-        <Button onClick={handleShowReport} disabled={loading} className="bg-blue-600 hover:bg-blue-700 mt-4 text-white">
-          {loading ? "Loading..." : "Show Report"}
-        </Button>
+        <div className="xl:col-span-3 flex justify-end">
+          <Button onClick={handleShowReport} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white w-[120px]">
+            {loading ? "Loading..." : "Show Report"}
+          </Button>
+        </div>
       </div>
 
       {/* Search and Export */}
-      <div className="flex flex-col sm:flex-row justify-between gap-4">
+      <div className="flex flex-col sm:flex-row justify-between gap-4 mx-2">
         <div className="flex-1 max-w-sm">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -173,25 +173,25 @@ const RemainingBalanceReport = () => {
           <Button
             onClick={handleExportPDF}
             disabled={filteredFarmers.length === 0}
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white"
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white h-10"
           >
-            <FileDown size={16} />
+            <Download className="w-4 h-4" />
             PDF Export
           </Button>
           <Button
             onClick={handleExportExcel}
             disabled={filteredFarmers.length === 0}
-            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
+            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white h-10"
           >
-            <FileDown size={16} />
+            <Download className="w-4 h-4" />
             Excel Export
           </Button>
         </div>
       </div>
       {/* Data Table */}
-      <Card className="border-none text-center p-0 rounded-lg ">
-        <CardContent className="p-0">
-          <Table>
+      <Card className="border-none shadow-sm text-center p-0 rounded-lg mx-2 bg-white overflow-x-auto">
+        <CardContent className="p-2 sm:p-4">
+          <Table className="whitespace-nowrap text-sm border-collapse [&_th]:h-auto [&_th]:py-2 [&_th]:px-3 [&_td]:py-2 [&_td]:px-3 [&_th]:align-middle">
             <TableHeader>
               <TableRow className="bg-gray-100 ">
                 <TableHead className="font-semibold text-left">Farmer ID</TableHead>
@@ -234,7 +234,7 @@ const RemainingBalanceReport = () => {
         </CardContent>
       </Card>
       {/* Total */}
-      <div className="bg-gray-100 p-4 rounded-lg">
+      <div className="bg-white p-4 rounded-lg shadow-sm mx-2">
         <div className="flex justify-between items-center">
           <span className="text-lg font-semibold">Total Remaining Balance</span>
           <span className="text-2xl font-bold">
@@ -244,7 +244,7 @@ const RemainingBalanceReport = () => {
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mx-2">
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-600">Rows per page:</span>
           <Select value={itemsPerPage.toString()} onValueChange={(value) => {

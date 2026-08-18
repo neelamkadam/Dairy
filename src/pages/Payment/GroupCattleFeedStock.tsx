@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import { cattleFeedApi, CattleFeedStock } from "@/services/cattleFeedApi";
 import { toast } from "react-toastify";
 import { useAppSelector } from "@/redux/store";
@@ -186,10 +187,13 @@ const GroupCattleFeedStock: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex flex-col gap-2">
-            <h1 className="text-4xl font-extrabold tracking-tight text-slate-900">Group Cattle Feed Master</h1>
-            <p className="text-slate-500 font-medium">Coordinate central inventory and distribution to VLC branches.</p>
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+          <div className="flex flex-col">
+            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+               <Package className="w-6 h-6 text-blue-600" />
+               Group Cattle Feed Master
+            </h1>
+            <p className="text-sm text-slate-500 font-medium">Coordinate central inventory and distribution to VLC branches.</p>
           </div>
           <Button 
             variant="outline" 
@@ -199,7 +203,7 @@ const GroupCattleFeedStock: React.FC = () => {
             <FileText className="w-4 h-4 mr-2 text-indigo-600" />
             Cattle Feed Report
           </Button>
-        </div>
+        </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Add Master Stock */}
@@ -492,18 +496,14 @@ const GroupCattleFeedStock: React.FC = () => {
           <div className="p-8 space-y-6 bg-white">
             <div className="space-y-3">
               <Label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Destination VLC Branch</Label>
-              <Select value={targetVlc} onValueChange={setTargetVlc}>
-                <SelectTrigger className="bg-slate-50 border-slate-200 h-12 rounded-xl focus:ring-indigo-500">
-                    <SelectValue placeholder="Identify Target Branch" />
-                </SelectTrigger>
-                <SelectContent className="bg-white border-slate-200 rounded-xl shadow-xl">
-                  {branches.map(b => (
-                    <SelectItem key={b.branch_id} value={b.branch_id.toString()} className="font-medium p-3">
-                        <span className="font-bold text-indigo-600 mr-2">[{b.username}]</span> {b.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <VLCDropdown
+                branches={branches}
+                value={targetVlc}
+                onChange={setTargetVlc}
+                valueKey="branch_id"
+                placeholder="Identify Target Branch"
+                className="w-full h-12 bg-slate-50 rounded-xl border-slate-200"
+              />
             </div>
             <div className="space-y-3">
               <div className="flex justify-between items-center px-1">

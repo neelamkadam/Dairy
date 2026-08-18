@@ -25,6 +25,8 @@ import {
   Snowflake,
   Warehouse,
   Route as RouteIcon,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import {
   Select,
@@ -60,6 +62,7 @@ const CreateDairy = () => {
 
   const [step, setStep] = useState<Step>(1);
   const [loading, setLoading] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(true);
 
   const [mobileNumber, setMobileNumber] = useState("");
 
@@ -221,21 +224,27 @@ const CreateDairy = () => {
     createdUser?.username ?? createdUser?.user_name ?? createdUser?.userName ?? "-";
 
   return (
-    <div className="min-h-[calc(100vh-80px)] flex items-center justify-center p-4 sm:p-8 bg-background relative overflow-hidden">
-      <div className="w-full max-w-3xl relative z-10">
-        <Card className="shadow-lg border-border bg-card rounded-2xl overflow-hidden transition-all duration-500">
-          <CardHeader className="border-b border-border bg-card p-6 sm:p-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <CardTitle className="text-3xl font-extrabold text-foreground">
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-50 via-slate-50 to-white p-2 md:p-4">
+      <div className="max-w-5xl mx-auto space-y-4 pt-4">
+
+        <Card className="bg-white/70 backdrop-blur-xl border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-visible transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] rounded-2xl py-0 gap-0">
+          <CardHeader 
+            className="px-4 py-3 border-b border-slate-100/50 bg-white/50 cursor-pointer select-none"
+            onClick={() => setIsFormOpen((prev) => !prev)}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <CardTitle className="text-lg font-semibold text-slate-800">
                   Create Dairy
                 </CardTitle>
-                <p className="text-muted-foreground text-sm mt-2 font-medium">
-                  Set up a new dairy in a few simple steps.
-                </p>
+                <div className="hidden sm:block text-slate-300 text-sm font-medium">|</div>
+                <div className="text-sm font-medium text-slate-500">
+                  {step === 3 ? "Success" : STEPS.find(s => s.id === step)?.label}
+                </div>
               </div>
 
-              {/* Stepper */}
+              <div className="flex items-center space-x-4">
+                {/* Stepper */}
               <div className="flex items-center space-x-2">
                 {STEPS.map((s, idx) => {
                   const active = step === s.id;
@@ -244,26 +253,26 @@ const CreateDairy = () => {
                     <div key={s.id} className="flex items-center">
                       <div className="flex flex-col items-center gap-1 relative">
                         <div
-                          className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold shadow-sm transition-all duration-300 ${
+                          className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shadow-sm transition-all duration-300 ${
                             done
-                              ? "bg-green-600 text-white shadow-sm"
+                              ? "bg-indigo-600 text-white"
                               : active
-                                ? "bg-blue-600 text-white shadow-sm ring-4 ring-blue-600/20"
+                                ? "bg-blue-600 text-white ring-4 ring-blue-600/20"
                                 : "bg-gray-100 text-gray-400 border border-gray-200"
                           }`}
                         >
-                          {done ? <CheckCircle2 size={18} /> : s.id}
+                          {done ? <CheckCircle2 size={14} /> : s.id}
                         </div>
                         {active && (
-                          <span className="absolute -bottom-5 text-[10px] font-bold text-blue-600 whitespace-nowrap">
+                          <span className="absolute -bottom-4 text-[10px] font-bold text-blue-600 whitespace-nowrap">
                             {s.label}
                           </span>
                         )}
                       </div>
                       {idx < STEPS.length - 1 && (
                         <div
-                          className={`w-8 sm:w-12 h-[2px] mx-2 transition-all duration-500 rounded-full ${
-                            step > s.id ? "bg-green-500" : "bg-gray-200"
+                          className={`w-6 sm:w-10 h-[2px] mx-1 transition-all duration-500 rounded-full ${
+                            step > s.id ? "bg-indigo-500" : "bg-gray-200"
                           }`}
                         />
                       )}
@@ -271,37 +280,44 @@ const CreateDairy = () => {
                   );
                 })}
               </div>
+              {isFormOpen ? (
+                <ChevronUp className="h-4 w-4 text-slate-500" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-slate-500" />
+              )}
             </div>
-          </CardHeader>
+          </div>
+        </CardHeader>
 
-          <CardContent className="p-6 sm:p-8">
+        {isFormOpen && (
+          <CardContent className="px-4 py-4">
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               {/* Step 1: Mobile number — proceed directly, no OTP */}
               {step === 1 && (
-                <form onSubmit={handleContinue} className="max-w-md mx-auto space-y-6 py-6">
-                  <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-50 text-blue-600 mb-4">
-                      <Phone size={32} />
+                <form onSubmit={handleContinue} className="max-w-md mx-auto space-y-4 py-4">
+                  <div className="text-center mb-6">
+                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-50 text-blue-600 mb-3">
+                      <Phone size={24} />
                     </div>
-                    <h3 className="text-xl font-bold text-foreground">Enter Mobile Number</h3>
-                    <p className="text-muted-foreground text-sm mt-2">
+                    <h3 className="text-lg font-bold text-slate-800">Enter Mobile Number</h3>
+                    <p className="text-slate-500 text-sm mt-1">
                       Enter the owner's 10-digit mobile number to continue.
                     </p>
                   </div>
 
-                  <div className="space-y-3">
-                    <Label htmlFor="mobile" className="text-sm font-semibold text-foreground">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="mobile" className="text-sm font-semibold text-slate-700">
                       Mobile Number
                     </Label>
                     <div className="relative group">
-                      <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground h-5 w-5 group-focus-within:text-blue-600 transition-colors" />
+                      <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4 group-focus-within:text-blue-600 transition-colors" />
                       <Input
                         id="mobile"
                         type="tel"
                         inputMode="numeric"
                         maxLength={10}
                         placeholder="Enter mobile number"
-                        className="pl-11 h-12 bg-background border-input focus:bg-background focus:border-blue-600 focus:ring-blue-600/20 transition-all rounded-xl text-lg"
+                        className="pl-10 h-10 bg-white border-gray-200 focus:bg-white focus:border-blue-600 focus:ring-blue-600/20 transition-all rounded-lg text-sm shadow-sm"
                         value={mobileNumber}
                         onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, ""))}
                       />
@@ -311,7 +327,7 @@ const CreateDairy = () => {
                   <Button
                     type="submit"
                     disabled={mobileNumber.length !== 10}
-                    className="w-full h-12 text-base font-semibold rounded-xl transition-all disabled:opacity-70 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700 text-white"
+                    className="w-full h-10 text-sm font-semibold rounded-lg transition-all disabled:opacity-70 disabled:cursor-not-allowed bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-sm mt-2"
                   >
                     Continue
                   </Button>
@@ -320,17 +336,17 @@ const CreateDairy = () => {
 
               {/* Step 2: Dairy details */}
               {step === 2 && (
-                <div className="space-y-6 py-2">
-                  <form onSubmit={handleCreateBranch} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
-                      <div className="space-y-2">
-                        <Label className="text-sm font-semibold text-foreground">
-                          Dairy Name <span className="text-destructive">*</span>
+                <div className="space-y-4 py-2">
+                  <form onSubmit={handleCreateBranch} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-sm font-semibold text-slate-700">
+                          Dairy Name <span className="text-red-500">*</span>
                         </Label>
                         <div className="relative group">
-                          <Factory className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4 group-focus-within:text-blue-600 transition-colors" />
+                          <Factory className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4 group-focus-within:text-blue-600 transition-colors" />
                           <Input
-                            className="pl-9 h-11 bg-background border-input focus:bg-background focus:ring-blue-600/20 rounded-lg transition-all"
+                            className="pl-9 h-10 bg-white border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg transition-all text-sm shadow-sm"
                             placeholder="e.g. Sunrise Dairy"
                             value={form.name}
                             onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -338,14 +354,14 @@ const CreateDairy = () => {
                         </div>
                       </div>
 
-                      <div className="space-y-2">
-                        <Label className="text-sm font-semibold text-foreground">
-                          Branch Name <span className="text-destructive">*</span>
+                      <div className="space-y-1.5">
+                        <Label className="text-sm font-semibold text-slate-700">
+                          Branch Name <span className="text-red-500">*</span>
                         </Label>
                         <div className="relative group">
-                          <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4 group-focus-within:text-blue-600 transition-colors" />
+                          <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4 group-focus-within:text-blue-600 transition-colors" />
                           <Input
-                            className="pl-9 h-11 bg-background border-input focus:bg-background focus:ring-blue-600/20 rounded-lg transition-all"
+                            className="pl-9 h-10 bg-white border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg transition-all text-sm shadow-sm"
                             placeholder="e.g. Main Branch"
                             value={form.branchname}
                             onChange={(e) => setForm({ ...form, branchname: e.target.value })}
@@ -353,14 +369,14 @@ const CreateDairy = () => {
                         </div>
                       </div>
 
-                      <div className="space-y-2">
-                        <Label className="text-sm font-semibold text-foreground">
-                          Owner Name <span className="text-destructive">*</span>
+                      <div className="space-y-1.5">
+                        <Label className="text-sm font-semibold text-slate-700">
+                          Owner Name <span className="text-red-500">*</span>
                         </Label>
                         <div className="relative group">
-                          <User className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4 group-focus-within:text-blue-600 transition-colors" />
+                          <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4 group-focus-within:text-blue-600 transition-colors" />
                           <Input
-                            className="pl-9 h-11 bg-background border-input focus:bg-background focus:ring-blue-600/20 rounded-lg transition-all"
+                            className="pl-9 h-10 bg-white border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg transition-all text-sm shadow-sm"
                             placeholder="e.g. John Doe"
                             value={form.ownername}
                             onChange={(e) => setForm({ ...form, ownername: e.target.value })}
@@ -368,27 +384,27 @@ const CreateDairy = () => {
                         </div>
                       </div>
 
-                      <div className="space-y-2">
-                        <Label className="text-sm font-semibold text-foreground">Mobile Number</Label>
+                      <div className="space-y-1.5">
+                        <Label className="text-sm font-semibold text-slate-700">Mobile Number</Label>
                         <div className="relative">
-                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
                           <Input
-                            className="pl-9 h-11 bg-muted border-input text-muted-foreground rounded-lg font-medium cursor-not-allowed"
+                            className="pl-9 h-10 bg-gray-50 border-gray-200 text-gray-500 rounded-lg font-medium cursor-not-allowed text-sm shadow-sm"
                             value={mobileNumber}
                             readOnly
                           />
                         </div>
                       </div>
 
-                      <div className="space-y-2">
-                        <Label className="text-sm font-semibold text-foreground">
-                          Password <span className="text-destructive">*</span>
+                      <div className="space-y-1.5">
+                        <Label className="text-sm font-semibold text-slate-700">
+                          Password <span className="text-red-500">*</span>
                         </Label>
                         <div className="relative group">
-                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4 group-focus-within:text-blue-600 transition-colors" />
+                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4 group-focus-within:text-blue-600 transition-colors" />
                           <Input
                             type="text"
-                            className="pl-9 h-11 bg-background border-input focus:bg-background focus:ring-blue-600/20 rounded-lg transition-all"
+                            className="pl-9 h-10 bg-white border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg transition-all text-sm shadow-sm"
                             placeholder="Min 6 characters"
                             value={form.password}
                             onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -396,20 +412,20 @@ const CreateDairy = () => {
                         </div>
                       </div>
 
-                      <div className="space-y-2">
-                        <Label className="text-sm font-semibold text-foreground">Billing Days</Label>
+                      <div className="space-y-1.5">
+                        <Label className="text-sm font-semibold text-slate-700">Billing Days</Label>
                         <div className="relative group">
-                          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground z-10 pointer-events-none group-focus-within:text-blue-600 transition-colors">
+                          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none group-focus-within:text-blue-600 transition-colors">
                             <CalendarClock className="h-4 w-4" />
                           </div>
                           <Select
                             value={String(form.days)}
                             onValueChange={(v) => setForm({ ...form, days: Number(v) })}
                           >
-                            <SelectTrigger className="pl-9 h-11 bg-background border-input focus:ring-blue-600/20 rounded-lg transition-all w-full relative z-10">
+                            <SelectTrigger className="pl-9 h-10 bg-white border-gray-200 focus:ring-blue-500/20 rounded-lg transition-all w-full relative z-10 text-sm shadow-sm">
                               <SelectValue placeholder="Select billing cycle" />
                             </SelectTrigger>
-                            <SelectContent className="bg-white dark:bg-zinc-900 border border-border shadow-xl z-[100]">
+                            <SelectContent className="bg-white border-gray-100 shadow-xl z-[100]">
                               <SelectItem value="7">7 Days</SelectItem>
                               <SelectItem value="10">10 Days</SelectItem>
                               <SelectItem value="15">15 Days</SelectItem>
@@ -419,12 +435,12 @@ const CreateDairy = () => {
                         </div>
                       </div>
 
-                      <div className="space-y-2">
-                        <Label className="text-sm font-semibold text-foreground">Village Name</Label>
+                      <div className="space-y-1.5">
+                        <Label className="text-sm font-semibold text-slate-700">Village Name</Label>
                         <div className="relative group">
-                          <Map className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4 group-focus-within:text-blue-600 transition-colors" />
+                          <Map className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4 group-focus-within:text-blue-600 transition-colors" />
                           <Input
-                            className="pl-9 h-11 bg-background border-input focus:bg-background focus:ring-blue-600/20 rounded-lg transition-all"
+                            className="pl-9 h-10 bg-white border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg transition-all text-sm shadow-sm"
                             placeholder="Enter village"
                             value={form.villagename}
                             onChange={(e) => setForm({ ...form, villagename: e.target.value })}
@@ -432,12 +448,12 @@ const CreateDairy = () => {
                         </div>
                       </div>
 
-                      <div className="space-y-2">
-                        <Label className="text-sm font-semibold text-foreground">Address</Label>
+                      <div className="space-y-1.5 lg:col-span-2">
+                        <Label className="text-sm font-semibold text-slate-700">Address</Label>
                         <div className="relative group">
-                          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4 group-focus-within:text-blue-600 transition-colors" />
+                          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4 group-focus-within:text-blue-600 transition-colors" />
                           <Input
-                            className="pl-9 h-11 bg-background border-input focus:bg-background focus:ring-blue-600/20 rounded-lg transition-all"
+                            className="pl-9 h-10 bg-white border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg transition-all text-sm shadow-sm"
                             placeholder="Full address"
                             value={form.address}
                             onChange={(e) => setForm({ ...form, address: e.target.value })}
@@ -447,21 +463,21 @@ const CreateDairy = () => {
                     </div>
 
                     {/* Hierarchy assignment — optional CC / BMC / Route dropdowns */}
-                    <div className="pt-4 border-t border-border">
-                      <Label className="text-sm font-bold text-foreground mb-3 block">
-                        Assign to Hierarchy <span className="text-muted-foreground font-normal">(optional)</span>
+                    <div className="pt-3 border-t border-slate-100/50">
+                      <Label className="text-sm font-bold text-slate-800 mb-2 block">
+                        Assign to Hierarchy <span className="text-slate-500 font-normal">(optional)</span>
                       </Label>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                          <Label className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                        <div className="space-y-1.5">
+                          <Label className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
                             <Snowflake className="h-3.5 w-3.5 text-purple-500" />
                             CC (Chilling Center)
                           </Label>
                           <Select value={ccSel} onValueChange={setCcSel}>
-                            <SelectTrigger className="h-11 bg-background border-input focus:ring-blue-600/20 rounded-lg transition-all w-full">
+                            <SelectTrigger className="h-10 bg-white border-gray-200 focus:ring-blue-500/20 rounded-lg transition-all w-full text-sm shadow-sm">
                               <SelectValue placeholder="None" />
                             </SelectTrigger>
-                            <SelectContent className="bg-white dark:bg-zinc-900 border border-border shadow-xl z-[100]">
+                            <SelectContent className="bg-white border-gray-100 shadow-xl z-[100]">
                               <SelectItem value={NONE}>None</SelectItem>
                               {ccList.map((cc: any) => (
                                 <SelectItem key={cc.cc_id ?? cc.id} value={String(cc.cc_id ?? cc.id)}>
@@ -472,16 +488,16 @@ const CreateDairy = () => {
                           </Select>
                         </div>
 
-                        <div className="space-y-2">
-                          <Label className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                        <div className="space-y-1.5">
+                          <Label className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
                             <Warehouse className="h-3.5 w-3.5 text-blue-500" />
                             BMC
                           </Label>
                           <Select value={bmcSel} onValueChange={setBmcSel}>
-                            <SelectTrigger className="h-11 bg-background border-input focus:ring-blue-600/20 rounded-lg transition-all w-full">
+                            <SelectTrigger className="h-10 bg-white border-gray-200 focus:ring-blue-500/20 rounded-lg transition-all w-full text-sm shadow-sm">
                               <SelectValue placeholder="None" />
                             </SelectTrigger>
-                            <SelectContent className="bg-white dark:bg-zinc-900 border border-border shadow-xl z-[100]">
+                            <SelectContent className="bg-white border-gray-100 shadow-xl z-[100]">
                               <SelectItem value={NONE}>None</SelectItem>
                               {bmcList.map((bmc: any) => (
                                 <SelectItem key={bmc.bmc_id ?? bmc.id} value={String(bmc.bmc_id ?? bmc.id)}>
@@ -492,16 +508,16 @@ const CreateDairy = () => {
                           </Select>
                         </div>
 
-                        <div className="space-y-2">
-                          <Label className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                        <div className="space-y-1.5">
+                          <Label className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
                             <RouteIcon className="h-3.5 w-3.5 text-green-500" />
                             Route
                           </Label>
                           <Select value={routeSel} onValueChange={setRouteSel}>
-                            <SelectTrigger className="h-11 bg-background border-input focus:ring-blue-600/20 rounded-lg transition-all w-full">
+                            <SelectTrigger className="h-10 bg-white border-gray-200 focus:ring-blue-500/20 rounded-lg transition-all w-full text-sm shadow-sm">
                               <SelectValue placeholder="None" />
                             </SelectTrigger>
-                            <SelectContent className="bg-white dark:bg-zinc-900 border border-border shadow-xl z-[100]">
+                            <SelectContent className="bg-white border-gray-100 shadow-xl z-[100]">
                               <SelectItem value={NONE}>None</SelectItem>
                               {routeList.map((route: any) => (
                                 <SelectItem key={route.route_id ?? route.id} value={String(route.route_id ?? route.id)}>
@@ -512,16 +528,16 @@ const CreateDairy = () => {
                           </Select>
                         </div>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-2">
+                      <p className="text-xs text-slate-500 mt-2">
                         Pick any combination of CC, BMC and Route — or leave all as "None" for an unlinked dairy.
                       </p>
                     </div>
 
-                    <div className="pt-4 border-t border-border flex items-center justify-between">
+                    <div className="pt-4 mt-2 flex items-center justify-between">
                       <Button
                         type="button"
                         variant="ghost"
-                        className="text-muted-foreground hover:text-foreground font-medium"
+                        className="text-slate-500 hover:text-slate-800 font-medium"
                         onClick={() => setStep(1)}
                       >
                         ← Change Number
@@ -529,7 +545,7 @@ const CreateDairy = () => {
                       <Button
                         type="submit"
                         disabled={loading}
-                        className="px-8 h-12 text-base font-semibold rounded-xl transition-all disabled:opacity-70 bg-blue-600 hover:bg-blue-700 text-white"
+                        className="px-6 h-10 text-sm font-semibold rounded-lg transition-all disabled:opacity-70 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-sm"
                       >
                         {loading ? "Creating Dairy..." : "Create Dairy Account"}
                       </Button>
@@ -728,6 +744,7 @@ const CreateDairy = () => {
               )}
             </div>
           </CardContent>
+        )}
         </Card>
       </div>
     </div>

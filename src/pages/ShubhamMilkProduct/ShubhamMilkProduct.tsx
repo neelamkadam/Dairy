@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Calendar as CalendarIcon, Loader2, Search, ChevronLeft, ChevronRight, Save, FileDown } from "lucide-react";
+import { Calendar as CalendarIcon, Loader2, Search, ChevronLeft, ChevronRight, Save, FileDown, Milk } from "lucide-react";
 import { AppDatePicker } from "@/components/ui/date-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAppSelector } from "@/redux/store";
@@ -1179,28 +1179,30 @@ const ShubhamMilkProduct = () => {
     <div className="min-h-screen bg-gray-50 p-6">
       <PdfLoader isLoading={pdfLoading} />
       <div className="max-w-4xl mx-auto">
-        <Card className="shadow-lg border-none">
-          <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-lg">
-            <CardTitle className="text-2xl font-bold">{t("shubham_milk_product")}</CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+          <div className="flex flex-col">
+            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+               <Milk className="w-6 h-6 text-blue-600" />
+               {t("shubham_milk_product")}
+            </h1>
+            <p className="text-sm text-slate-500 font-medium">Manage milk collections, generated bills, and payments.</p>
+          </div>
+        </header>
+        <Card className="shadow-[0_4px_20px_rgb(0,0,0,0.05)] border-none">
+          <CardContent className="p-4">
             {/* Filters */}
-            <div className="space-y-4 mb-6">
+            <div className="space-y-3 mb-4">
               {/* VLC Selection - Full Width */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">{t("vlc_id")}</label>
-                <Select value={vlcId} onValueChange={setVlcId}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder={t("select_vlc")} />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    {branches.map((branch) => (
-                      <SelectItem key={branch.branch_id} value={branch.branch_id.toString()}>
-                        {branch.username} - {branch.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <VLCDropdown
+                  branches={branches}
+                  value={vlcId}
+                  onChange={setVlcId}
+                  valueKey="branch_id"
+                  placeholder={t("select_vlc")}
+                  className="w-full"
+                />
               </div>
 
               {/* Date Range and Show Button */}

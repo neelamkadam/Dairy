@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { AppDatePicker } from "@/components/ui/date-picker";
+import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 
 const CattleFeedStockSettings: React.FC = () => {
   const navigate = useNavigate();
@@ -48,12 +49,6 @@ const CattleFeedStockSettings: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
   const [allStocks, setAllStocks] = useState<CattleFeedStock[]>([]);
-
-  // VLC searchable dropdown state
-  const [vlcOpen, setVlcOpen] = useState(false);
-  const [vlcSearch, setVlcSearch] = useState("");
-  const vlcSearchRef = useRef<HTMLInputElement>(null);
-  const vlcWrapperRef = useRef<HTMLDivElement>(null);
 
   // Input refs for Enter-key navigation
   const stockNameRef = useRef<HTMLInputElement>(null);
@@ -86,19 +81,6 @@ const CattleFeedStockSettings: React.FC = () => {
 
   // Inventory search
   const [inventorySearch, setInventorySearch] = useState("");
-
-  // Click-outside handler for VLC dropdown
-  useEffect(() => {
-    if (!vlcOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (vlcWrapperRef.current && !vlcWrapperRef.current.contains(e.target as Node)) {
-        setVlcOpen(false);
-        setVlcSearch("");
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [vlcOpen]);
 
   const handleNameBlur = () => {
     if (!stockName.trim()) return;
@@ -349,17 +331,6 @@ const CattleFeedStockSettings: React.FC = () => {
   // Selected branch for display
   const selectedBranch = branches.find(b => b.branch_id.toString() === dairyId);
 
-  // Filtered branches for VLC dropdown
-  const filteredBranches = branches.filter(b => {
-    const q = vlcSearch.toLowerCase();
-    return (
-      !q ||
-      String(b.username || "").toLowerCase().includes(q) ||
-      String(b.branch_id || "").toLowerCase().includes(q) ||
-      String(b.name || "").toLowerCase().includes(q) ||
-      String(b.branchName || "").toLowerCase().includes(q)
-    );
-  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30">
@@ -457,97 +428,17 @@ const CattleFeedStockSettings: React.FC = () => {
                 {/* Searchable VLC Dropdown */}
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Select VLC Branch</Label>
-                  <div ref={vlcWrapperRef} className="relative w-full">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setVlcOpen(prev => !prev);
-                        if (!vlcOpen) setTimeout(() => vlcSearchRef.current?.focus(), 0);
-                        else setVlcSearch("");
-                      }}
-                      className={cn(
-                        "w-full flex items-center justify-between px-3 py-2.5 h-11 text-sm rounded-xl border bg-slate-50/80 transition-all duration-200",
-                        vlcOpen
-                          ? "border-indigo-500 ring-2 ring-indigo-500/20 bg-white"
-                          : "border-slate-200 hover:border-indigo-300 hover:bg-white"
-                      )}
-                    >
-                      <span className={selectedBranch ? "text-slate-900 font-medium truncate" : "text-slate-400"}>
-                        {selectedBranch
-                          ? `${selectedBranch.username} - ${selectedBranch.branchName || selectedBranch.name}`
-                          : "Search and select VLC..."}
-                      </span>
-                      <ChevronDown
-                        className={cn(
-                          "h-4 w-4 text-slate-400 flex-shrink-0 ml-2 transition-transform duration-200",
-                          vlcOpen && "rotate-180"
-                        )}
-                      />
-                    </button>
-
-                    {vlcOpen && (
-                      <div
-                        className="absolute z-50 mt-1.5 w-full bg-white border border-slate-100 rounded-xl shadow-xl shadow-slate-200/50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150"
-                        style={{ top: "100%", left: 0 }}
-                      >
-                        <div className="flex items-center gap-2 px-3 py-2.5 border-b border-slate-100 bg-slate-50/50">
-                          <Search className="h-4 w-4 text-slate-400 flex-shrink-0" />
-                          <input
-                            ref={vlcSearchRef}
-                            value={vlcSearch}
-                            onChange={(e) => setVlcSearch(e.target.value)}
-                            placeholder="Search by name or ID..."
-                            className="flex-1 text-sm outline-none bg-transparent placeholder:text-slate-400"
-                          />
-                          {vlcSearch && (
-                            <button
-                              type="button"
-                              onMouseDown={(e) => { e.preventDefault(); setVlcSearch(""); vlcSearchRef.current?.focus(); }}
-                              className="text-slate-400 hover:text-slate-600 transition-colors"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
-                        <div className="max-h-52 overflow-y-auto p-1.5">
-                          {filteredBranches.length === 0 ? (
-                            <div className="px-3 py-6 text-center text-sm text-slate-400">
-                              No VLC branches found
-                            </div>
-                          ) : (
-                            filteredBranches.map((branch) => {
-                              const val = branch.branch_id.toString();
-                              const isSelected = val === dairyId;
-                              return (
-                                <button
-                                  key={val}
-                                  type="button"
-                                  onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    setDairyId(val);
-                                    setVlcOpen(false);
-                                    setVlcSearch("");
-                                    setTimeout(() => stockNameRef.current?.focus(), 50);
-                                  }}
-                                  className={cn(
-                                    "w-full flex items-center justify-between px-3 py-2.5 text-sm text-left rounded-lg transition-colors duration-150",
-                                    isSelected
-                                      ? "bg-indigo-50 text-indigo-700 font-medium"
-                                      : "text-slate-700 hover:bg-slate-50"
-                                  )}
-                                >
-                                  <span className="truncate">
-                                    {branch.username} - {branch.branchName || branch.name}
-                                  </span>
-                                  {isSelected && <Check className="h-4 w-4 text-indigo-600 flex-shrink-0 ml-2" />}
-                                </button>
-                              );
-                            })
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  <VLCDropdown
+                    branches={branches || []}
+                    value={dairyId}
+                    onChange={(val) => {
+                      setDairyId(val);
+                      setTimeout(() => stockNameRef.current?.focus(), 50);
+                    }}
+                    placeholder="Search and select VLC..."
+                    className="h-11 bg-slate-50/80 rounded-xl"
+                    valueKey="branch_id"
+                  />
                 </div>
 
                 {/* Stock Item Name */}

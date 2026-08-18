@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAppSelector } from "@/redux/store";
 import { cattleFeedApi, CattleFeedStock } from "@/services/cattleFeedApi";
@@ -317,13 +318,13 @@ const FarmerPayment: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8">
       <div className="max-w-6xl mx-auto space-y-8">
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex flex-col gap-1">
-            <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
-               <Landmark className="w-10 h-10 text-blue-600" />
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+          <div className="flex flex-col">
+            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+               <Landmark className="w-6 h-6 text-blue-600" />
                Farmer Payment & Assignment
             </h1>
-            <p className="text-slate-500 font-medium">Assign advances or cattle feed to farmers from Local or Group stocks.</p>
+            <p className="text-sm text-slate-500 font-medium">Assign advances or cattle feed to farmers from Local or Group stocks.</p>
           </div>
           <div className="flex gap-3">
             <Button 
@@ -353,22 +354,14 @@ const FarmerPayment: React.FC = () => {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label className="uppercase text-[10px] font-black text-slate-400 tracking-widest">Select VLC</Label>
-                    <Select value={vlcId} onValueChange={setVlcId}>
-                      <SelectTrigger className="bg-white border-slate-200 h-12 rounded-xl w-full overflow-hidden">
-                        <div className="truncate text-left">
-                          <SelectValue placeholder="VLC Branch" />
-                        </div>
-                      </SelectTrigger>
-                      <SelectContent className="bg-white max-w-[300px]">
-                        {branches.map((b: any) => (
-                           <SelectItem key={b.branch_id} value={b.branch_id.toString()}>
-                             <span className="truncate block">
-                               {b.username} - {b.name}
-                             </span>
-                           </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <VLCDropdown
+                      branches={branches}
+                      value={vlcId}
+                      onChange={setVlcId}
+                      valueKey="branch_id"
+                      placeholder="VLC Branch"
+                      className="w-full h-12 bg-white rounded-xl border-slate-200"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label className="uppercase text-[10px] font-black text-slate-400 tracking-widest">Date</Label>

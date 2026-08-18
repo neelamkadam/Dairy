@@ -40,8 +40,9 @@ export interface GetPaymentParams {
   datefrom?: string;
 }
 
-export interface GetFarmerPaymentLogsParams {
-  dairy_id: string;
+export interface GetFarmerPaymentLogsParams extends GetPaymentParams {
+  dairy_id?: string;
+  date?: string;
 }
 
 export const paymentApi = {
@@ -77,10 +78,18 @@ export const paymentApi = {
       params: { dairy_id: dairyId, datefrom: dateFrom, dateto: dateTo }
     }),
 
-  getFarmerPaymentLogs: (dairyId: string) =>
-    api.get("/farmer-payment-logs", {
-      params: { dairy_id: dairyId } satisfies GetFarmerPaymentLogsParams,
-    }),
+  getFarmerPaymentLogs: (params: GetPaymentParams) => {
+    const normalized = params.farmer_id 
+      ? { ...params, farmer_id: normalizeFarmerId(params.farmer_id) }
+      : params;
+    return api.get("/farmer-payment-logs", { 
+      params: { 
+        ...normalized, 
+        dairy_id: normalized.dairyid, 
+        date: normalized.datefrom 
+      } 
+    });
+  },
 
   createFarmerPaymentLog: (payload: CreateFarmerPaymentLogRequest) =>
     api.post("/farmer-payment-logs", payload),

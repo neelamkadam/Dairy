@@ -163,18 +163,13 @@ const DispatchStatusReport: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-slate-700 text-white p-4 shadow-lg">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-white p-2 rounded">
-              <Truck className="h-6 w-6 text-slate-700" />
-            </div>
-            <h1 className="text-xl md:text-2xl font-semibold">
-              Dispatch Status Report
-            </h1>
-          </div>
+      <div className="px-4 pt-4">
+        <div className="flex flex-col items-start text-left gap-1.5 animate-in fade-in slide-in-from-top-4 duration-700">
+          <h1 className="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600">
+            Dispatch Status Report
+          </h1>
         </div>
-      </header>
+      </div>
 
       <div className="p-4">
         <div className="text-left grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4">

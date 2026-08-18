@@ -41,9 +41,9 @@ const LastEntryDetails = ({ entries = [], onEdit, onDelete }: LastEntryDetailsPr
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">{t('vlc_id')}:</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-gray-800">{entry.vlc_id}</span>
-                      <div className="flex gap-1 ml-2">
+                    <div className="flex items-center gap-2 max-w-[65%]">
+                      <span className="text-sm font-medium text-gray-800 truncate">{entry.vlc_id}</span>
+                      <div className="flex gap-1 ml-2 flex-shrink-0">
                         <Button
                           variant="ghost"
                           size="icon"
@@ -63,9 +63,9 @@ const LastEntryDetails = ({ entries = [], onEdit, onDelete }: LastEntryDetailsPr
                       </div>
                     </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">{t('vlc_name')}:</span>
-                    <span className="text-sm font-medium text-gray-800">{entry.vlc_name}</span>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-sm text-gray-600 flex-shrink-0">{t('vlc_name')}:</span>
+                    <span className="text-sm font-medium text-gray-800 text-right break-words">{entry.vlc_name}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">{t('shift')}:</span>

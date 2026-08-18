@@ -61,14 +61,14 @@ const AppLayout = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900 w-full overflow-x-hidden">
       {userId && <AccountStatusMonitor userId={userId} />}
       {/* Sidebar */}
       <AppSidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
       
       {/* Main Content Area */}
       <div className={cn(
-        "flex flex-col flex-1 min-h-screen transition-all duration-300",
+        "flex flex-col flex-1 min-h-screen transition-all duration-300 min-w-0",
         sidebarOpen ? "ml-0 lg:ml-64" : "ml-0 lg:ml-16"
       )}>
         {/* Navbar */}

@@ -13,6 +13,7 @@ import { userApi } from "@/services/reportsApi";
 import { normalizeFarmerId } from "@/utils/farmerIdUtils";
 import { bankSummaryApi } from "@/services/bankSummaryApi";
 import { bonusApi } from "@/services/bonusApi";
+import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 
 interface FarmerDetail {
   farmer_id: string;
@@ -646,83 +647,79 @@ const PaymentSummaryReport = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="p-2 sm:p-4 bg-gray-50 min-h-screen text-left">
       <PdfLoader isLoading={pdfLoading} />
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">Payment Summary Report</h1>
+      <div className="w-full">
+        {/* Header */}
+        <div className="flex flex-col items-start text-left gap-1 animate-in fade-in slide-in-from-top-4 duration-700 px-2 mb-2">
+          <h1 className="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600">
+            Payment Summary Report
+          </h1>
+        </div>
         
-        <Card className="mb-6">
-          <CardContent className="p-4">
-            <div className="flex flex-wrap gap-4 items-end">
-              <div className="flex-1 min-w-[200px]">
-                <label className="block text-sm font-medium text-gray-700 mb-2">VLC Center</label>
-                <select
-                  value={selectedBranch || ''}
-                  onChange={(e) => setSelectedBranch(Number(e.target.value))}
-                  className="w-full border rounded px-3 py-2"
-                >
-                  <option value="">Select VLC</option>
-                  {branches.map((branch) => {
-                    const text = `${branch.username} - ${branch.name} - ${branch.branchName || ''}`;
-                    const displayText = selectedBranch === branch.branch_id && text.length > 30 ? text.substring(0, 30) + '...' : text;
-                    return (
-                      <option key={branch.branch_id} value={branch.branch_id}>
-                        {displayText}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-              
-              <div className="flex-1 min-w-[150px]">
-                <AppDatePicker
-                  date={dateFrom}
-                  onChange={handleDateFromChange}
-                />
-              </div>
-              
-              <div className="flex-1 min-w-[150px]">
-                <AppDatePicker
-                  date={dateTo}
-                  onChange={setDateTo}
-                  disabled={true}
-                />
-              </div>
-              
-              <div className="flex gap-2">
-                <button
-                  onClick={fetchPaymentSummary}
-                  disabled={loading}
-                  className="flex items-center gap-2 bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 disabled:opacity-50"
-                >
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calendar className="w-4 h-4" />}
-                  Show
-                </button>
-                <button
-                  onClick={exportToExcel}
-                  disabled={!data || loading}
-                  className="flex items-center gap-2 bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 disabled:opacity-50"
-                >
-                  <FileSpreadsheet className="w-4 h-4" />
-                  Bank Summary
-                </button>
-                <button
-                  onClick={exportToPDF}
-                  disabled={!data || loading}
-                  className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
-                >
-                  <Download className="w-4 h-4" />
-                  Export PDF
-                </button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-end bg-white p-3 sm:p-4 rounded-lg shadow-sm mx-2 mb-4 text-left">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">VLC Center</label>
+            <VLCDropdown
+              branches={branches || []}
+              value={selectedBranch ? selectedBranch.toString() : ""}
+              onChange={(val) => setSelectedBranch(Number(val))}
+              valueKey="branch_id"
+              placeholder="Select VLC"
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Date From</label>
+            <AppDatePicker
+              date={dateFrom}
+              onChange={handleDateFromChange}
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Date To</label>
+            <AppDatePicker
+              date={dateTo}
+              onChange={setDateTo}
+              disabled={true}
+            />
+          </div>
+          
+          <div className="xl:col-span-2 flex flex-wrap gap-2">
+            <button
+              onClick={fetchPaymentSummary}
+              disabled={loading}
+              className="flex items-center gap-2 bg-blue-600 text-white px-6 h-10 rounded hover:bg-blue-700 disabled:opacity-50"
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              Show
+            </button>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mx-2 mb-4">
+          <button
+            onClick={exportToExcel}
+            disabled={!data || loading}
+            className="flex items-center gap-2 bg-green-600 text-white px-4 h-10 rounded hover:bg-green-700 disabled:opacity-50"
+          >
+            <Download className="w-4 h-4" />
+            Excel Export
+          </button>
+          <button
+            onClick={exportToPDF}
+            disabled={!data || loading}
+            className="flex items-center gap-2 bg-red-600 text-white px-4 h-10 rounded hover:bg-red-700 disabled:opacity-50"
+          >
+            <Download className="w-4 h-4" />
+            PDF Export
+          </button>
+        </div>
 
         {(() => {
           const totals = calculateTotals;
           return (
-            <div className="grid grid-cols-1 md:grid-cols-7 gap-4 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3 mb-4 mx-2">
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-gray-600">Total Milk</CardTitle>
@@ -783,25 +780,25 @@ const PaymentSummaryReport = () => {
           );
         })()}
 
-        <div>
-          <div className="mb-3 text-center">
-            <h2 className="text-xl font-semibold">Payment Summary Report</h2>
+        <div className="mx-2">
+          <div className="mb-3 text-left">
+            <h2 className="text-xl font-semibold">Payment Summary Details</h2>
             <p className="text-sm text-gray-600">
               Branch: {branches.find(b => b.branch_id === selectedBranch)?.name || 'N/A'} | Period: {dateFrom} to {dateTo}
             </p>
           </div>
-        <Card>
-          <CardHeader>
+        <Card className="border-none shadow-sm">
+          <CardHeader className="p-3 sm:p-4">
             <CardTitle>Farmer Payment Details</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-2 sm:p-4">
             {loading ? (
               <div className="flex justify-center items-center h-64">
                 <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full whitespace-nowrap text-sm border-collapse [&_th]:h-auto [&_th]:py-2 [&_th]:px-3 [&_td]:py-2 [&_td]:px-3 [&_th]:align-middle [&_td]:border [&_td]:border-gray-100 [&_th]:border [&_th]:border-gray-200">
                   <thead>
                     <tr className="bg-gray-100">
                       <th className="px-2 py-2 text-left text-xs">Code</th>
