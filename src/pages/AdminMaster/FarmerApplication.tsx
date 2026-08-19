@@ -23,7 +23,7 @@ import {
 export const FarmerApplication: React.FC = () => {
   const [farmers, setFarmers] = useState<any[]>([]);
   const [filteredFarmers, setFilteredFarmers] = useState<any[]>([]);
-  const [searchMobile, setSearchMobile] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [perPage, setPerPage] = useState(25);
 
@@ -45,13 +45,19 @@ export const FarmerApplication: React.FC = () => {
   };
 
   const handleSearch = () => {
-    if (!searchMobile.trim()) {
+    if (!searchTerm.trim()) {
       setFilteredFarmers(farmers);
       setCurrentPage(1);
       return;
     }
+    const term = searchTerm.trim().toLowerCase();
     const filtered = farmers.filter((f) => 
-      f.mobile_number?.includes(searchMobile.trim())
+      String(f.username || '').toLowerCase().includes(term) ||
+      String(f.fullName || '').toLowerCase().includes(term) ||
+      String(f.mobile_number || '').toLowerCase().includes(term) ||
+      String(f.email || '').toLowerCase().includes(term) ||
+      String(f.milkType || '').toLowerCase().includes(term) ||
+      String(f.address || '').toLowerCase().includes(term)
     );
     setFilteredFarmers(filtered);
     setCurrentPage(1);
@@ -71,9 +77,9 @@ export const FarmerApplication: React.FC = () => {
         <div className="flex items-center gap-4 mb-6">
           <div className="flex-1 flex gap-2">
             <Input
-              placeholder="Search by mobile number"
-              value={searchMobile}
-              onChange={(e) => setSearchMobile(e.target.value)}
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               className="max-w-sm"
             />

@@ -23,7 +23,7 @@ import {
 export const WebApplication: React.FC = () => {
   const [webUsers, setWebUsers] = useState<any[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
-  const [searchMobile, setSearchMobile] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [perPage, setPerPage] = useState(25);
 
@@ -48,14 +48,21 @@ export const WebApplication: React.FC = () => {
   };
 
   const handleSearch = () => {
-    if (!searchMobile.trim()) {
+    if (!searchTerm.trim()) {
       setFilteredUsers(webUsers);
       setCurrentPage(1);
       return;
     }
-    const filtered = webUsers.filter((u) => 
-      u.mobile_number?.includes(searchMobile.trim())
-    );
+    const term = searchTerm.trim().toLowerCase();
+    const filtered = webUsers.filter((u) => {
+      const branches = u.branches?.join(', ') || '';
+      return (
+        String(u.name || '').toLowerCase().includes(term) ||
+        String(u.email || '').toLowerCase().includes(term) ||
+        String(u.mobile_number || '').toLowerCase().includes(term) ||
+        branches.toLowerCase().includes(term)
+      );
+    });
     setFilteredUsers(filtered);
     setCurrentPage(1);
   };
@@ -74,9 +81,9 @@ export const WebApplication: React.FC = () => {
         <div className="flex items-center gap-4 mb-6">
           <div className="flex-1 flex gap-2">
             <Input
-              placeholder="Search by mobile number"
-              value={searchMobile}
-              onChange={(e) => setSearchMobile(e.target.value)}
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               className="max-w-sm"
             />
