@@ -69,7 +69,10 @@ const FarmerCollectionEntry = () => {
   const [selectedBranch, setSelectedBranch] = useState<number | null>(null);
   const [date, setDate] = useState<Date>(new Date());
   const [dateInput, setDateInput] = useState<string>(format(new Date(), "dd-MM-yyyy"));
-  const [shift, setShift] = useState<'Morning' | 'Evening'>('Morning');
+  const [shift, setShift] = useState<'Morning' | 'Evening'>(() => {
+    const currentHour = new Date().getHours();
+    return currentHour < 12 ? 'Morning' : 'Evening';
+  });
   const [farmerIdInput, setFarmerIdInput] = useState("");
   const [farmerId, setFarmerId] = useState("");
   const [farmerName, setFarmerName] = useState("");
