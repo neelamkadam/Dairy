@@ -9,6 +9,7 @@ export interface CattleFeedPurchaseEntry {
   purchase_date: string;
   qty: number;
   purchase_rate: number;
+  remark?: string;
 }
 
 /** Legacy rows store bare date strings; new writes store purchase entries. */

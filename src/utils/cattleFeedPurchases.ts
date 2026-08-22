@@ -56,7 +56,7 @@ export const parsePurchaseEntries = (stock: StockLike): CattleFeedPurchaseEntry[
   const soleEntry = raw.length === 1;
 
   return raw
-    .map((item) => {
+    .map((item): CattleFeedPurchaseEntry | null => {
       if (typeof item === "string") {
         const day = normalizeDay(item.trim());
         if (!day) return null;
@@ -77,6 +77,7 @@ export const parsePurchaseEntries = (stock: StockLike): CattleFeedPurchaseEntry[
           purchase_rate: source.purchase_rate === undefined
             ? fallbackRate
             : toNumber(source.purchase_rate),
+          remark: source.remark,
         };
       }
 

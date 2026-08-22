@@ -18,6 +18,7 @@ import {
   totalPurchasedQty,
   totalPurchasedValue,
 } from "@/utils/cattleFeedPurchases";
+import { registerDevanagariFont } from "@/utils/pdfFonts";
 
 interface PurchaseRow {
   date: string;
@@ -115,13 +116,17 @@ const GroupCattleFeedStockReport: React.FC = () => {
     [sections]
   );
 
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
     if (sections.length === 0) {
       toast.error("No data available");
       return;
     }
 
     const doc = new jsPDF();
+    // Stock names are often Marathi, which the default font cannot render.
+    const font = await registerDevanagariFont(doc);
+
+    doc.setFont(font, "normal");
     doc.setFontSize(16);
     doc.text("Group Cattle Feed Stock Report", 14, 15);
     doc.setFontSize(10);
@@ -158,7 +163,8 @@ const GroupCattleFeedStockReport: React.FC = () => {
       head: [["Stock Name", "Purchase Date", "Qty", "Purchase Rate", "Value"]],
       body,
       theme: "grid",
-      headStyles: { fillColor: [66, 139, 202] },
+      styles: { font },
+      headStyles: { font, fillColor: [66, 139, 202] },
       didParseCell: (data) => {
         if (data.section !== "body") return;
         if (data.row.index === body.length - 1) {
