@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +15,7 @@ interface CreateAdminResponse {
 }
 
 const CreateAdmin = () => {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -46,7 +48,7 @@ const CreateAdmin = () => {
     } catch (error) {
       setResponse({
         success: false,
-        message: "Network error occurred or Admin creation failed"
+        message: t("network_error_admin_creation_failed", "Network error occurred or Admin creation failed")
       });
     } finally {
       setLoading(false);
@@ -69,7 +71,7 @@ const CreateAdmin = () => {
           <CardHeader className="border-b bg-gray-50">
             <CardTitle className="flex items-center gap-2 text-lg font-medium">
               <ShieldCheck className="w-5 h-5 text-gray-700" />
-              Admin Information
+              {t("admin_information", "Admin Information")}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
@@ -77,12 +79,12 @@ const CreateAdmin = () => {
               <div className="grid gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name" className="text-sm font-medium text-gray-700">
-                    Full Name
+                    {t("full_name", "Full Name")}
                   </Label>
                   <Input
                     id="name"
                     name="name"
-                    placeholder="Enter full name"
+                    placeholder={t("enter_full_name", "Enter full name")}
                     value={formData.name}
                     onChange={handleInputChange}
                     className="h-11"
@@ -92,13 +94,13 @@ const CreateAdmin = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-sm font-medium text-gray-700">
-                    Email Address
+                    {t("email_address", "Email Address")}
                   </Label>
                   <Input
                     id="email"
                     name="email"
                     type="email"
-                    placeholder="Enter email address"
+                    placeholder={t("enter_email_address", "Enter email address")}
                     value={formData.email}
                     onChange={handleInputChange}
                     className="h-11"
@@ -108,12 +110,12 @@ const CreateAdmin = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="mobile_number" className="text-sm font-medium text-gray-700">
-                    Mobile Number
+                    {t("mobile_number", "Mobile Number")}
                   </Label>
                   <Input
                     id="mobile_number"
                     name="mobile_number"
-                    placeholder="Enter mobile number"
+                    placeholder={t("enter_mobile_number", "Enter mobile number")}
                     value={formData.mobile_number}
                     onChange={handleInputChange}
                     className="h-11"
@@ -131,12 +133,12 @@ const CreateAdmin = () => {
                   {loading ? (
                     <div className="flex items-center gap-2">
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Creating Admin...
+                      {t("creating_admin", "Creating Admin...")}
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
                       <ShieldCheck className="w-4 h-4" />
-                      Create Admin
+                      {t("create_admin", "Create Admin")}
                     </div>
                   )}
                 </Button>
@@ -172,7 +174,7 @@ const CreateAdmin = () => {
         {response?.success && response.temp_pw && (
           <Card className="shadow-sm border">
             <CardHeader className="border-b bg-gray-50">
-              <CardTitle className="text-lg font-medium text-green-800">Temporary Password</CardTitle>
+              <CardTitle className="text-lg font-medium text-green-800">{t("temporary_password", "Temporary Password")}</CardTitle>
             </CardHeader>
             <CardContent className="p-6">
               <div className="space-y-4">
@@ -200,10 +202,10 @@ const CreateAdmin = () => {
                   </Button>
                 </div>
                 {copied && (
-                  <p className="text-sm text-green-600">Password copied to clipboard!</p>
+                  <p className="text-sm text-green-600">{t("password_copied_to_clipboard", "Password copied to clipboard!")}</p>
                 )}
                 <p className="text-sm text-gray-600">
-                  Please share this password with the admin securely. They should change it on first login.
+                  {t("share_password_securely_admin", "Please share this password with the admin securely. They should change it on first login.")}
                 </p>
               </div>
             </CardContent>

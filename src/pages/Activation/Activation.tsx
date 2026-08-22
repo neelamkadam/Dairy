@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { adminApi } from '@/services/adminApi';
 import { toast } from 'react-toastify';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -20,6 +21,7 @@ import {
 
 
 export const Activation: React.FC = () => {
+  const { t } = useTranslation();
   const [dairies, setDairies] = useState<any[]>([]);
   const [filteredDairies, setFilteredDairies] = useState<any[]>([]);
   const [searchMobile, setSearchMobile] = useState('');
@@ -109,7 +111,7 @@ export const Activation: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching dairies:', error);
-      toast.error('Failed to fetch dairies');
+      toast.error(t("failed_to_fetch_dairies", 'Failed to fetch dairies'));
     }
   };
 
@@ -177,12 +179,12 @@ export const Activation: React.FC = () => {
           }
         } catch (uploadError) {
           console.error('Upload error:', uploadError);
-          toast.error('Network error during receipt upload');
+          toast.error(t("network_error_during_receipt_upload", 'Network error during receipt upload'));
           setLoading(false);
           return;
         }
       } else if (!isPaymentPending) {
-        toast.error('Please upload a payment receipt or select "Pay Later"');
+        toast.error(t("please_upload_payment_receipt_or_select_pay_later", 'Please upload a payment receipt or select "Pay Later"'));
         setLoading(false);
         return;
       }
@@ -213,7 +215,7 @@ export const Activation: React.FC = () => {
       const { data } = await adminApi.toggleDairyStatus(username, newStatus);
       
       if (data.success) {
-        toast.success(`Dairy ${newStatus ? 'activated' : 'deactivated'} successfully`);
+        toast.success(newStatus ? t("dairy_activated_successfully", 'Dairy activated successfully') : t("dairy_deactivated_successfully", 'Dairy deactivated successfully'));
         const updatedDairies = dairies.map(dairy => 
           dairy.username === username ? { 
             ...dairy, 
@@ -222,9 +224,13 @@ export const Activation: React.FC = () => {
           } : dairy
         );
         setDairies(updatedDairies);
-        setFilteredDairies(updatedDairies.filter(d => 
-          !searchMobile.trim() || d.mobile_number?.includes(searchMobile.trim())
-        ));
+        const term = searchMobile.trim().toLowerCase();
+        setFilteredDairies(term ? updatedDairies.filter(d => {
+          const haystack = [
+            d.username, d.branchname, d.ownername, d.address, d.mobile_number
+          ].filter(Boolean).join(' ').toLowerCase();
+          return haystack.includes(term);
+        }) : updatedDairies);
         setIsPaymentModalOpen(false);
         // Reset form
         setIsPaymentPending(false);
@@ -241,7 +247,7 @@ export const Activation: React.FC = () => {
       }
     } catch (error) {
       console.error('Error toggling dairy status:', error);
-      toast.error('Failed to update dairy status');
+      toast.error(t("failed_to_update_dairy_status", 'Failed to update dairy status'));
     } finally {
       setLoading(false);
     }
@@ -294,12 +300,12 @@ export const Activation: React.FC = () => {
           setReceiptUrl(dairy.payment_url || null);
           setIsReceiptModalOpen(true);
         } else {
-          toast.info("No payment record found");
+          toast.info(t("no_payment_record_found", "No payment record found"));
         }
       }
     } catch (error) {
       console.error('Error fetching receipt:', error);
-      toast.error("Failed to fetch receipt from server");
+      toast.error(t("failed_to_fetch_receipt_from_server", "Failed to fetch receipt from server"));
     } finally {
       setLoading(false);
     }
@@ -361,9 +367,13 @@ export const Activation: React.FC = () => {
       setCurrentPage(1);
       return;
     }
-    const filtered = dairies.filter((d) => 
-      d.mobile_number?.includes(searchMobile.trim())
-    );
+    const term = searchMobile.trim().toLowerCase();
+    const filtered = dairies.filter((d) => {
+      const haystack = [
+        d.username, d.branchname, d.ownername, d.address, d.mobile_number
+      ].filter(Boolean).join(' ').toLowerCase();
+      return haystack.includes(term);
+    });
     setFilteredDairies(filtered);
     setCurrentPage(1);
   };
@@ -377,12 +387,12 @@ export const Activation: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="bg-white rounded-lg shadow-sm border p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-6">Mobile Application Activation</h2>
+        <h2 className="text-xl font-semibold text-gray-900 mb-6">{t("mobile_application_activation", "Mobile Application Activation")}</h2>
         
         <div className="flex items-center gap-4 mb-6">
           <div className="flex-1 flex gap-2">
             <Input
-              placeholder="Search by mobile number"
+              placeholder={t("search_by_username_branch_owner_address_mobile", "Search by username, branch, owner, address, mobile...")}
               value={searchMobile}
               onChange={(e) => setSearchMobile(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -403,7 +413,7 @@ export const Activation: React.FC = () => {
                 <SelectItem value="100">100</SelectItem>
               </SelectContent>
             </Select>
-            <span className="text-sm text-gray-600">per page</span>
+            <span className="text-sm text-gray-600">{t("per_page", "per page")}</span>
           </div>
         </div>
 
@@ -411,13 +421,13 @@ export const Activation: React.FC = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="font-semibold">Username</TableHead>
-                <TableHead className="font-semibold">Branch Name</TableHead>
-                <TableHead className="font-semibold">Owner Name</TableHead>
-                <TableHead className="font-semibold">Address</TableHead>
-                <TableHead className="font-semibold text-center">Trial Account</TableHead>
-                <TableHead className="font-semibold">Status</TableHead>
-                <TableHead className="font-semibold text-right pr-6">Action</TableHead>
+                <TableHead className="font-semibold">{t("username", "Username")}</TableHead>
+                <TableHead className="font-semibold">{t("branch_name", "Branch Name")}</TableHead>
+                <TableHead className="font-semibold">{t("owner_name", "Owner Name")}</TableHead>
+                <TableHead className="font-semibold">{t("address", "Address")}</TableHead>
+                <TableHead className="font-semibold text-center">{t("trial_account", "Trial Account")}</TableHead>
+                <TableHead className="font-semibold">{t("status", "Status")}</TableHead>
+                <TableHead className="font-semibold text-right pr-6">{t("action", "Action")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -445,7 +455,7 @@ export const Activation: React.FC = () => {
                           }`}
                         >
                           <CalendarIcon className="h-4 w-4" />
-                          {expired ? 'Trial Over' : 'Set Trial'}
+                          {expired ? t("trial_over", 'Trial Over') : t("set_trial", 'Set Trial')}
                         </Button>
                       );
                     })()}
@@ -462,14 +472,14 @@ export const Activation: React.FC = () => {
                           return (
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 shadow-sm">
                               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                              Paid
+                              {t("paid", "Paid")}
                             </span>
                           );
                         } else {
                           return (
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200 shadow-sm">
                               <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
-                              Payment Pending
+                              {t("payment_pending", "Payment Pending")}
                             </span>
                           );
                         }
@@ -480,14 +490,14 @@ export const Activation: React.FC = () => {
                           return (
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 border border-blue-200 shadow-sm">
                               <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
-                              DEMO
+                              {t("demo", "DEMO")}
                             </span>
                           );
                         } else {
                           return (
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200 shadow-sm">
                               <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-                              Trial Expired
+                              {t("trial_expired", "Trial Expired")}
                             </span>
                           );
                         }
@@ -496,7 +506,7 @@ export const Activation: React.FC = () => {
                       return (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-700 border border-rose-200 shadow-sm">
                           <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-                          Inactive
+                          {t("inactive", "Inactive")}
                         </span>
                       );
                     })()}
@@ -509,12 +519,12 @@ export const Activation: React.FC = () => {
                           size="sm"
                           onClick={() => handleViewReceipt(dairy)}
                           className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all group"
-                          title="View Activation Details"
+                          title={t("view_activation_details", "View Activation Details")}
                         >
                           <Eye size={16} className="group-hover:scale-110 transition-transform" />
                         </Button>
                       ) : (
-                        <span className="text-slate-300 text-xs italic">No Record</span>
+                        <span className="text-slate-300 text-xs italic">{t("no_record", "No Record")}</span>
                       )}
                     </div>
                   </TableCell>
@@ -533,7 +543,11 @@ export const Activation: React.FC = () => {
 
         <div className="flex justify-between items-center mt-6">
           <div className="text-sm text-gray-600">
-            Showing {filteredDairies.length > 0 ? (currentPage - 1) * perPage + 1 : 0} to {Math.min(currentPage * perPage, filteredDairies.length)} of {filteredDairies.length} entries
+            {t("showing_entries", "Showing {{start}} to {{end}} of {{total}} entries", { 
+              start: filteredDairies.length > 0 ? (currentPage - 1) * perPage + 1 : 0, 
+              end: Math.min(currentPage * perPage, filteredDairies.length), 
+              total: filteredDairies.length 
+            })}
           </div>
           <div className="flex gap-2 items-center">
             <Button
@@ -545,7 +559,9 @@ export const Activation: React.FC = () => {
             >
               <ChevronLeft size={16} />
             </Button>
-            <span className="text-sm text-gray-600">Page {currentPage} of {totalPages || 1}</span>
+            <span className="text-sm text-gray-600">
+              {t("page_of", "Page {{current}} of {{total}}", { current: currentPage, total: totalPages || 1 })}
+            </span>
             <Button
               variant="outline"
               size="sm"
@@ -572,9 +588,9 @@ export const Activation: React.FC = () => {
               <div className="mb-6">
                 <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                   <ImageIcon className="text-blue-500" size={22} />
-                  Payment Evidence
+                  {t("payment_evidence", "Payment Evidence")}
                 </h3>
-                <p className="text-sm text-slate-500 mt-1">Upload the transaction proof to proceed.</p>
+                <p className="text-sm text-slate-500 mt-1">{t("upload_the_transaction_proof_to_proceed", "Upload the transaction proof to proceed.")}</p>
               </div>
 
               {!paymentScreenshot ? (
@@ -583,8 +599,8 @@ export const Activation: React.FC = () => {
                     <div className="p-4 bg-blue-100/50 rounded-full text-blue-600 mb-4 group-hover:scale-110 transition-transform shadow-sm">
                       <Upload size={32} />
                     </div>
-                    <p className="text-sm font-bold text-slate-700">Click to Upload Receipt</p>
-                    <p className="text-[10px] text-slate-400 mt-2 uppercase tracking-widest font-bold">PNG, JPG or PDF (Max 10MB)</p>
+                    <p className="text-sm font-bold text-slate-700">{t("click_to_upload_receipt", "Click to Upload Receipt")}</p>
+                    <p className="text-[10px] text-slate-400 mt-2 uppercase tracking-widest font-bold">{t("png_jpg_pdf_max_10mb", "PNG, JPG or PDF (Max 10MB)")}</p>
                   </div>
                   <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
                 </label>
@@ -613,8 +629,8 @@ export const Activation: React.FC = () => {
               <div>
                 <div className="flex justify-between items-start mb-8">
                   <div>
-                    <h3 className="text-lg font-bold text-slate-800">Activation Details</h3>
-                    <p className="text-sm text-slate-500 mt-1">Configure sales and tracking data.</p>
+                    <h3 className="text-lg font-bold text-slate-800">{t("activation_details", "Activation Details")}</h3>
+                    <p className="text-sm text-slate-500 mt-1">{t("configure_sales_and_tracking_data", "Configure sales and tracking data.")}</p>
                   </div>
                   <div className="flex p-1 bg-slate-200/50 rounded-xl border border-slate-200">
                     <button
@@ -623,7 +639,7 @@ export const Activation: React.FC = () => {
                         saleType === 'self' ? 'bg-white text-blue-600 shadow-md' : 'text-slate-500 hover:text-slate-700'
                       }`}
                     >
-                      Self
+                      {t("self", "Self")}
                     </button>
                     <button
                       onClick={() => setSaleType('dealer')}
@@ -631,7 +647,7 @@ export const Activation: React.FC = () => {
                         saleType === 'dealer' ? 'bg-white text-blue-600 shadow-md' : 'text-slate-500 hover:text-slate-700'
                       }`}
                     >
-                      Dealer
+                      {t("dealer", "Dealer")}
                     </button>
                   </div>
                 </div>
@@ -642,8 +658,8 @@ export const Activation: React.FC = () => {
                       <Check size={18} />
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-slate-700">Payment Pending</p>
-                      <p className="text-[10px] text-slate-500">Activate now, collect payment later</p>
+                      <p className="text-sm font-bold text-slate-700">{t("payment_pending", "Payment Pending")}</p>
+                      <p className="text-[10px] text-slate-500">{t("activate_now_collect_payment_later", "Activate now, collect payment later")}</p>
                     </div>
                   </div>
                   <Switch 
@@ -656,9 +672,9 @@ export const Activation: React.FC = () => {
                   {saleType === 'dealer' ? (
                     <>
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Dealer Name</label>
+                        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t("dealer_name", "Dealer Name")}</label>
                         <Input 
-                          placeholder="Select or enter dealer name"
+                          placeholder={t("select_or_enter_dealer_name", "Select or enter dealer name")}
                           value={dealerName}
                           onChange={(e) => setDealerName(e.target.value)}
                           className="h-11 bg-white border-slate-200 rounded-xl focus:ring-blue-500 shadow-sm"
@@ -666,7 +682,7 @@ export const Activation: React.FC = () => {
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Comm. (₹)</label>
+                          <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t("comm_rs", "Comm. (₹)")}</label>
                           <Input 
                             type="number"
                             placeholder="0.00"
@@ -676,7 +692,7 @@ export const Activation: React.FC = () => {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Amount (₹)</label>
+                          <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t("amount_rs", "Amount (₹)")}</label>
                           <Input 
                             type="number"
                             placeholder="0.00"
@@ -690,7 +706,7 @@ export const Activation: React.FC = () => {
                   ) : (
                     <>
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Sale Amount (₹)</label>
+                        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t("sale_amount_rs", "Sale Amount (₹)")}</label>
                         <Input 
                           type="number"
                           placeholder="0.00"
@@ -700,7 +716,7 @@ export const Activation: React.FC = () => {
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Annual Renewal (₹)</label>
+                        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t("annual_renewal_rs", "Annual Renewal (₹)")}</label>
                         <Input 
                           type="number"
                           placeholder="0.00"
@@ -714,7 +730,7 @@ export const Activation: React.FC = () => {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Duration (Days)</label>
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t("duration_days", "Duration (Days)")}</label>
                       <Input 
                         type="number"
                         placeholder="365"
@@ -724,9 +740,9 @@ export const Activation: React.FC = () => {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Internal Remarks</label>
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t("internal_remarks", "Internal Remarks")}</label>
                       <Input 
-                        placeholder="Notes..." 
+                        placeholder={t("notes", "Notes...")}
                         value={remark}
                         onChange={(e) => setRemark(e.target.value)}
                         className="h-11 bg-white border-slate-200 rounded-xl focus:ring-blue-500 shadow-sm"
@@ -738,7 +754,7 @@ export const Activation: React.FC = () => {
 
               <div className="mt-8 flex gap-3">
                 <Button variant="ghost" onClick={() => setIsPaymentModalOpen(false)} className="flex-1 rounded-xl h-12 font-bold text-slate-500 hover:bg-slate-200">
-                  Cancel
+                  {t("cancel", "Cancel")}
                 </Button>
                 <Button 
                   className={`flex-[2] text-white rounded-xl h-12 font-bold shadow-lg transition-all ${
@@ -750,7 +766,7 @@ export const Activation: React.FC = () => {
                   onClick={() => performStatusToggle(selectedUser, true)}
                 >
                   {loading ? <Loader2 className="animate-spin mr-2" size={20} /> : <Check className="mr-2" size={20} />}
-                  {isPaymentPending ? 'Activate (Pending Payment)' : 'Complete Activation'}
+                  {isPaymentPending ? t("activate_pending_payment", "Activate (Pending Payment)") : t("complete_activation", "Complete Activation")}
                 </Button>
               </div>
             </div>
@@ -767,7 +783,7 @@ export const Activation: React.FC = () => {
               size="icon" 
               className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10 rounded-full"
               onClick={() => receiptUrl && window.open(receiptUrl, '_blank')}
-              title="Open Original"
+              title={t("open_original", "Open Original")}
             >
               <Upload size={18} className="rotate-180" />
             </Button>
@@ -790,13 +806,13 @@ export const Activation: React.FC = () => {
                     src={receiptUrl} 
                     alt="Payment Receipt" 
                     className="max-w-full max-h-[80vh] object-contain rounded shadow-2xl transition-transform duration-500 group-hover:scale-[1.02]"
-                    onError={() => toast.error("Failed to load image")}
+                    onError={() => toast.error(t("failed_to_load_image", "Failed to load image"))}
                   />
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-3">
                   <Loader2 className="animate-spin text-blue-500" size={40} />
-                  <p className="text-slate-400 text-sm">Retrieving secure receipt...</p>
+                  <p className="text-slate-400 text-sm">{t("retrieving_secure_receipt", "Retrieving secure receipt...")}</p>
                 </div>
               )}
             </div>
@@ -807,27 +823,27 @@ export const Activation: React.FC = () => {
                 <div>
                   <h3 className="text-white font-semibold flex items-center gap-2 mb-1">
                     <ImageIcon className="text-blue-400" size={18} />
-                    Activation Details
+                    {t("activation_details", "Activation Details")}
                   </h3>
                   <p className="text-slate-400 text-xs leading-relaxed">
-                    Transaction and sale tracking information.
+                    {t("transaction_and_sale_tracking_information", "Transaction and sale tracking information.")}
                   </p>
                 </div>
 
                 <div className="space-y-4">
                   {/* Payment Status */}
                   <div className={`p-3 rounded-lg border ${receiptUrl ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-amber-500/10 border-amber-500/20'}`}>
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Payment Status</p>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">{t("payment_status", "Payment Status")}</p>
                     <div className="flex items-center gap-2">
                       {receiptUrl ? (
                         <>
                           <Check className="text-emerald-500" size={14} />
-                          <span className="text-emerald-400 text-sm font-bold">PAID (Receipt Available)</span>
+                          <span className="text-emerald-400 text-sm font-bold">{t("paid_receipt_available", "PAID (Receipt Available)")}</span>
                         </>
                       ) : (
                         <>
                           <Loader2 className="text-amber-500 animate-spin" size={14} />
-                          <span className="text-amber-400 text-sm font-bold">PAYMENT PENDING</span>
+                          <span className="text-amber-400 text-sm font-bold">{t("payment_pending_upper", "PAYMENT PENDING")}</span>
                         </>
                       )}
                     </div>
@@ -836,31 +852,31 @@ export const Activation: React.FC = () => {
                   {/* Amount Grid */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
-                      <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Sale Amount</p>
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">{t("sale_amount", "Sale Amount")}</p>
                       <p className={`text-lg font-bold ${!receiptUrl && Number(getParsedValue('sale_amount') || 0) === 0 ? 'text-amber-400' : 'text-white'}`}>
                         {Number(getParsedValue('sale_amount') || 0) > 0 
                           ? `₹${getParsedValue('sale_amount')}`
-                          : receiptUrl ? '₹0.00' : 'Payment Pending'}
+                          : receiptUrl ? '₹0.00' : t("payment_pending", "Payment Pending")}
                       </p>
                     </div>
                     <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
-                      <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Renewal</p>
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">{t("renewal", "Renewal")}</p>
                       <p className="text-white text-sm font-semibold">₹{getParsedValue('renewal_amount') || '0'}</p>
                     </div>
                   </div>
 
                   {/* Sale Type & Dealer Info */}
                   <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Sale Type</p>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">{t("sale_type", "Sale Type")}</p>
                     <div className="flex items-center justify-between">
-                      <span className="text-blue-400 text-sm font-bold uppercase">{getParsedValue('sale_type') || selectedDairy?.activation_record?.sale_type || 'SELF'}</span>
+                      <span className="text-blue-400 text-sm font-bold uppercase">{String(t((getParsedValue('sale_type') || selectedDairy?.activation_record?.sale_type || 'SELF').toLowerCase(), getParsedValue('sale_type') || selectedDairy?.activation_record?.sale_type || 'SELF'))}</span>
                       {Number(getParsedValue('dealer_commission') || 0) > 0 && (
-                        <span className="text-xs text-slate-400">Comm: ₹{getParsedValue('dealer_commission')}</span>
+                        <span className="text-xs text-slate-400">{t("comm", "Comm:")} ₹{getParsedValue('dealer_commission')}</span>
                       )}
                     </div>
                     {getParsedValue('dealer_name') && (
                       <div className="mt-2 pt-2 border-t border-slate-700/50">
-                        <p className="text-[10px] text-slate-500 uppercase font-bold">Dealer Name</p>
+                        <p className="text-[10px] text-slate-500 uppercase font-bold">{t("dealer_name", "Dealer Name")}</p>
                         <p className="text-white text-sm">{getParsedValue('dealer_name')}</p>
                       </div>
                     )}
@@ -868,9 +884,9 @@ export const Activation: React.FC = () => {
 
                   {/* Duration & Remark */}
                   <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Internal Remark</p>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">{t("internal_remark", "Internal Remark")}</p>
                     <p className="text-white text-xs leading-relaxed italic">
-                      {selectedDairy?.activation_record?.remark || 'No remarks provided.'}
+                      {selectedDairy?.activation_record?.remark || t("no_remarks_provided", "No remarks provided.")}
                     </p>
                   </div>
 
@@ -882,11 +898,11 @@ export const Activation: React.FC = () => {
                         return (
                           <>
                             <div>
-                              <p className="text-[10px] text-slate-500 uppercase font-bold">Activated On</p>
+                              <p className="text-[10px] text-slate-500 uppercase font-bold">{t("activated_on", "Activated On")}</p>
                               <p className="text-white text-xs">{activated}</p>
                             </div>
                             <div className="text-right">
-                              <p className="text-[10px] text-slate-500 uppercase font-bold">Expires On</p>
+                              <p className="text-[10px] text-slate-500 uppercase font-bold">{t("expires_on", "Expires On")}</p>
                               <p className="text-rose-400 text-xs font-bold">{expires}</p>
                             </div>
                           </>
@@ -902,7 +918,7 @@ export const Activation: React.FC = () => {
                   onClick={() => setIsReceiptModalOpen(false)} 
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-lg shadow-blue-900/20"
                 >
-                  Close Viewer
+                  {t("close_viewer", "Close Viewer")}
                 </Button>
               </div>
             </div>

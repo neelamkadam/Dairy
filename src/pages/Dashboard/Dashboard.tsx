@@ -130,7 +130,7 @@ const Dashboard = () => {
       theme: "violet"
     },
     {
-      title: "Average per Farmer",
+      title: t("average_per_farmer", "Average per Farmer"),
       value: `${avgPerFarmer.toFixed(2)}L`,
       change: "",
       icon: Users,
@@ -244,7 +244,7 @@ const Dashboard = () => {
           {/* Pie Chart */}
           <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle className="text-base md:text-lg font-semibold">Farmer Status Overview</CardTitle>
+              <CardTitle className="text-base md:text-lg font-semibold">{t("farmer_status_overview", "Farmer Status Overview")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-64 md:h-80 w-full overflow-hidden">
@@ -270,7 +270,7 @@ const Dashboard = () => {
           {/* Line Chart */}
           <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle className="text-base md:text-lg font-semibold">7-Day Collection Trend</CardTitle>
+              <CardTitle className="text-base md:text-lg font-semibold">{t("7_day_collection_trend", "7-Day Collection Trend")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-64 md:h-80 w-full overflow-hidden">

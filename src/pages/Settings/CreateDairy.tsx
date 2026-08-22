@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAppSelector } from "@/redux/store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -57,6 +58,7 @@ const STEPS = [
 const NONE = "none";
 
 const CreateDairy = () => {
+  const { t } = useTranslation();
   const authState = useAppSelector((state) => state.authData);
   const userId = authState?.userData?.id ? Number(authState.userData.id) : null;
 
@@ -118,11 +120,11 @@ const CreateDairy = () => {
   const addEquipmentField = () => {
     const name = newField.trim();
     if (!name) {
-      toast.error("Enter a field name");
+      toast.error(t("enter_a_field_name", "Enter a field name"));
       return;
     }
     if (equipment.some((e) => e.name.toLowerCase() === name.toLowerCase())) {
-      toast.error("This field already exists");
+      toast.error(t("this_field_already_exists", "This field already exists"));
       return;
     }
     setEquipment((prev) => [...prev, { name, checked: true, quantity: "", serialNumber: "" }]);
@@ -131,13 +133,13 @@ const CreateDairy = () => {
 
   const handleEquipmentSubmit = () => {
     // Backend not wired up yet — just acknowledge the submission.
-    toast.success("Equipment details submitted");
+    toast.success(t("equipment_details_submitted", "Equipment details submitted"));
     setIsSubmitted(true);
   };
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text).then(
-      () => toast.success("Copied to clipboard!"),
+      () => toast.success(t("copied_to_clipboard", "Copied to clipboard!")),
       (err) => console.error("Failed to copy: ", err)
     );
   };
@@ -146,7 +148,7 @@ const CreateDairy = () => {
   const handleContinue = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!/^\d{10}$/.test(mobileNumber.trim())) {
-      toast.error("Please enter a valid 10-digit mobile number");
+      toast.error(t("please_enter_valid_10_digit_mobile", "Please enter a valid 10-digit mobile number"));
       return;
     }
     setStep(2);
@@ -156,11 +158,11 @@ const CreateDairy = () => {
   const handleCreateBranch = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!form.name.trim() || !form.branchname.trim() || !form.ownername.trim()) {
-      toast.error("Please fill Dairy Name, Branch Name and Owner Name");
+      toast.error(t("please_fill_dairy_branch_owner_name", "Please fill Dairy Name, Branch Name and Owner Name"));
       return;
     }
     if (form.password.length < 6) {
-      toast.error("Password must be at least 6 characters");
+      toast.error(t("password_must_be_at_least_6_characters", "Password must be at least 6 characters"));
       return;
     }
     const ccId = ccSel !== NONE ? Number(ccSel) : null;
@@ -186,14 +188,14 @@ const CreateDairy = () => {
         }
       );
       if (data.success === false) {
-        toast.error(data.message || "Failed to create dairy");
+        toast.error(data.message || t("failed_to_create_dairy", "Failed to create dairy"));
         return;
       }
-      toast.success(data.message || "Dairy created successfully");
+      toast.success(data.message || t("dairy_created_successfully", "Dairy created successfully"));
       setCreatedUser(data.userdata ?? data.data ?? data.user ?? data);
       setStep(3);
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to create dairy");
+      toast.error(error?.response?.data?.message || t("failed_to_create_dairy", "Failed to create dairy"));
     } finally {
       setLoading(false);
     }
@@ -235,7 +237,7 @@ const CreateDairy = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <CardTitle className="text-lg font-semibold text-slate-800">
-                  Create Dairy
+                  {t("create_dairy", "Create Dairy")}
                 </CardTitle>
                 <div className="hidden sm:block text-slate-300 text-sm font-medium">|</div>
                 <div className="text-sm font-medium text-slate-500">
@@ -299,15 +301,15 @@ const CreateDairy = () => {
                     <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-50 text-blue-600 mb-3">
                       <Phone size={24} />
                     </div>
-                    <h3 className="text-lg font-bold text-slate-800">Enter Mobile Number</h3>
+                    <h3 className="text-lg font-bold text-slate-800">{t("enter_mobile_number", "Enter Mobile Number")}</h3>
                     <p className="text-slate-500 text-sm mt-1">
-                      Enter the owner's 10-digit mobile number to continue.
+                      {t("enter_owner_10_digit_mobile_to_continue", "Enter the owner's 10-digit mobile number to continue.")}
                     </p>
                   </div>
 
                   <div className="space-y-1.5">
                     <Label htmlFor="mobile" className="text-sm font-semibold text-slate-700">
-                      Mobile Number
+                      {t("mobile_number", "Mobile Number")}
                     </Label>
                     <div className="relative group">
                       <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4 group-focus-within:text-blue-600 transition-colors" />
@@ -316,7 +318,7 @@ const CreateDairy = () => {
                         type="tel"
                         inputMode="numeric"
                         maxLength={10}
-                        placeholder="Enter mobile number"
+                        placeholder={t("enter_mobile_number_placeholder", "Enter mobile number")}
                         className="pl-10 h-10 bg-white border-gray-200 focus:bg-white focus:border-blue-600 focus:ring-blue-600/20 transition-all rounded-lg text-sm shadow-sm"
                         value={mobileNumber}
                         onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, ""))}
@@ -329,7 +331,7 @@ const CreateDairy = () => {
                     disabled={mobileNumber.length !== 10}
                     className="w-full h-10 text-sm font-semibold rounded-lg transition-all disabled:opacity-70 disabled:cursor-not-allowed bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-sm mt-2"
                   >
-                    Continue
+                    {t("continue", "Continue")}
                   </Button>
                 </form>
               )}
@@ -341,13 +343,13 @@ const CreateDairy = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div className="space-y-1.5">
                         <Label className="text-sm font-semibold text-slate-700">
-                          Dairy Name <span className="text-red-500">*</span>
+                          {t("dairy_name", "Dairy Name")} <span className="text-red-500">*</span>
                         </Label>
                         <div className="relative group">
                           <Factory className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4 group-focus-within:text-blue-600 transition-colors" />
                           <Input
                             className="pl-9 h-10 bg-white border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg transition-all text-sm shadow-sm"
-                            placeholder="e.g. Sunrise Dairy"
+                            placeholder={t("eg_sunrise_dairy", "e.g. Sunrise Dairy")}
                             value={form.name}
                             onChange={(e) => setForm({ ...form, name: e.target.value })}
                           />
@@ -356,13 +358,13 @@ const CreateDairy = () => {
 
                       <div className="space-y-1.5">
                         <Label className="text-sm font-semibold text-slate-700">
-                          Branch Name <span className="text-red-500">*</span>
+                          {t("branch_name", "Branch Name")} <span className="text-red-500">*</span>
                         </Label>
                         <div className="relative group">
                           <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4 group-focus-within:text-blue-600 transition-colors" />
                           <Input
                             className="pl-9 h-10 bg-white border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg transition-all text-sm shadow-sm"
-                            placeholder="e.g. Main Branch"
+                            placeholder={t("eg_main_branch", "e.g. Main Branch")}
                             value={form.branchname}
                             onChange={(e) => setForm({ ...form, branchname: e.target.value })}
                           />
@@ -371,13 +373,13 @@ const CreateDairy = () => {
 
                       <div className="space-y-1.5">
                         <Label className="text-sm font-semibold text-slate-700">
-                          Owner Name <span className="text-red-500">*</span>
+                          {t("owner_name", "Owner Name")} <span className="text-red-500">*</span>
                         </Label>
                         <div className="relative group">
                           <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4 group-focus-within:text-blue-600 transition-colors" />
                           <Input
                             className="pl-9 h-10 bg-white border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg transition-all text-sm shadow-sm"
-                            placeholder="e.g. John Doe"
+                            placeholder={t("eg_john_doe", "e.g. John Doe")}
                             value={form.ownername}
                             onChange={(e) => setForm({ ...form, ownername: e.target.value })}
                           />
@@ -385,7 +387,7 @@ const CreateDairy = () => {
                       </div>
 
                       <div className="space-y-1.5">
-                        <Label className="text-sm font-semibold text-slate-700">Mobile Number</Label>
+                        <Label className="text-sm font-semibold text-slate-700">{t("mobile_number", "Mobile Number")}</Label>
                         <div className="relative">
                           <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
                           <Input
@@ -398,14 +400,14 @@ const CreateDairy = () => {
 
                       <div className="space-y-1.5">
                         <Label className="text-sm font-semibold text-slate-700">
-                          Password <span className="text-red-500">*</span>
+                          {t("password", "Password")} <span className="text-red-500">*</span>
                         </Label>
                         <div className="relative group">
                           <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4 group-focus-within:text-blue-600 transition-colors" />
                           <Input
                             type="text"
                             className="pl-9 h-10 bg-white border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg transition-all text-sm shadow-sm"
-                            placeholder="Min 6 characters"
+                            placeholder={t("min_6_characters", "Min 6 characters")}
                             value={form.password}
                             onChange={(e) => setForm({ ...form, password: e.target.value })}
                           />
@@ -413,7 +415,7 @@ const CreateDairy = () => {
                       </div>
 
                       <div className="space-y-1.5">
-                        <Label className="text-sm font-semibold text-slate-700">Billing Days</Label>
+                        <Label className="text-sm font-semibold text-slate-700">{t("billing_days", "Billing Days")}</Label>
                         <div className="relative group">
                           <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none group-focus-within:text-blue-600 transition-colors">
                             <CalendarClock className="h-4 w-4" />
@@ -423,7 +425,7 @@ const CreateDairy = () => {
                             onValueChange={(v) => setForm({ ...form, days: Number(v) })}
                           >
                             <SelectTrigger className="pl-9 h-10 bg-white border-gray-200 focus:ring-blue-500/20 rounded-lg transition-all w-full relative z-10 text-sm shadow-sm">
-                              <SelectValue placeholder="Select billing cycle" />
+                              <SelectValue placeholder={t("select_billing_cycle", "Select billing cycle")} />
                             </SelectTrigger>
                             <SelectContent className="bg-white border-gray-100 shadow-xl z-[100]">
                               <SelectItem value="7">7 Days</SelectItem>
@@ -436,12 +438,12 @@ const CreateDairy = () => {
                       </div>
 
                       <div className="space-y-1.5">
-                        <Label className="text-sm font-semibold text-slate-700">Village Name</Label>
+                        <Label className="text-sm font-semibold text-slate-700">{t("village_name", "Village Name")}</Label>
                         <div className="relative group">
                           <Map className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4 group-focus-within:text-blue-600 transition-colors" />
                           <Input
                             className="pl-9 h-10 bg-white border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg transition-all text-sm shadow-sm"
-                            placeholder="Enter village"
+                            placeholder={t("enter_village", "Enter village")}
                             value={form.villagename}
                             onChange={(e) => setForm({ ...form, villagename: e.target.value })}
                           />
@@ -449,12 +451,12 @@ const CreateDairy = () => {
                       </div>
 
                       <div className="space-y-1.5 lg:col-span-2">
-                        <Label className="text-sm font-semibold text-slate-700">Address</Label>
+                        <Label className="text-sm font-semibold text-slate-700">{t("address", "Address")}</Label>
                         <div className="relative group">
                           <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4 group-focus-within:text-blue-600 transition-colors" />
                           <Input
                             className="pl-9 h-10 bg-white border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg transition-all text-sm shadow-sm"
-                            placeholder="Full address"
+                            placeholder={t("full_address", "Full address")}
                             value={form.address}
                             onChange={(e) => setForm({ ...form, address: e.target.value })}
                           />
@@ -465,20 +467,20 @@ const CreateDairy = () => {
                     {/* Hierarchy assignment — optional CC / BMC / Route dropdowns */}
                     <div className="pt-3 border-t border-slate-100/50">
                       <Label className="text-sm font-bold text-slate-800 mb-2 block">
-                        Assign to Hierarchy <span className="text-slate-500 font-normal">(optional)</span>
+                        {t("assign_to_hierarchy", "Assign to Hierarchy")} <span className="text-slate-500 font-normal">{t("optional", "(optional)")}</span>
                       </Label>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="space-y-1.5">
                           <Label className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
                             <Snowflake className="h-3.5 w-3.5 text-purple-500" />
-                            CC (Chilling Center)
+                            {t("cc_chilling_center", "CC (Chilling Center)")}
                           </Label>
                           <Select value={ccSel} onValueChange={setCcSel}>
                             <SelectTrigger className="h-10 bg-white border-gray-200 focus:ring-blue-500/20 rounded-lg transition-all w-full text-sm shadow-sm">
-                              <SelectValue placeholder="None" />
+                              <SelectValue placeholder={t("none", "None")} />
                             </SelectTrigger>
                             <SelectContent className="bg-white border-gray-100 shadow-xl z-[100]">
-                              <SelectItem value={NONE}>None</SelectItem>
+                              <SelectItem value={NONE}>{t("none", "None")}</SelectItem>
                               {ccList.map((cc: any) => (
                                 <SelectItem key={cc.cc_id ?? cc.id} value={String(cc.cc_id ?? cc.id)}>
                                   {cc.cc_id ?? cc.id} — {cc.name}
@@ -491,14 +493,14 @@ const CreateDairy = () => {
                         <div className="space-y-1.5">
                           <Label className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
                             <Warehouse className="h-3.5 w-3.5 text-blue-500" />
-                            BMC
+                            {t("bmc", "BMC")}
                           </Label>
                           <Select value={bmcSel} onValueChange={setBmcSel}>
                             <SelectTrigger className="h-10 bg-white border-gray-200 focus:ring-blue-500/20 rounded-lg transition-all w-full text-sm shadow-sm">
-                              <SelectValue placeholder="None" />
+                              <SelectValue placeholder={t("none", "None")} />
                             </SelectTrigger>
                             <SelectContent className="bg-white border-gray-100 shadow-xl z-[100]">
-                              <SelectItem value={NONE}>None</SelectItem>
+                              <SelectItem value={NONE}>{t("none", "None")}</SelectItem>
                               {bmcList.map((bmc: any) => (
                                 <SelectItem key={bmc.bmc_id ?? bmc.id} value={String(bmc.bmc_id ?? bmc.id)}>
                                   {bmc.bmc_id ?? bmc.id} — {bmc.name}
@@ -511,14 +513,14 @@ const CreateDairy = () => {
                         <div className="space-y-1.5">
                           <Label className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
                             <RouteIcon className="h-3.5 w-3.5 text-green-500" />
-                            Route
+                            {t("route", "Route")}
                           </Label>
                           <Select value={routeSel} onValueChange={setRouteSel}>
                             <SelectTrigger className="h-10 bg-white border-gray-200 focus:ring-blue-500/20 rounded-lg transition-all w-full text-sm shadow-sm">
-                              <SelectValue placeholder="None" />
+                              <SelectValue placeholder={t("none", "None")} />
                             </SelectTrigger>
                             <SelectContent className="bg-white border-gray-100 shadow-xl z-[100]">
-                              <SelectItem value={NONE}>None</SelectItem>
+                              <SelectItem value={NONE}>{t("none", "None")}</SelectItem>
                               {routeList.map((route: any) => (
                                 <SelectItem key={route.route_id ?? route.id} value={String(route.route_id ?? route.id)}>
                                   {route.route_id ?? route.id} — {route.name}
@@ -529,7 +531,7 @@ const CreateDairy = () => {
                         </div>
                       </div>
                       <p className="text-xs text-slate-500 mt-2">
-                        Pick any combination of CC, BMC and Route — or leave all as "None" for an unlinked dairy.
+                        {t("pick_combination_or_none", 'Pick any combination of CC, BMC and Route — or leave all as "None" for an unlinked dairy.')}
                       </p>
                     </div>
 
@@ -540,14 +542,14 @@ const CreateDairy = () => {
                         className="text-slate-500 hover:text-slate-800 font-medium"
                         onClick={() => setStep(1)}
                       >
-                        ← Change Number
+                        {t("change_number", "← Change Number")}
                       </Button>
                       <Button
                         type="submit"
                         disabled={loading}
                         className="px-6 h-10 text-sm font-semibold rounded-lg transition-all disabled:opacity-70 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-sm"
                       >
-                        {loading ? "Creating Dairy..." : "Create Dairy Account"}
+                        {loading ? t("creating_dairy", "Creating Dairy...") : t("create_dairy_account", "Create Dairy Account")}
                       </Button>
                     </div>
                   </form>
@@ -560,11 +562,11 @@ const CreateDairy = () => {
                   <div className="p-5 bg-blue-50 border border-blue-200 rounded-xl shadow-sm">
                     <div className="flex items-center gap-3 text-blue-700 font-semibold mb-4">
                       <CheckCircleIcon className="text-blue-600 text-2xl" />
-                      Dairy successfully created!
+                      {t("dairy_successfully_created", "Dairy successfully created!")}
                     </div>
                     <div className="bg-background p-4 rounded-lg border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div>
-                        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Generated Dairy ID</Label>
+                        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("generated_dairy_id", "Generated Dairy ID")}</Label>
                         <div className="flex items-center gap-3 mt-1.5">
                           <code className="text-2xl font-black text-foreground font-mono tracking-tight">
                             {createdUsername}
@@ -577,7 +579,7 @@ const CreateDairy = () => {
                         onClick={() => handleCopy(String(createdUsername))}
                       >
                         <FileCopyIcon className="mr-2 h-4 w-4" />
-                        Copy ID
+                        {t("copy_id", "Copy ID")}
                       </Button>
                     </div>
                   </div>
@@ -587,7 +589,7 @@ const CreateDairy = () => {
                       <div>
                         <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
                           <CheckCircle2 className="text-blue-600" />
-                          Delivered Equipment
+                          {t("delivered_equipment", "Delivered Equipment")}
                         </h3>
                         <div className="bg-muted border border-border rounded-xl p-5">
                           {equipment.filter((e) => e.checked).length > 0 ? (
@@ -599,8 +601,8 @@ const CreateDairy = () => {
                                     {item.name}
                                   </div>
                                   <div className="mt-1.5 ml-4 flex gap-4 text-xs text-muted-foreground">
-                                    <span>Qty: <span className="font-semibold text-foreground">{item.quantity || "—"}</span></span>
-                                    <span>Serial: <span className="font-semibold text-foreground">{item.serialNumber || "—"}</span></span>
+                                    <span>{t("qty", "Qty")}: <span className="font-semibold text-foreground">{item.quantity || "—"}</span></span>
+                                    <span>{t("serial", "Serial")}: <span className="font-semibold text-foreground">{item.serialNumber || "—"}</span></span>
                                   </div>
                                 </li>
                               ))}
@@ -610,7 +612,7 @@ const CreateDairy = () => {
                               <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-background text-muted-foreground border border-border mb-3">
                                 <Store size={24} />
                               </div>
-                              <p className="text-sm font-medium text-muted-foreground">No equipment delivered yet</p>
+                              <p className="text-sm font-medium text-muted-foreground">{t("no_equipment_delivered_yet", "No equipment delivered yet")}</p>
                             </div>
                           )}
                         </div>
@@ -623,14 +625,14 @@ const CreateDairy = () => {
                           onClick={() => setIsSubmitted(false)}
                           className="flex-1 h-12 text-base font-semibold rounded-xl"
                         >
-                          Edit Equipment
+                          {t("edit_equipment", "Edit Equipment")}
                         </Button>
                         <Button
                           type="button"
                           onClick={resetFlow}
                           className="flex-1 h-12 text-base font-semibold rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
                         >
-                          Create Another Dairy
+                          {t("create_another_dairy", "Create Another Dairy")}
                         </Button>
                       </div>
                     </div>
@@ -638,9 +640,9 @@ const CreateDairy = () => {
                     <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-500">
                       <div>
                         <div className="flex items-center justify-between mb-4">
-                          <h3 className="text-lg font-bold text-foreground">Assign Equipment</h3>
+                          <h3 className="text-lg font-bold text-foreground">{t("assign_equipment", "Assign Equipment")}</h3>
                           <span className="text-xs font-medium bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full">
-                            {equipment.filter(e => e.checked).length} selected
+                            {equipment.filter(e => e.checked).length} {t("selected", " selected")}
                           </span>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -669,7 +671,7 @@ const CreateDairy = () => {
                               {item.checked && (
                                 <div className="mt-2.5 grid grid-cols-2 gap-2">
                                   <div>
-                                    <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1 block">Qty</Label>
+                                    <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1 block">{t("qty", "Qty")}</Label>
                                     <Input
                                       type="number"
                                       min={1}
@@ -680,10 +682,10 @@ const CreateDairy = () => {
                                     />
                                   </div>
                                   <div>
-                                    <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1 block">Serial No.</Label>
+                                    <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1 block">{t("serial_no", "Serial No.")}</Label>
                                     <Input
                                       type="text"
-                                      placeholder="e.g. SN-001"
+                                      placeholder={t("eg_sn_001", "e.g. SN-001")}
                                       className="h-8 text-xs rounded-md bg-background border-blue-200"
                                       value={item.serialNumber}
                                       onChange={(e) => updateEquipmentField(idx, "serialNumber", e.target.value)}
@@ -698,7 +700,7 @@ const CreateDairy = () => {
                         {/* Add new field */}
                         <div className="flex items-center gap-3 mt-4">
                           <Input
-                            placeholder="Add custom equipment..."
+                            placeholder={t("add_custom_equipment", "Add custom equipment...")}
                             className="h-11 bg-background border-border rounded-lg flex-1 focus:ring-blue-600/20"
                             value={newField}
                             onChange={(e) => setNewField(e.target.value)}
@@ -716,7 +718,7 @@ const CreateDairy = () => {
                             onClick={addEquipmentField}
                           >
                             <Plus size={18} className="mr-1.5" />
-                            Add
+                            {t("add", "Add")}
                           </Button>
                         </div>
                       </div>
@@ -728,14 +730,14 @@ const CreateDairy = () => {
                           onClick={resetFlow}
                           className="flex-1 h-12 text-base font-semibold rounded-xl order-2 sm:order-1"
                         >
-                          Skip & Create Another
+                          {t("skip_and_create_another", "Skip & Create Another")}
                         </Button>
                         <Button
                           type="button"
                           onClick={handleEquipmentSubmit}
                           className="flex-1 h-12 text-base font-semibold rounded-xl order-1 sm:order-2 bg-blue-600 hover:bg-blue-700 text-white"
                         >
-                          Confirm & Submit
+                          {t("confirm_and_submit", "Confirm & Submit")}
                         </Button>
                       </div>
                     </div>

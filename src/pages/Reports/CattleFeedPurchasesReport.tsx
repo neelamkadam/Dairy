@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
 import { Download } from "lucide-react";
 import jsPDF from "jspdf";
@@ -50,6 +51,7 @@ const normalizeDate = (d: string) =>
   d.includes("T") ? d.split("T")[0] : d;
 
 const CattleFeedPurchasesReport = () => {
+  const { t } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
   const [dairyId, setDairyId] = useState("");
   const [loading, setLoading] = useState(false);
@@ -84,7 +86,7 @@ const CattleFeedPurchasesReport = () => {
 
   const handleShowReport = async () => {
     if (!dairyId) {
-      toast.error("Please select dairy");
+      toast.error(t("please_select_dairy"));
       return;
     }
 
@@ -95,11 +97,11 @@ const CattleFeedPurchasesReport = () => {
       const stockData: StockRecord[] = Array.isArray(rawResponse?.data)
         ? rawResponse.data
         : Array.isArray(response)
-        ? (response as StockRecord[])
-        : [];
+          ? (response as StockRecord[])
+          : [];
 
       const transformed: PurchaseRow[] = [];
-      
+
       stockData.forEach((item) => {
         let dates: { purchase_date?: string; date?: string; remark?: string; qty?: number; purchase_rate?: number }[] = [];
         try {
@@ -133,13 +135,13 @@ const CattleFeedPurchasesReport = () => {
 
       setRows(transformed);
       if (transformed.length === 0) {
-        toast.info("No purchase records found for this period");
+        toast.info(t("no_purchase_records"));
       } else {
-        toast.success("Report loaded successfully");
+        toast.success(t("report_loaded_successfully"));
       }
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
-      toast.error(err.response?.data?.message || "Failed to fetch report");
+      toast.error(err.response?.data?.message || t("failed_to_fetch_report"));
       setRows([]);
     } finally {
       setLoading(false);
@@ -148,7 +150,7 @@ const CattleFeedPurchasesReport = () => {
 
   const exportToPDF = () => {
     if (rows.length === 0) {
-      toast.error("No data available");
+      toast.error(t("no_data_available"));
       return;
     }
 
@@ -170,7 +172,7 @@ const CattleFeedPurchasesReport = () => {
     autoTable(doc, {
       startY: 35,
       head: [
-        ["Date", "Feed Type", "Qty (Kg/Bag)", "Percheses Rate", "Selling Rate", "Remark"],
+        ["Date", "Feed Type", "Qty (Kg/Bag)", "Purchase Rate", "Selling Rate", "Remark"],
       ],
       body: [
         ...rows.map((row) => [
@@ -205,16 +207,16 @@ const CattleFeedPurchasesReport = () => {
     doc.save(
       `Cattle_Feed_Purchases_Report_${startDate}_to_${endDate}.pdf`
     );
-    toast.success("PDF exported successfully");
+    toast.success(t("pdf_exported_successfully"));
   };
 
   return (
     <div className="p-4">
       <div className="text-left p-4">
-        <h1 className="font-bold text-2xl">Cattle Feed Purchases Report</h1>
+        <h1 className="font-bold text-2xl">{t("cattle_feed_purchases_report")}</h1>
         <p className="text-sm text-gray-600">
-          Purchase records from{" "}
-          {format(new Date(startDate), "dd-MM-yyyy")} to{" "}
+          {t("purchase_records_from")}{" "}
+          {format(new Date(startDate), "dd-MM-yyyy")} {t("to")}{" "}
           {format(new Date(endDate), "dd-MM-yyyy")}.
         </p>
       </div>
@@ -223,12 +225,12 @@ const CattleFeedPurchasesReport = () => {
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-3 bg-gray-50 rounded-lg">
             <div>
-              <Label className="mb-1">Dairy</Label>
-              <VLCDropdown branches={branches || []} value={dairyId} onChange={setDairyId} valueKey="branch_id" placeholder="Select dairy" />
+              <Label className="mb-1">{t("dairy")}</Label>
+              <VLCDropdown branches={branches || []} value={dairyId} onChange={setDairyId} valueKey="branch_id" placeholder={t("select_dairy_placeholder")} />
             </div>
 
             <div>
-              <Label className="mb-1">Start Date</Label>
+              <Label className="mb-1">{t("start_date")}</Label>
               <Input
                 type="date"
                 value={startDate}
@@ -238,7 +240,7 @@ const CattleFeedPurchasesReport = () => {
             </div>
 
             <div>
-              <Label className="mb-1">End Date</Label>
+              <Label className="mb-1">{t("end_date")}</Label>
               <Input
                 type="date"
                 value={endDate}
@@ -254,7 +256,7 @@ const CattleFeedPurchasesReport = () => {
                   disabled={loading}
                   className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
-                  {loading ? "Loading..." : "Show Report"}
+                  {loading ? t("loading") : t("show_report")}
                 </Button>
                 <Button
                   onClick={exportToPDF}
@@ -262,7 +264,7 @@ const CattleFeedPurchasesReport = () => {
                   className="bg-red-600 hover:bg-red-700 text-white flex items-center gap-2"
                 >
                   <Download className="h-4 w-4" />
-                  Export PDF
+                  {t("export_pdf")}
                 </Button>
               </div>
             </div>
@@ -274,20 +276,20 @@ const CattleFeedPurchasesReport = () => {
         <Card className="border-gray-300 mb-7">
           <CardContent className="p-4">
             <h2 className="font-semibold text-lg mb-4">
-              Cattle Feed Purchases Report (
-              {format(new Date(startDate), "dd-MM-yyyy")} to{" "}
+              {t("cattle_feed_purchases_report")} (
+              {format(new Date(startDate), "dd-MM-yyyy")} {t("to")}{" "}
               {format(new Date(endDate), "dd-MM-yyyy")})
             </h2>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="bg-gray-100">
-                    <th className="border border-gray-300 p-2 text-center">Date</th>
-                    <th className="border border-gray-300 p-2 text-center">Feed Type</th>
-                    <th className="border border-gray-300 p-2 text-center">Qty (Kg/Bag)</th>
-                    <th className="border border-gray-300 p-2 text-center">Percheses Rate</th>
-                    <th className="border border-gray-300 p-2 text-center">Selling Rate</th>
-                    <th className="border border-gray-300 p-2 text-center">Remark</th>
+                    <th className="border border-gray-300 p-2 text-center">{t("date")}</th>
+                    <th className="border border-gray-300 p-2 text-center">{t("feed_type")}</th>
+                    <th className="border border-gray-300 p-2 text-center">{t("qty_kg_bag")}</th>
+                    <th className="border border-gray-300 p-2 text-center">{t("purchase_rate")}</th>
+                    <th className="border border-gray-300 p-2 text-center">{t("selling_rate")}</th>
+                    <th className="border border-gray-300 p-2 text-center">{t("remark")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -310,7 +312,7 @@ const CattleFeedPurchasesReport = () => {
                     </tr>
                   ))}
                   <tr className="bg-red-50 font-bold text-red-600">
-                    <td className="border border-gray-300 p-2 text-center" colSpan={2}>Total</td>
+                    <td className="border border-gray-300 p-2 text-center" colSpan={2}>{t("total")}</td>
                     <td className="border border-gray-300 p-2 text-center">{totals.qty}</td>
                     <td className="border border-gray-300 p-2 text-center">—</td>
                     <td className="border border-gray-300 p-2 text-center">

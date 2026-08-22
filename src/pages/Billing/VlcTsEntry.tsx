@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format, isValid } from "date-fns";
 
 const VlcTsEntry: React.FC = () => {
+  const { t } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -22,7 +24,7 @@ const VlcTsEntry: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.vlc || !formData.fatRate || !formData.snfRate || !formData.effectiveDate) {
-      toast.error("Please fill all required fields");
+      toast.error(t("please_fill_all_required_fields", "Please fill all required fields"));
       return;
     }
     setLoading(true);
@@ -39,7 +41,7 @@ const VlcTsEntry: React.FC = () => {
         setFormData({ vlc: "", fatRate: "", snfRate: "", effectiveDate: undefined });
       }
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to submit TS entry");
+      toast.error(error?.response?.data?.message || t("failed_to_submit_ts_entry", "Failed to submit TS entry"));
     } finally {
       setLoading(false);
     }
@@ -51,10 +53,10 @@ const VlcTsEntry: React.FC = () => {
         {/* Header */}
         <div className="flex flex-col items-start text-left gap-1.5 animate-in fade-in slide-in-from-top-4 duration-700">
           <h1 className="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600">
-            VLC TS Entry
+            {t("vlc_ts_entry", "VLC TS Entry")}
           </h1>
           <p className="text-sm font-medium text-slate-500">
-            Configure FAT and SNF rates for VLC
+            {t("configure_fat_and_snf_rates", "Configure FAT and SNF rates for VLC")}
           </p>
         </div>
         
@@ -62,14 +64,14 @@ const VlcTsEntry: React.FC = () => {
         <Card className="bg-white/70 backdrop-blur-xl border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-visible transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] rounded-2xl py-0 gap-0">
           <CardHeader className="px-4 py-3 !pb-2 border-b border-slate-100/50 bg-white/50">
             <CardTitle className="text-lg font-semibold text-slate-800">
-              VLC TS Entry Details
+              {t("vlc_ts_entry_details", "VLC TS Entry Details")}
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4 py-4">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="vlc" className="text-sm font-semibold text-gray-700">
-                  Select VLC <span className="text-red-500">*</span>
+                  {t("select_vlc", "Select VLC")} <span className="text-red-500">*</span>
                 </Label>
                 <VLCDropdown
                   branches={branches}
@@ -81,7 +83,7 @@ const VlcTsEntry: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="fatRate" className="text-sm font-semibold text-gray-700">
-                    Kg FAT Rate (₹) <span className="text-red-500">*</span>
+                    {t("kg_fat_rate_rs", "Kg FAT Rate (₹)")} <span className="text-red-500">*</span>
                   </Label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
@@ -104,7 +106,7 @@ const VlcTsEntry: React.FC = () => {
 
                 <div className="space-y-1.5">
                   <Label htmlFor="snfRate" className="text-sm font-semibold text-gray-700">
-                    Kg SNF Rate (₹) <span className="text-red-500">*</span>
+                    {t("kg_snf_rate_rs", "Kg SNF Rate (₹)")} <span className="text-red-500">*</span>
                   </Label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
@@ -127,7 +129,7 @@ const VlcTsEntry: React.FC = () => {
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-sm font-semibold text-gray-700">Effective Date From <span className="text-red-500">*</span></Label>
+                <Label className="text-sm font-semibold text-gray-700">{t("effective_date_from", "Effective Date From")} <span className="text-red-500">*</span></Label>
                 <Input
                   type="date"
                   value={formData.effectiveDate ? format(formData.effectiveDate, "yyyy-MM-dd") : ""}
@@ -144,7 +146,7 @@ const VlcTsEntry: React.FC = () => {
                 disabled={loading}
                 className="w-full h-10 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white shadow-sm transition-all active:scale-[0.98] mt-2"
               >
-                {loading ? "Submitting..." : "Submit TS Entry"}
+                {loading ? t("submitting", "Submitting...") : t("submit_ts_entry", "Submit TS Entry")}
               </Button>
             </form>
           </CardContent>

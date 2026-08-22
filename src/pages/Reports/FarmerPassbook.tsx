@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -26,6 +27,7 @@ interface PassbookRow {
 }
 
 const FarmerPassbook = () => {
+  const { t } = useTranslation();
   const branches = useAppSelector((state) => state.branch.branches);
   const [selectedVLC, setSelectedVLC] = useState<string>('');
   const [fromDate, setFromDate] = useState<string>('');
@@ -60,7 +62,7 @@ const FarmerPassbook = () => {
 
   const handleShow = async () => {
     if (!selectedVLC || !fromDate || !toDate) {
-      toast.error('Please select VLC Center and date range');
+      toast.error(t('please_select_vlc_and_dates', 'Please select VLC Center and date range'));
       return;
     }
 
@@ -162,43 +164,43 @@ const FarmerPassbook = () => {
       {/* Header */}
       <div className="flex flex-col items-start text-left gap-1 animate-in fade-in slide-in-from-top-4 duration-700 mb-2">
         <h1 className="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600">
-          Farmer Passbook
+          {t('passbook', 'Farmer Passbook')}
         </h1>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-end bg-white p-3 sm:p-4 rounded-lg shadow-sm mx-2 mb-4 text-left">
         <div className="space-y-2 w-full">
-          <Label>VLC Center</Label>
+          <Label>{t('vlc_center', 'VLC Center')}</Label>
           <VLCDropdown
             branches={branches || []}
             value={selectedVLC}
             onChange={setSelectedVLC}
             valueKey="branch_id"
-            placeholder="Select VLC Center"
+            placeholder={t('select_vlc_center', 'Select VLC Center')}
           />
         </div>
 
         <div className="space-y-2">
-          <Label>From Date</Label>
+          <Label>{t('start_date', 'From Date')}</Label>
           <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
         </div>
 
         <div className="space-y-2">
-          <Label>To Date</Label>
+          <Label>{t('end_date', 'To Date')}</Label>
           <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
         </div>
 
         <div className="space-y-2">
-          <Label>Farmer Code (Optional)</Label>
-          <Input placeholder="Enter code" value={farmerCode} onChange={(e) => setFarmerCode(e.target.value)} />
+          <Label>{t('farmer_code', 'Farmer Code (Optional)')}</Label>
+          <Input placeholder={t('farmer_code', 'Enter code')} value={farmerCode} onChange={(e) => setFarmerCode(e.target.value)} />
         </div>
 
         <div className="flex gap-2">
           <Button onClick={handleShow} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white min-w-[100px] h-10">
-            {loading ? 'Loading...' : 'Show'}
+            {loading ? t('loading', 'Loading...') : t('show', 'Show')}
           </Button>
           <Button onClick={exportToPDF} disabled={farmersData.length === 0} variant="outline" className="h-10">
-            Export PDF
+            {t('export_pdf', 'Export PDF')}
           </Button>
         </div>
       </div>
@@ -206,7 +208,7 @@ const FarmerPassbook = () => {
       {farmersData.length === 0 && fromDate && toDate && (
         <Card>
           <CardContent className="pt-6">
-            <p className="text-center text-gray-500">No passbook data found for the selected period.</p>
+            <p className="text-center text-gray-500">{t('no_passbook_data', 'No passbook data found for the selected period.')}</p>
           </CardContent>
         </Card>
       )}
@@ -220,7 +222,9 @@ const FarmerPassbook = () => {
         return (
           <>
             <div className="flex justify-between items-center">
-              <p className="text-sm text-gray-600">Page {currentPage + 1} of {totalPages} (Showing {currentFarmers.length} farmers)</p>
+              <p className="text-sm text-gray-600">
+                {t('page_info', 'Page {{current}} of {{total}} (Showing {{count}} farmers)', { current: currentPage + 1, total: totalPages, count: currentFarmers.length })}
+              </p>
               <div className="flex gap-2">
                 <Button 
                   onClick={() => setCurrentPage(p => Math.max(0, p - 1))} 
@@ -228,7 +232,7 @@ const FarmerPassbook = () => {
                   variant="outline"
                   size="sm"
                 >
-                  Previous
+                  {t('previous', 'Previous')}
                 </Button>
                 <Button 
                   onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))} 
@@ -236,7 +240,7 @@ const FarmerPassbook = () => {
                   variant="outline"
                   size="sm"
                 >
-                  Next
+                  {t('next', 'Next')}
                 </Button>
               </div>
             </div>
@@ -259,24 +263,24 @@ const FarmerPassbook = () => {
               return (
                 <Card key={farmer.farmer_id} className="mb-4">
                   <CardHeader>
-                    <CardTitle>Farmer: {farmer.farmer_id}</CardTitle>
+                    <CardTitle>{t('farmer_name', 'Farmer')}: {farmer.farmer_id}</CardTitle>
                   </CardHeader>
                   <CardContent className="p-2 sm:p-4">
                     <div className="overflow-x-auto">
                       <table className="w-full border-collapse whitespace-nowrap text-sm [&_th]:h-auto [&_th]:py-2 [&_th]:px-3 [&_td]:py-2 [&_td]:px-3 [&_th]:align-middle">
                         <thead>
                           <tr className="bg-gray-100">
-                            <th className="border border-gray-300 p-2 text-left">Period</th>
-                            <th className="border border-gray-300 p-2 text-right">Milk Total</th>
-                            <th className="border border-gray-300 p-2 text-right">Previous Balance</th>
-                            <th className="border border-gray-300 p-2 text-right">Advance</th>
-                            <th className="border border-gray-300 p-2 text-right">Cattle Feed</th>
-                            <th className="border border-gray-300 p-2 text-right">Other1</th>
-                            <th className="border border-gray-300 p-2 text-right">Other2</th>
-                            <th className="border border-gray-300 p-2 text-right">Received</th>
-                            <th className="border border-gray-300 p-2 text-right">Total Deduction</th>
-                            <th className="border border-gray-300 p-2 text-right">Net Payable</th>
-                            <th className="border border-gray-300 p-2 text-right">Total Remaining</th>
+                            <th className="border border-gray-300 p-2 text-left">{t('period', 'Period')}</th>
+                            <th className="border border-gray-300 p-2 text-right">{t('milk_total', 'Milk Total')}</th>
+                            <th className="border border-gray-300 p-2 text-right">{t('previous_balance', 'Previous Balance')}</th>
+                            <th className="border border-gray-300 p-2 text-right">{t('advance', 'Advance')}</th>
+                            <th className="border border-gray-300 p-2 text-right">{t('cattle_feed', 'Cattle Feed')}</th>
+                            <th className="border border-gray-300 p-2 text-right">{t('other1', 'Other1')}</th>
+                            <th className="border border-gray-300 p-2 text-right">{t('other2', 'Other2')}</th>
+                            <th className="border border-gray-300 p-2 text-right">{t('received', 'Received')}</th>
+                            <th className="border border-gray-300 p-2 text-right">{t('total_deduction', 'Total Deduction')}</th>
+                            <th className="border border-gray-300 p-2 text-right">{t('net_payable', 'Net Payable')}</th>
+                            <th className="border border-gray-300 p-2 text-right">{t('total_remaining', 'Total Remaining')}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -295,7 +299,7 @@ const FarmerPassbook = () => {
                           </tr>
                           <tr className="bg-blue-50 font-bold">
                             <td colSpan={9} className="border border-gray-300 p-2"></td>
-                            <td className="border border-gray-300 p-2 text-right">Remaining Balance</td>
+                            <td className="border border-gray-300 p-2 text-right">{t('remaining_balance', 'Remaining Balance')}</td>
                             <td className="border border-gray-300 p-2 text-right">{row.total_remaining.toFixed(2)}</td>
                           </tr>
                         </tbody>

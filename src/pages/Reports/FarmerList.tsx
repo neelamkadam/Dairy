@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -25,6 +26,7 @@ import { Download } from "lucide-react";
 import Pagination from "@/components/Pagination";
 
 const FarmerList = () => {
+  const { t } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
   const [selectedVlcc, setSelectedVlcc] = useState("");
   const [farmers, setFarmers] = useState<any[]>([]);
@@ -34,7 +36,7 @@ const FarmerList = () => {
 
   const handleShow = async () => {
     if (!selectedVlcc) {
-      toast.error("Please select a VLC");
+      toast.error(t("please_select_vlc_first_report", "Please select a VLC"));
       return;
     }
 
@@ -48,7 +50,7 @@ const FarmerList = () => {
         setFarmers([]);
       }
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to fetch farmers");
+      toast.error(error?.response?.data?.message || t("failed_to_fetch_farmers", "Failed to fetch farmers"));
       setFarmers([]);
     } finally {
       setLoading(false);
@@ -57,25 +59,25 @@ const FarmerList = () => {
 
   const handleExportPDF = () => {
     if (!farmers || farmers.length === 0) {
-      toast.error("No data to export");
+      toast.error(t("no_data_to_export", "No data to export"));
       return;
     }
     const selectedBranch = branches?.find(b => b.branch_id.toString() === selectedVlcc);
     const vlcName = selectedBranch ? selectedBranch.name : "";
     const dairyName = selectedBranch ? selectedBranch.username : "";
     generateFarmerListPDF(vlcName, dairyName, farmers);
-    toast.success("PDF exported successfully");
+    toast.success(t("pdf_exported_successfully", "PDF exported successfully"));
   };
 
   const handleExportExcel = () => {
     if (!farmers || farmers.length === 0) {
-      toast.error("No data to export");
+      toast.error(t("no_data_to_export", "No data to export"));
       return;
     }
     const selectedBranch = branches?.find(b => b.branch_id.toString() === selectedVlcc);
     const vlcName = selectedBranch ? `${selectedBranch.username} - ${selectedBranch.name}` : "";
     generateFarmerListExcel(vlcName, farmers);
-    toast.success("Excel exported successfully");
+    toast.success(t("excel_exported_successfully", "Excel exported successfully"));
   };
 
   const totalPages = Math.ceil(farmers.length / itemsPerPage);
@@ -87,12 +89,12 @@ const FarmerList = () => {
     <div className="p-2 sm:p-4 text-left">
       {/* Header */}
       <div className="flex flex-col items-start text-left gap-1 animate-in fade-in slide-in-from-top-4 duration-700 mb-4">
-        <h1 className="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600">Farmer List</h1>
-        <p className="text-sm font-medium text-slate-500">Manage and view all farmers</p>
+        <h1 className="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600">{t("farmer_list", "Farmer List")}</h1>
+        <p className="text-sm font-medium text-slate-500">{t("manage_view_farmers", "Manage and view all farmers")}</p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-end bg-white p-3 sm:p-4 rounded-lg shadow-sm mb-4 text-left">
         <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Select VLC</label>
+          <label className="text-sm font-medium text-gray-700">{t("select_vlc_center", "Select VLC")}</label>
           <VLCDropdown
             branches={branches || []}
             value={selectedVlcc}
@@ -102,12 +104,12 @@ const FarmerList = () => {
               setCurrentPage(1);
             }}
             valueKey="branch_id"
-            placeholder="Select VLC"
+            placeholder={t("select_vlc_center", "Select VLC")}
           />
         </div>
         <div className="xl:col-span-4 flex flex-wrap gap-2 justify-end">
           <Button onClick={handleShow} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white w-[120px] h-10">
-            {loading ? "Loading..." : "Show"}
+            {loading ? t("loading", "Loading...") : t("show", "Show")}
           </Button>
           <Button 
             onClick={handleExportExcel}
@@ -115,7 +117,7 @@ const FarmerList = () => {
             className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2 h-10"
           >
             <Download className="h-4 w-4" />
-            Excel Export
+            {t("excel_export", "Excel Export")}
           </Button>
           <Button 
             onClick={handleExportPDF}
@@ -124,7 +126,7 @@ const FarmerList = () => {
             className="bg-red-500 hover:bg-red-600 text-white flex items-center gap-2 h-10"
           >
             <Download className="h-4 w-4" />
-            PDF Export
+            {t("export_pdf", "PDF Export")}
           </Button>
         </div>
       </div>
@@ -133,15 +135,15 @@ const FarmerList = () => {
         <Table className="whitespace-nowrap text-sm [&_th]:h-auto [&_th]:py-2 [&_th]:px-3 [&_td]:py-2 [&_td]:px-3 [&_th]:align-middle">
           <TableHeader className="bg-gray-200">
             <TableRow>
-              <TableHead className="border border-gray-300">Farmer ID</TableHead>
-              <TableHead className="border border-gray-300">Name</TableHead>
-              <TableHead className="border border-gray-300">Contact</TableHead>
-              <TableHead className="border border-gray-300">Milk Type</TableHead>
-              <TableHead className="border border-gray-300">Rate Chart</TableHead>
-              <TableHead className="border border-gray-300">Bank Name</TableHead>
-              <TableHead className="border border-gray-300">Account Number</TableHead>
-              <TableHead className="border border-gray-300">IFSC Code</TableHead>
-              <TableHead className="border border-gray-300 text-center">Passbook</TableHead>
+              <TableHead className="border border-gray-300">{t("farmer_code", "Farmer ID")}</TableHead>
+              <TableHead className="border border-gray-300">{t("name", "Name")}</TableHead>
+              <TableHead className="border border-gray-300">{t("contact", "Contact")}</TableHead>
+              <TableHead className="border border-gray-300">{t("milk_type", "Milk Type")}</TableHead>
+              <TableHead className="border border-gray-300">{t("rate_chart", "Rate Chart")}</TableHead>
+              <TableHead className="border border-gray-300">{t("bank_name", "Bank Name")}</TableHead>
+              <TableHead className="border border-gray-300">{t("account_number", "Account Number")}</TableHead>
+              <TableHead className="border border-gray-300">{t("ifsc_code", "IFSC Code")}</TableHead>
+              <TableHead className="border border-gray-300 text-center">{t("passbook", "Passbook")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -164,7 +166,7 @@ const FarmerList = () => {
                         rel="noopener noreferrer"
                         className="text-blue-600 underline hover:text-blue-800"
                       >
-                        View
+                        {t("view", "View")}
                       </a>
                     ) : (
                       '-'
@@ -175,7 +177,7 @@ const FarmerList = () => {
             ) : (
               <TableRow>
                 <TableCell colSpan={9} className="text-center py-10 text-gray-500">
-                  {loading ? "Loading..." : "Select VLC and click Show to view farmers"}
+                  {loading ? t("loading", "Loading...") : t("select_vlc_show_farmers", "Select VLC and click Show to view farmers")}
                 </TableCell>
               </TableRow>
             )}

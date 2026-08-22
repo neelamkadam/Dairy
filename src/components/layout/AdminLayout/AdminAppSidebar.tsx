@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ROUTES } from "@/constatnts/routesConstants";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 interface MenuItem {
   title: string;
@@ -18,48 +19,48 @@ interface MenuItem {
   children?: MenuItem[];
 }
 
-const menuItems: MenuItem[] = [
+const getMenuItems = (t: any): MenuItem[] => [
   {
-    title: "Dashboard",
+    title: t('dashboard'),
     icon: <LayoutDashboard size={20} className="stroke-[1.5]" />,
     href: ROUTES.ADMIN_DASHBOARD,
   },
   {
-    title: "Branch",
+    title: t('branch', 'Branch'),
     icon: <Building2 size={20} className="stroke-[1.5]" />,
     children: [
-      { title: "Create User", icon: <Dot size={24} />, href: ROUTES.ADMIN_CREATE_USER },
-      { title: "Add Branch", icon: <Dot size={24} />, href: ROUTES.ADMIN_MASTER.ADD_BRANCH },
-      { title: "Upload Rate Chart", icon: <Dot size={24} />, href: ROUTES.ADMIN_MASTER.UPLOAD_RATE_CHART },
-      { title: "Sidebar Access", icon: <Dot size={24} />, href: ROUTES.ADMIN_MASTER.SIDEBAR_ACCESS }
+      { title: t('create_user', 'Create User'), icon: <Dot size={24} />, href: ROUTES.ADMIN_CREATE_USER },
+      { title: t('add_branch', 'Add Branch'), icon: <Dot size={24} />, href: ROUTES.ADMIN_MASTER.ADD_BRANCH },
+      { title: t('upload_rate_chart', 'Upload Rate Chart'), icon: <Dot size={24} />, href: ROUTES.ADMIN_MASTER.UPLOAD_RATE_CHART },
+      { title: t('sidebar_access', 'Sidebar Access'), icon: <Dot size={24} />, href: ROUTES.ADMIN_MASTER.SIDEBAR_ACCESS }
     ]
   },
   {
-    title: "Master",
+    title: t('master'),
     icon: <Settings size={20} className="stroke-[1.5]" />,
     children: [
-      { title: "Mobile Application", icon: <Dot size={24} />, href: ROUTES.ADMIN_MASTER.MOBILE_APPLICATION },
-      { title: "Web Application", icon: <Dot size={24} />, href: ROUTES.ADMIN_MASTER.WEB_APPLICATION },
-      { title: "Farmer Application", icon: <Dot size={24} />, href: ROUTES.ADMIN_MASTER.FARMER_APPLICATION }
+      { title: t('mobile_application', 'Mobile Application'), icon: <Dot size={24} />, href: ROUTES.ADMIN_MASTER.MOBILE_APPLICATION },
+      { title: t('web_application', 'Web Application'), icon: <Dot size={24} />, href: ROUTES.ADMIN_MASTER.WEB_APPLICATION },
+      { title: t('farmer_application', 'Farmer Application'), icon: <Dot size={24} />, href: ROUTES.ADMIN_MASTER.FARMER_APPLICATION }
     ]
   },
   {
-    title: "Activation",
+    title: t('activation_title', 'Activation'),
     icon: <Monitor size={20} className="stroke-[1.5]" />,
     children: [
-      { title: "Activation", icon: <Dot size={24} />, href: ROUTES.ACTIVATION.ACTIVATION },
-      { title: "Web Application Activation", icon: <Dot size={24} />, href: ROUTES.ACTIVATION.WEB_APPLICATION_ACTIVATION }
+      { title: t('activation_title', 'Activation'), icon: <Dot size={24} />, href: ROUTES.ACTIVATION.ACTIVATION },
+      { title: t('web_application_activation', 'Web Application Activation'), icon: <Dot size={24} />, href: ROUTES.ACTIVATION.WEB_APPLICATION_ACTIVATION }
     ]
   },
   {
-    title: "Admin",
+    title: t('admin_title', 'Admin'),
     icon: <ShieldAlert size={20} className="stroke-[1.5]" />,
     children: [
-      { title: "Create Admin", icon: <Dot size={24} />, href: ROUTES.ADMIN_CREATE_ADMIN },
+      { title: t('create_admin', 'Create Admin'), icon: <Dot size={24} />, href: ROUTES.ADMIN_CREATE_ADMIN },
     ]
   },
   {
-    title: "Attendance & Supervisior",
+    title: t('attendance_supervisor', 'Attendance & Supervisior'),
     icon: <UserCheck size={20} className="stroke-[1.5]" />,
     href: ROUTES.ATTENDANCE.SUPERVISOR
   }
@@ -71,6 +72,7 @@ interface SidebarProps {
 }
 
 const AdminAppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
+  const { t } = useTranslation();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const navigate = useNavigate();
   const location = useLocation();
@@ -88,6 +90,8 @@ const AdminAppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
       navigate(href);
     }
   };
+
+  const menuItems = getMenuItems(t);
 
   const renderMenuItem = (item: MenuItem, level = 0) => {
     const hasChildren = item.children && item.children.length > 0;
@@ -143,7 +147,7 @@ const AdminAppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
             {level === 0 && (
               <div className="absolute left-6 top-0 bottom-2 w-px bg-slate-200 dark:bg-slate-700 pointer-events-none" />
             )}
-            {item.children?.map(child => renderMenuItem(child, level + 1))}
+            {item.children?.map((child: MenuItem) => renderMenuItem(child, level + 1))}
           </div>
         )}
       </div>
@@ -185,10 +189,10 @@ const AdminAppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
               {isOpen && (
                 <div className="flex flex-col">
                   <span className="text-[10px] font-bold tracking-widest text-blue-600 dark:text-blue-400 uppercase">
-                    Admin Panel
+                    {t('admin_panel', 'Admin Panel')}
                   </span>
                   <span className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">
-                    Management
+                    {t('management', 'Management')}
                   </span>
                 </div>
               )}

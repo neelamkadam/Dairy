@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -39,6 +40,7 @@ import { useAppSelector } from "@/redux/store";
 import { toast } from "react-toastify";
 
 const FarmerDeduction = () => {
+  const { t } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
   const [searchTerm, setSearchTerm] = useState("");
   const [vlcName, setVlcName] = useState("");
@@ -144,7 +146,7 @@ const FarmerDeduction = () => {
 
   const fetchDeductions = async () => {
     if (!startDate || !endDate || !vlcName) {
-      toast.error("Please select VLC and date range");
+      toast.error(t("please_select_vlc_and_date_range", "Please select VLC and date range"));
       return;
     }
 
@@ -449,7 +451,7 @@ const FarmerDeduction = () => {
       setFarmerData(adjustedData);
     } catch (error: any) {
       console.error('❌ [API ERROR] fetchDeductions:', error);
-      toast.error(error?.response?.data?.message || "Failed to fetch deductions");
+      toast.error(error?.response?.data?.message || t("failed_to_fetch_deductions", "Failed to fetch deductions"));
     } finally {
       setFetchLoading(false);
     }
@@ -476,7 +478,7 @@ const FarmerDeduction = () => {
 
         if (numValue > maxAllowed) {
           const correctedValue = Math.max(0, maxAllowed);
-          toast.warning(`Value auto-corrected to ${correctedValue.toFixed(2)}. Total deductions cannot exceed bill amount + travel commission.`);
+          toast.warning(t("value_auto_corrected_to", "Value auto-corrected to ") + `${correctedValue.toFixed(2)}` + t("total_deductions_cannot_exceed", ". Total deductions cannot exceed bill amount + travel commission."));
           numValue = correctedValue;
         }
         
@@ -503,10 +505,10 @@ const FarmerDeduction = () => {
     
     try {
       await webUserApi.updatePriority(parseInt(userData.id!), newPriority);
-      toast.success('Priority updated');
+      toast.success(t("priority_updated", "Priority updated"));
     } catch (error) {
       console.error('❌ [API ERROR] updatePriority:', error);
-      toast.error('Failed to update priority');
+      toast.error(t("failed_to_update_priority", "Failed to update priority"));
     }
   };
 
@@ -533,10 +535,10 @@ const FarmerDeduction = () => {
     
     try {
       await webUserApi.updatePriority(parseInt(userData.id!), newPriority);
-      toast.success('Priority updated');
+      toast.success(t("priority_updated", "Priority updated"));
     } catch (error) {
       console.error('❌ [API ERROR] updatePriority:', error);
-      toast.error('Failed to update priority');
+      toast.error(t("failed_to_update_priority", "Failed to update priority"));
     }
   };
 
@@ -545,12 +547,12 @@ const FarmerDeduction = () => {
       ...farmer,
       advanceDeduction: 0
     })));
-    toast.success('All advance deductions cleared');
+    toast.success(t("all_advance_deductions_cleared", "All advance deductions cleared"));
   };
 
   const handleSave = async () => {
     if (!startDate || !endDate || !vlcName) {
-      toast.error("Please select VLC and date range");
+      toast.error(t("please_select_vlc_and_date_range", "Please select VLC and date range"));
       return;
     }
 
@@ -558,7 +560,7 @@ const FarmerDeduction = () => {
       const modifiedFarmers = farmerData.filter(f => f.modified);
       
       if (modifiedFarmers.length === 0) {
-        toast.info("No changes to save");
+        toast.info(t("no_changes_to_save", "No changes to save"));
         return;
       }
 
@@ -618,15 +620,15 @@ const FarmerDeduction = () => {
       }
 
       if (successCount > 0) {
-        toast.success(`Successfully updated ${successCount} farmer bill(s)`);
+        toast.success(t("successfully_updated", "Successfully updated ") + successCount + t("farmer_bills", " farmer bill(s)"));
         fetchDeductions();
       }
       if (errorCount > 0) {
-        toast.error(`Failed to update ${errorCount} farmer bill(s)`);
+        toast.error(t("failed_to_update", "Failed to update ") + errorCount + t("farmer_bills", " farmer bill(s)"));
       }
     } catch (error: any) {
       console.error('❌ [API ERROR] handleSave:', error);
-      toast.error(error?.response?.data?.message || "Failed to update deductions");
+      toast.error(error?.response?.data?.message || t("failed_to_update_deductions", "Failed to update deductions"));
     }
   };
 
@@ -645,10 +647,10 @@ const FarmerDeduction = () => {
         {/* Header */}
         <div className="flex flex-col items-start text-left gap-1.5 animate-in fade-in slide-in-from-top-4 duration-700">
           <h1 className="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600">
-            Farmer Deduction
+            {t("farmer_deduction", "Farmer Deduction")}
           </h1>
           <p className="text-sm font-medium text-slate-500">
-            Manage auto-deductions for farmers per billing cycle efficiently.
+            {t("manage_auto_deductions_for_farmers", "Manage auto-deductions for farmers per billing cycle efficiently.")}
           </p>
         </div>
 
@@ -658,7 +660,7 @@ const FarmerDeduction = () => {
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg font-semibold text-slate-800 flex items-center gap-2">
                 <Receipt className="w-5 h-5 text-indigo-500" />
-                Filter & Configuration
+                {t("filter_configuration", "Filter & Configuration")}
               </CardTitle>
               <div className="flex items-center gap-3">
                 {farmerData.length > 0 && (
@@ -667,7 +669,7 @@ const FarmerDeduction = () => {
                       ? 'bg-gray-100 text-gray-700 border-gray-200' 
                       : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                   }`}>
-                    {isBillFinalized ? '🔒 Bills Finalized' : '✅ Bills Not Finalized'}
+                    {isBillFinalized ? '🔒 ' + t("bills_finalized", "Bills Finalized") : '✅ ' + t("bills_not_finalized", "Bills Not Finalized")}
                   </div>
                 )}
                 
@@ -675,12 +677,12 @@ const FarmerDeduction = () => {
                   <DialogTrigger asChild>
                     <Button variant="outline" className="h-8 px-3 text-xs flex items-center gap-2 border-gray-200 shadow-sm">
                       <Settings className="h-3.5 w-3.5" />
-                      Priority
+                      {t("priority", "Priority")}
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="bg-white">
                     <DialogHeader>
-                      <DialogTitle>Set Deduction Priority</DialogTitle>
+                      <DialogTitle>{t("set_deduction_priority", "Set Deduction Priority")}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-2 mt-4">
                       {priority.map((item, index) => (
@@ -695,9 +697,9 @@ const FarmerDeduction = () => {
                           <div className="flex items-center gap-2">
                             <GripVertical className="h-4 w-4 text-gray-400" />
                             <span className="capitalize">
-                              {item === 'cattleFeed' ? 'Cattle Feed' : 
-                               item === 'bonus' ? 'Bonus' :
-                               item === 'fixed' ? 'Fixed' :
+                              {item === 'cattleFeed' ? t("cattle_feed", "Cattle Feed") : 
+                               item === 'bonus' ? t("bonus", "Bonus") :
+                               item === 'fixed' ? t("fixed", "Fixed") :
                                item}
                             </span>
                           </div>
@@ -730,18 +732,18 @@ const FarmerDeduction = () => {
           <CardContent className="p-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
               <div className="space-y-1.5 group lg:col-span-1">
-                <Label className="text-sm font-medium text-gray-700">Select VLC</Label>
+                <Label className="text-sm font-medium text-gray-700">{t("select_vlc", "Select VLC")}</Label>
                 <VLCDropdown
                   branches={branches}
                   value={vlcName}
                   onChange={setVlcName}
                   valueKey="branch_id"
-                  placeholder="Select VLC"
+                  placeholder={t("select_vlc", "Select VLC")}
                 />
               </div>
 
               <div className="space-y-1.5 group lg:col-span-1">
-                <Label className="text-sm font-medium text-gray-700">Start Date</Label>
+                <Label className="text-sm font-medium text-gray-700">{t("start_date", "Start Date")}</Label>
                 <Input
                   type="date"
                   value={startDate ? format(startDate, "yyyy-MM-dd") : ""}
@@ -756,7 +758,7 @@ const FarmerDeduction = () => {
               </div>
 
               <div className="space-y-1.5 group lg:col-span-1">
-                <Label className="text-sm font-medium text-gray-700">End Date</Label>
+                <Label className="text-sm font-medium text-gray-700">{t("end_date", "End Date")}</Label>
                 <Input
                   type="date"
                   value={endDate ? format(endDate, "yyyy-MM-dd") : ""}
@@ -766,11 +768,11 @@ const FarmerDeduction = () => {
               </div>
               
               <div className="space-y-1.5 group lg:col-span-1">
-                <Label className="text-sm font-medium text-gray-700">Search</Label>
+                <Label className="text-sm font-medium text-gray-700">{t("search", "Search")}</Label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                   <Input
-                    placeholder="Search farmers..."
+                    placeholder={t("search_farmers", "Search farmers...")}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-9 h-10 border-gray-200 w-full"
@@ -787,10 +789,10 @@ const FarmerDeduction = () => {
                   {fetchLoading ? (
                     <div className="flex items-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Fetching...</span>
+                      <span>{t("fetching", "Fetching...")}</span>
                     </div>
                   ) : (
-                    "Fetch Data"
+                    t("fetch_data", "Fetch Data")
                   )}
                 </Button>
               </div>
@@ -817,23 +819,23 @@ const FarmerDeduction = () => {
               <Dialog open={previousRemainingOpen} onOpenChange={setPreviousRemainingOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" className="h-10 px-5 border-gray-200 shadow-sm font-medium text-slate-700 hover:text-slate-900">
-                    Previous Remaining
+                    {t("previous_remaining", "Previous Remaining")}
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="bg-white max-w-4xl max-h-[80vh] overflow-y-auto rounded-2xl">
                   <DialogHeader>
-                    <DialogTitle className="text-xl font-bold">Previous Remaining Balances</DialogTitle>
+                    <DialogTitle className="text-xl font-bold">{t("previous_remaining_balances", "Previous Remaining Balances")}</DialogTitle>
                   </DialogHeader>
                   <div className="mt-4">
                     <Table>
                       <TableHeader className="bg-gray-50/80">
                         <TableRow>
-                          <TableHead className="font-semibold text-slate-700">Farmer Name</TableHead>
-                          <TableHead className="font-semibold text-slate-700">Advance</TableHead>
-                          <TableHead className="font-semibold text-slate-700">Cattle Feed</TableHead>
-                          <TableHead className="font-semibold text-slate-700">Other 1</TableHead>
-                          <TableHead className="font-semibold text-slate-700">Other 2</TableHead>
-                          <TableHead className="font-semibold text-slate-700 text-right">Total</TableHead>
+                          <TableHead className="font-semibold text-slate-700">{t("farmer_name", "Farmer Name")}</TableHead>
+                          <TableHead className="font-semibold text-slate-700">{t("advance", "Advance")}</TableHead>
+                          <TableHead className="font-semibold text-slate-700">{t("cattle_feed", "Cattle Feed")}</TableHead>
+                          <TableHead className="font-semibold text-slate-700">{t("other_1", "Other 1")}</TableHead>
+                          <TableHead className="font-semibold text-slate-700">{t("other_2", "Other 2")}</TableHead>
+                          <TableHead className="font-semibold text-slate-700 text-right">{t("total", "Total")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -860,7 +862,7 @@ const FarmerDeduction = () => {
                         {farmerData.filter(f => f.previousRemaining > 0).length === 0 && (
                           <TableRow>
                             <TableCell colSpan={6} className="text-center text-gray-500 py-8">
-                              No previous remaining balances found
+                              {t("no_previous_remaining_balances_found", "No previous remaining balances found")}
                             </TableCell>
                           </TableRow>
                         )}
@@ -877,7 +879,7 @@ const FarmerDeduction = () => {
                   className="h-10 px-5 text-rose-600 border-rose-200 bg-rose-50 hover:bg-rose-100 hover:border-rose-300 font-medium shadow-sm transition-colors"
                   disabled={isBillFinalized}
                 >
-                  Clear Advance
+                  {t("clear_advance", "Clear Advance")}
                 </Button>
               )}
               
@@ -890,7 +892,7 @@ const FarmerDeduction = () => {
                 }`}
                 disabled={isBillFinalized}
               >
-                {isBillFinalized ? 'Cannot Save - Bills Finalized' : 'Save Changes'}
+                {isBillFinalized ? t("cannot_save_bills_finalized", "Cannot Save - Bills Finalized") : t("save_changes", "Save Changes")}
               </Button>
             </div>
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,6 +41,7 @@ const toPaymentLogType = (paymentType: string) => {
 };
 
 const PaymentAndReceipt: React.FC = () => {
+  const { t } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
   const [formData, setFormData] = useState({
     vlcName: "",
@@ -162,7 +164,7 @@ const PaymentAndReceipt: React.FC = () => {
   };
 
   const handleDeletePayment = async (id: number, source: string) => {
-    if (!window.confirm('Are you sure you want to delete this payment?')) return;
+    if (!window.confirm(t("are_you_sure_you_want_to_delete_this_payment", "Are you sure you want to delete this payment?"))) return;
 
     try {
       if (source === 'log') {
@@ -170,7 +172,7 @@ const PaymentAndReceipt: React.FC = () => {
       } else {
         await paymentApi.delete(id.toString());
       }
-      toast.success('Payment deleted successfully');
+      toast.success(t("payment_deleted_successfully", "Payment deleted successfully"));
       
       setSelectedGroupedRecord((prev: any) => {
         if (!prev) return prev;
@@ -182,7 +184,7 @@ const PaymentAndReceipt: React.FC = () => {
 
       fetchPayments();
     } catch (error) {
-      toast.error('Failed to delete payment');
+      toast.error(t("failed_to_delete_payment", "Failed to delete payment"));
     }
   };
 
@@ -259,7 +261,7 @@ const PaymentAndReceipt: React.FC = () => {
 
   const handleFarmerSearch = async () => {
     if (!formData.vlcName || !farmerIdInput.trim()) {
-      toast.error('Please select VLC and enter Farmer ID');
+      toast.error(t("please_select_vlc_and_enter_farmer_id", "Please select VLC and enter Farmer ID"));
       return;
     }
 
@@ -270,7 +272,7 @@ const PaymentAndReceipt: React.FC = () => {
       const farmer = await userApi.getById(normalized, parseInt(formData.vlcName));
 
       if (!farmer) {
-        toast.error('Farmer not found');
+        toast.error(t("farmer_not_found", "Farmer not found"));
         setFormData({ ...formData, farmerCode: "", farmerName: "" });
         setFarmerPreviousBalance(null);
         return;
@@ -279,16 +281,16 @@ const PaymentAndReceipt: React.FC = () => {
       setFormData({
         ...formData,
         farmerCode: displayId,
-        farmerName: farmer.fullName || farmer.name || 'Unknown Farmer',
+        farmerName: farmer.fullName || farmer.name || t("unknown_farmer", "Unknown Farmer"),
       });
 
       // Fetch previous balance
       await fetchFarmerPreviousBalance(normalized);
 
-      toast.success('Farmer found');
+      toast.success(t("farmer_found", "Farmer found"));
     } catch (error) {
       console.error('Error searching farmer:', error);
-      toast.error('Farmer not found');
+      toast.error(t("farmer_not_found", "Farmer not found"));
       setFormData({ ...formData, farmerCode: "", farmerName: "" });
       setFarmerPreviousBalance(null);
     }
@@ -296,12 +298,12 @@ const PaymentAndReceipt: React.FC = () => {
 
   const handleSubmit = async () => {
     if (!formData.farmerCode || !formData.farmerName) {
-      toast.error("Please enter Farmer ID and Name");
+      toast.error(t("please_enter_farmer_id_and_name", "Please enter Farmer ID and Name"));
       return;
     }
 
     if (!formData.paymentType) {
-      toast.error("Please select Payment Type");
+      toast.error(t("please_select_payment_type", "Please select Payment Type"));
       return;
     }
 
@@ -309,24 +311,24 @@ const PaymentAndReceipt: React.FC = () => {
     const hasReceived = formData.receivedAmount;
 
     if (!hasAmountTaken && !hasReceived) {
-      toast.error("Please enter either Amount Taken OR Received");
+      toast.error(t("please_enter_either_amount_taken_or_received", "Please enter either Amount Taken OR Received"));
       return;
     }
 
     if (hasAmountTaken && hasReceived) {
-      toast.error("Please enter either Amount Taken OR Received, not both");
+      toast.error(t("please_enter_either_amount_taken_or_received_not_both", "Please enter either Amount Taken OR Received, not both"));
       return;
     }
 
     if (formData.paymentType === "Cattle Feed" && (!selectedStock || !stockQuantity)) {
-      toast.error("Please select stock and enter quantity");
+      toast.error(t("please_select_stock_and_enter_quantity", "Please select stock and enter quantity"));
       return;
     }
 
     if (formData.paymentType === "Cattle Feed" && selectedStock) {
       const qty = parseFloat(stockQuantity);
       if (qty > selectedStock.stock) {
-        toast.error(`Only ${selectedStock.stock} units available`);
+        toast.error(t("only", "Only ") + `${selectedStock.stock}` + t("units_available", " units available"));
         return;
       }
     }
@@ -386,7 +388,7 @@ const PaymentAndReceipt: React.FC = () => {
       }
 
       console.log('✅ Payment created successfully');
-      toast.success("Payment recorded successfully");
+      toast.success(t("payment_recorded_successfully", "Payment recorded successfully"));
       setFarmerIdInput("");
       setSelectedStock(null);
       setStockQuantity("");
@@ -406,7 +408,7 @@ const PaymentAndReceipt: React.FC = () => {
       fetchCattleFeedStocks();
     } catch (error) {
       console.error('❌ Failed to create payment:', error);
-      toast.error("Failed to save payment record. Please try again.");
+      toast.error(t("failed_to_save_payment_record", "Failed to save payment record. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -419,10 +421,10 @@ const PaymentAndReceipt: React.FC = () => {
         {/* Header */}
         <div className="flex flex-col items-start text-left gap-1.5 animate-in fade-in slide-in-from-top-4 duration-700">
           <h1 className="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600">
-            Payment & Receipt
+            {t("payment_and_receipt", "Payment & Receipt")}
           </h1>
           <p className="text-sm font-medium text-slate-500">
-            Manage farmer payments, advances, and cattle feed deductions with ease.
+            {t("manage_farmer_payments_advances", "Manage farmer payments, advances, and cattle feed deductions with ease.")}
           </p>
         </div>
 
@@ -431,13 +433,13 @@ const PaymentAndReceipt: React.FC = () => {
           <CardHeader className="px-4 py-3 !pb-3 border-b border-slate-100/50 bg-white/50">
             <CardTitle className="text-lg font-semibold text-slate-800 flex items-center gap-2">
               <CircleUserRound className="w-5 h-5 text-indigo-500" />
-              Filter & Farmer Details
+              {t("filter_and_farmer_details", "Filter & Farmer Details")}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="space-y-1.5 group">
-                <Label className="text-sm font-medium text-gray-700">VLC Name</Label>
+                <Label className="text-sm font-medium text-gray-700">{t("vlc_name", "VLC Name")}</Label>
                 <VLCDropdown
                   branches={branches}
                   value={formData.vlcName}
@@ -448,12 +450,12 @@ const PaymentAndReceipt: React.FC = () => {
                     setCurrentPage(1);
                   }}
                   valueKey="branch_id"
-                  placeholder="Select VLC"
+                  placeholder={t("select_vlc", "Select VLC")}
                 />
               </div>
 
               <div className="space-y-1.5 group">
-                <Label className="text-sm font-medium text-gray-700">From Date</Label>
+                <Label className="text-sm font-medium text-gray-700">{t("from_date", "From Date")}</Label>
                 <Input
                   type="date"
                   value={formData.fromDate ? format(formData.fromDate, "yyyy-MM-dd") : ""}
@@ -466,13 +468,13 @@ const PaymentAndReceipt: React.FC = () => {
               </div>
 
               <div className="space-y-1.5 group">
-                <Label className="text-sm font-medium text-gray-700">Farmer Code</Label>
+                <Label className="text-sm font-medium text-gray-700">{t("farmer_code", "Farmer Code")}</Label>
                 <div className="flex gap-2">
                   <Input
                     value={farmerIdInput}
                     onChange={(e) => setFarmerIdInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleFarmerSearch()}
-                    placeholder="Enter ID"
+                    placeholder={t("enter_id", "Enter ID")}
                     className="h-10 border-gray-200"
                   />
                   <Button onClick={handleFarmerSearch} className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md hover:shadow-indigo-500/20 transition-all active:scale-95 rounded-xl h-10 w-10 p-0 flex items-center justify-center shrink-0">
@@ -482,7 +484,7 @@ const PaymentAndReceipt: React.FC = () => {
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-gray-700">Farmer Name</Label>
+                <Label className="text-sm font-medium text-gray-700">{t("farmer_name", "Farmer Name")}</Label>
                 <Input
                   value={formData.farmerName}
                   readOnly
@@ -506,38 +508,38 @@ const PaymentAndReceipt: React.FC = () => {
                 
                 <h3 className="text-slate-400 font-semibold text-xs tracking-[0.2em] uppercase mb-3 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
-                  Previous Balance
+                  {t("previous_balance", "Previous Balance")}
                 </h3>
                 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 relative z-10">
                   {farmerPreviousBalance.advance > 0 && (
                     <div className="space-y-1">
-                      <div className="text-slate-400 text-[10px] uppercase tracking-wider font-semibold">Advance</div>
+                      <div className="text-slate-400 text-[10px] uppercase tracking-wider font-semibold">{t("advance", "Advance")}</div>
                       <div className="text-lg font-bold text-white">₹{farmerPreviousBalance.advance.toFixed(2)}</div>
                     </div>
                   )}
                   {farmerPreviousBalance.cattleFeed > 0 && (
                     <div className="space-y-1">
-                      <div className="text-slate-400 text-[10px] uppercase tracking-wider font-semibold">Cattle Feed</div>
+                      <div className="text-slate-400 text-[10px] uppercase tracking-wider font-semibold">{t("cattle_feed", "Cattle Feed")}</div>
                       <div className="text-lg font-bold text-white">₹{farmerPreviousBalance.cattleFeed.toFixed(2)}</div>
                     </div>
                   )}
                   {farmerPreviousBalance.other1 > 0 && (
                     <div className="space-y-1">
-                      <div className="text-slate-400 text-[10px] uppercase tracking-wider font-semibold">Other 1</div>
+                      <div className="text-slate-400 text-[10px] uppercase tracking-wider font-semibold">{t("other_1", "Other 1")}</div>
                       <div className="text-lg font-bold text-white">₹{farmerPreviousBalance.other1.toFixed(2)}</div>
                     </div>
                   )}
                   {farmerPreviousBalance.other2 > 0 && (
                     <div className="space-y-1">
-                      <div className="text-slate-400 text-[10px] uppercase tracking-wider font-semibold">Other 2</div>
+                      <div className="text-slate-400 text-[10px] uppercase tracking-wider font-semibold">{t("other_2", "Other 2")}</div>
                       <div className="text-lg font-bold text-white">₹{farmerPreviousBalance.other2.toFixed(2)}</div>
                     </div>
                   )}
                 </div>
                 
                 <div className="mt-4 pt-3 border-t border-slate-700/50 flex justify-between items-end relative z-10">
-                  <div className="text-slate-300 text-sm font-medium">Total Due</div>
+                  <div className="text-slate-300 text-sm font-medium">{t("total_due", "Total Due")}</div>
                   <div className="text-2xl font-extrabold text-rose-400 tracking-tight">
                     ₹{farmerPreviousBalance.total.toFixed(2)}
                   </div>
@@ -553,13 +555,13 @@ const PaymentAndReceipt: React.FC = () => {
 
                 <h3 className="text-emerald-100 font-semibold text-xs tracking-[0.2em] uppercase mb-3 flex items-center gap-2 relative z-10">
                   <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
-                  Transaction Summary
+                  {t("transaction_summary", "Transaction Summary")}
                 </h3>
                 
                 <div className="flex justify-between items-center mb-3 relative z-10">
                   <div>
                     <div className="text-emerald-100 text-[10px] uppercase tracking-wider font-semibold mb-1">
-                      {formData.amountTaken ? 'Taking / Debiting' : 'Receiving / Crediting'}
+                      {formData.amountTaken ? t("taking_debiting", "Taking / Debiting") : t("receiving_crediting", "Receiving / Crediting")}
                     </div>
                     <div className="text-xl font-extrabold flex items-center gap-1">
                       {formData.amountTaken ? (
@@ -576,7 +578,7 @@ const PaymentAndReceipt: React.FC = () => {
                 </div>
                 
                 <div className="pt-5 border-t border-emerald-400/30 flex justify-between items-end relative z-10">
-                  <div className="text-emerald-50 text-sm font-medium">New Total Balance</div>
+                  <div className="text-emerald-50 text-sm font-medium">{t("new_total_balance", "New Total Balance")}</div>
                   <div className="text-2xl font-extrabold text-white tracking-tight">
                     ₹{(
                       (farmerPreviousBalance?.total || 0) +
@@ -592,12 +594,12 @@ const PaymentAndReceipt: React.FC = () => {
         {/* Payment Details Form */}
         <Card className="bg-white/70 backdrop-blur-xl border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden rounded-2xl py-0 gap-0">
           <CardHeader className="px-4 py-3 !pb-3 border-b border-slate-100/50 bg-white/50">
-            <CardTitle className="text-lg font-semibold text-slate-800">Payment Entry</CardTitle>
+            <CardTitle className="text-lg font-semibold text-slate-800">{t("payment_entry", "Payment Entry")}</CardTitle>
           </CardHeader>
           <CardContent className="p-4 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1.5 group">
-                <Label className="text-sm font-medium text-gray-700">Payment Type</Label>
+                <Label className="text-sm font-medium text-gray-700">{t("payment_type", "Payment Type")}</Label>
                 <Select
                   value={formData.paymentType}
                   onValueChange={(value) => {
@@ -608,7 +610,7 @@ const PaymentAndReceipt: React.FC = () => {
                   }}
                 >
                   <SelectTrigger className="w-full h-10 border-gray-200">
-                    <SelectValue placeholder="Select Type" />
+                    <SelectValue placeholder={t("select_type", "Select Type")} />
                   </SelectTrigger>
                   <SelectContent className="bg-white rounded-xl shadow-xl border-slate-100">
                     <SelectItem value="Advance" className="rounded-lg cursor-pointer hover:bg-indigo-50">Advance</SelectItem>
@@ -622,7 +624,7 @@ const PaymentAndReceipt: React.FC = () => {
               {formData.paymentType === "Cattle Feed" && (
                 <>
                   <div className="space-y-1.5 group">
-                    <Label className="text-sm font-medium text-gray-700">Select Stock</Label>
+                    <Label className="text-sm font-medium text-gray-700">{t("select_stock", "Select Stock")}</Label>
                     <Select
                       value={selectedStock?.id.toString() || ""}
                       onValueChange={(value) => {
@@ -634,12 +636,12 @@ const PaymentAndReceipt: React.FC = () => {
                       }}
                     >
                       <SelectTrigger className="w-full h-10 border-gray-200">
-                        <SelectValue placeholder="Select Stock" />
+                        <SelectValue placeholder={t("select_stock", "Select Stock")} />
                       </SelectTrigger>
                       <SelectContent className="bg-white rounded-xl shadow-xl border-slate-100">
                         {cattleFeedStocks.map((stock) => (
                           <SelectItem key={stock.id} value={stock.id.toString()} className="rounded-lg cursor-pointer hover:bg-indigo-50">
-                            {stock.stock_name} <span className="text-slate-400 ml-1">({stock.stock} units)</span>
+                            {stock.stock_name} <span className="text-slate-400 ml-1">({stock.stock} {t("units", "units")})</span>
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -647,7 +649,7 @@ const PaymentAndReceipt: React.FC = () => {
                   </div>
 
                   <div className="space-y-1.5 group">
-                    <Label className="text-sm font-medium text-gray-700">Rate (₹/unit)</Label>
+                    <Label className="text-sm font-medium text-gray-700">{t("rate_rs_unit", "Rate (₹/unit)")}</Label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 font-semibold">₹</span>
                       <Input
@@ -668,10 +670,10 @@ const PaymentAndReceipt: React.FC = () => {
                   </div>
 
                   <div className="space-y-1.5 group">
-                    <Label className="text-sm font-medium text-gray-700">Quantity</Label>
+                    <Label className="text-sm font-medium text-gray-700">{t("quantity", "Quantity")}</Label>
                     <Input
                       type="number"
-                      placeholder="Qty"
+                      placeholder={t("qty", "Qty")}
                       className="h-10 border-gray-200"
                       value={stockQuantity}
                       onChange={(e) => {
@@ -688,7 +690,7 @@ const PaymentAndReceipt: React.FC = () => {
               )}
 
               <div className="space-y-1.5 group">
-                <Label htmlFor="amountTaken" className="text-sm font-medium text-gray-700">Amount Taken (Debit)</Label>
+                <Label htmlFor="amountTaken" className="text-sm font-medium text-gray-700">{t("amount_taken_debit", "Amount Taken (Debit)")}</Label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 font-semibold">₹</span>
                   <Input
@@ -703,7 +705,7 @@ const PaymentAndReceipt: React.FC = () => {
               </div>
 
               <div className="space-y-1.5 group">
-                <Label htmlFor="receivedAmount" className="text-sm font-medium text-gray-700">Received Amount (Credit)</Label>
+                <Label htmlFor="receivedAmount" className="text-sm font-medium text-gray-700">{t("received_amount_credit", "Received Amount (Credit)")}</Label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 font-semibold">₹</span>
                   <Input
@@ -736,13 +738,13 @@ const PaymentAndReceipt: React.FC = () => {
                     }}
                   />
                   <Label htmlFor="emiCheckbox" className="text-sm font-semibold text-slate-700 cursor-pointer">
-                    Enable EMI Options
+                    {t("enable_emi_options", "Enable EMI Options")}
                   </Label>
                 </div>
 
                 {formData.emiChecked && (
                   <div className="flex-1 max-w-xs space-y-1.5 animate-in slide-in-from-left-4 fade-in duration-300">
-                    <Label htmlFor="emiAmount" className="text-sm font-medium text-gray-700">EMI Amount</Label>
+                    <Label htmlFor="emiAmount" className="text-sm font-medium text-gray-700">{t("emi_amount", "EMI Amount")}</Label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 font-semibold">₹</span>
                       <Input
@@ -768,10 +770,10 @@ const PaymentAndReceipt: React.FC = () => {
                 {loading ? (
                   <div className="flex items-center gap-2">
                     <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                    <span>Processing...</span>
+                    <span>{t("processing", "Processing...")}</span>
                   </div>
                 ) : (
-                  "Confirm Payment"
+                  t("confirm_payment", "Confirm Payment")
                 )}
               </Button>
             </div>
@@ -782,12 +784,12 @@ const PaymentAndReceipt: React.FC = () => {
         <Card className="bg-white/70 backdrop-blur-xl border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden rounded-2xl py-0 gap-0">
           <CardHeader className="px-4 py-3 !pb-3 border-b border-slate-100/50 bg-white/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <CardTitle className="text-lg font-semibold text-slate-800">Recent Transactions</CardTitle>
-              <CardDescription className="text-slate-500 font-medium">Viewing {paymentData.length} records</CardDescription>
+              <CardTitle className="text-lg font-semibold text-slate-800">{t("recent_transactions", "Recent Transactions")}</CardTitle>
+              <CardDescription className="text-slate-500 font-medium">{t("viewing", "Viewing ")}{paymentData.length}{t("records", " records")}</CardDescription>
             </div>
             <div className="flex gap-3 items-center flex-wrap">
               <div className="flex items-center gap-1.5 bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-sm h-8">
-                <span className="text-[11px] font-bold text-slate-500 uppercase leading-none mt-0.5">Limit</span>
+                <span className="text-[11px] font-bold text-slate-500 uppercase leading-none mt-0.5">{t("limit", "Limit")}</span>
                 <Select value={perPage.toString()} onValueChange={(v) => { setPerPage(parseInt(v)); setCurrentPage(1); }}>
                   <SelectTrigger className="w-auto !gap-1 bg-transparent !border-none !shadow-none focus:ring-0 text-xs font-semibold text-slate-700 !p-0 !h-auto leading-none">
                     <SelectValue />
@@ -800,10 +802,10 @@ const PaymentAndReceipt: React.FC = () => {
                 </Select>
               </div>
               <Button size="sm" className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 shadow-sm h-8 rounded-lg px-3 text-xs font-semibold transition-all">
-                Export Excel
+                {t("export_excel", "Export Excel")}
               </Button>
               <Button size="sm" className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 shadow-sm h-8 rounded-lg px-3 text-xs font-semibold transition-all">
-                Export PDF
+                {t("export_pdf", "Export PDF")}
               </Button>
             </div>
           </CardHeader>
@@ -812,14 +814,14 @@ const PaymentAndReceipt: React.FC = () => {
               <table className="w-full text-sm text-left">
                 <thead className="text-xs text-slate-500 uppercase tracking-wider bg-slate-50/80 border-b border-slate-100">
                   <tr>
-                    <th className="py-3.5 px-4 font-semibold">Date</th>
-                    <th className="py-3.5 px-4 font-semibold">Farmer ID</th>
-                    <th className="py-3.5 px-4 font-semibold">Name</th>
-                    <th className="py-3.5 px-4 font-semibold text-right">Advance</th>
-                    <th className="py-3.5 px-4 font-semibold text-right">Cattle Feed</th>
-                    <th className="py-3.5 px-4 font-semibold text-right">Other 1</th>
-                    <th className="py-3.5 px-4 font-semibold text-right">Other 2</th>
-                    <th className="py-3.5 px-4 font-semibold text-right">Received</th>
+                    <th className="py-3.5 px-4 font-semibold">{t("date", "Date")}</th>
+                    <th className="py-3.5 px-4 font-semibold">{t("farmer_id", "Farmer ID")}</th>
+                    <th className="py-3.5 px-4 font-semibold">{t("name", "Name")}</th>
+                    <th className="py-3.5 px-4 font-semibold text-right">{t("advance", "Advance")}</th>
+                    <th className="py-3.5 px-4 font-semibold text-right">{t("cattle_feed", "Cattle Feed")}</th>
+                    <th className="py-3.5 px-4 font-semibold text-right">{t("other_1", "Other 1")}</th>
+                    <th className="py-3.5 px-4 font-semibold text-right">{t("other_2", "Other 2")}</th>
+                    <th className="py-3.5 px-4 font-semibold text-right">{t("received", "Received")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -859,8 +861,8 @@ const PaymentAndReceipt: React.FC = () => {
                       <td colSpan={8} className="py-12 text-center">
                         <div className="flex flex-col items-center justify-center text-slate-400">
                           <CircleUserRound className="h-12 w-12 mb-3 opacity-20" />
-                          <p className="text-base font-medium">No transactions found</p>
-                          <p className="text-xs mt-1">Select a VLC and date to view records</p>
+                          <p className="text-base font-medium">{t("no_transactions_found", "No transactions found")}</p>
+                          <p className="text-xs mt-1">{t("select_a_vlc_and_date_to_view", "Select a VLC and date to view records")}</p>
                         </div>
                       </td>
                     </tr>
@@ -872,7 +874,7 @@ const PaymentAndReceipt: React.FC = () => {
             {paymentData.length > 0 && (
               <div className="flex flex-col sm:flex-row justify-between items-center px-4 py-4 border-t border-slate-100 bg-slate-50/50 gap-4">
                 <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-                  Showing <span className="text-slate-900 font-bold">{(currentPage - 1) * perPage + 1}</span> - <span className="text-slate-900 font-bold">{Math.min(currentPage * perPage, paymentData.length)}</span> of <span className="text-slate-900 font-bold">{paymentData.length}</span>
+                  {t("showing", "Showing ")}<span className="text-slate-900 font-bold">{(currentPage - 1) * perPage + 1}</span>{t("dash", " - ")}<span className="text-slate-900 font-bold">{Math.min(currentPage * perPage, paymentData.length)}</span>{t("of", " of ")}<span className="text-slate-900 font-bold">{paymentData.length}</span>
                 </div>
                 <div className="flex gap-2 items-center">
                   <Button
@@ -882,7 +884,7 @@ const PaymentAndReceipt: React.FC = () => {
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
                   >
-                    <ChevronLeft className="h-4 w-4 mr-1" /> Prev
+                    <ChevronLeft className="h-4 w-4 mr-1" /> {t("prev", " Prev")}
                   </Button>
                   <div className="text-sm font-bold text-slate-700 px-2">
                     {currentPage} / {Math.ceil(paymentData.length / perPage) || 1}
@@ -894,7 +896,7 @@ const PaymentAndReceipt: React.FC = () => {
                     onClick={() => setCurrentPage(p => Math.min(Math.ceil(paymentData.length / perPage), p + 1))}
                     disabled={currentPage >= Math.ceil(paymentData.length / perPage)}
                   >
-                    Next <ChevronRight className="h-4 w-4 ml-1" />
+                    {t("next", "Next ")} <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>
                 </div>
               </div>
@@ -911,7 +913,7 @@ const PaymentAndReceipt: React.FC = () => {
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <div>
                 <h3 className="text-lg font-bold text-slate-800">
-                  Transaction Details
+                  {t("transaction_details", "Transaction Details")}
                 </h3>
                 <p className="text-sm text-slate-500 font-medium">
                   {selectedGroupedRecord.farmer_name} ({selectedGroupedRecord.farmer_id}) - {format(new Date(selectedGroupedRecord.date), "dd MMM yyyy")}
@@ -934,18 +936,18 @@ const PaymentAndReceipt: React.FC = () => {
                 <table className="w-full text-sm text-left">
                   <thead className="bg-slate-50 text-xs uppercase text-slate-500 font-semibold border-b border-slate-200">
                     <tr>
-                      <th className="py-3 px-4">Type</th>
-                      <th className="py-3 px-4">Description / Stock</th>
-                      <th className="py-3 px-4 text-right">Debit</th>
-                      <th className="py-3 px-4 text-right">Credit</th>
-                      <th className="py-3 px-4 text-center">Action</th>
+                      <th className="py-3 px-4">{t("type", "Type")}</th>
+                      <th className="py-3 px-4">{t("description_stock", "Description / Stock")}</th>
+                      <th className="py-3 px-4 text-right">{t("debit", "Debit")}</th>
+                      <th className="py-3 px-4 text-right">{t("credit", "Credit")}</th>
+                      <th className="py-3 px-4 text-center">{t("action", "Action")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {selectedGroupedRecord.records.length > 0 ? selectedGroupedRecord.records.map((record: any) => (
                       <tr key={`${record._source}-${record.id}`} className="hover:bg-slate-50/50">
                         <td className="py-3 px-4 font-medium text-slate-700 capitalize">
-                          {record.payment_type || 'Unknown'}
+                          {record.payment_type || t("unknown", "Unknown")}
                         </td>
                         <td className="py-3 px-4 text-slate-600">
                           {record.descriptions || record.stock_name || '-'}
@@ -970,7 +972,7 @@ const PaymentAndReceipt: React.FC = () => {
                     )) : (
                       <tr>
                         <td colSpan={5} className="py-6 text-center text-slate-500">
-                          No records found.
+                          {t("no_records_found", "No records found.")}
                         </td>
                       </tr>
                     )}

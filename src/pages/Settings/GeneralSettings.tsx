@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { useAppSelector } from "@/redux/store";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -70,7 +71,7 @@ const SelectAllBox = ({
       className="h-4 w-4 border-gray-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
     />
     <span className="text-xs font-medium text-gray-500 group-hover:text-blue-500 transition-colors">
-      {allOn ? "Deselect All" : "Select All"}
+      {allOn ? (typeof window !== "undefined" && window.localStorage.getItem("i18nextLng") === "hi" ? "सभी अचयनित करें" : "Deselect All") : (typeof window !== "undefined" && window.localStorage.getItem("i18nextLng") === "hi" ? "सभी चुनें" : "Select All")}
     </span>
   </label>
 );
@@ -136,6 +137,7 @@ const SegmentControl = ({
 );
 
 const GeneralSettings = () => {
+  const { t } = useTranslation();
   const branches = useAppSelector((state) => state.branch.branches);
   const [selectedVlc, setSelectedVlc] = useState("");
   const [vlcOpen, setVlcOpen] = useState(false);
@@ -281,7 +283,7 @@ const GeneralSettings = () => {
           cc: s.cc ?? 0,
         };
       }
-    } catch { toast.error("Failed to fetch settings"); }
+    } catch { toast.error(t("failed_to_fetch_settings", "Failed to fetch settings")); }
   };
 
   const fetchReportSettings = async () => {
@@ -328,8 +330,8 @@ const GeneralSettings = () => {
   };
 
   const handlePasswordSave = async () => {
-    if (!selectedVlc) { toast.error("Please select a VLC"); return; }
-    if (!password.trim()) { toast.error("Please enter a password"); return; }
+    if (!selectedVlc) { toast.error(t("please_select_vlc", "Please select a VLC")); return; }
+    if (!password.trim()) { toast.error(t("please_enter_a_password", "Please enter a password")); return; }
     try {
       const result = hasPassword
         ? await passwordApiService.updatePassword(selectedVlc, password)
@@ -337,8 +339,8 @@ const GeneralSettings = () => {
       if (result.success) {
         toast.success(result.message || `Password ${hasPassword ? "updated" : "created"} successfully`);
         setHasPassword(true); setPassword("");
-      } else { toast.error(result.message || "Failed to save password"); }
-    } catch { toast.error("Failed to save password"); }
+      } else { toast.error(result.message || t("failed_to_save_password", "Failed to save password")); }
+    } catch { toast.error(t("failed_to_save_password", "Failed to save password")); }
   };
 
   // Build a snapshot object from current state for comparison
@@ -379,8 +381,8 @@ const GeneralSettings = () => {
     );
 
   const handleSave = async () => {
-    if (!selectedVlc) { toast.error("Please select a VLC"); return; }
-    if (!hasChanges) { toast.info("No changes made. Please modify settings before saving."); return; }
+    if (!selectedVlc) { toast.error(t("please_select_vlc", "Please select a VLC")); return; }
+    if (!hasChanges) { toast.info(t("no_changes_made", "No changes made. Please modify settings before saving.")); return; }
     try {
       const { data } = await settingsApi.update({
         vlc: selectedVlc, add_farmer: addFarmer, rate_chart: rateChart,
@@ -388,7 +390,7 @@ const GeneralSettings = () => {
         analyser, weight_tier: weightTier, weight, printer, language,
         report_language: reportLanguage, show_water: showWater,
       });
-      if (data.success) toast.success("Settings updated successfully");
+      if (data.success) toast.success(t("settings_updated_successfully", "Settings updated successfully"));
       await settingsApi.updateReportSettings({
         vlc: selectedVlc, show_shift_report: showShiftReport,
         show_total_collection: showTotalCollection, show_payment_summary: showPaymentSummary,
@@ -401,11 +403,11 @@ const GeneralSettings = () => {
       localStorage.setItem(`cc_analysis_type_${selectedVlc}`, ccAnalysisType.toString());
       // Update snapshot to new saved state so button resets
       savedSnapshot.current = buildCurrentSnapshot();
-    } catch { toast.error("Failed to update settings"); }
+    } catch { toast.error(t("failed_to_update_settings", "Failed to update settings")); }
   };
 
   const handleShowWaterChange = (checked: boolean) => {
-    if (!selectedVlc) { toast.error("Please select a VLC first"); return; }
+    if (!selectedVlc) { toast.error(t("please_select_vlc_first", "Please select a VLC first")); return; }
     setShowWater(checked ? 1 : 0);
   };
 
@@ -419,8 +421,8 @@ const GeneralSettings = () => {
             <Settings2 className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h1 className="text-base font-bold text-gray-900 leading-tight">General Settings</h1>
-            <p className="text-xs text-gray-500 leading-tight">Language · Modules · Reports · Security</p>
+            <h1 className="text-base font-bold text-gray-900 leading-tight">{t("general_settings", "General Settings")}</h1>
+            <p className="text-xs text-gray-500 leading-tight">{t("language_modules_reports_security", "Language · Modules · Reports · Security")}</p>
           </div>
         </div>
         <Button
@@ -433,7 +435,7 @@ const GeneralSettings = () => {
           )}
         >
           <Save className="h-4 w-4" />
-          {hasChanges ? "Save Changes" : "No Changes"}
+          {hasChanges ? t("save_changes", "Save Changes") : t("no_changes", "No Changes")}
         </Button>
       </div>
 
@@ -444,10 +446,10 @@ const GeneralSettings = () => {
 
           {/* Language */}
           <SectionCard>
-            <SectionHeader icon={Languages} title="Language Preferences" />
+            <SectionHeader icon={Languages} title={t("language_preferences", "Language Preferences")} />
             <div className="p-4 space-y-4">
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">App Language</p>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t("app_language", "App Language")}</p>
                 <RadioGroup
                   value={language.toLowerCase()}
                   onValueChange={(val) => setLanguage(val.charAt(0).toUpperCase() + val.slice(1))}
@@ -470,7 +472,7 @@ const GeneralSettings = () => {
                 </RadioGroup>
               </div>
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Report Language</p>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t("report_language", "Report Language")}</p>
                 <RadioGroup
                   value={reportLanguage.toLowerCase()}
                   onValueChange={(val) => setReportLanguage(val.charAt(0).toUpperCase() + val.slice(1))}
@@ -498,7 +500,7 @@ const GeneralSettings = () => {
           <div className="space-y-3">
             {/* VLC Selector — searchable combobox (no-animation div-based) */}
             <SectionCard className="overflow-visible">
-              <SectionHeader icon={Settings2} title="Select VLC" />
+              <SectionHeader icon={Settings2} title={t("select_vlc", "Select VLC")} />
               <div className="p-4 overflow-visible">
                 {(() => {
                   const selectedBranch = branches.find((b) => b.branch_id.toString() === selectedVlc);
@@ -529,7 +531,7 @@ const GeneralSettings = () => {
                         <span className={selectedBranch ? "text-gray-800 font-medium truncate" : "text-gray-400"}>
                           {selectedBranch
                             ? `${selectedBranch.username} — ${selectedBranch.name}${selectedBranch.branchName ? ` — ${selectedBranch.branchName}` : ""}`
-                            : "Choose a VLC branch..."}
+                            : t("choose_vlc_branch_settings", "Choose a VLC branch...")}
                         </span>
                         <ChevronDown
                           className={cn("h-4 w-4 text-gray-400 flex-shrink-0 ml-2 transition-transform duration-150", vlcOpen && "rotate-180")}
@@ -549,7 +551,7 @@ const GeneralSettings = () => {
                               ref={vlcSearchRef}
                               value={vlcSearch}
                               onChange={(e) => setVlcSearch(e.target.value)}
-                              placeholder="Search VLC..."
+                              placeholder={t("search_vlc", "Search VLC...")}
                               className="flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400"
                             />
                             {vlcSearch && (
@@ -565,7 +567,7 @@ const GeneralSettings = () => {
                           {/* Options */}
                           <div className="max-h-48 overflow-y-auto">
                             {filtered.length === 0 ? (
-                              <div className="px-3 py-4 text-center text-sm text-gray-400">No branches found</div>
+                              <div className="px-3 py-4 text-center text-sm text-gray-400">{t("no_branches_found", "No branches found")}</div>
                             ) : (
                               filtered.map((branch) => {
                                 const val = branch.branch_id.toString();
@@ -604,7 +606,7 @@ const GeneralSettings = () => {
                 {!selectedVlc && (
                   <p className="text-xs text-amber-500 mt-2 flex items-center gap-1.5">
                     <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400" />
-                    Select a VLC to load and save settings
+                    {t("select_vlc_to_load", "Select a VLC to load and save settings")}
                   </p>
                 )}
               </div>
@@ -612,15 +614,15 @@ const GeneralSettings = () => {
 
             {/* System Toggles */}
             <SectionCard>
-              <SectionHeader icon={ToggleLeft} title="System Toggles">
+              <SectionHeader icon={ToggleLeft} title={t("system_toggles", "System Toggles")}>
                 <SelectAllBox allOn={allSwitchesOn} someOn={someSwitchesOn} onToggle={handleSelectAllSwitches} />
               </SectionHeader>
               <div className="p-4 grid grid-cols-1 gap-2.5">
-                <SwitchRow icon={BarChart3} label="Analyser" checked={analyser === 1} onChange={(c) => setAnalyser(c ? 1 : 0)} />
-                <SwitchRow icon={Layers} label="Weight Tier" checked={weightTier === 1} onChange={(c) => setWeightTier(c ? 1 : 0)} />
-                <SwitchRow icon={MessageCircle} label="CC" checked={cc === 1} onChange={(c) => setCc(c ? 1 : 0)} />
-                <SwitchRow icon={Scale} label="Weight" checked={weight === 1} onChange={(c) => setWeight(c ? 1 : 0)} />
-                <SwitchRow icon={Printer} label="Printer" checked={printer === 1} onChange={(c) => setPrinter(c ? 1 : 0)} />
+                <SwitchRow icon={BarChart3} label={t("analyser", "Analyser")} checked={analyser === 1} onChange={(c) => setAnalyser(c ? 1 : 0)} />
+                <SwitchRow icon={Layers} label={t("weight_tier", "Weight Tier")} checked={weightTier === 1} onChange={(c) => setWeightTier(c ? 1 : 0)} />
+                <SwitchRow icon={MessageCircle} label={t("cc", "CC")} checked={cc === 1} onChange={(c) => setCc(c ? 1 : 0)} />
+                <SwitchRow icon={Scale} label={t("weight", "Weight")} checked={weight === 1} onChange={(c) => setWeight(c ? 1 : 0)} />
+                <SwitchRow icon={Printer} label={t("printer", "Printer")} checked={printer === 1} onChange={(c) => setPrinter(c ? 1 : 0)} />
               </div>
             </SectionCard>
           </div>
@@ -630,34 +632,34 @@ const GeneralSettings = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {/* Feature Management */}
           <SectionCard>
-            <SectionHeader icon={Settings2} title="Feature Management">
+            <SectionHeader icon={Settings2} title={t("feature_management", "Feature Management")}>
               <SelectAllBox allOn={allFeaturesOn} someOn={someFeaturesOn} onToggle={handleSelectAllFeatures} />
             </SectionHeader>
             <div className="p-4 grid grid-cols-1 gap-2.5">
-              <FeatureRow id="feat-add-farmer" icon={UserPlus} label="Add Farmer" checked={addFarmer === 1} onChange={(c) => setAddFarmer(c ? 1 : 0)} />
-              <FeatureRow id="feat-rate-chart" icon={TrendingUp} label="Rate Chart" checked={rateChart === 1} onChange={(c) => setRateChart(c ? 1 : 0)} />
-              <FeatureRow id="feat-deduction" icon={Minus} label="Deduction" checked={deduction === 1} onChange={(c) => setDeduction(c ? 1 : 0)} />
-              <FeatureRow id="feat-payment" icon={CreditCard} label="Payment & Receipt" checked={paymentReceipt === 1} onChange={(c) => setPaymentReceipt(c ? 1 : 0)} />
-              <FeatureRow id="feat-bill" icon={FileText} label="Generate Bill" checked={generateBill === 1} onChange={(c) => setGenerateBill(c ? 1 : 0)} />
+              <FeatureRow id="feat-add-farmer" icon={UserPlus} label={t("add_farmer", "Add Farmer")} checked={addFarmer === 1} onChange={(c) => setAddFarmer(c ? 1 : 0)} />
+              <FeatureRow id="feat-rate-chart" icon={TrendingUp} label={t("rate_chart", "Rate Chart")} checked={rateChart === 1} onChange={(c) => setRateChart(c ? 1 : 0)} />
+              <FeatureRow id="feat-deduction" icon={Minus} label={t("deduction", "Deduction")} checked={deduction === 1} onChange={(c) => setDeduction(c ? 1 : 0)} />
+              <FeatureRow id="feat-payment" icon={CreditCard} label={t("payment_receipt", "Payment & Receipt")} checked={paymentReceipt === 1} onChange={(c) => setPaymentReceipt(c ? 1 : 0)} />
+              <FeatureRow id="feat-bill" icon={FileText} label={t("generate_bill", "Generate Bill")} checked={generateBill === 1} onChange={(c) => setGenerateBill(c ? 1 : 0)} />
             </div>
           </SectionCard>
 
           {/* Report Visibility */}
           <SectionCard>
-            <SectionHeader icon={FileText} title="Report Visibility">
+            <SectionHeader icon={FileText} title={t("report_visibility", "Report Visibility")}>
               <SelectAllBox allOn={allReportsOn} someOn={someReportsOn} onToggle={handleSelectAllReports} />
             </SectionHeader>
             <div className="p-4 grid grid-cols-2 gap-2.5">
-              <SwitchRow icon={ClipboardList} label="Shift Report" checked={showShiftReport === 1} onChange={(c) => setShowShiftReport(c ? 1 : 0)} />
-              <SwitchRow icon={BarChart3} label="Total Collection" checked={showTotalCollection === 1} onChange={(c) => setShowTotalCollection(c ? 1 : 0)} />
-              <SwitchRow icon={PieChart} label="Payment Summary" checked={showPaymentSummary === 1} onChange={(c) => setShowPaymentSummary(c ? 1 : 0)} />
-              <SwitchRow icon={ListOrdered} label="Rate Chart" checked={showReportRateChart === 1} onChange={(c) => setShowReportRateChart(c ? 1 : 0)} />
-              <SwitchRow icon={FileText} label="Farmer Bill" checked={showFarmerBill === 1} onChange={(c) => setShowFarmerBill(c ? 1 : 0)} />
-              <SwitchRow icon={Users} label="Farmer List" checked={showFarmerList === 1} onChange={(c) => setShowFarmerList(c ? 1 : 0)} />
-              <SwitchRow icon={Diff} label="Difference Report" checked={showDifferenceReport === 1} onChange={(c) => setShowDifferenceReport(c ? 1 : 0)} />
-              <SwitchRow icon={Minus} label="Bonus Deduction" checked={showBonusDeduction === 1} onChange={(c) => setShowBonusDeduction(c ? 1 : 0)} />
-              <SwitchRow icon={History} label="Collection History" checked={showCollectionHistory === 1} onChange={(c) => setShowCollectionHistory(c ? 1 : 0)} />
-              <SwitchRow icon={Package} label="Cattle Feed" checked={showCattleFeed === 1} onChange={(c) => setShowCattleFeed(c ? 1 : 0)} />
+              <SwitchRow icon={ClipboardList} label={t("shift_report", "Shift Report")} checked={showShiftReport === 1} onChange={(c) => setShowShiftReport(c ? 1 : 0)} />
+              <SwitchRow icon={BarChart3} label={t("total_collection", "Total Collection")} checked={showTotalCollection === 1} onChange={(c) => setShowTotalCollection(c ? 1 : 0)} />
+              <SwitchRow icon={PieChart} label={t("payment_summary", "Payment Summary")} checked={showPaymentSummary === 1} onChange={(c) => setShowPaymentSummary(c ? 1 : 0)} />
+              <SwitchRow icon={ListOrdered} label={t("rate_chart", "Rate Chart")} checked={showReportRateChart === 1} onChange={(c) => setShowReportRateChart(c ? 1 : 0)} />
+              <SwitchRow icon={FileText} label={t("farmer_bill", "Farmer Bill")} checked={showFarmerBill === 1} onChange={(c) => setShowFarmerBill(c ? 1 : 0)} />
+              <SwitchRow icon={Users} label={t("farmer_list", "Farmer List")} checked={showFarmerList === 1} onChange={(c) => setShowFarmerList(c ? 1 : 0)} />
+              <SwitchRow icon={Diff} label={t("difference_report", "Difference Report")} checked={showDifferenceReport === 1} onChange={(c) => setShowDifferenceReport(c ? 1 : 0)} />
+              <SwitchRow icon={Minus} label={t("bonus_deduction", "Bonus Deduction")} checked={showBonusDeduction === 1} onChange={(c) => setShowBonusDeduction(c ? 1 : 0)} />
+              <SwitchRow icon={History} label={t("collection_history", "Collection History")} checked={showCollectionHistory === 1} onChange={(c) => setShowCollectionHistory(c ? 1 : 0)} />
+              <SwitchRow icon={Package} label={t("cattle_feed", "Cattle Feed")} checked={showCattleFeed === 1} onChange={(c) => setShowCattleFeed(c ? 1 : 0)} />
             </div>
           </SectionCard>
         </div>
@@ -666,26 +668,26 @@ const GeneralSettings = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {/* Password */}
           <SectionCard>
-            <SectionHeader icon={Lock} title="Password Management" />
+            <SectionHeader icon={Lock} title={t("password_management", "Password Management")} />
             <div className="p-4 space-y-3">
               <p className="text-xs text-gray-500">
-                {hasPassword ? "Update the existing settings password." : "Create a password to protect settings."}
+                {hasPassword ? t("update_existing_settings_password", "Update the existing settings password.") : t("create_password_to_protect", "Create a password to protect settings.")}
               </p>
               <div className="flex gap-2">
                 <input
                   type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter password"
+                  placeholder={t("enter_password_placeholder", "Enter password")}
                   className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400"
                 />
                 <Button onClick={handlePasswordSave} size="sm"
                   className="px-4 py-2 h-auto text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
-                  {hasPassword ? "Update" : "Create"}
+                  {hasPassword ? t("update", "Update") : t("create", "Create")}
                 </Button>
               </div>
               {hasPassword && (
                 <p className="text-xs text-green-600 flex items-center gap-1.5">
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500" />
-                  Password is currently set
+                  {t("password_currently_set", "Password is currently set")}
                 </p>
               )}
             </div>
@@ -693,34 +695,34 @@ const GeneralSettings = () => {
 
           {/* Other Settings */}
           <SectionCard>
-            <SectionHeader icon={Settings2} title="Other Settings" />
+            <SectionHeader icon={Settings2} title={t("other_settings", "Other Settings")} />
             <div className="p-4 grid grid-cols-1 gap-2.5">
-              <SwitchRow icon={Scale} label="Show Water" checked={showWater === 1} onChange={handleShowWaterChange} />
+              <SwitchRow icon={Scale} label={t("show_water", "Show Water")} checked={showWater === 1} onChange={handleShowWaterChange} />
               <SwitchRow
-                icon={Package} label="Cattle Feed Lump Sum"
+                icon={Package} label={t("cattle_feed_lump_sum", "Cattle Feed Lump Sum")}
                 checked={cattleFeedLumpSum === 1}
                 onChange={(c) => { const v = c ? 1 : 0; setCattleFeedLumpSum(v); localStorage.setItem("cattleFeedLumpSum", v.toString()); }}
               />
-              <SwitchRow icon={Layers} label="Multiple Modal" checked={multipleModal === 1} onChange={(c) => setMultipleModal(c ? 1 : 0)} />
+              <SwitchRow icon={Layers} label={t("multiple_modal", "Multiple Modal")} checked={multipleModal === 1} onChange={(c) => setMultipleModal(c ? 1 : 0)} />
             </div>
           </SectionCard>
 
           {/* CC Collection Settings */}
           <SectionCard>
-            <SectionHeader icon={Layers} title="CC Collection" />
+            <SectionHeader icon={Layers} title={t("cc_collection", "CC Collection")} />
             <div className="p-4 space-y-4">
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Search Preference</p>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t("search_preference", "Search Preference")}</p>
                 <SegmentControl
                   value={ccSearchType} onChange={setCcSearchType}
-                  options={[{ label: "Farmer ID", val: 0 }, { label: "Sample ID", val: 1 }]}
+                  options={[{ label: t("farmer_id", "Farmer ID"), val: 0 }, { label: t("sample_id", "Sample ID"), val: 1 }]}
                 />
               </div>
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Analysis Mode</p>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t("analysis_mode", "Analysis Mode")}</p>
                 <SegmentControl
                   value={ccAnalysisType} onChange={setCcAnalysisType}
-                  options={[{ label: "FAT / SNF", val: 0 }, { label: "FAT / CLR", val: 1 }]}
+                  options={[{ label: t("fat_snf", "FAT / SNF"), val: 0 }, { label: t("fat_clr", "FAT / CLR"), val: 1 }]}
                 />
               </div>
             </div>

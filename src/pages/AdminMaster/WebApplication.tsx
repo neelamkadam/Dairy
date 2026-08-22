@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { adminApi } from '@/services/adminApi';
 import { toast } from 'react-toastify';
 import {
@@ -21,6 +22,7 @@ import {
 } from '@/components/ui/select';
 
 export const WebApplication: React.FC = () => {
+  const { t } = useTranslation();
   const [webUsers, setWebUsers] = useState<any[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -43,7 +45,7 @@ export const WebApplication: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching web users:', error);
-      toast.error('Failed to fetch web users');
+      toast.error(t("failed_to_fetch_web_users", 'Failed to fetch web users'));
     }
   };
 
@@ -76,12 +78,12 @@ export const WebApplication: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="bg-white rounded-lg shadow-sm border p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-6">Web Applications</h2>
+        <h2 className="text-xl font-semibold text-gray-900 mb-6">{t("web_applications", "Web Applications")}</h2>
         
         <div className="flex items-center gap-4 mb-6">
           <div className="flex-1 flex gap-2">
             <Input
-              placeholder="Search..."
+              placeholder={t("search", "Search...")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -102,7 +104,7 @@ export const WebApplication: React.FC = () => {
                 <SelectItem value="100">100</SelectItem>
               </SelectContent>
             </Select>
-            <span className="text-sm text-gray-600">per page</span>
+            <span className="text-sm text-gray-600">{t("per_page", "per page")}</span>
           </div>
         </div>
 
@@ -110,10 +112,10 @@ export const WebApplication: React.FC = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="font-semibold">Name</TableHead>
-                <TableHead className="font-semibold">Email</TableHead>
-                <TableHead className="font-semibold">Mobile Number</TableHead>
-                <TableHead className="font-semibold">Branches</TableHead>
+                <TableHead className="font-semibold">{t("name", "Name")}</TableHead>
+                <TableHead className="font-semibold">{t("email", "Email")}</TableHead>
+                <TableHead className="font-semibold">{t("mobile_number", "Mobile Number")}</TableHead>
+                <TableHead className="font-semibold">{t("branches", "Branches")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -131,7 +133,11 @@ export const WebApplication: React.FC = () => {
 
         <div className="flex justify-between items-center mt-6">
           <div className="text-sm text-gray-600">
-            Showing {filteredUsers.length > 0 ? (currentPage - 1) * perPage + 1 : 0} to {Math.min(currentPage * perPage, filteredUsers.length)} of {filteredUsers.length} entries
+            {t("showing_entries", "Showing {{start}} to {{end}} of {{total}} entries", { 
+              start: filteredUsers.length > 0 ? (currentPage - 1) * perPage + 1 : 0, 
+              end: Math.min(currentPage * perPage, filteredUsers.length), 
+              total: filteredUsers.length 
+            })}
           </div>
           <div className="flex gap-2 items-center">
             <Button
@@ -143,7 +149,9 @@ export const WebApplication: React.FC = () => {
             >
               <ChevronLeft size={16} />
             </Button>
-            <span className="text-sm text-gray-600">Page {currentPage} of {totalPages || 1}</span>
+            <span className="text-sm text-gray-600">
+              {t("page_of", "Page {{current}} of {{total}}", { current: currentPage, total: totalPages || 1 })}
+            </span>
             <Button
               variant="outline"
               size="sm"

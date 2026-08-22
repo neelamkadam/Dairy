@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { adminApi } from '@/services/adminApi';
 import { toast } from 'react-toastify';
 import {
@@ -21,6 +22,7 @@ import {
 } from '@/components/ui/select';
 
 export const FarmerApplication: React.FC = () => {
+  const { t } = useTranslation();
   const [farmers, setFarmers] = useState<any[]>([]);
   const [filteredFarmers, setFilteredFarmers] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -40,7 +42,7 @@ export const FarmerApplication: React.FC = () => {
         setFilteredFarmers(farmerData);
       }
     } catch (error) {
-      toast.error('Failed to fetch farmers');
+      toast.error(t("failed_to_fetch_farmers", 'Failed to fetch farmers'));
     }
   };
 
@@ -72,12 +74,12 @@ export const FarmerApplication: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="bg-white rounded-lg shadow-sm border p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-6">Farmer Applications</h2>
+        <h2 className="text-xl font-semibold text-gray-900 mb-6">{t("farmer_applications", "Farmer Applications")}</h2>
         
         <div className="flex items-center gap-4 mb-6">
           <div className="flex-1 flex gap-2">
             <Input
-              placeholder="Search..."
+              placeholder={t("search", "Search...")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -98,7 +100,7 @@ export const FarmerApplication: React.FC = () => {
                 <SelectItem value="100">100</SelectItem>
               </SelectContent>
             </Select>
-            <span className="text-sm text-gray-600">per page</span>
+            <span className="text-sm text-gray-600">{t("per_page", "per page")}</span>
           </div>
         </div>
 
@@ -106,12 +108,12 @@ export const FarmerApplication: React.FC = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="font-semibold">Username</TableHead>
-                <TableHead className="font-semibold">Full Name</TableHead>
-                <TableHead className="font-semibold">Mobile Number</TableHead>
-                <TableHead className="font-semibold">Email</TableHead>
-                <TableHead className="font-semibold">Milk Type</TableHead>
-                <TableHead className="font-semibold">Address</TableHead>
+                <TableHead className="font-semibold">{t("username", "Username")}</TableHead>
+                <TableHead className="font-semibold">{t("full_name", "Full Name")}</TableHead>
+                <TableHead className="font-semibold">{t("mobile_number", "Mobile Number")}</TableHead>
+                <TableHead className="font-semibold">{t("email", "Email")}</TableHead>
+                <TableHead className="font-semibold">{t("milk_type", "Milk Type")}</TableHead>
+                <TableHead className="font-semibold">{t("address", "Address")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -131,7 +133,11 @@ export const FarmerApplication: React.FC = () => {
 
         <div className="flex justify-between items-center mt-6">
           <div className="text-sm text-gray-600">
-            Showing {filteredFarmers.length > 0 ? (currentPage - 1) * perPage + 1 : 0} to {Math.min(currentPage * perPage, filteredFarmers.length)} of {filteredFarmers.length} entries
+            {t("showing_entries", "Showing {{start}} to {{end}} of {{total}} entries", { 
+              start: filteredFarmers.length > 0 ? (currentPage - 1) * perPage + 1 : 0, 
+              end: Math.min(currentPage * perPage, filteredFarmers.length), 
+              total: filteredFarmers.length 
+            })}
           </div>
           <div className="flex gap-2 items-center">
             <Button
@@ -143,7 +149,9 @@ export const FarmerApplication: React.FC = () => {
             >
               <ChevronLeft size={16} />
             </Button>
-            <span className="text-sm text-gray-600">Page {currentPage} of {totalPages || 1}</span>
+            <span className="text-sm text-gray-600">
+              {t("page_of", "Page {{current}} of {{total}}", { current: currentPage, total: totalPages || 1 })}
+            </span>
             <Button
               variant="outline"
               size="sm"

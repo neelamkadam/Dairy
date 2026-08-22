@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ import { toast } from "react-toastify";
 import { useAppSelector } from "@/redux/store";
 
 const GenerateBill = () => {
+  const { t } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
   const [selectedDairy, setSelectedDairy] = useState<number>(0);
   const selectedVlc = branches.find(b => b.branch_id === selectedDairy);
@@ -572,7 +574,7 @@ const GenerateBill = () => {
 
       setFarmersData(adjustedData);
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to fetch bill data");
+      toast.error(error?.response?.data?.message || t("failed_to_fetch_bill_data", "Failed to fetch bill data"));
     } finally {
       setFetchLoading(false);
     }
@@ -588,13 +590,13 @@ const GenerateBill = () => {
       );
       
       if (response.data.success) {
-        toast.success(`Successfully reset ${response.data.updatedCount} bills to unfinalized status`);
+        toast.success(t("successfully_reset", "Successfully reset ") + response.data.updatedCount + t("bills_to_unfinalized_status", " bills to unfinalized status"));
         // Refresh the data to show updated status
         await fetchBillData();
       }
     } catch (error: any) {
       console.error('❌ Error resetting bills:', error);
-      toast.error(error?.response?.data?.message || "Failed to reset bills");
+      toast.error(error?.response?.data?.message || t("failed_to_reset_bills", "Failed to reset bills"));
     } finally {
       setResetting(false);
     }
@@ -711,7 +713,7 @@ const GenerateBill = () => {
         const previousCycle = calculatePreviousBillCycle(startDate);
         if (previousCycle) {
           toast.error(
-            `Please generate and finalize bills for previous cycle (${format(previousCycle.from, 'dd-MM-yyyy')} to ${format(previousCycle.to, 'dd-MM-yyyy')}) first.`
+            t("please_generate_and_finalize_bills", "Please generate and finalize bills for previous cycle (") + `${format(previousCycle.from, 'dd-MM-yyyy')} to ${format(previousCycle.to, 'dd-MM-yyyy')}` + t("first_parentheses", ") first.")
           );
         }
         setLoading(false);
@@ -777,11 +779,11 @@ const GenerateBill = () => {
         console.log('✅ Bonus/fixed deduction logs created successfully');
       }
 
-      toast.success("Bills generated and finalized successfully");
+      toast.success(t("bills_generated_and_finalized_successfully", "Bills generated and finalized successfully"));
       await fetchBillData();
     } catch (error: any) {
       console.error('❌ Error generating bills:', error);
-      toast.error(error?.response?.data?.message || "Failed to generate bills");
+      toast.error(error?.response?.data?.message || t("failed_to_generate_bills", "Failed to generate bills"));
     } finally {
       setLoading(false);
     }
@@ -793,10 +795,10 @@ const GenerateBill = () => {
         {/* Header */}
         <div className="flex flex-col items-start text-left gap-1.5 animate-in fade-in slide-in-from-top-4 duration-700">
           <h1 className="text-xl font-extrabold tracking-tight text-slate-900">
-            Generate Bill
+            {t("generate_bill", "Generate Bill")}
           </h1>
           <p className="text-sm font-medium text-slate-500">
-            Select criteria to generate bills for farmers
+            {t("select_criteria_to_generate_bills", "Select criteria to generate bills for farmers")}
           </p>
         </div>
         
@@ -804,24 +806,24 @@ const GenerateBill = () => {
         <Card className="bg-white/70 backdrop-blur-xl border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-visible transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] rounded-2xl py-0 gap-0">
           <CardHeader className="px-4 py-3 !pb-2 border-b border-slate-100/50 bg-white/50">
             <CardTitle className="text-lg font-semibold text-slate-800">
-              Select Bill Cycle
+              {t("select_bill_cycle", "Select Bill Cycle")}
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4 py-3">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
               <div className="space-y-1.5">
-                <Label className="text-sm font-semibold text-gray-700">Select VLC</Label>
+                <Label className="text-sm font-semibold text-gray-700">{t("select_vlc", "Select VLC")}</Label>
                 <VLCDropdown
                   branches={branches}
                   value={String(selectedDairy)}
                   onChange={(val) => setSelectedDairy(Number(val))}
                   valueKey="branch_id"
-                  placeholder="Select VLC"
+                  placeholder={t("select_vlc", "Select VLC")}
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-sm font-semibold text-gray-700">Start Date</Label>
+                <Label className="text-sm font-semibold text-gray-700">{t("start_date", "Start Date")}</Label>
                 <Input
                   type="date"
                   value={format(startDate, "yyyy-MM-dd")}
@@ -831,7 +833,7 @@ const GenerateBill = () => {
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-sm font-semibold text-gray-700">End Date</Label>
+                <Label className="text-sm font-semibold text-gray-700">{t("end_date", "End Date")}</Label>
                 <Input
                   type="date"
                   value={format(endDate, "yyyy-MM-dd")}
@@ -849,10 +851,10 @@ const GenerateBill = () => {
                   {fetchLoading ? (
                     <div className="flex items-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Fetching...</span>
+                      <span>{t("fetching", "Fetching...")}</span>
                     </div>
                   ) : (
-                    "Fetch Data"
+                    t("fetch_data", "Fetch Data")
                   )}
                 </Button>
               </div>
@@ -874,12 +876,12 @@ const GenerateBill = () => {
                 {isBillFinalized ? (
                   <>
                     <Lock className="w-4 h-4" />
-                    <span>Bills Finalized</span>
+                    <span>{t("bills_finalized", "Bills Finalized")}</span>
                   </>
                 ) : (
                   <>
                     <CheckCircle className="w-4 h-4" />
-                    <span>Ready to Generate</span>
+                    <span>{t("ready_to_generate", "Ready to Generate")}</span>
                   </>
                 )}
               </div>
@@ -897,7 +899,7 @@ const GenerateBill = () => {
                     ) : (
                       <Unlock className="w-4 h-4 mr-2" />
                     )}
-                    Reset Status
+                    {t("reset_status", "Reset Status")}
                   </Button>
                 )}
                 
@@ -913,10 +915,10 @@ const GenerateBill = () => {
                   {loading ? (
                     <div className="flex items-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Generating...</span>
+                      <span>{t("generating", "Generating...")}</span>
                     </div>
                   ) : (
-                    "Generate Bills"
+                    t("generate_bills", "Generate Bills")
                   )}
                 </Button>
               </div>
@@ -925,27 +927,27 @@ const GenerateBill = () => {
             {/* Totals Summary */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-white/50 shadow-sm">
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Total Amount</p>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">{t("total_amount", "Total Amount")}</p>
                 <p className="text-lg font-bold text-gray-900">₹{totals.totalAmount.toFixed(2)}</p>
               </div>
               <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-white/50 shadow-sm">
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Total Deduction</p>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">{t("total_deduction", "Total Deduction")}</p>
                 <p className="text-lg font-bold text-rose-600">₹{totals.totalDeduction.toFixed(2)}</p>
               </div>
               <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-white/50 shadow-sm">
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Total Bonus</p>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">{t("total_bonus", "Total Bonus")}</p>
                 <p className="text-lg font-bold text-emerald-600">₹{totals.totalBonus.toFixed(2)}</p>
               </div>
               <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-white/50 shadow-sm">
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Total Fixed</p>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">{t("total_fixed", "Total Fixed")}</p>
                 <p className="text-lg font-bold text-rose-600">₹{totals.totalFixed.toFixed(2)}</p>
               </div>
               <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-white/50 shadow-sm">
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Total Remaining</p>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">{t("total_remaining", "Total Remaining")}</p>
                 <p className="text-lg font-bold text-yellow-600">₹{totals.totalRemaining.toFixed(2)}</p>
               </div>
               <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-emerald-100 shadow-sm ring-1 ring-emerald-500/10">
-                <p className="text-xs font-medium text-emerald-600 uppercase tracking-wider mb-1">Net Payable</p>
+                <p className="text-xs font-medium text-emerald-600 uppercase tracking-wider mb-1">{t("net_payable", "Net Payable")}</p>
                 <p className="text-xl font-bold text-emerald-600">₹{totals.totalNetPayable.toFixed(2)}</p>
               </div>
             </div>
@@ -956,21 +958,21 @@ const GenerateBill = () => {
                 <table className="w-full text-sm">
                   <thead className="bg-slate-100/80">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">ID</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Name</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Liter</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Amount</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Advance</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Cattle Feed</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Other1</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Other2</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">{t("id", "ID")}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">{t("name", "Name")}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">{t("liter", "Liter")}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">{t("amount", "Amount")}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">{t("advance", "Advance")}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">{t("cattle_feed", "Cattle Feed")}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">{t("other1", "Other1")}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">{t("other2", "Other2")}</th>
                       {shouldShowTravelCommission() && (
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-orange-600 bg-orange-50 uppercase tracking-wider">Travel Comm</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-orange-600 bg-orange-50 uppercase tracking-wider">{t("travel_comm", "Travel Comm")}</th>
                       )}
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Bonus</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Fixed</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Remaining</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Final Amount</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">{t("bonus", "Bonus")}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">{t("fixed", "Fixed")}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">{t("remaining", "Remaining")}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">{t("final_amount", "Final Amount")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100/50">
@@ -984,7 +986,7 @@ const GenerateBill = () => {
                           <div className="text-rose-600 font-medium">₹{(farmer.advanceDeduction || 0).toFixed(2)}</div>
                           {(farmer.advance_remaining_display > 0) && (
                              <div className="text-[10px] text-yellow-600/80 font-medium">
-                              Bal: ₹{(farmer.advance_remaining_display || 0).toFixed(2)}
+                              {t("bal_rs", "Bal: ₹")}{(farmer.advance_remaining_display || 0).toFixed(2)}
                              </div>
                           )}
                         </td>
@@ -992,7 +994,7 @@ const GenerateBill = () => {
                           <div className="text-rose-600 font-medium">₹{(farmer.cattleFeedDeduction || 0).toFixed(2)}</div>
                           {(farmer.cattlefeed_remaining_display > 0) && (
                             <div className="text-[10px] text-yellow-600/80 font-medium">
-                             Bal: ₹{(farmer.cattlefeed_remaining_display || 0).toFixed(2)}
+                             {t("bal_rs", "Bal: ₹")}{(farmer.cattlefeed_remaining_display || 0).toFixed(2)}
                             </div>
                           )}
                         </td>
@@ -1000,7 +1002,7 @@ const GenerateBill = () => {
                           <div className="text-rose-600 font-medium">₹{(farmer.other1Deduction || 0).toFixed(2)}</div>
                           {(farmer.other1_remaining_display > 0) && (
                             <div className="text-[10px] text-yellow-600/80 font-medium">
-                             Bal: ₹{(farmer.other1_remaining_display || 0).toFixed(2)}
+                             {t("bal_rs", "Bal: ₹")}{(farmer.other1_remaining_display || 0).toFixed(2)}
                             </div>
                           )}
                         </td>
@@ -1008,7 +1010,7 @@ const GenerateBill = () => {
                           <div className="text-rose-600 font-medium">₹{(farmer.other2Deduction || 0).toFixed(2)}</div>
                           {(farmer.other2_remaining_display > 0) && (
                             <div className="text-[10px] text-yellow-600/80 font-medium">
-                             Bal: ₹{(farmer.other2_remaining_display || 0).toFixed(2)}
+                             {t("bal_rs", "Bal: ₹")}{(farmer.other2_remaining_display || 0).toFixed(2)}
                             </div>
                           )}
                         </td>

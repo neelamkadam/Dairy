@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,6 +39,7 @@ import { AppDatePicker } from "@/components/ui/date-picker";
 import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 
 const CattleFeedStockSettings: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { branches } = useAppSelector((state) => state.branch);
   const [dairyId, setDairyId] = useState("");
@@ -112,7 +114,7 @@ const CattleFeedStockSettings: React.FC = () => {
       }
     } catch (error) {
       console.error('❌ Failed to fetch stocks:', error);
-      toast.error("Failed to fetch stocks");
+      toast.error(t("failed_to_fetch_stocks", "Failed to fetch stocks"));
     } finally {
       setLoading(false);
     }
@@ -156,7 +158,7 @@ const CattleFeedStockSettings: React.FC = () => {
       } as any;
 
       await cattleFeedApi.createStock(payload);
-      toast.success("Stock added successfully");
+      toast.success(t("stock_added_successfully", "Stock added successfully"));
 
       // Reset form
       setStockName("");
@@ -167,22 +169,22 @@ const CattleFeedStockSettings: React.FC = () => {
       fetchAllStocks(dairyId);
     } catch (error) {
       console.error("❌ Failed to add stock:", error);
-      toast.error("Failed to add stock");
+      toast.error(t("failed_to_add_stock", "Failed to add stock"));
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm("Are you sure you want to delete this stock entry?")) return;
+    if (!window.confirm(t("confirm_delete_stock", "Are you sure you want to delete this stock entry?"))) return;
 
     try {
       await cattleFeedApi.deleteStock(id);
-      toast.success("Stock deleted successfully");
+      toast.success(t("stock_deleted_successfully", "Stock deleted successfully"));
       fetchAllStocks(dairyId);
     } catch (error) {
       console.error("❌ Failed to delete stock:", error);
-      toast.error("Failed to delete stock");
+      toast.error(t("failed_to_delete_stock", "Failed to delete stock"));
     }
   };
 
@@ -195,7 +197,7 @@ const CattleFeedStockSettings: React.FC = () => {
 
   const handleRestock = async () => {
     if (!restockItem || !restockQty || !restockRate || !restockDate) {
-      toast.error("Please fill all fields");
+      toast.error(t("please_fill_all_fields", "Please fill all fields"));
       return;
     }
 
@@ -210,14 +212,14 @@ const CattleFeedStockSettings: React.FC = () => {
       } as any;
 
       await cattleFeedApi.updateStock(restockItem.id, payload);
-      toast.success("Stock added successfully");
+      toast.success(t("stock_added_successfully", "Stock added successfully"));
       setIsRestockOpen(false);
       setRestockQty("");
       setRestockRate("");
       fetchAllStocks(dairyId);
     } catch (error) {
       console.error("❌ Failed to restock:", error);
-      toast.error("Failed to add stock");
+      toast.error(t("failed_to_add_stock", "Failed to add stock"));
     } finally {
       setLoading(false);
     }
@@ -247,12 +249,12 @@ const CattleFeedStockSettings: React.FC = () => {
       };
 
       await cattleFeedApi.updateStock(editingStock.id, payload);
-      toast.success("Stock updated successfully");
+      toast.success(t("stock_updated_successfully", "Stock updated successfully"));
       setIsEditDialogOpen(false);
       fetchAllStocks(dairyId);
     } catch (error) {
       console.error("❌ Failed to update stock:", error);
-      toast.error("Failed to update stock");
+      toast.error(t("failed_to_update_stock", "Failed to update stock"));
     } finally {
       setLoading(false);
     }
@@ -260,7 +262,7 @@ const CattleFeedStockSettings: React.FC = () => {
 
   const fetchReport = async () => {
     if (!dairyId) {
-      toast.error("Please select VLC");
+      toast.error(t("please_select_vlc", "Please select VLC"));
       return;
     }
     try {
@@ -272,7 +274,7 @@ const CattleFeedStockSettings: React.FC = () => {
       }
     } catch (error) {
       console.error("❌ Failed to fetch report:", error);
-      toast.error("Failed to fetch report");
+      toast.error(t("failed_to_fetch_report", "Failed to fetch report"));
     } finally {
       setLoading(false);
     }
@@ -343,7 +345,7 @@ const CattleFeedStockSettings: React.FC = () => {
               <Package className="h-6 w-6" />
             </div>
             <h1 className="text-xl md:text-2xl font-bold text-gray-800 font-serif tracking-wide">
-              Cattle Feed Inventory
+              {t("cattle_feed_inventory", "Cattle Feed Inventory")}
             </h1>
           </div>
           <Button
@@ -352,7 +354,7 @@ const CattleFeedStockSettings: React.FC = () => {
             onClick={() => setIsReportOpen(true)}
           >
             <FileText className="w-4 h-4" />
-            View Report
+            {t("view_report", "View Report")}
           </Button>
         </div>
 
@@ -365,7 +367,7 @@ const CattleFeedStockSettings: React.FC = () => {
                   <Boxes className="w-5 h-5 text-indigo-600" />
                 </div>
                 <div>
-                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Total Items</p>
+                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{t("total_items", "Total Items")}</p>
                   <p className="text-2xl font-black text-slate-900">{totalItems}</p>
                 </div>
               </div>
@@ -376,7 +378,7 @@ const CattleFeedStockSettings: React.FC = () => {
                   <TrendingUp className="w-5 h-5 text-emerald-600" />
                 </div>
                 <div>
-                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Stock Value</p>
+                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{t("stock_value", "Stock Value")}</p>
                   <p className="text-2xl font-black text-slate-900">₹{totalStockValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
                 </div>
               </div>
@@ -387,7 +389,7 @@ const CattleFeedStockSettings: React.FC = () => {
                   <AlertTriangle className="w-5 h-5 text-amber-600" />
                 </div>
                 <div>
-                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Low Stock</p>
+                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{t("low_stock", "Low Stock")}</p>
                   <p className="text-2xl font-black text-slate-900">{lowStockItems}</p>
                 </div>
               </div>
@@ -398,7 +400,7 @@ const CattleFeedStockSettings: React.FC = () => {
                   <BarChart3 className="w-5 h-5 text-violet-600" />
                 </div>
                 <div>
-                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Avg Rate</p>
+                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{t("avg_rate", "Avg Rate")}</p>
                   <p className="text-2xl font-black text-slate-900">₹{avgSellingRate.toFixed(1)}</p>
                 </div>
               </div>
@@ -417,8 +419,8 @@ const CattleFeedStockSettings: React.FC = () => {
                     <Plus className="w-4 h-4 text-indigo-300" />
                   </div>
                   <div>
-                    <h2 className="text-base font-bold text-white">Add New Stock</h2>
-                    <p className="text-xs text-slate-400">Fill in purchase details</p>
+                    <h2 className="text-base font-bold text-white">{t("add_new_stock", "Add New Stock")}</h2>
+                    <p className="text-xs text-slate-400">{t("fill_in_purchase_details", "Fill in purchase details")}</p>
                   </div>
                 </div>
               </div>
@@ -427,7 +429,7 @@ const CattleFeedStockSettings: React.FC = () => {
               <div className="p-5 space-y-5">
                 {/* Searchable VLC Dropdown */}
                 <div className="space-y-2">
-                  <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Select VLC Branch</Label>
+                  <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">{t("select_vlc_branch", "Select VLC Branch")}</Label>
                   <VLCDropdown
                     branches={branches || []}
                     value={dairyId}
@@ -435,7 +437,7 @@ const CattleFeedStockSettings: React.FC = () => {
                       setDairyId(val);
                       setTimeout(() => stockNameRef.current?.focus(), 50);
                     }}
-                    placeholder="Search and select VLC..."
+                    placeholder={t("search_and_select_vlc", "Search and select VLC...")}
                     className="h-11 bg-slate-50/80 rounded-xl"
                     valueKey="branch_id"
                   />
@@ -443,7 +445,7 @@ const CattleFeedStockSettings: React.FC = () => {
 
                 {/* Stock Item Name */}
                 <div className="space-y-2">
-                  <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Stock Item Name</Label>
+                  <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">{t("stock_item_name", "Stock Item Name")}</Label>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <Input
@@ -452,7 +454,7 @@ const CattleFeedStockSettings: React.FC = () => {
                       onChange={(e) => setStockName(e.target.value)}
                       onBlur={handleNameBlur}
                       onKeyDown={(e) => handleEnterKey(e, quantityRef)}
-                      placeholder="e.g. Wheat Bran, Churi"
+                      placeholder={t("eg_wheat_bran_churi", "e.g. Wheat Bran, Churi")}
                       className="pl-10 bg-slate-50/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 h-11 rounded-xl transition-all"
                     />
                   </div>
@@ -461,7 +463,7 @@ const CattleFeedStockSettings: React.FC = () => {
                 {/* Quantity & Purchase Rate */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
-                    <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Quantity</Label>
+                    <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">{t("quantity", "Quantity")}</Label>
                     <div className="relative">
                       <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <Input
@@ -476,7 +478,7 @@ const CattleFeedStockSettings: React.FC = () => {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Purchase Rate</Label>
+                    <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">{t("purchase_rate", "Purchase Rate")}</Label>
                     <div className="relative">
                       <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <Input
@@ -494,7 +496,7 @@ const CattleFeedStockSettings: React.FC = () => {
 
                 {/* Selling Rate */}
                 <div className="space-y-2">
-                  <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Selling Rate</Label>
+                  <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">{t("selling_rate", "Selling Rate")}</Label>
                   <div className="relative">
                     <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500" />
                     <Input
@@ -511,7 +513,7 @@ const CattleFeedStockSettings: React.FC = () => {
 
                 {/* Date */}
                 <div className="space-y-2">
-                  <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Purchase Date</Label>
+                  <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">{t("purchase_date", "Purchase Date")}</Label>
                   <AppDatePicker
                     date={purchaseDate}
                     onChange={(dateStr) => {
@@ -531,12 +533,12 @@ const CattleFeedStockSettings: React.FC = () => {
                   {loading ? (
                     <span className="flex items-center gap-2">
                       <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Processing...
+                      {t("processing", "Processing...")}
                     </span>
                   ) : (
                     <span className="flex items-center gap-2">
                       <Plus className="w-4 h-4" />
-                      Add to Inventory
+                      {t("add_to_inventory", "Add to Inventory")}
                     </span>
                   )}
                 </Button>
@@ -549,9 +551,9 @@ const CattleFeedStockSettings: React.FC = () => {
             {/* Inventory Header */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
               <div className="flex items-center gap-3">
-                <h3 className="text-lg font-bold text-slate-800">Current Inventory</h3>
+                <h3 className="text-lg font-bold text-slate-800">{t("current_inventory", "Current Inventory")}</h3>
                 <span className="text-xs font-bold px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-full border border-indigo-100">
-                  {filteredStocks.length} {filteredStocks.length === 1 ? "Item" : "Items"}
+                  {filteredStocks.length} {filteredStocks.length === 1 ? t("item", "Item") : t("items", "Items")}
                 </span>
               </div>
               {allStocks.length > 0 && (
@@ -560,7 +562,7 @@ const CattleFeedStockSettings: React.FC = () => {
                   <Input
                     value={inventorySearch}
                     onChange={(e) => setInventorySearch(e.target.value)}
-                    placeholder="Search inventory..."
+                    placeholder={t("search_inventory", "Search inventory...")}
                     className="pl-9 h-9 text-sm bg-white border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
                   />
                 </div>
@@ -574,7 +576,7 @@ const CattleFeedStockSettings: React.FC = () => {
                   <div className="w-3 h-3 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: "150ms" }} />
                   <div className="w-3 h-3 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: "300ms" }} />
                 </div>
-                <p className="text-sm text-slate-400 font-medium">Loading inventory...</p>
+                <p className="text-sm text-slate-400 font-medium">{t("loading_inventory", "Loading inventory...")}</p>
               </div>
             ) : filteredStocks.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -716,14 +718,14 @@ const CattleFeedStockSettings: React.FC = () => {
                   <Package className="w-10 h-10 text-indigo-300" />
                 </div>
                 <h3 className="text-lg font-bold text-slate-800 mb-2">
-                  {dairyId ? (inventorySearch ? "No Matching Items" : "Inventory Empty") : "Select a Branch"}
+                  {dairyId ? (inventorySearch ? t("no_matching_items", "No Matching Items") : t("inventory_empty", "Inventory Empty")) : t("select_a_branch", "Select a Branch")}
                 </h3>
                 <p className="text-slate-400 max-w-[300px] text-sm">
                   {dairyId
                     ? inventorySearch
-                      ? "Try a different search term to find items."
-                      : "No stock items found. Add your first stock entry using the form."
-                    : "Choose a VLC branch from the dropdown to view and manage its inventory."
+                      ? t("try_different_search_term", "Try a different search term to find items.")
+                      : t("no_stock_items_found", "No stock items found. Add your first stock entry using the form.")
+                    : t("choose_vlc_branch", "Choose a VLC branch from the dropdown to view and manage its inventory.")
                   }
                 </p>
               </div>
@@ -740,19 +742,19 @@ const CattleFeedStockSettings: React.FC = () => {
               <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center mr-3">
                 <Plus className="w-4 h-4 text-white" />
               </div>
-              Restock — {restockItem?.stock_name}
+              {t("restock_hyphen", "Restock — ")} {restockItem?.stock_name}
             </DialogTitle>
-            <p className="text-emerald-100 text-xs mt-1 ml-11">Add more inventory for this item</p>
+            <p className="text-emerald-100 text-xs mt-1 ml-11">{t("add_more_inventory", "Add more inventory for this item")}</p>
           </div>
           <div className="p-5 space-y-5">
             {restockItem && (
               <div className="bg-slate-50 rounded-xl p-3 flex items-center justify-between border border-slate-100">
-                <span className="text-xs font-medium text-slate-500">Current Stock</span>
-                <span className="text-sm font-bold text-slate-900">{restockItem.stock} Units</span>
+                <span className="text-xs font-medium text-slate-500">{t("current_stock", "Current Stock")}</span>
+                <span className="text-sm font-bold text-slate-900">{restockItem.stock} {t("units", "Units")}</span>
               </div>
             )}
             <div className="space-y-2">
-              <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Quantity to Add</Label>
+              <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">{t("quantity_to_add", "Quantity to Add")}</Label>
               <Input
                 type="number"
                 value={restockQty}
@@ -762,7 +764,7 @@ const CattleFeedStockSettings: React.FC = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Purchase Price (Rate)</Label>
+              <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">{t("purchase_price_rate", "Purchase Price (Rate)")}</Label>
               <div className="relative">
                 <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <Input
@@ -797,7 +799,7 @@ const CattleFeedStockSettings: React.FC = () => {
               disabled={loading}
               className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg shadow-emerald-100 rounded-xl h-11"
             >
-              {loading ? "Adding..." : "Add Stock"}
+              {loading ? t("adding", "Adding...") : t("add_stock", "Add Stock")}
             </Button>
           </div>
         </DialogContent>
@@ -811,13 +813,13 @@ const CattleFeedStockSettings: React.FC = () => {
               <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center mr-3">
                 <Pencil className="w-4 h-4 text-white" />
               </div>
-              Edit Stock Details
+              {t("edit_stock_details", "Edit Stock Details")}
             </DialogTitle>
-            <p className="text-indigo-100 text-xs mt-1 ml-11">Update item name and selling rate</p>
+            <p className="text-indigo-100 text-xs mt-1 ml-11">{t("update_item_name_and_selling_rate", "Update item name and selling rate")}</p>
           </div>
           <div className="p-5 space-y-5">
             <div className="space-y-2">
-              <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Stock Name</Label>
+              <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">{t("stock_name", "Stock Name")}</Label>
               <Input
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
@@ -843,14 +845,14 @@ const CattleFeedStockSettings: React.FC = () => {
               onClick={() => setIsEditDialogOpen(false)}
               className="flex-1 hover:bg-slate-50 rounded-xl h-11"
             >
-              Cancel
+              {t("cancel", "Cancel")}
             </Button>
             <Button
               onClick={handleUpdate}
               disabled={loading}
               className="flex-1 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-lg shadow-indigo-100 rounded-xl h-11"
             >
-              {loading ? "Updating..." : "Save Changes"}
+              {loading ? t("updating", "Updating...") : t("save_changes", "Save Changes")}
             </Button>
           </div>
         </DialogContent>
@@ -867,9 +869,9 @@ const CattleFeedStockSettings: React.FC = () => {
               </div>
               <div>
                 <DialogTitle className="text-xl font-bold text-slate-800 font-serif">
-                  Inventory & Payment Report
+                  {t("inventory_and_payment_report", "Inventory & Payment Report")}
                 </DialogTitle>
-                <p className="text-sm text-slate-500 mt-1 font-medium">View detailed stock summaries and payment logs</p>
+                <p className="text-sm text-slate-500 mt-1 font-medium">{t("view_detailed_stock_summaries", "View detailed stock summaries and payment logs")}</p>
               </div>
             </div>
           </div>
@@ -878,11 +880,11 @@ const CattleFeedStockSettings: React.FC = () => {
             {/* Filter Section */}
             <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm space-y-4">
               <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                <CalendarIcon className="w-4 h-4" /> Select Date Range
+                <CalendarIcon className="w-4 h-4" /> {t("select_date_range", "Select Date Range")}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-600 ml-1">Start Date</Label>
+                  <Label className="text-xs font-semibold text-slate-600 ml-1">{t("start_date", "Start Date")}</Label>
                   <AppDatePicker
                     date={startDate}
                     onChange={(dateStr) => {
@@ -892,7 +894,7 @@ const CattleFeedStockSettings: React.FC = () => {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-600 ml-1">End Date</Label>
+                  <Label className="text-xs font-semibold text-slate-600 ml-1">{t("end_date", "End Date")}</Label>
                   <AppDatePicker
                     date={endDate}
                     onChange={(dateStr) => {
@@ -911,10 +913,10 @@ const CattleFeedStockSettings: React.FC = () => {
                 {loading ? (
                   <span className="flex items-center gap-2">
                     <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Generating Report...
+                    {t("generating_report", "Generating Report...")}
                   </span>
                 ) : (
-                  "Generate Report"
+                  t("generate_report", "Generate Report")
                 )}
               </Button>
             </div>
@@ -927,16 +929,16 @@ const CattleFeedStockSettings: React.FC = () => {
                     <div className="p-2 bg-indigo-100 rounded-lg">
                       <Boxes className="w-4 h-4 text-indigo-700" />
                     </div>
-                    <h4 className="font-bold text-slate-800 uppercase tracking-tight text-sm">Feed Stock Summary</h4>
+                    <h4 className="font-bold text-slate-800 uppercase tracking-tight text-sm">{t("feed_stock_summary", "Feed Stock Summary")}</h4>
                     <div className="h-px flex-1 bg-slate-200" />
                   </div>
                   <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
                     <table className="w-full text-sm">
                       <thead className="bg-slate-50/50 border-b border-slate-100">
                         <tr>
-                          <th className="px-5 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Item</th>
-                          <th className="px-5 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Stock Qty</th>
-                          <th className="px-5 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Total Value</th>
+                          <th className="px-5 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{t("item", "Item")}</th>
+                          <th className="px-5 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">{t("stock_qty", "Stock Qty")}</th>
+                          <th className="px-5 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">{t("total_value", "Total Value")}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-50">
@@ -952,7 +954,7 @@ const CattleFeedStockSettings: React.FC = () => {
                           ))
                         ) : (
                           <tr>
-                            <td colSpan={3} className="px-5 py-8 text-center text-slate-400 font-medium">No stock data available for this period.</td>
+                            <td colSpan={3} className="px-5 py-8 text-center text-slate-400 font-medium">{t("no_stock_data_available", "No stock data available for this period.")}</td>
                           </tr>
                         )}
                       </tbody>
@@ -966,7 +968,7 @@ const CattleFeedStockSettings: React.FC = () => {
                     <div className="p-2 bg-amber-100 rounded-lg">
                       <IndianRupee className="w-4 h-4 text-amber-700" />
                     </div>
-                    <h4 className="font-bold text-slate-800 uppercase tracking-tight text-sm">Farmer Payment Logs</h4>
+                    <h4 className="font-bold text-slate-800 uppercase tracking-tight text-sm">{t("farmer_payment_logs", "Farmer Payment Logs")}</h4>
                     <div className="h-px flex-1 bg-slate-200" />
                   </div>
                   <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
@@ -974,15 +976,15 @@ const CattleFeedStockSettings: React.FC = () => {
                       <table className="w-full text-sm">
                         <thead className="bg-slate-50/50 border-b border-slate-100">
                           <tr>
-                            <th className="px-5 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Farmer</th>
-                            <th className="px-5 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Date</th>
-                            <th className="px-5 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Amount</th>
+                            <th className="px-5 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{t("farmer", "Farmer")}</th>
+                            <th className="px-5 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">{t("date", "Date")}</th>
+                            <th className="px-5 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">{t("amount", "Amount")}</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
                           {reportData.farmer_payments.map((p: any, idx: number) => (
                             <tr key={idx} className="hover:bg-amber-50/40 transition-colors">
-                              <td className="px-5 py-4 font-bold text-slate-700">{p.farmer_name || 'N/A'}</td>
+                              <td className="px-5 py-4 font-bold text-slate-700">{p.farmer_name || t("n_a", "N/A")}</td>
                               <td className="px-5 py-4 text-right text-slate-500 font-medium">{format(new Date(p.date), "dd MMM yyyy")}</td>
                               <td className="px-5 py-4 text-right font-black text-amber-600">₹{parseFloat(p.amount).toFixed(2)}</td>
                             </tr>
@@ -994,7 +996,7 @@ const CattleFeedStockSettings: React.FC = () => {
                         <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center">
                           <IndianRupee className="w-5 h-5 text-slate-300" />
                         </div>
-                        No payment logs found for this period.
+                        {t("no_payment_logs_found", "No payment logs found for this period.")}
                       </div>
                     )}
                   </div>
@@ -1005,8 +1007,8 @@ const CattleFeedStockSettings: React.FC = () => {
                 <div className="w-20 h-20 rounded-3xl bg-indigo-50 flex items-center justify-center mb-5 border border-indigo-100/50">
                   <FileText className="w-10 h-10 text-indigo-300" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-700 mb-1">No Report Generated</h3>
-                <p className="font-medium text-sm text-slate-500">Configure the date range above to view insights</p>
+                <h3 className="text-lg font-bold text-slate-700 mb-1">{t("no_report_generated", "No Report Generated")}</h3>
+                <p className="font-medium text-sm text-slate-500">{t("configure_date_range", "Configure the date range above to view insights")}</p>
               </div>
             )}
           </div>

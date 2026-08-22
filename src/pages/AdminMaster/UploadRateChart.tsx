@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,6 +31,7 @@ const FormLabel = ({ children, required }: { children: React.ReactNode; required
 );
 
 const UploadRateChart = () => {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     organisationId: "",
     type: "",
@@ -47,7 +49,7 @@ const UploadRateChart = () => {
     const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
     
     if (!validExtensions.includes(fileExtension)) {
-      toast.error("Please upload a CSV or Excel file (.csv, .xls, .xlsx)");
+      toast.error(t("upload_csv_excel_error", "Please upload a CSV or Excel file (.csv, .xls, .xlsx)"));
       return;
     }
     
@@ -86,12 +88,12 @@ const UploadRateChart = () => {
     if (e) e.preventDefault();
 
     if (!formData.organisationId || !formData.type || !formData.name || !formData.effectiveDate) {
-      toast.error("Please fill all required fields");
+      toast.error(t("fill_all_required_fields", "Please fill all required fields"));
       return;
     }
 
     if (!csvFile) {
-      toast.error("Please select a CSV file");
+      toast.error(t("please_select_csv_file", "Please select a CSV file"));
       return;
     }
 
@@ -109,7 +111,7 @@ const UploadRateChart = () => {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      toast.success("Rate chart uploaded successfully!");
+      toast.success(t("rate_chart_uploaded_successfully", "Rate chart uploaded successfully!"));
       setFormData({
         organisationId: "",
         type: "",
@@ -119,7 +121,7 @@ const UploadRateChart = () => {
       setCsvFile(null);
       setPreviewData(null);
     } catch (error) {
-      toast.error("Network error occurred");
+      toast.error(t("network_error_occurred", "Network error occurred"));
     } finally {
       setLoading(false);
     }
@@ -137,8 +139,8 @@ const UploadRateChart = () => {
               <FileSpreadsheet className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-lg md:text-xl font-bold text-gray-900 tracking-tight">Upload Rate Chart</h1>
-              <p className="text-xs text-gray-500 mt-0.5">Upload CSV file to create rate chart</p>
+              <h1 className="text-lg md:text-xl font-bold text-gray-900 tracking-tight">{t("upload_rate_chart", "Upload Rate Chart")}</h1>
+              <p className="text-xs text-gray-500 mt-0.5">{t("upload_csv_to_create_rate_chart", "Upload CSV file to create rate chart")}</p>
             </div>
           </div>
         </div>
@@ -173,8 +175,8 @@ const UploadRateChart = () => {
                 <h3 className={cn(
                   "text-base font-bold transition-colors",
                   formData.type === "cow" ? "text-emerald-700" : "text-gray-900"
-                )}>Cow Rate Chart</h3>
-                <p className="text-xs text-gray-500 mt-0.5">Manage cow milk pricing</p>
+                )}>{t("cow_rate_chart", "Cow Rate Chart")}</h3>
+                <p className="text-xs text-gray-500 mt-0.5">{t("manage_cow_milk_pricing", "Manage cow milk pricing")}</p>
               </div>
             </div>
           </button>
@@ -203,8 +205,8 @@ const UploadRateChart = () => {
                 <h3 className={cn(
                   "text-base font-bold transition-colors",
                   formData.type === "buffalo" ? "text-amber-700" : "text-gray-900"
-                )}>Buffalo Rate Chart</h3>
-                <p className="text-xs text-gray-500 mt-0.5">Manage buffalo milk pricing</p>
+                )}>{t("buffalo_rate_chart", "Buffalo Rate Chart")}</h3>
+                <p className="text-xs text-gray-500 mt-0.5">{t("manage_buffalo_milk_pricing", "Manage buffalo milk pricing")}</p>
               </div>
             </div>
           </button>
@@ -213,15 +215,15 @@ const UploadRateChart = () => {
         {/* ── Configuration Form ───────────────────────────────── */}
         <Card className="shadow-sm border-gray-100/80 rounded-2xl overflow-hidden">
           <CardContent className="p-5 md:p-6">
-            <SectionTitle icon={BarChart3} title="Rate Chart Configuration" subtitle="Set up the details for your rate chart" />
+            <SectionTitle icon={BarChart3} title={t("rate_chart_configuration", "Rate Chart Configuration")} subtitle={t("set_up_details_rate_chart", "Set up the details for your rate chart")} />
             
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {/* Dairy ID */}
               <div className="space-y-1.5">
-                <FormLabel required>Dairy ID</FormLabel>
+                <FormLabel required>{t("dairy_id", "Dairy ID")}</FormLabel>
                 <Input
                   id="organisationId"
-                  placeholder="Enter Dairy ID"
+                  placeholder={t("enter_dairy_id", "Enter Dairy ID")}
                   value={formData.organisationId}
                   onChange={(e) => setFormData({ ...formData, organisationId: e.target.value })}
                   className="h-11 bg-gray-50/80 border-gray-200 rounded-xl shadow-sm hover:bg-white hover:border-blue-300 transition-all w-full"
@@ -231,22 +233,22 @@ const UploadRateChart = () => {
 
               {/* Rate Chart Name */}
               <div className="space-y-1.5">
-                <FormLabel required>Rate Chart Name</FormLabel>
+                <FormLabel required>{t("rate_chart_name", "Rate Chart Name")}</FormLabel>
                 <Select value={formData.name} onValueChange={(value) => setFormData({ ...formData, name: value })}>
                   <SelectTrigger className="h-11 bg-gray-50/80 border-gray-200 rounded-xl shadow-sm hover:bg-white hover:border-blue-300 transition-all w-full">
-                    <SelectValue placeholder="Select rate chart" />
+                    <SelectValue placeholder={t("select_rate_chart", "Select rate chart")} />
                   </SelectTrigger>
                   <SelectContent className="bg-white rounded-xl shadow-xl border-gray-100">
-                    <SelectItem value="Rate chart 1">Rate chart 1</SelectItem>
-                    <SelectItem value="Rate chart 2">Rate chart 2</SelectItem>
-                    <SelectItem value="Rate chart 3">Rate chart 3</SelectItem>
+                    <SelectItem value="Rate chart 1">{t("rate_chart_1", "Rate chart 1")}</SelectItem>
+                    <SelectItem value="Rate chart 2">{t("rate_chart_2", "Rate chart 2")}</SelectItem>
+                    <SelectItem value="Rate chart 3">{t("rate_chart_3", "Rate chart 3")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               {/* Effective Date */}
               <div className="space-y-1.5">
-                <FormLabel required>Effective Date</FormLabel>
+                <FormLabel required>{t("effective_date", "Effective Date")}</FormLabel>
                 <Input
                   id="effectiveDate"
                   type="date"
@@ -263,7 +265,7 @@ const UploadRateChart = () => {
         {/* ── File Upload Zone ─────────────────────────────────── */}
         <Card className="shadow-sm border-gray-100/80 rounded-2xl overflow-hidden">
           <CardContent className="p-5 md:p-6">
-            <SectionTitle icon={Upload} title="Upload Rate Chart File" subtitle="Drag and drop or click to browse your files" />
+            <SectionTitle icon={Upload} title={t("upload_rate_chart_file", "Upload Rate Chart File")} subtitle={t("drag_drop_click_browse", "Drag and drop or click to browse your files")} />
 
             <div
               onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
@@ -293,7 +295,7 @@ const UploadRateChart = () => {
                   <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center mb-3 shadow-inner">
                     <CheckCircle2 className="w-7 h-7 text-emerald-500" />
                   </div>
-                  <h3 className="text-base font-bold text-gray-900 mb-1">File Selected</h3>
+                  <h3 className="text-base font-bold text-gray-900 mb-1">{t("file_selected", "File Selected")}</h3>
                   <div className="flex items-center gap-2 bg-emerald-100/80 px-3 py-1.5 rounded-full mb-3">
                     <FileText className="w-3.5 h-3.5 text-emerald-600" />
                     <span className="text-sm font-medium text-emerald-700">{csvFile.name}</span>
@@ -306,7 +308,7 @@ const UploadRateChart = () => {
                     onClick={(e) => { e.stopPropagation(); setCsvFile(null); setPreviewData(null); }}
                   >
                     <X className="w-3 h-3 mr-1" />
-                    Change File
+                    {t("change_file", "Change File")}
                   </Button>
                 </div>
               ) : (
@@ -320,8 +322,8 @@ const UploadRateChart = () => {
                       isDragging ? "text-blue-500" : "text-gray-400"
                     )} />
                   </div>
-                  <h3 className="text-base font-semibold text-gray-900 mb-1">Drop file or browse</h3>
-                  <p className="text-gray-400 text-sm mb-3">Supported formats: .csv, .xls, .xlsx</p>
+                  <h3 className="text-base font-semibold text-gray-900 mb-1">{t("drop_file_or_browse", "Drop file or browse")}</h3>
+                  <p className="text-gray-400 text-sm mb-3">{t("supported_formats", "Supported formats: .csv, .xls, .xlsx")}</p>
                 </div>
               )}
             </div>
@@ -331,7 +333,7 @@ const UploadRateChart = () => {
               <div className="mt-4 rounded-xl overflow-hidden border border-gray-200 bg-white">
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-2.5 border-b border-gray-200 flex items-center gap-2">
                   <Table2 className="w-4 h-4 text-blue-600" />
-                  <h4 className="font-semibold text-sm text-gray-800">Preview (First 5 Rows)</h4>
+                  <h4 className="font-semibold text-sm text-gray-800">{t("preview_first_5_rows", "Preview (First 5 Rows)")}</h4>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -364,12 +366,12 @@ const UploadRateChart = () => {
                 {loading ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Uploading...
+                    {t("uploading", "Uploading...")}
                   </>
                 ) : (
                   <>
                     <Upload className="w-4 h-4" />
-                    Upload Rate Chart
+                    {t("upload_rate_chart", "Upload Rate Chart")}
                   </>
                 )}
               </Button>

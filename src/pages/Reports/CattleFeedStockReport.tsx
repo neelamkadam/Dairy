@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useAppSelector } from "@/redux/store";
 import { cattleFeedApi } from "@/services/cattleFeedApi";
 import { paymentApi } from "@/services/paymentApi";
@@ -63,6 +64,7 @@ interface SaleEvent {
 }
 
 const CattleFeedStockReport = () => {
+  const { t } = useTranslation();
   const { branches } = useAppSelector((state: any) => state.branch);
   const [dairyId, setDairyId] = useState("");
   const [loading, setLoading] = useState(false);
@@ -230,7 +232,7 @@ const CattleFeedStockReport = () => {
 
   const handleShowReport = async () => {
     if (!dairyId) {
-      toast.error("Please select dairy");
+      toast.error(t("please_select_dairy"));
       return;
     }
 
@@ -256,13 +258,13 @@ const CattleFeedStockReport = () => {
       );
       setRows(movementRows);
       if (movementRows.length === 0) {
-        toast.info("No stock movement data found for selected period");
+        toast.info(t("no_stock_movement_data"));
       } else {
-        toast.success("Report loaded successfully");
+        toast.success(t("report_loaded_successfully"));
       }
     } catch (error: unknown) {
       const errorWithResponse = error as { response?: { data?: { message?: string } } };
-      toast.error(errorWithResponse.response?.data?.message || "Failed to fetch report");
+      toast.error(errorWithResponse.response?.data?.message || t("failed_to_fetch_report"));
       setRows([]);
     } finally {
       setLoading(false);
@@ -271,7 +273,7 @@ const CattleFeedStockReport = () => {
 
   const exportToPDF = () => {
     if (rows.length === 0) {
-      toast.error("No data available");
+      toast.error(t("no_data_available"));
       return;
     }
 
@@ -300,15 +302,15 @@ const CattleFeedStockReport = () => {
     });
 
     doc.save(`Cattle_Feed_Stock_Report_${startDate}_to_${endDate}.pdf`);
-    toast.success("PDF exported successfully");
+    toast.success(t("pdf_exported_successfully"));
   };
 
   return (
     <div className="p-4">
       <div className="text-left p-4">
-        <h1 className="font-bold text-2xl">Cattle Feed Stock Report</h1>
+        <h1 className="font-bold text-2xl">{t("cattle_feed_stock_report", "Cattle Feed Stock Report")}</h1>
         <p className="text-sm text-gray-600">
-          Stock movement report for the selected bill period.
+          {t("stock_movement_desc")}
         </p>
       </div>
 
@@ -316,18 +318,18 @@ const CattleFeedStockReport = () => {
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-3 bg-gray-50 rounded-lg">
             <div>
-              <Label className="mb-1">Dairy</Label>
+              <Label className="mb-1">{t("dairy")}</Label>
               <VLCDropdown
                 branches={branches || []}
                 value={dairyId}
                 onChange={setDairyId}
                 valueKey="branch_id"
-                placeholder="Select dairy"
+                placeholder={t("select_dairy_placeholder")}
               />
             </div>
 
             <div>
-              <Label className="mb-1">Start Date</Label>
+              <Label className="mb-1">{t("start_date")}</Label>
               <Input
                 type="date"
                 value={startDate}
@@ -337,7 +339,7 @@ const CattleFeedStockReport = () => {
             </div>
 
             <div>
-              <Label className="mb-1">End Date</Label>
+              <Label className="mb-1">{t("end_date")}</Label>
               <Input
                 type="date"
                 value={endDate}
@@ -349,7 +351,7 @@ const CattleFeedStockReport = () => {
             <div className="flex items-end">
               <div className="flex gap-2">
                 <Button onClick={handleShowReport} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white">
-                  {loading ? "Loading..." : "Show Report"}
+                  {loading ? t("loading") : t("show_report")}
                 </Button>
                 <Button
                   onClick={exportToPDF}
@@ -357,7 +359,7 @@ const CattleFeedStockReport = () => {
                   className="bg-red-600 hover:bg-red-700 text-white flex items-center gap-2"
                 >
                   <Download className="h-4 w-4" />
-                  Export PDF
+                  {t("export_pdf")}
                 </Button>
               </div>
             </div>
@@ -368,19 +370,19 @@ const CattleFeedStockReport = () => {
       {rows.length > 0 && (
         <Card className="border-gray-300">
           <CardContent className="p-4">
-            <h2 className="font-semibold text-lg mb-2">Cattle Feed Stock Report</h2>
+            <h2 className="font-semibold text-lg mb-2">{t("cattle_feed_stock_report", "Cattle Feed Stock Report")}</h2>
             <p className="text-sm text-gray-600 mb-4">
-              Cattle feed stock movement report from {startDate ? format(new Date(startDate), "dd-MM-yyyy") : ""} to {endDate ? format(new Date(endDate), "dd-MM-yyyy") : ""}.
+              {t("stock_movement_desc")} {startDate ? format(new Date(startDate), "dd-MM-yyyy") : ""} {t("to")} {endDate ? format(new Date(endDate), "dd-MM-yyyy") : ""}.
             </p>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="bg-gray-100">
-                    <th className="border border-gray-300 p-2 text-center">Bill period</th>
-                    <th className="border border-gray-300 p-2 text-center">Feed Type</th>
-                    <th className="border border-gray-300 p-2 text-center">Opening Qty</th>
-                    <th className="border border-gray-300 p-2 text-center">Sell Qty</th>
-                    <th className="border border-gray-300 p-2 text-center">Balance Qty</th>
+                    <th className="border border-gray-300 p-2 text-center">{t("bill_period")}</th>
+                    <th className="border border-gray-300 p-2 text-center">{t("feed_type")}</th>
+                    <th className="border border-gray-300 p-2 text-center">{t("opening_qty")}</th>
+                    <th className="border border-gray-300 p-2 text-center">{t("sell_qty")}</th>
+                    <th className="border border-gray-300 p-2 text-center">{t("balance_qty")}</th>
                   </tr>
                 </thead>
                 <tbody>

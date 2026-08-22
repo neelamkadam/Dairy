@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { AppDatePicker } from "@/components/ui/date-picker";
@@ -41,6 +42,7 @@ const getDummyDispatched = (id: number, index: number): boolean =>
   (isNaN(id) ? index : id) % 3 !== 0;
 
 const DispatchStatusReport: React.FC = () => {
+  const { t } = useTranslation();
   const authState = useAppSelector((state) => state.authData);
   const userId = authState?.userData?.id ? Number(authState.userData.id) : null;
 
@@ -124,7 +126,7 @@ const DispatchStatusReport: React.FC = () => {
       setRows(mapped);
     } catch (error: any) {
       console.error("Failed to fetch dispatch status:", error);
-      toast.error(error?.response?.data?.message || "Failed to fetch dispatch status");
+      toast.error(error?.response?.data?.message || t("failed_to_fetch_dispatch_status", "Failed to fetch dispatch status"));
       setRows(null);
     } finally {
       setLoading(false);
@@ -143,11 +145,11 @@ const DispatchStatusReport: React.FC = () => {
 
   const fetchDispatchStatus = async () => {
     if (!ccSel) {
-      toast.error("Please select a CC");
+      toast.error(t("please_select_cc", "Please select a CC"));
       return;
     }
     if (!date) {
-      toast.error("Please select a date");
+      toast.error(t("please_select_date", "Please select a date"));
       return;
     }
     await loadVlcs();
@@ -166,7 +168,7 @@ const DispatchStatusReport: React.FC = () => {
       <div className="px-4 pt-4">
         <div className="flex flex-col items-start text-left gap-1.5 animate-in fade-in slide-in-from-top-4 duration-700">
           <h1 className="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600">
-            Dispatch Status Report
+            {t("dispatch_status_report", "Dispatch Status Report")}
           </h1>
         </div>
       </div>
@@ -175,11 +177,11 @@ const DispatchStatusReport: React.FC = () => {
         <div className="text-left grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4">
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">
-              Chilling Center (CC)
+              {t("chilling_center_cc", "Chilling Center (CC)")}
             </label>
             <Select value={ccSel} onValueChange={handleCcChange}>
               <SelectTrigger className="w-full bg-white border-gray-200">
-                <SelectValue placeholder="Select CC" />
+                <SelectValue placeholder={t("select_cc", "Select CC")} />
               </SelectTrigger>
               <SelectContent className="bg-white">
                 {ccList.map((cc) => (
@@ -193,14 +195,14 @@ const DispatchStatusReport: React.FC = () => {
 
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">
-              BMC
+              {t("bmc", "BMC")}
             </label>
             <Select value={bmcSel} onValueChange={handleBmcChange} disabled={!ccSel}>
               <SelectTrigger className="w-full bg-white border-gray-200">
-                <SelectValue placeholder="Select BMC" />
+                <SelectValue placeholder={t("select_bmc", "Select BMC")} />
               </SelectTrigger>
               <SelectContent className="bg-white">
-                <SelectItem value={ALL}>All BMCs</SelectItem>
+                <SelectItem value={ALL}>{t("all_bmcs", "All BMCs")}</SelectItem>
                 {filteredBmcs.map((bmc) => (
                   <SelectItem key={bmc.bmc_id ?? bmc.id} value={String(bmc.bmc_id ?? bmc.id)}>
                     {bmc.bmc_id ?? bmc.id} - {bmc.name}
@@ -212,7 +214,7 @@ const DispatchStatusReport: React.FC = () => {
 
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">
-              Route
+              {t("route", "Route")}
             </label>
             <Select
               value={routeSel}
@@ -220,10 +222,10 @@ const DispatchStatusReport: React.FC = () => {
               disabled={!ccSel}
             >
               <SelectTrigger className="w-full bg-white border-gray-200">
-                <SelectValue placeholder="Select Route" />
+                <SelectValue placeholder={t("select_route", "Select Route")} />
               </SelectTrigger>
               <SelectContent className="bg-white">
-                <SelectItem value={ALL}>All Routes</SelectItem>
+                <SelectItem value={ALL}>{t("all_routes", "All Routes")}</SelectItem>
                 {filteredRoutes.map((route) => (
                   <SelectItem key={route.route_id ?? route.id} value={String(route.route_id ?? route.id)}>
                     {route.route_id ?? route.id} - {route.name}
@@ -236,7 +238,7 @@ const DispatchStatusReport: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4 mt-5">
           <div className="space-y-2 text-left">
-            <Label>Date</Label>
+            <Label>{t("date", "Date")}</Label>
             <AppDatePicker
               date={date}
               onChange={(dateStr) => {
@@ -248,11 +250,11 @@ const DispatchStatusReport: React.FC = () => {
 
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">
-              Shift Type
+              {t("shift_type", "Shift Type")}
             </label>
             <Select value={shift} onValueChange={setShift}>
               <SelectTrigger className="w-full bg-white border-gray-200">
-                <SelectValue placeholder="Select Shift" />
+                <SelectValue placeholder={t("select_shift", "Select Shift")} />
               </SelectTrigger>
               <SelectContent className="bg-white">
                 <SelectItem value="morning">Morning</SelectItem>
@@ -268,7 +270,7 @@ const DispatchStatusReport: React.FC = () => {
             disabled={loading}
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
-            {loading ? "Loading..." : "Show"}
+            {loading ? t("loading", "Loading...") : t("show", "Show")}
           </Button>
         </div>
       </div>
@@ -280,21 +282,21 @@ const DispatchStatusReport: React.FC = () => {
             <div className="bg-white rounded-lg border border-gray-200 p-4 flex items-center gap-3">
               <Warehouse className="h-8 w-8 text-slate-600" />
               <div>
-                <p className="text-sm text-gray-600">Total Dairies</p>
+                <p className="text-sm text-gray-600">{t("total_dairies", "Total Dairies")}</p>
                 <p className="text-2xl font-bold text-gray-800">{rows.length}</p>
               </div>
             </div>
             <div className="bg-white rounded-lg border border-gray-200 p-4 flex items-center gap-3">
               <CheckCircle2 className="h-8 w-8 text-green-600" />
               <div>
-                <p className="text-sm text-gray-600">Dispatched</p>
+                <p className="text-sm text-gray-600">{t("dispatched", "Dispatched")}</p>
                 <p className="text-2xl font-bold text-green-700">{dispatchedCount}</p>
               </div>
             </div>
             <div className="bg-white rounded-lg border border-gray-200 p-4 flex items-center gap-3">
               <XCircle className="h-8 w-8 text-red-600" />
               <div>
-                <p className="text-sm text-gray-600">Not Dispatched</p>
+                <p className="text-sm text-gray-600">{t("not_dispatched", "Not Dispatched")}</p>
                 <p className="text-2xl font-bold text-red-700">{pendingCount}</p>
               </div>
             </div>
@@ -313,19 +315,19 @@ const DispatchStatusReport: React.FC = () => {
               <TableHeader>
                 <TableRow className="bg-gray-100">
                   <TableHead className="font-semibold text-center border border-gray-100">
-                    Dairy ID
+                    {t("dairy_id", "Dairy ID")}
                   </TableHead>
                   <TableHead className="font-semibold text-center border border-gray-100">
-                    Dairy Name
+                    {t("dairy_name", "Dairy Name")}
                   </TableHead>
                   <TableHead className="font-semibold text-center border border-gray-100">
-                    Village
+                    {t("village", "Village")}
                   </TableHead>
                   <TableHead className="font-semibold text-center border border-gray-100">
-                    Owner
+                    {t("owner", "Owner")}
                   </TableHead>
                   <TableHead className="font-semibold text-center border border-gray-100">
-                    Dispatch Status
+                    {t("dispatch_status", "Dispatch Status")}
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -347,15 +349,15 @@ const DispatchStatusReport: React.FC = () => {
                           : "bg-red-100 text-red-700"
                       )}>
                         {row.dispatched
-                          ? <><CheckCircle2 className="h-3.5 w-3.5" /> Dispatched</>
-                          : <><XCircle className="h-3.5 w-3.5" /> Not Dispatched</>}
+                          ? <><CheckCircle2 className="h-3.5 w-3.5" /> {t("dispatched", "Dispatched")}</>
+                          : <><XCircle className="h-3.5 w-3.5" /> {t("not_dispatched", "Not Dispatched")}</>}
                       </span>
                     </TableCell>
                   </TableRow>
                 )) : (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-8 text-gray-500">
-                      No dairies found for the selected criteria.
+                      {t("no_dairies_found", "No dairies found for the selected criteria.")}
                     </TableCell>
                   </TableRow>
                 )}
@@ -368,7 +370,7 @@ const DispatchStatusReport: React.FC = () => {
       {rows === null && (
         <div className="max-w-7xl mx-auto p-4 md:p-6">
           <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-500">
-            Select a CC (and optionally BMC and Route) to see which dairies have dispatched their collection.
+            {t("select_cc_prompt", "Select a CC (and optionally BMC and Route) to see which dairies have dispatched their collection.")}
           </div>
         </div>
       )}

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -25,6 +26,7 @@ interface SidebarAccess {
 }
 
 const SidebarAccessManagement = () => {
+  const { t } = useTranslation();
   const authState = useAppSelector((state) => state.authData);
   const loggedInUserId = authState?.userData?.id;
   const userRole = authState?.userRole;
@@ -86,7 +88,7 @@ const SidebarAccessManagement = () => {
       }
     } catch (error) {
       console.error('Error fetching users:', error);
-      toast.error("Failed to fetch users");
+      toast.error(t("failed_to_fetch_users", "Failed to fetch users"));
     }
   };
 
@@ -134,7 +136,7 @@ const SidebarAccessManagement = () => {
 
   const handleSave = async () => {
     if (!selectedUserId) {
-      toast.error("Please select a user");
+      toast.error(t("please_select_a_user", "Please select a user"));
       return;
     }
 
@@ -149,7 +151,7 @@ const SidebarAccessManagement = () => {
         toast.success(response.message);
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to save sidebar access");
+      toast.error(error.response?.data?.message || t("failed_to_save_sidebar_access", "Failed to save sidebar access"));
     } finally {
       setLoading(false);
     }
@@ -157,28 +159,28 @@ const SidebarAccessManagement = () => {
 
   const handlePasswordReset = async () => {
     if (!newPassword.trim()) {
-      toast.error("Please enter new password");
+      toast.error(t("please_enter_new_password", "Please enter new password"));
       return;
     }
     if (newPassword.length < 4) {
-      toast.error("Password must be at least 4 characters");
+      toast.error(t("password_min_4_chars", "Password must be at least 4 characters"));
       return;
     }
     if (newPassword !== confirmPassword) {
-      toast.error("Passwords do not match");
+      toast.error(t("passwords_do_not_match", "Passwords do not match"));
       return;
     }
 
     try {
       const response = await adminApi.setPassword(selectedUserId!, newPassword);
       if (response.data.success) {
-        toast.success("Password reset successfully");
+        toast.success(t("password_reset_successfully", "Password reset successfully"));
         setShowPasswordModal(false);
         setNewPassword("");
         setConfirmPassword("");
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to reset password");
+      toast.error(error.response?.data?.message || t("failed_to_reset_password", "Failed to reset password"));
     }
   };
 
@@ -188,16 +190,16 @@ const SidebarAccessManagement = () => {
   );
 
   const accessItems = [
-    { key: "dashboard", label: "Dashboard" },
-    { key: "collection_entry", label: "Collection Entry" },
-    { key: "collection", label: "Collection" },
-    { key: "master", label: "Master" },
-    { key: "billing", label: "Billing" },
-    { key: "reports", label: "Reports" },
-    { key: "settings", label: "Settings" },
-    { key: "shubham_milk_product", label: "Shubham Milk Product" },
-    { key: "payment", label: "Payment" },
-    { key: "dyn", label: "Dynamic Milk Cycle" },
+    { key: "dashboard", label: t("dashboard", "Dashboard") },
+    { key: "collection_entry", label: t("collection_entry", "Collection Entry") },
+    { key: "collection", label: t("collection", "Collection") },
+    { key: "master", label: t("master", "Master") },
+    { key: "billing", label: t("billing", "Billing") },
+    { key: "reports", label: t("reports", "Reports") },
+    { key: "settings", label: t("settings", "Settings") },
+    { key: "shubham_milk_product", label: t("shubham_milk_product", "Shubham Milk Product") },
+    { key: "payment", label: t("payment", "Payment") },
+    { key: "dyn", label: t("dynamic_milk_cycle", "Dynamic Milk Cycle") },
   ];
 
   return (
@@ -211,8 +213,8 @@ const SidebarAccessManagement = () => {
               <ShieldCheck className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-lg md:text-xl font-bold text-gray-900 tracking-tight">Sidebar Access Management</h1>
-              <p className="text-xs text-gray-500 mt-0.5">Control which features each user can access</p>
+              <h1 className="text-lg md:text-xl font-bold text-gray-900 tracking-tight">{t("sidebar_access_management", "Sidebar Access Management")}</h1>
+              <p className="text-xs text-gray-500 mt-0.5">{t("control_which_features_user_can_access", "Control which features each user can access")}</p>
             </div>
           </div>
           {selectedUserId && (
@@ -223,7 +225,7 @@ const SidebarAccessManagement = () => {
               title="Reset Password"
             >
               <KeyRound className="w-4 h-4" />
-              Reset Password
+              {t("reset_password", "Reset Password")}
             </Button>
           )}
         </div>
@@ -238,12 +240,12 @@ const SidebarAccessManagement = () => {
               <div className="bg-gradient-to-r from-slate-50 to-indigo-50/30 p-5 border-b border-slate-100">
                 <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2 uppercase tracking-wider">
                   <Users className="w-4 h-4 text-indigo-500" />
-                  Select User
+                  {t("select_user", "Select User")}
                 </h2>
               </div>
               <CardContent className="p-5">
                 <div className="space-y-3">
-                  <Label className="text-xs font-semibold text-slate-600 ml-1">Target Account</Label>
+                  <Label className="text-xs font-semibold text-slate-600 ml-1">{t("target_account", "Target Account")}</Label>
                   <Popover open={dropdownOpen} onOpenChange={setDropdownOpen}>
                     <PopoverTrigger asChild>
                       <Button
@@ -253,8 +255,8 @@ const SidebarAccessManagement = () => {
                         className="w-full h-12 bg-slate-50/50 border-slate-200 focus:ring-2 focus:ring-blue-500/20 rounded-xl text-slate-700 justify-between font-normal hover:bg-slate-100/50"
                       >
                         {selectedUserId 
-                          ? users.find(u => u.id === selectedUserId)?.email || "Choose a user account..."
-                          : "Choose a user account..."}
+                          ? users.find(u => u.id === selectedUserId)?.email || t("choose_a_user_account", "Choose a user account...")
+                          : t("choose_a_user_account", "Choose a user account...")}
                         <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
@@ -263,7 +265,7 @@ const SidebarAccessManagement = () => {
                         <div className="relative">
                           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                           <Input
-                            placeholder="Search user by email or ID..."
+                            placeholder={t("search_user_by_email_or_id", "Search user by email or ID...")}
                             className="pl-9 h-9 bg-slate-50 border-slate-200 focus-visible:ring-1 focus-visible:ring-blue-500 rounded-lg text-sm"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
@@ -274,7 +276,7 @@ const SidebarAccessManagement = () => {
                       <div className="max-h-[300px] overflow-y-auto p-1">
                         {filteredUsers.length === 0 ? (
                           <div className="py-6 text-center text-sm text-slate-500">
-                            No users found
+                            {t("no_users_found", "No users found")}
                           </div>
                         ) : (
                           filteredUsers.map((user) => (
@@ -288,7 +290,7 @@ const SidebarAccessManagement = () => {
                               className={`flex items-center px-3 py-2 cursor-pointer rounded-md transition-colors ${selectedUserId === user.id ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-50 text-slate-700'}`}
                             >
                               <span className="font-medium">{user.email}</span>
-                              <span className={`text-xs ml-2 ${selectedUserId === user.id ? 'text-blue-500' : 'text-slate-400'}`}>(ID: {user.id})</span>
+                              <span className={`text-xs ml-2 ${selectedUserId === user.id ? 'text-blue-500' : 'text-slate-400'}`}>({t("id", "ID:")} {user.id})</span>
                             </div>
                           ))
                         )}
@@ -306,13 +308,13 @@ const SidebarAccessManagement = () => {
               <div className="bg-gradient-to-r from-slate-50 to-indigo-50/30 p-5 border-b border-slate-100 flex items-center justify-between">
                 <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2 uppercase tracking-wider">
                   <CheckSquare className="w-4 h-4 text-indigo-500" />
-                  Permissions
+                  {t("permissions", "Permissions")}
                 </h2>
                 
                 {selectedUserId && (
                   <div className="flex items-center gap-3 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
                     <Label htmlFor="select-all" className="text-xs font-bold text-slate-600 cursor-pointer uppercase tracking-wider">
-                      Select All
+                      {t("select_all", "Select All")}
                     </Label>
                     <Switch
                       id="select-all"
@@ -330,8 +332,8 @@ const SidebarAccessManagement = () => {
                     <div className="w-16 h-16 rounded-3xl bg-white shadow-sm flex items-center justify-center mb-4 border border-slate-100">
                       <ShieldCheck className="w-8 h-8 text-slate-300" />
                     </div>
-                    <h3 className="text-base font-bold text-slate-600 mb-1">No User Selected</h3>
-                    <p className="font-medium text-sm text-slate-500">Choose a user from the left panel to manage their access</p>
+                    <h3 className="text-base font-bold text-slate-600 mb-1">{t("no_user_selected", "No User Selected")}</h3>
+                    <p className="font-medium text-sm text-slate-500">{t("choose_a_user_manage_access", "Choose a user from the left panel to manage their access")}</p>
                   </div>
                 ) : (
                   <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -374,10 +376,10 @@ const SidebarAccessManagement = () => {
                       {loading ? (
                         <span className="flex items-center gap-2">
                           <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          Saving Permissions...
+                          {t("saving_permissions", "Saving Permissions...")}
                         </span>
                       ) : (
-                        "Save Access Permissions"
+                        t("save_access_permissions", "Save Access Permissions")
                       )}
                     </Button>
                   </div>
@@ -396,19 +398,19 @@ const SidebarAccessManagement = () => {
               <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
                 <KeyRound className="w-5 h-5 text-amber-600" />
               </div>
-              <h3 className="text-xl font-bold text-slate-800 font-serif">Reset Password</h3>
+              <h3 className="text-xl font-bold text-slate-800 font-serif">{t("reset_password", "Reset Password")}</h3>
             </div>
             
             <div className="space-y-5">
               <div className="space-y-2">
-                <Label className="text-xs font-bold text-slate-600 uppercase tracking-wider ml-1">New Password</Label>
+                <Label className="text-xs font-bold text-slate-600 uppercase tracking-wider ml-1">{t("new_password", "New Password")}</Label>
                 <div className="relative">
                   <Input
                     type={showPassword ? "text" : "password"}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     className="pr-10 bg-slate-50/50 border-slate-200 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 h-11 rounded-xl"
-                    placeholder="Enter new password"
+                    placeholder={t("enter_new_password", "Enter new password")}
                   />
                   <button
                     type="button"
@@ -421,14 +423,14 @@ const SidebarAccessManagement = () => {
               </div>
               
               <div className="space-y-2">
-                <Label className="text-xs font-bold text-slate-600 uppercase tracking-wider ml-1">Confirm Password</Label>
+                <Label className="text-xs font-bold text-slate-600 uppercase tracking-wider ml-1">{t("confirm_password", "Confirm Password")}</Label>
                 <div className="relative">
                   <Input
                     type={showConfirmPassword ? "text" : "password"}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className="pr-10 bg-slate-50/50 border-slate-200 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 h-11 rounded-xl"
-                    placeholder="Confirm new password"
+                    placeholder={t("confirm_new_password", "Confirm new password")}
                   />
                   <button
                     type="button"
@@ -450,13 +452,13 @@ const SidebarAccessManagement = () => {
                   }}
                   className="flex-1 border-slate-200 text-slate-600 hover:bg-slate-50 h-11 rounded-xl"
                 >
-                  Cancel
+                  {t("cancel", "Cancel")}
                 </Button>
                 <Button 
                   onClick={handlePasswordReset} 
                   className="flex-1 bg-amber-500 hover:bg-amber-600 text-white h-11 rounded-xl shadow-md shadow-amber-200/50"
                 >
-                  Confirm Reset
+                  {t("confirm_reset", "Confirm Reset")}
                 </Button>
               </div>
             </div>

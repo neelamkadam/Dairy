@@ -25,7 +25,7 @@ interface NavbarProps {
 }
 
 const AppNavbar = ({}: NavbarProps) => {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [selectedLang, setSelectedLang] = useState("English");
   const [notifications] = useState([
     { id: 1, title: "New milk collection entry", time: "2 min ago" },
@@ -115,7 +115,7 @@ const AppNavbar = ({}: NavbarProps) => {
             {showLanguageGuide && (
               <div className="absolute top-full mt-2 right-0 z-50 animate-bounce">
                 <div className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 whitespace-nowrap">
-                  <span className="text-sm font-medium">Select your language</span>
+                  <span className="text-sm font-medium">{t('select_your_language', 'Select your language')}</span>
                   <button onClick={dismissGuide} className="ml-2 text-white hover:text-gray-200">
                     ✕
                   </button>
@@ -178,16 +178,16 @@ const AppNavbar = ({}: NavbarProps) => {
               </div>
               <DropdownMenuItem onClick={() => navigate(ROUTES.PROFILE)} className="hover:bg-slate-50 cursor-pointer rounded-lg px-3 py-2 text-slate-700 flex items-center gap-2">
                 <User className="h-4 w-4 text-slate-400" />
-                <span>Profile</span>
+                <span>{t('profile', 'Profile')}</span>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate(ROUTES.SETTINGS.GENERAL_SETTINGS)} className="hover:bg-slate-50 cursor-pointer rounded-lg px-3 py-2 text-slate-700 flex items-center gap-2">
                 <Settings className="h-4 w-4 text-slate-400" />
-                <span>Settings</span>
+                <span>{t('settings')}</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator className="my-1 bg-slate-100" />
               <DropdownMenuItem onClick={handleSignOut} className="hover:bg-red-50 focus:bg-red-50 cursor-pointer rounded-lg px-3 py-2 text-red-600 flex items-center gap-2">
                 <LogOut className="h-4 w-4 text-red-500" />
-                <span>Sign out</span>
+                <span>{t('sign_out', 'Sign out')}</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

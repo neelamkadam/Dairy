@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,6 +10,7 @@ import { api } from "@/services/config";
 import { useAppSelector } from "@/redux/store";
 
 const PasswordManager = () => {
+  const { t } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
   const authState = useAppSelector((state) => state.authData);
   const loggedInUserId = authState?.userData?.id;
@@ -22,19 +24,19 @@ const PasswordManager = () => {
 
   const handleResetPassword = async () => {
     if (activeTab === "mobile" && !vlcId.trim()) {
-      toast.error("Please select VLC");
+      toast.error(t("please_select_vlc", "Please select VLC"));
       return;
     }
     if (!password.trim()) {
-      toast.error("Please enter new password");
+      toast.error(t("please_enter_new_password", "Please enter new password"));
       return;
     }
     if (password.length < 4) {
-      toast.error("Password must be at least 4 characters");
+      toast.error(t("password_must_be_at_least_4_characters", "Password must be at least 4 characters"));
       return;
     }
     if (password !== confirmPassword) {
-      toast.error("Passwords do not match");
+      toast.error(t("passwords_do_not_match", "Passwords do not match"));
       return;
     }
 
@@ -48,12 +50,12 @@ const PasswordManager = () => {
           confirm_password: confirmPassword,
         });
         if (response.data.success) {
-          toast.success(response.data.message || "Password updated successfully");
+          toast.success(response.data.message || t("password_updated_successfully", "Password updated successfully"));
           setVlcId("");
           setPassword("");
           setConfirmPassword("");
         } else {
-          toast.error(response.data.message || "Failed to update password");
+          toast.error(response.data.message || t("failed_to_update_password", "Failed to update password"));
         }
       } else {
         const response = await api.post("/web-users/set-password", {
@@ -61,15 +63,15 @@ const PasswordManager = () => {
           newPassword: password
         });
         if (response.data.success) {
-          toast.success(response.data.message || "Password updated successfully");
+          toast.success(response.data.message || t("password_updated_successfully", "Password updated successfully"));
           setPassword("");
           setConfirmPassword("");
         } else {
-          toast.error(response.data.message || "Failed to update password");
+          toast.error(response.data.message || t("failed_to_update_password", "Failed to update password"));
         }
       }
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to update password");
+      toast.error(error?.response?.data?.message || t("failed_to_update_password", "Failed to update password"));
     } finally {
       setLoading(false);
     }
@@ -90,15 +92,15 @@ const PasswordManager = () => {
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       <div className="max-w-2xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Password Manager</h1>
-          <p className="text-gray-600">Reset password for VLC users</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">{t("password_manager", "Password Manager")}</h1>
+          <p className="text-gray-600">{t("reset_password_for_vlc_users", "Reset password for VLC users")}</p>
         </div>
 
         <Card className="shadow-lg border-0">
           <CardContent className="p-6">
             <div className="flex items-center gap-3 mb-6">
               <Lock className="h-5 w-5 text-blue-600" />
-              <h2 className="text-lg font-semibold text-gray-900">Reset User Password</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{t("reset_user_password", "Reset User Password")}</h2>
             </div>
 
             {/* Tab Buttons */}
@@ -112,7 +114,7 @@ const PasswordManager = () => {
                 }`}
               >
                 <Smartphone className="h-4 w-4" />
-                Mobile Password
+                {t("mobile_password", "Mobile Password")}
               </Button>
               <Button
                 onClick={() => handleTabChange("web")}
@@ -123,7 +125,7 @@ const PasswordManager = () => {
                 }`}
               >
                 <Lock className="h-4 w-4" />
-                Web Password
+                {t("web_password", "Web Password")}
               </Button>
             </div>
 
@@ -131,11 +133,11 @@ const PasswordManager = () => {
               {activeTab === "mobile" && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
-                    Select VLC
+                    {t("select_vlc", "Select VLC")}
                   </label>
                   <Select value={vlcId} onValueChange={setVlcId}>
                     <SelectTrigger className="w-full bg-gray-50">
-                      <SelectValue placeholder="Select VLC" />
+                      <SelectValue placeholder={t("select_vlc", "Select VLC")} />
                     </SelectTrigger>
                     <SelectContent className="bg-white">
                       {branches.map((branch) => (
@@ -150,12 +152,12 @@ const PasswordManager = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
-                  New Password
+                  {t("new_password", "New Password")}
                 </label>
                 <div className="relative">
                   <Input
                     type={showPassword ? "text" : "password"}
-                    placeholder="Enter new password"
+                    placeholder={t("enter_new_password", "Enter new password")}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full pr-10"
@@ -172,12 +174,12 @@ const PasswordManager = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
-                  Confirm Password
+                  {t("confirm_password", "Confirm Password")}
                 </label>
                 <div className="relative">
                   <Input
                     type={showConfirmPassword ? "text" : "password"}
-                    placeholder="Confirm new password"
+                    placeholder={t("confirm_new_password", "Confirm new password")}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className="w-full pr-10"
@@ -198,14 +200,14 @@ const PasswordManager = () => {
                   variant="outline"
                   className="flex-1"
                 >
-                  Clear
+                  {t("clear", "Clear")}
                 </Button>
                 <Button
                   onClick={handleResetPassword}
                   disabled={loading}
                   className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
                 >
-                  {loading ? "Updating..." : "Update Password"}
+                  {loading ? t("updating", "Updating...") : t("update_password", "Update Password")}
                 </Button>
               </div>
             </div>

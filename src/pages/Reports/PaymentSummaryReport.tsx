@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { AppDatePicker } from "@/components/ui/date-picker";
 import { Calendar, Download, Loader2, FileSpreadsheet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -64,6 +65,7 @@ interface PaymentSummaryData {
 }
 
 const PaymentSummaryReport = () => {
+  const { t } = useTranslation();
   const { branches } = useAppSelector(state => state.branch);
   const [selectedBranch, setSelectedBranch] = useState<number | null>(null);
   const selectedVlc = branches.find(b => b.branch_id === selectedBranch);
@@ -137,7 +139,7 @@ const PaymentSummaryReport = () => {
 
   const fetchPaymentSummary = async () => {
     if (!selectedBranch) {
-      toast.error('Please select a VLC');
+      toast.error(t('please_select_vlc_first_report', 'Please select a VLC'));
       return;
     }
     
@@ -199,11 +201,11 @@ const PaymentSummaryReport = () => {
         setBonusData(new Map()); // Reset on error
       }
       
-      toast.success('Data loaded successfully');
+      toast.success(t('data_loaded_successfully', 'Data loaded successfully'));
     } catch (error: any) {
       console.error('API Error:', error);
       console.error('Error response:', error.response);
-      toast.error(error.response?.data?.message || 'Failed to load payment summary');
+      toast.error(error.response?.data?.message || t('failed_to_load_payment_summary', 'Failed to load payment summary'));
     } finally {
       setLoading(false);
     }
@@ -475,10 +477,10 @@ const PaymentSummaryReport = () => {
         XLSX.utils.book_append_sheet(wb, ws, "Payment Summary");
         XLSX.writeFile(wb, `Payment_Summary_${dateFrom}_to_${dateTo}.xlsx`);
       }
-      toast.success('Excel file downloaded successfully');
+      toast.success(t('excel_file_downloaded_successfully', 'Excel file downloaded successfully'));
     } catch (error) {
       console.error('Export error:', error);
-      toast.error('Failed to export Excel');
+      toast.error(t('failed_to_export_excel', 'Failed to export Excel'));
     }
   };
 
@@ -508,7 +510,7 @@ const PaymentSummaryReport = () => {
   const exportToPDF = async () => {
     const farmers = getAggregatedFarmers;
     if (!farmers.length) {
-      toast.error('No data available');
+      toast.error(t('no_data_available', 'No data available'));
       return;
     }
 
@@ -542,7 +544,7 @@ const PaymentSummaryReport = () => {
 
       doc.setFontSize(13);
       doc.setFont(devanagariFont, 'bold');
-      doc.text('Payment Summary Report', pageW / 2, 12, { align: 'center' });
+      doc.text(t('payment_summary_report', 'Payment Summary Report'), pageW / 2, 12, { align: 'center' });
       doc.setFontSize(8);
       doc.setFont(devanagariFont, 'normal');
       doc.text(`Branch: ${branchName}   |   Period: ${dateFrom}  to  ${dateTo}`, pageW / 2, 18, { align: 'center' });
@@ -637,10 +639,10 @@ const PaymentSummaryReport = () => {
       });
 
       doc.save(`PaymentSummary_${dateFrom}_${dateTo}.pdf`);
-      toast.success('PDF exported successfully');
+      toast.success(t('pdf_exported_successfully', 'PDF exported successfully'));
     } catch (error) {
       console.error('PDF export error:', error);
-      toast.error('Failed to export PDF');
+      toast.error(t('failed_to_export_pdf', 'Failed to export PDF'));
     } finally {
       setPdfLoading(false);
     }
@@ -653,24 +655,24 @@ const PaymentSummaryReport = () => {
         {/* Header */}
         <div className="flex flex-col items-start text-left gap-1 animate-in fade-in slide-in-from-top-4 duration-700 px-2 mb-2">
           <h1 className="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600">
-            Payment Summary Report
+            {t('payment_summary_report', 'Payment Summary Report')}
           </h1>
         </div>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-end bg-white p-3 sm:p-4 rounded-lg shadow-sm mx-2 mb-4 text-left">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">VLC Center</label>
+            <label className="text-sm font-medium text-gray-700">{t('vlc_center', 'VLC Center')}</label>
             <VLCDropdown
               branches={branches || []}
               value={selectedBranch ? selectedBranch.toString() : ""}
               onChange={(val) => setSelectedBranch(Number(val))}
               valueKey="branch_id"
-              placeholder="Select VLC"
+              placeholder={t('select_vlc_center', 'Select VLC')}
             />
           </div>
           
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Date From</label>
+            <label className="text-sm font-medium text-gray-700">{t('start_date', 'Date From')}</label>
             <AppDatePicker
               date={dateFrom}
               onChange={handleDateFromChange}
@@ -678,7 +680,7 @@ const PaymentSummaryReport = () => {
           </div>
           
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Date To</label>
+            <label className="text-sm font-medium text-gray-700">{t('end_date', 'Date To')}</label>
             <AppDatePicker
               date={dateTo}
               onChange={setDateTo}
@@ -693,7 +695,7 @@ const PaymentSummaryReport = () => {
               className="flex items-center gap-2 bg-blue-600 text-white px-6 h-10 rounded hover:bg-blue-700 disabled:opacity-50"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              Show
+              {t('show', 'Show')}
             </button>
           </div>
         </div>
@@ -704,7 +706,7 @@ const PaymentSummaryReport = () => {
             className="flex items-center gap-2 bg-green-600 text-white px-4 h-10 rounded hover:bg-green-700 disabled:opacity-50"
           >
             <Download className="w-4 h-4" />
-            Excel Export
+            {t('excel_export', 'Excel Export')}
           </button>
           <button
             onClick={exportToPDF}
@@ -712,7 +714,7 @@ const PaymentSummaryReport = () => {
             className="flex items-center gap-2 bg-red-600 text-white px-4 h-10 rounded hover:bg-red-700 disabled:opacity-50"
           >
             <Download className="w-4 h-4" />
-            PDF Export
+            {t('export_pdf', 'PDF Export')}
           </button>
         </div>
 
@@ -722,7 +724,7 @@ const PaymentSummaryReport = () => {
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3 mb-4 mx-2">
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600">Total Milk</CardTitle>
+                  <CardTitle className="text-sm font-medium text-gray-600">{t('total_milk', 'Total Milk')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-2xl font-bold">₹{totals.totalMilk.toFixed(2)}</p>
@@ -730,7 +732,7 @@ const PaymentSummaryReport = () => {
               </Card>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600">Total Advances</CardTitle>
+                  <CardTitle className="text-sm font-medium text-gray-600">{t('total_advances', 'Total Advances')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-2xl font-bold">₹{totals.totalAdvance.toFixed(2)}</p>
@@ -738,7 +740,7 @@ const PaymentSummaryReport = () => {
               </Card>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600">Total Feed</CardTitle>
+                  <CardTitle className="text-sm font-medium text-gray-600">{t('total_feed', 'Total Feed')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-2xl font-bold">₹{totals.totalFeed.toFixed(2)}</p>
@@ -746,7 +748,7 @@ const PaymentSummaryReport = () => {
               </Card>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600">Total Bonus</CardTitle>
+                  <CardTitle className="text-sm font-medium text-gray-600">{t('total_bonus', 'Total Bonus')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-2xl font-bold text-red-600">₹{totals.totalBonus.toFixed(2)}</p>
@@ -754,7 +756,7 @@ const PaymentSummaryReport = () => {
               </Card>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600">Total Fixed</CardTitle>
+                  <CardTitle className="text-sm font-medium text-gray-600">{t('total_fixed', 'Total Fixed')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-2xl font-bold text-red-600">₹{totals.totalFixed.toFixed(2)}</p>
@@ -762,7 +764,7 @@ const PaymentSummaryReport = () => {
               </Card>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600">Net Payable</CardTitle>
+                  <CardTitle className="text-sm font-medium text-gray-600">{t('net_payable', 'Net Payable')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-2xl font-bold text-green-600">₹{totals.totalNet.toFixed(2)}</p>
@@ -770,7 +772,7 @@ const PaymentSummaryReport = () => {
               </Card>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600">Remaining Balance</CardTitle>
+                  <CardTitle className="text-sm font-medium text-gray-600">{t('remaining_balance', 'Remaining Balance')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-2xl font-bold text-orange-600">₹{totals.totalRemaining.toFixed(2)}</p>
@@ -782,14 +784,14 @@ const PaymentSummaryReport = () => {
 
         <div className="mx-2">
           <div className="mb-3 text-left">
-            <h2 className="text-xl font-semibold">Payment Summary Details</h2>
+            <h2 className="text-xl font-semibold">{t('payment_summary_details', 'Payment Summary Details')}</h2>
             <p className="text-sm text-gray-600">
               Branch: {branches.find(b => b.branch_id === selectedBranch)?.name || 'N/A'} | Period: {dateFrom} to {dateTo}
             </p>
           </div>
         <Card className="border-none shadow-sm">
           <CardHeader className="p-3 sm:p-4">
-            <CardTitle>Farmer Payment Details</CardTitle>
+            <CardTitle>{t('farmer_payment_details', 'Farmer Payment Details')}</CardTitle>
           </CardHeader>
           <CardContent className="p-2 sm:p-4">
             {loading ? (
@@ -801,28 +803,28 @@ const PaymentSummaryReport = () => {
                 <table className="w-full whitespace-nowrap text-sm border-collapse [&_th]:h-auto [&_th]:py-2 [&_th]:px-3 [&_td]:py-2 [&_td]:px-3 [&_th]:align-middle [&_td]:border [&_td]:border-gray-100 [&_th]:border [&_th]:border-gray-200">
                   <thead>
                     <tr className="bg-gray-100">
-                      <th className="px-2 py-2 text-left text-xs">Code</th>
-                      <th className="px-2 py-2 text-left text-xs">Name</th>
-                      <th className="px-2 py-2 text-right text-xs">Liter</th>
-                      <th className="px-2 py-2 text-right text-xs">Milk</th>
-                      <th className="px-2 py-2 text-right text-xs">Prev Bal</th>
-                      <th className="px-2 py-2 text-right text-xs">Advance</th>
-                      <th className="px-2 py-2 text-right text-xs">Feed</th>
+                      <th className="px-2 py-2 text-left text-xs">{t('code', 'Code')}</th>
+                      <th className="px-2 py-2 text-left text-xs">{t('name', 'Name')}</th>
+                      <th className="px-2 py-2 text-right text-xs">{t('liter', 'Liter')}</th>
+                      <th className="px-2 py-2 text-right text-xs">{t('milk', 'Milk')}</th>
+                      <th className="px-2 py-2 text-right text-xs">{t('prev_bal', 'Prev Bal')}</th>
+                      <th className="px-2 py-2 text-right text-xs">{t('advance', 'Advance')}</th>
+                      <th className="px-2 py-2 text-right text-xs">{t('feed', 'Feed')}</th>
                       {(() => {
                         const totals = calculateTotals;
                         return (
                           <>
-                            {totals.totalOther1 > 0 && <th className="px-2 py-2 text-right text-xs">Other1</th>}
-                            {totals.totalOther2 > 0 && <th className="px-2 py-2 text-right text-xs">Other2</th>}
+                            {totals.totalOther1 > 0 && <th className="px-2 py-2 text-right text-xs">{t('other1', 'Other1')}</th>}
+                            {totals.totalOther2 > 0 && <th className="px-2 py-2 text-right text-xs">{t('other2', 'Other2')}</th>}
                           </>
                         );
                       })()}
-                      <th className="px-2 py-2 text-right text-xs">Received</th>
-                      <th className="px-2 py-2 text-right text-xs">Deduction</th>
-                      <th className="px-2 py-2 text-right text-xs">Bonus</th>
-                      <th className="px-2 py-2 text-right text-xs">Fixed</th>
-                      <th className="px-2 py-2 text-right text-xs">Net Pay</th>
-                      <th className="px-2 py-2 text-right text-xs">Remaining</th>
+                      <th className="px-2 py-2 text-right text-xs">{t('received', 'Received')}</th>
+                      <th className="px-2 py-2 text-right text-xs">{t('deduction', 'Deduction')}</th>
+                      <th className="px-2 py-2 text-right text-xs">{t('bonus', 'Bonus')}</th>
+                      <th className="px-2 py-2 text-right text-xs">{t('fixed', 'Fixed')}</th>
+                      <th className="px-2 py-2 text-right text-xs">{t('net_pay', 'Net Pay')}</th>
+                      <th className="px-2 py-2 text-right text-xs">{t('remaining', 'Remaining')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -864,7 +866,7 @@ const PaymentSummaryReport = () => {
                             if (totals.totalOther2 > 0) colCount++;
                             return colCount;
                           })()} className="px-4 py-8 text-center text-gray-500">
-                            No data available. Select filters and click Show to load data.
+                            {t('no_data_available_select_filters', 'No data available. Select filters and click Show to load data.')}
                           </td>
                         </tr>
                       );
@@ -875,7 +877,7 @@ const PaymentSummaryReport = () => {
                       const totals = calculateTotals;
                       return (
                         <tr className="bg-gray-200 font-bold">
-                          <td className="px-2 py-2 text-xs" colSpan={2}>Total</td>
+                          <td className="px-2 py-2 text-xs" colSpan={2}>{t('total', 'Total')}</td>
                           <td className="px-2 py-2 text-right text-xs">{totals.totalQuantity.toFixed(2)}</td>
                           <td className="px-2 py-2 text-right text-xs">₹{totals.totalMilk.toFixed(2)}</td>
                           <td className="px-2 py-2 text-right text-xs"></td>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { adminApi } from '@/services/adminApi';
 import { toast } from 'react-toastify';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -19,6 +20,7 @@ import {
 import { Upload, Image as ImageIcon, X, Check, Eye, Search, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Loader2 } from "lucide-react";
 
 export const WebApplicationActivation: React.FC = () => {
+  const { t } = useTranslation();
   const [webUsers, setWebUsers] = useState<any[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
   const [searchMobile, setSearchMobile] = useState('');
@@ -90,7 +92,7 @@ export const WebApplicationActivation: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching web users:', error);
-      toast.error('Failed to fetch web users');
+      toast.error(t("failed_to_fetch_web_users", 'Failed to fetch web users'));
     }
   };
 
@@ -157,12 +159,12 @@ export const WebApplicationActivation: React.FC = () => {
           }
         } catch (uploadError) {
           console.error('Upload error:', uploadError);
-          toast.error('Network error during receipt upload');
+          toast.error(t("network_error_during_receipt_upload", 'Network error during receipt upload'));
           setLoading(false);
           return;
         }
       } else if (!isPaymentPending) {
-        toast.error('Please upload a payment receipt or select "Pay Later"');
+        toast.error(t("please_upload_payment_receipt_or_select_pay_later", 'Please upload a payment receipt or select "Pay Later"'));
         setLoading(false);
         return;
       }
@@ -193,7 +195,7 @@ export const WebApplicationActivation: React.FC = () => {
       const { data } = await adminApi.toggleUserStatus(userId, newStatus);
       
       if (data.success) {
-        toast.success(`User ${newStatus ? 'activated' : 'deactivated'} successfully`);
+        toast.success(newStatus ? t("user_activated_successfully", 'User activated successfully') : t("user_deactivated_successfully", 'User deactivated successfully'));
         // Update local state
         const updatedUsers = webUsers.map(user => 
           user.id === userId ? { 
@@ -203,9 +205,13 @@ export const WebApplicationActivation: React.FC = () => {
           } : user
         );
         setWebUsers(updatedUsers);
-        setFilteredUsers(updatedUsers.filter(u => 
-          !searchMobile.trim() || u.mobile_number?.includes(searchMobile.trim())
-        ));
+        const term = searchMobile.trim().toLowerCase();
+        setFilteredUsers(term ? updatedUsers.filter(u => {
+          const haystack = [
+            u.name, u.email, u.mobile_number, u.username
+          ].filter(Boolean).join(' ').toLowerCase();
+          return haystack.includes(term);
+        }) : updatedUsers);
         setIsPaymentModalOpen(false);
         // Reset form
         setIsPaymentPending(false);
@@ -222,7 +228,7 @@ export const WebApplicationActivation: React.FC = () => {
       }
     } catch (error) {
       console.error('Error toggling user status:', error);
-      toast.error('Failed to update user status');
+      toast.error(t("failed_to_update_user_status", 'Failed to update user status'));
     } finally {
       setLoading(false);
     }
@@ -272,12 +278,12 @@ export const WebApplicationActivation: React.FC = () => {
           setReceiptUrl(user.payment_url);
           setIsReceiptModalOpen(true);
         } else {
-          toast.info("No payment receipt found in records");
+          toast.info(t("no_payment_receipt_found_in_records", "No payment receipt found in records"));
         }
       }
     } catch (error) {
       console.error('Error fetching receipt:', error);
-      toast.error("Failed to fetch receipt from server");
+      toast.error(t("failed_to_fetch_receipt_from_server", "Failed to fetch receipt from server"));
     } finally {
       setLoading(false);
     }
@@ -289,9 +295,13 @@ export const WebApplicationActivation: React.FC = () => {
       setCurrentPage(1);
       return;
     }
-    const filtered = webUsers.filter((u) => 
-      u.mobile_number?.includes(searchMobile.trim())
-    );
+    const term = searchMobile.trim().toLowerCase();
+    const filtered = webUsers.filter((u) => {
+      const haystack = [
+        u.name, u.email, u.mobile_number, u.username
+      ].filter(Boolean).join(' ').toLowerCase();
+      return haystack.includes(term);
+    });
     setFilteredUsers(filtered);
     setCurrentPage(1);
   };
@@ -305,12 +315,12 @@ export const WebApplicationActivation: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="bg-white rounded-lg shadow-sm border p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-6">Web Application Activation</h2>
+        <h2 className="text-xl font-semibold text-gray-900 mb-6">{t("web_application_activation", "Web Application Activation")}</h2>
         
         <div className="flex items-center gap-4 mb-6">
           <div className="flex-1 flex gap-2">
             <Input
-              placeholder="Search by mobile number"
+              placeholder={t("search_by_name_email_mobile_number", "Search by name, email, mobile number...")}
               value={searchMobile}
               onChange={(e) => setSearchMobile(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -331,7 +341,7 @@ export const WebApplicationActivation: React.FC = () => {
                 <SelectItem value="100">100</SelectItem>
               </SelectContent>
             </Select>
-            <span className="text-sm text-gray-600">per page</span>
+            <span className="text-sm text-gray-600">{t("per_page", "per page")}</span>
           </div>
         </div>
 
@@ -339,12 +349,12 @@ export const WebApplicationActivation: React.FC = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="font-semibold">Name</TableHead>
-                <TableHead className="font-semibold">Email</TableHead>
-                <TableHead className="font-semibold">Mobile Number</TableHead>
-                <TableHead className="font-semibold text-center">Trial Account</TableHead>
-                <TableHead className="font-semibold">Status</TableHead>
-                <TableHead className="font-semibold text-right pr-6">Action</TableHead>
+                <TableHead className="font-semibold">{t("name", "Name")}</TableHead>
+                <TableHead className="font-semibold">{t("email", "Email")}</TableHead>
+                <TableHead className="font-semibold">{t("mobile_number", "Mobile Number")}</TableHead>
+                <TableHead className="font-semibold text-center">{t("trial_account", "Trial Account")}</TableHead>
+                <TableHead className="font-semibold">{t("status", "Status")}</TableHead>
+                <TableHead className="font-semibold text-right pr-6">{t("action", "Action")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -371,7 +381,7 @@ export const WebApplicationActivation: React.FC = () => {
                           }`}
                         >
                           <CalendarIcon className="h-4 w-4" />
-                          {expired ? 'Trial Over' : 'Set Trial'}
+                          {expired ? t("trial_over", 'Trial Over') : t("set_trial", 'Set Trial')}
                         </Button>
                       );
                     })()}
@@ -388,14 +398,14 @@ export const WebApplicationActivation: React.FC = () => {
                           return (
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 shadow-sm">
                               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                              Paid
+                              {t("paid", "Paid")}
                             </span>
                           );
                         } else {
                           return (
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200 shadow-sm">
                               <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
-                              Payment Pending
+                              {t("payment_pending", "Payment Pending")}
                             </span>
                           );
                         }
@@ -406,14 +416,14 @@ export const WebApplicationActivation: React.FC = () => {
                           return (
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 border border-blue-200 shadow-sm">
                               <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
-                              DEMO
+                              {t("demo", "DEMO")}
                             </span>
                           );
                         } else {
                           return (
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200 shadow-sm">
                               <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-                              Trial Expired
+                              {t("trial_expired", "Trial Expired")}
                             </span>
                           );
                         }
@@ -422,7 +432,7 @@ export const WebApplicationActivation: React.FC = () => {
                       return (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-700 border border-rose-200 shadow-sm">
                           <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-                          Inactive
+                          {t("inactive", "Inactive")}
                         </span>
                       );
                     })()}
@@ -435,12 +445,12 @@ export const WebApplicationActivation: React.FC = () => {
                           size="sm"
                           onClick={() => handleViewReceipt(user)}
                           className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all group"
-                          title="View Payment Receipt"
+                          title={t("view_payment_receipt", "View Payment Receipt")}
                         >
                           <Eye size={16} className="group-hover:scale-110 transition-transform" />
                         </Button>
                       ) : (
-                        <span className="text-slate-300 text-xs italic">No Receipt</span>
+                        <span className="text-slate-300 text-xs italic">{t("no_receipt", "No Receipt")}</span>
                       )}
                     </div>
                   </TableCell>
@@ -459,7 +469,11 @@ export const WebApplicationActivation: React.FC = () => {
 
         <div className="flex justify-between items-center mt-6">
           <div className="text-sm text-gray-600">
-            Showing {filteredUsers.length > 0 ? (currentPage - 1) * perPage + 1 : 0} to {Math.min(currentPage * perPage, filteredUsers.length)} of {filteredUsers.length} entries
+            {t("showing_entries", "Showing {{start}} to {{end}} of {{total}} entries", { 
+              start: filteredUsers.length > 0 ? (currentPage - 1) * perPage + 1 : 0, 
+              end: Math.min(currentPage * perPage, filteredUsers.length), 
+              total: filteredUsers.length 
+            })}
           </div>
           <div className="flex gap-2 items-center">
             <Button
@@ -471,7 +485,9 @@ export const WebApplicationActivation: React.FC = () => {
             >
               <ChevronLeft size={16} />
             </Button>
-            <span className="text-sm text-gray-600">Page {currentPage} of {totalPages || 1}</span>
+            <span className="text-sm text-gray-600">
+              {t("page_of", "Page {{current}} of {{total}}", { current: currentPage, total: totalPages || 1 })}
+            </span>
             <Button
               variant="outline"
               size="sm"
@@ -499,9 +515,9 @@ export const WebApplicationActivation: React.FC = () => {
               <div className="mb-6">
                 <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                   <ImageIcon className="text-blue-500" size={22} />
-                  Payment Evidence
+                  {t("payment_evidence", "Payment Evidence")}
                 </h3>
-                <p className="text-sm text-slate-500 mt-1">Upload the transaction proof to proceed.</p>
+                <p className="text-sm text-slate-500 mt-1">{t("upload_the_transaction_proof_to_proceed", "Upload the transaction proof to proceed.")}</p>
               </div>
 
               {!paymentScreenshot ? (
@@ -510,8 +526,8 @@ export const WebApplicationActivation: React.FC = () => {
                     <div className="p-4 bg-blue-100/50 rounded-full text-blue-600 mb-4 group-hover:scale-110 transition-transform shadow-sm">
                       <Upload size={32} />
                     </div>
-                    <p className="text-sm font-bold text-slate-700">Click to Upload Receipt</p>
-                    <p className="text-[10px] text-slate-400 mt-2 uppercase tracking-widest font-bold">PNG, JPG or PDF (Max 10MB)</p>
+                    <p className="text-sm font-bold text-slate-700">{t("click_to_upload_receipt", "Click to Upload Receipt")}</p>
+                    <p className="text-[10px] text-slate-400 mt-2 uppercase tracking-widest font-bold">{t("png_jpg_pdf_max_10mb", "PNG, JPG or PDF (Max 10MB)")}</p>
                   </div>
                   <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
                 </label>
@@ -540,8 +556,8 @@ export const WebApplicationActivation: React.FC = () => {
               <div>
                 <div className="flex justify-between items-start mb-8">
                   <div>
-                    <h3 className="text-lg font-bold text-slate-800">Activation Details</h3>
-                    <p className="text-sm text-slate-500 mt-1">Configure sales and tracking data.</p>
+                    <h3 className="text-lg font-bold text-slate-800">{t("activation_details", "Activation Details")}</h3>
+                    <p className="text-sm text-slate-500 mt-1">{t("configure_sales_and_tracking_data", "Configure sales and tracking data.")}</p>
                   </div>
                   <div className="flex p-1 bg-slate-200/50 rounded-xl border border-slate-200">
                     <button
@@ -550,7 +566,7 @@ export const WebApplicationActivation: React.FC = () => {
                         saleType === 'self' ? 'bg-white text-blue-600 shadow-md' : 'text-slate-500 hover:text-slate-700'
                       }`}
                     >
-                      Self
+                      {t("self", "Self")}
                     </button>
                     <button
                       onClick={() => setSaleType('dealer')}
@@ -558,7 +574,7 @@ export const WebApplicationActivation: React.FC = () => {
                         saleType === 'dealer' ? 'bg-white text-blue-600 shadow-md' : 'text-slate-500 hover:text-slate-700'
                       }`}
                     >
-                      Dealer
+                      {t("dealer", "Dealer")}
                     </button>
                   </div>
                 </div>
@@ -569,8 +585,8 @@ export const WebApplicationActivation: React.FC = () => {
                       <Check size={18} />
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-slate-700">Payment Pending</p>
-                      <p className="text-[10px] text-slate-500">Activate now, collect payment later</p>
+                      <p className="text-sm font-bold text-slate-700">{t("payment_pending", "Payment Pending")}</p>
+                      <p className="text-[10px] text-slate-500">{t("activate_now_collect_payment_later", "Activate now, collect payment later")}</p>
                     </div>
                   </div>
                   <Switch 
@@ -583,9 +599,9 @@ export const WebApplicationActivation: React.FC = () => {
                   {saleType === 'dealer' ? (
                     <>
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Dealer Name</label>
+                        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t("dealer_name", "Dealer Name")}</label>
                         <Input 
-                          placeholder="Select or enter dealer name"
+                          placeholder={t("select_or_enter_dealer_name", "Select or enter dealer name")}
                           value={dealerName}
                           onChange={(e) => setDealerName(e.target.value)}
                           className="h-11 bg-white border-slate-200 rounded-xl focus:ring-blue-500 shadow-sm"
@@ -593,7 +609,7 @@ export const WebApplicationActivation: React.FC = () => {
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Comm. (₹)</label>
+                          <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t("comm", "Comm.")} (₹)</label>
                           <Input 
                             type="number"
                             placeholder="0.00"
@@ -603,7 +619,7 @@ export const WebApplicationActivation: React.FC = () => {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Amount (₹)</label>
+                          <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t("amount", "Amount")} (₹)</label>
                           <Input 
                             type="number"
                             placeholder="0.00"
@@ -617,7 +633,7 @@ export const WebApplicationActivation: React.FC = () => {
                   ) : (
                     <>
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Sale Amount (₹)</label>
+                        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t("sale_amount", "Sale Amount")} (₹)</label>
                         <Input 
                           type="number"
                           placeholder="0.00"
@@ -627,7 +643,7 @@ export const WebApplicationActivation: React.FC = () => {
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Annual Renewal (₹)</label>
+                        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t("annual_renewal", "Annual Renewal")} (₹)</label>
                         <Input 
                           type="number"
                           placeholder="0.00"
@@ -641,7 +657,7 @@ export const WebApplicationActivation: React.FC = () => {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Duration (Days)</label>
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t("duration_days", "Duration (Days)")}</label>
                       <Input 
                         type="number"
                         placeholder="365"
@@ -651,9 +667,9 @@ export const WebApplicationActivation: React.FC = () => {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Internal Remarks</label>
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t("internal_remarks", "Internal Remarks")}</label>
                       <Input 
-                        placeholder="Notes..." 
+                        placeholder={t("notes_ellipsis", "Notes...")} 
                         value={remark}
                         onChange={(e) => setRemark(e.target.value)}
                         className="h-11 bg-white border-slate-200 rounded-xl focus:ring-blue-500 shadow-sm"
@@ -665,7 +681,7 @@ export const WebApplicationActivation: React.FC = () => {
 
               <div className="mt-8 flex gap-3">
                 <Button variant="ghost" onClick={() => setIsPaymentModalOpen(false)} className="flex-1 rounded-xl h-12 font-bold text-slate-500 hover:bg-slate-200">
-                  Cancel
+                  {t("cancel", "Cancel")}
                 </Button>
                 <Button 
                   className={`flex-[2] text-white rounded-xl h-12 font-bold shadow-lg transition-all ${
@@ -677,7 +693,7 @@ export const WebApplicationActivation: React.FC = () => {
                   onClick={() => selectedUserId && performStatusToggle(selectedUserId, true)}
                 >
                   {loading ? <Loader2 className="animate-spin mr-2" size={20} /> : <Check className="mr-2" size={20} />}
-                  {isPaymentPending ? 'Activate (Pending Payment)' : 'Complete Activation'}
+                  {isPaymentPending ? t("activate_pending_payment", "Activate (Pending Payment)") : t("complete_activation", "Complete Activation")}
                 </Button>
               </div>
             </div>
@@ -694,7 +710,7 @@ export const WebApplicationActivation: React.FC = () => {
               size="icon" 
               className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10 rounded-full"
               onClick={() => receiptUrl && window.open(receiptUrl, '_blank')}
-              title="Open Original"
+              title={t("open_original", "Open Original")}
             >
               <Upload size={18} className="rotate-180" />
             </Button>
@@ -717,13 +733,13 @@ export const WebApplicationActivation: React.FC = () => {
                     src={receiptUrl} 
                     alt="Payment Receipt" 
                     className="max-w-full max-h-[80vh] object-contain rounded shadow-2xl transition-transform duration-500 group-hover:scale-[1.02]"
-                    onError={() => toast.error("Failed to load image")}
+                    onError={() => toast.error(t("failed_to_load_image", "Failed to load image"))}
                   />
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-3">
                   <Loader2 className="animate-spin text-blue-500" size={40} />
-                  <p className="text-slate-400 text-sm">Retrieving secure receipt...</p>
+                  <p className="text-slate-400 text-sm">{t("retrieving_secure_receipt", "Retrieving secure receipt...")}</p>
                 </div>
               )}
             </div>
@@ -734,24 +750,24 @@ export const WebApplicationActivation: React.FC = () => {
                 <div>
                   <h3 className="text-white font-semibold flex items-center gap-2 mb-1">
                     <ImageIcon className="text-blue-400" size={18} />
-                    Payment Evidence
+                    {t("payment_evidence", "Payment Evidence")}
                   </h3>
                   <p className="text-slate-400 text-xs leading-relaxed">
-                    Verified payment screenshot for user activation.
+                    {t("verified_payment_screenshot", "Verified payment screenshot for user activation.")}
                   </p>
                 </div>
 
                 <div className="space-y-4">
                   <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Status</p>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">{t("status", "Status")}</p>
                     <div className="flex items-center gap-2">
                       <Check className="text-emerald-500" size={14} />
-                      <span className="text-emerald-400 text-sm font-medium">Verified Payment</span>
+                      <span className="text-emerald-400 text-sm font-medium">{t("verified_payment", "Verified Payment")}</span>
                     </div>
                   </div>
 
                   <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Web User ID</p>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">{t("web_user_id", "Web User ID")}</p>
                     <p className="text-white text-sm font-mono">{selectedUserId}</p>
                   </div>
                 </div>
@@ -762,7 +778,7 @@ export const WebApplicationActivation: React.FC = () => {
                   onClick={() => setIsReceiptModalOpen(false)} 
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-lg shadow-blue-900/20"
                 >
-                  Close Viewer
+                  {t("close_viewer", "Close Viewer")}
                 </Button>
               </div>
             </div>

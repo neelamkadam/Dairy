@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { adminApi } from '@/services/adminApi';
 import { toast } from 'react-toastify';
 import {
@@ -21,6 +22,7 @@ import {
 } from '@/components/ui/select';
 
 export const MobileApplication: React.FC = () => {
+  const { t } = useTranslation();
   const [managers, setManagers] = useState<any[]>([]);
   const [filteredManagers, setFilteredManagers] = useState<any[]>([]);
   const [dairyAdmins, setDairyAdmins] = useState<any[]>([]);
@@ -47,7 +49,7 @@ export const MobileApplication: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching managers:', error);
-      toast.error('Failed to fetch managers');
+      toast.error(t("failed_to_fetch_managers", 'Failed to fetch managers'));
     }
   };
 
@@ -90,12 +92,12 @@ export const MobileApplication: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="bg-white rounded-lg shadow-sm border p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-6">Mobile Applications</h2>
+        <h2 className="text-xl font-semibold text-gray-900 mb-6">{t("mobile_applications", "Mobile Applications")}</h2>
         
         <div className="flex items-center gap-4 mb-6">
           <div className="flex-1 flex gap-2">
             <Input
-              placeholder="Search..."
+              placeholder={t("search", "Search...")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -116,7 +118,7 @@ export const MobileApplication: React.FC = () => {
                 <SelectItem value="100">100</SelectItem>
               </SelectContent>
             </Select>
-            <span className="text-sm text-gray-600">per page</span>
+            <span className="text-sm text-gray-600">{t("per_page", "per page")}</span>
           </div>
         </div>
 
@@ -124,12 +126,12 @@ export const MobileApplication: React.FC = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="font-semibold">Username</TableHead>
-                <TableHead className="font-semibold">Dairy ID</TableHead>
-                <TableHead className="font-semibold">Mobile Number</TableHead>
-                <TableHead className="font-semibold">Branch Name</TableHead>
-                <TableHead className="font-semibold">Owner Name</TableHead>
-                <TableHead className="font-semibold">Address</TableHead>
+                <TableHead className="font-semibold">{t("username", "Username")}</TableHead>
+                <TableHead className="font-semibold">{t("dairy_id", "Dairy ID")}</TableHead>
+                <TableHead className="font-semibold">{t("mobile_number", "Mobile Number")}</TableHead>
+                <TableHead className="font-semibold">{t("branch_name", "Branch Name")}</TableHead>
+                <TableHead className="font-semibold">{t("owner_name", "Owner Name")}</TableHead>
+                <TableHead className="font-semibold">{t("address", "Address")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -149,7 +151,11 @@ export const MobileApplication: React.FC = () => {
 
         <div className="flex justify-between items-center mt-6">
           <div className="text-sm text-gray-600">
-            Showing {filteredManagers.length > 0 ? (currentPage - 1) * perPage + 1 : 0} to {Math.min(currentPage * perPage, filteredManagers.length)} of {filteredManagers.length} entries
+            {t("showing_entries", "Showing {{start}} to {{end}} of {{total}} entries", { 
+              start: filteredManagers.length > 0 ? (currentPage - 1) * perPage + 1 : 0, 
+              end: Math.min(currentPage * perPage, filteredManagers.length), 
+              total: filteredManagers.length 
+            })}
           </div>
           <div className="flex gap-2 items-center">
             <Button
@@ -161,7 +167,9 @@ export const MobileApplication: React.FC = () => {
             >
               <ChevronLeft size={16} />
             </Button>
-            <span className="text-sm text-gray-600">Page {currentPage} of {totalPages || 1}</span>
+            <span className="text-sm text-gray-600">
+              {t("page_of", "Page {{current}} of {{total}}", { current: currentPage, total: totalPages || 1 })}
+            </span>
             <Button
               variant="outline"
               size="sm"

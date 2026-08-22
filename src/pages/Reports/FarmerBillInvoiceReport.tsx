@@ -31,6 +31,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Pencil, Loader2 } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { userApi } from '@/services/userApi';
+import { rateChartApi } from '@/services/rateChartApi';
+import { collectionApi } from '@/services/collectionApi';
+import { calculateCLRFromFatAndSNF } from '@/utils/milkCalculations';
 
 interface CollectionRecord {
   date: string;
@@ -78,12 +84,12 @@ const FarmerBillInvoiceReport = () => {
   const hideRateAmount = userId === '7';
   const [selectedVLC, setSelectedVLC] = useState<string>('');
   const [language, setLanguage] = useState<string>(i18n.language || 'en');
-  
+
   const selectedVlcObj = branches.find((b: any) => b.branch_id.toString() === selectedVLC);
 
   const calculateDateRange = (dateStr: string) => {
     if (!dateStr) return { from: '', to: '' };
-    
+
     let year: number, month: number, day: number;
     if (dateStr.includes('-')) {
       const parts = dateStr.split('-');
@@ -106,9 +112,9 @@ const FarmerBillInvoiceReport = () => {
 
     const cycleDays = selectedVlcObj?.days || 10;
     const lastDayOfMonth = new Date(year, month, 0).getDate();
-    
+
     let startDay: number, endDay: number;
-    
+
     if (cycleDays === 15) {
       if (day >= 1 && day <= 15) {
         startDay = 1;
@@ -132,7 +138,7 @@ const FarmerBillInvoiceReport = () => {
         endDay = lastDayOfMonth;
       }
     }
-    
+
     return {
       from: `${year}-${String(month).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`,
       to: `${year}-${String(month).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`
@@ -141,7 +147,7 @@ const FarmerBillInvoiceReport = () => {
 
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
-  
+
   const handleFromDateChange = (newDate: string) => {
     const dates = calculateDateRange(newDate);
     setFromDate(dates.from);
@@ -176,6 +182,136 @@ const FarmerBillInvoiceReport = () => {
   const [currentPage, setCurrentPage] = useState(0);
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportFormat, setExportFormat] = useState<'1-per-page' | '2-per-page' | '3-per-page' | 'detailed-horizontal' | 'format-4' | 'format-5'>('1-per-page');
+
+  // Edit Collection State
+  const [editSheetOpen, setEditSheetOpen] = useState(false);
+  const [editCollection, setEditCollection] = useState<any>(null);
+  const [editFormData, setEditFormData] = useState({
+    quantity: '',
+    fat: '',
+    snf: '',
+    rate: '',
+    amount: ''
+  });
+  const [editLoading, setEditLoading] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editingFarmerData, setEditingFarmerData] = useState<any>(null);
+
+  const handleEditShift = async (fId: string, dateStr: string, shiftToEdit: 'Morning' | 'Evening', milkType: string) => {
+    setEditSheetOpen(true);
+    setEditLoading(true);
+    try {
+      const [d, m, y] = dateStr.split('-');
+      const apiDate = `${y}-${m}-${d}`;
+
+      const response = await collectionApi.getTodaysCollectionByFarmer(Number(selectedVLC), fId, apiDate);
+
+      const collections = response.data || [];
+      const collection = collections.find((c: any) => c.shift === shiftToEdit && (c.type === milkType || c.milkType === milkType));
+
+      if (!collection) {
+        toast.error(t('no_record'));
+        setEditSheetOpen(false);
+        return;
+      }
+
+      const farmerInfo = await userApi.getById(fId, Number(selectedVLC));
+
+      setEditCollection(collection);
+      setEditingFarmerData(farmerInfo);
+
+      setEditFormData({
+        quantity: collection.quantity?.toString() || collection.qty?.toString() || '',
+        fat: collection.fat?.toString() || '',
+        snf: collection.snf?.toString() || '',
+        rate: collection.rate?.toString() || '',
+        amount: collection.amount?.toString() || ''
+      });
+
+    } catch (error) {
+      console.error(error);
+      toast.error(t('oops_something_went_wrong'));
+      setEditSheetOpen(false);
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editCollection || !editFormData.quantity || !editFormData.fat || !editFormData.snf) {
+      toast.error(t('please_fill_required_fields'));
+      return;
+    }
+
+    setEditSaving(true);
+    try {
+      const qty = parseFloat(editFormData.quantity);
+      const fat = parseFloat(editFormData.fat);
+      const snf = parseFloat(editFormData.snf);
+      const rate = parseFloat(editFormData.rate);
+      const amt = qty * rate;
+      const clr = calculateCLRFromFatAndSNF(fat.toString(), snf.toString());
+
+      const payload = {
+        ...editCollection,
+        farmer_id: editCollection.farmer_id || editCollection.userId,
+        dairy_id: editCollection.dairy_id || selectedVLC,
+        quantity: qty,
+        fat,
+        snf,
+        clr: parseFloat(clr || '0'),
+        rate,
+        amount: amt
+      };
+
+      await collectionApi.update(editCollection.id, payload);
+      toast.success(t('collection_updated_successfully'));
+      setEditSheetOpen(false);
+      handleShow();
+    } catch (error) {
+      console.error(error);
+      toast.error(t('oops_something_went_wrong'));
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (editSheetOpen && editFormData.fat && editFormData.snf && editingFarmerData?.rateChart && editCollection) {
+        try {
+          let apiDate = editCollection.date;
+          if (apiDate && apiDate.includes('T')) apiDate = apiDate.split('T')[0];
+
+          const dateStr = format(new Date(), 'yyyy-MM-dd');
+          const response = await rateChartApi.getRate(
+            parseFloat(editFormData.fat),
+            parseFloat(editFormData.snf),
+            Number(selectedVLC),
+            editingFarmerData.rateChart,
+            editCollection.type || editCollection.milkType || 'Cow',
+            dateStr,
+            editCollection.shift
+          );
+          if (response?.price) {
+            const price = parseFloat(response.price);
+            const qty = parseFloat(editFormData.quantity) || 0;
+            setEditFormData(prev => ({
+              ...prev,
+              rate: price.toString(),
+              amount: (qty * price).toFixed(2)
+            }));
+          } else {
+            setEditFormData(prev => ({ ...prev, rate: '0.00', amount: '0.00' }));
+          }
+        } catch (error) {
+          console.error(error);
+        }
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [editFormData.fat, editFormData.snf, editFormData.quantity, editingFarmerData, editSheetOpen, editCollection, selectedVLC]);
+
   const [milkTypeFilter, setMilkTypeFilter] = useState<'All' | 'Cow' | 'Buffalo'>('All');
 
   const handleShow = async () => {
@@ -216,7 +352,7 @@ const FarmerBillInvoiceReport = () => {
         const paddedCode = farmerCode.padStart(4, '0');
         filteredData = filteredData.filter((item: CollectionRecord) => item.farmer_id === paddedCode);
       }
-      
+
       filteredData.sort((a: CollectionRecord, b: CollectionRecord) => parseInt(a.farmer_id) - parseInt(b.farmer_id));
 
       let finalFilteredData = filteredData;
@@ -225,7 +361,7 @@ const FarmerBillInvoiceReport = () => {
       }
 
       setCollectionData(finalFilteredData);
-      
+
       let filteredBills = billsRes.data;
       if (milkTypeFilter === 'Cow' && filteredBills.cow) {
         filteredBills = filteredBills.cow;
@@ -236,11 +372,11 @@ const FarmerBillInvoiceReport = () => {
         const buffBills = filteredBills.buffalo || [];
         filteredBills = [...cowBills, ...buffBills];
       }
-      
+
       setFarmerBills(filteredBills as any);
       setFarmerPayments(billsRes.data.farmer_payments || []);
       setVlcCommission(commSettings);
-      
+
       const bankMap = new Map<string, BankDetails>();
       (bankResponse.data || []).forEach((farmer: any) => {
         bankMap.set(farmer.farmer_id, {
@@ -251,7 +387,7 @@ const FarmerBillInvoiceReport = () => {
         });
       });
       setBankDetailsMap(bankMap);
-      
+
       setCurrentPage(0);
     } catch (error: any) {
       console.error('Error fetching data:', error);
@@ -414,11 +550,11 @@ const FarmerBillInvoiceReport = () => {
     const logs = farmer.payment_logs?.data || [];
     const payments = [...(farmer.payments || [])];
     const matchedLogIds = new Set<number>();
-    
+
     // First, mark logs that are already represented in payments
     payments.forEach((p: any) => {
       const pType = p.payment_type?.toLowerCase().trim().replace(/\s/g, '');
-      const logMatch = logs.find((l: any) => 
+      const logMatch = logs.find((l: any) =>
         !matchedLogIds.has(l.id) &&
         l.payment_type?.toLowerCase().trim().replace(/\s/g, '') === pType &&
         parseFloat(l.amount_taken || '0') === parseFloat(p.amount_taken || '0')
@@ -438,12 +574,12 @@ const FarmerBillInvoiceReport = () => {
     const finalMatchedIds = new Set<number>();
     return payments.map((p: any) => {
       const pType = p.payment_type?.toLowerCase().trim().replace(/\s/g, '');
-      const logMatch = logs.find((l: any) => 
+      const logMatch = logs.find((l: any) =>
         !finalMatchedIds.has(l.id) &&
         l.payment_type?.toLowerCase().trim().replace(/\s/g, '') === pType &&
         parseFloat(l.amount_taken || '0') === parseFloat(p.amount_taken || '0')
       );
-      
+
       const merged = logMatch ? { ...p, ...logMatch } : p;
       if (logMatch) finalMatchedIds.add(logMatch.id);
 
@@ -578,7 +714,7 @@ const FarmerBillInvoiceReport = () => {
       } else if (milkTypeFilter === 'Buffalo') {
         farmerData = response.data.buffalo || [];
       }
-      
+
       // Create a map of farmer_id to complete farmer data (including farmer_details)
       const farmerDataMap = new Map();
       farmerData.forEach(farmer => {
@@ -597,7 +733,7 @@ const FarmerBillInvoiceReport = () => {
       const farmerIds = Array.from(farmerDataMap.keys());
 
       // Filter by farmerCode if specified
-      const filteredFarmerIds = farmerCode.trim() 
+      const filteredFarmerIds = farmerCode.trim()
         ? farmerIds.filter(id => id === farmerCode.padStart(4, '0'))
         : farmerIds.sort((a, b) => parseInt(a) - parseInt(b));
 
@@ -608,19 +744,19 @@ const FarmerBillInvoiceReport = () => {
 
 
       const BATCH_SIZE = 50;
-      
+
       for (let i = 0; i < filteredFarmerIds.length; i++) {
         const farmerId = filteredFarmerIds[i];
         const farmerInfo = farmerDataMap.get(farmerId);
-        
+
         // Convert collections to FarmerBillData format
         let templateDataItems: FarmerBillData[] = farmerInfo.collections;
-        
+
         // Filter collections by milk type if not 'All'
         if (milkTypeFilter !== 'All') {
           templateDataItems = farmerInfo.collections.filter((c: any) => c.type === milkTypeFilter);
         }
-        
+
         templateDataItems = templateDataItems
           .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
           .map((item: any) => ({
@@ -741,11 +877,11 @@ const FarmerBillInvoiceReport = () => {
             )
           }, reportLang);
           const page = await generatePage(htmlContent);
-          
+
           if (i > 0) pdf.addPage();
           pdf.addImage(page.imgData, 'JPEG', 0, 0, page.imgWidth, page.imgHeight);
         }
-        
+
         // Save in batches to avoid memory issues
         if ((i + 1) % BATCH_SIZE === 0 && i < filteredFarmerIds.length - 1) {
           pdf.save(`Farmer_Bill_${fromDate}_to_${toDate}_Part${Math.floor(i / BATCH_SIZE) + 1}.pdf`);
@@ -842,8 +978,8 @@ const FarmerBillInvoiceReport = () => {
 
       // Enrich payments with payment_logs data (same as detailed horizontal format)
       const enrichedData = allData.map((farmer) => {
-        return { 
-          ...farmer, 
+        return {
+          ...farmer,
           payments: getNormalizedPayments(farmer)
         };
       });
@@ -862,7 +998,7 @@ const FarmerBillInvoiceReport = () => {
 
       for (let i = 0; i < filteredData.length; i += chunkSize) {
         const chunk = filteredData.slice(i, i + chunkSize);
-        
+
         const farmersWithComm = chunk.map(farmer => ({
           ...farmer,
           travel_commission: buildTravelCommission(
@@ -946,9 +1082,9 @@ const FarmerBillInvoiceReport = () => {
       } else if (milkTypeFilter === 'Buffalo') {
         farmerData = response.data.buffalo || [];
       }
-      
+
       const farmerMap = new Map<string, FarmerReportData>();
-      
+
       farmerData.forEach(farmer => {
         if (farmerMap.has(farmer.farmer_id)) {
           if (milkTypeFilter === 'All') {
@@ -978,7 +1114,7 @@ const FarmerBillInvoiceReport = () => {
         if (milkTypeFilter !== 'All') {
           filteredCollections = farmer.collections.filter((c: any) => c.type === milkTypeFilter);
         }
-        
+
         const farmerBillData: FarmerBillData[] = filteredCollections.map(c => ({
           date: c.created_at,
           shift: c.shift as 'Morning' | 'Evening',
@@ -1075,7 +1211,7 @@ const FarmerBillInvoiceReport = () => {
         } else {
           const html = generateTemplateDetailedHorizontal(templateData as any, reportLang);
           const { imgData, imgWidth, imgHeight } = await generatePage(html);
-          
+
           if (i > 0) pdf.addPage();
           pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
         }
@@ -1123,52 +1259,52 @@ const FarmerBillInvoiceReport = () => {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-end bg-white p-3 sm:p-4 rounded-lg shadow-sm mx-2 mb-4 text-left">
         <div>
-              <Label>{t('vlcc_center')}</Label>
-              <VLCDropdown
-                branches={branches || []}
-                value={selectedVLC}
-                onChange={setSelectedVLC}
-                valueKey="branch_id"
-                placeholder={t('select_vlc_center')}
-              />
-            </div>
+          <Label>{t('vlcc_center')}</Label>
+          <VLCDropdown
+            branches={branches || []}
+            value={selectedVLC}
+            onChange={setSelectedVLC}
+            valueKey="branch_id"
+            placeholder={t('select_vlc_center')}
+          />
+        </div>
 
-            <div>
-              <Label>{t('from_date')}</Label>
-              <Input type="date" value={fromDate} onChange={(e) => handleFromDateChange(e.target.value)} />
-            </div>
+        <div>
+          <Label>{t('from_date')}</Label>
+          <Input type="date" value={fromDate} onChange={(e) => handleFromDateChange(e.target.value)} />
+        </div>
 
-            <div>
-              <Label>{t('to_date')}</Label>
-              <Input type="date" value={toDate} disabled className="bg-gray-100 cursor-not-allowed" />
-            </div>
+        <div>
+          <Label>{t('to_date')}</Label>
+          <Input type="date" value={toDate} disabled className="bg-gray-100 cursor-not-allowed" />
+        </div>
 
-            <div>
-              <Label>{t('farmer_code_optional')}</Label>
-              <Input placeholder={t('enter_code')} value={farmerCode} onChange={(e) => setFarmerCode(e.target.value)} />
-            </div>
+        <div>
+          <Label>{t('farmer_code_optional')}</Label>
+          <Input placeholder={t('enter_code')} value={farmerCode} onChange={(e) => setFarmerCode(e.target.value)} />
+        </div>
 
-            <div>
-              <Label>{t('milk_type')}</Label>
-              <Select value={milkTypeFilter} onValueChange={(value: 'All' | 'Cow' | 'Buffalo') => setMilkTypeFilter(value)}>
-                <SelectTrigger className="bg-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-white">
-                  <SelectItem value="All">{t('all')}</SelectItem>
-                  <SelectItem value="Cow">{t('cow')}</SelectItem>
-                  <SelectItem value="Buffalo">{t('buffalo')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+        <div>
+          <Label>{t('milk_type')}</Label>
+          <Select value={milkTypeFilter} onValueChange={(value: 'All' | 'Cow' | 'Buffalo') => setMilkTypeFilter(value)}>
+            <SelectTrigger className="bg-white">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-white">
+              <SelectItem value="All">{t('all')}</SelectItem>
+              <SelectItem value="Cow">{t('cow')}</SelectItem>
+              <SelectItem value="Buffalo">{t('buffalo')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <div className="xl:col-span-5 flex flex-wrap gap-2 justify-end">
           <Button className='bg-blue-600 text-white w-[120px]' onClick={handleShow} disabled={loading}>
             {loading ? t('loading') : t('show')}
           </Button>
-          <Button 
-            className='bg-red-600 text-white flex items-center gap-2' 
-            onClick={() => setShowExportModal(true)} 
-            disabled={!selectedVLC || pdfLoading} 
+          <Button
+            className='bg-red-600 text-white flex items-center gap-2'
+            onClick={() => setShowExportModal(true)}
+            disabled={!selectedVLC || pdfLoading}
             variant="outline"
           >
             {t('export_pdf')}
@@ -1194,14 +1330,14 @@ const FarmerBillInvoiceReport = () => {
         if (Array.isArray(farmerBills)) {
           searchBills = farmerBills;
         } else if (farmerBills && (typeof farmerBills === 'object')) {
-           // @ts-ignore
-           if (farmerBills.cow && Array.isArray(farmerBills.cow)) searchBills = [...searchBills, ...farmerBills.cow];
-           // @ts-ignore
-           if (farmerBills.buffalo && Array.isArray(farmerBills.buffalo)) searchBills = [...searchBills, ...farmerBills.buffalo];
-           // @ts-ignore
-           if (farmerBills.farmerwise_bills && Array.isArray(farmerBills.farmerwise_bills)) searchBills = [...searchBills, ...farmerBills.farmerwise_bills];
+          // @ts-ignore
+          if (farmerBills.cow && Array.isArray(farmerBills.cow)) searchBills = [...searchBills, ...farmerBills.cow];
+          // @ts-ignore
+          if (farmerBills.buffalo && Array.isArray(farmerBills.buffalo)) searchBills = [...searchBills, ...farmerBills.buffalo];
+          // @ts-ignore
+          if (farmerBills.farmerwise_bills && Array.isArray(farmerBills.farmerwise_bills)) searchBills = [...searchBills, ...farmerBills.farmerwise_bills];
         }
-        
+
         const bill = searchBills.find((b: any) => b.farmer_id === farmerId);
         const payments = farmerPayments.filter(p => p.farmer_id === farmerId);
 
@@ -1270,16 +1406,16 @@ const FarmerBillInvoiceReport = () => {
             <div className="flex justify-between items-center">
               <p className="text-sm text-gray-600">{t('farmer_page_status', { current: currentPage + 1, total: totalPages })}</p>
               <div className="flex gap-2">
-                <Button 
-                  onClick={() => setCurrentPage(p => Math.max(0, p - 1))} 
+                <Button
+                  onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
                   disabled={currentPage === 0}
                   variant="outline"
                   size="sm"
                 >
                   {t('previous')}
                 </Button>
-                <Button 
-                  onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))} 
+                <Button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
                   disabled={currentPage === totalPages - 1}
                   variant="outline"
                   size="sm"
@@ -1290,196 +1426,346 @@ const FarmerBillInvoiceReport = () => {
             </div>
 
             <div className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('farmer_with_id_name', { id: farmerId, name: farmerData[0].farmer_name })}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="bg-gray-100">
-                        <th className="border p-2" rowSpan={2}>{t('date')}</th>
-                        <th className="border p-2" colSpan={hideRateAmount ? 3 : 5}>{t('morning')}</th>
-                        <th className="border p-2 border-l-2 border-black" colSpan={hideRateAmount ? 3 : 5}>{t('evening')}</th>
-                        <th className="border p-2" colSpan={hideRateAmount ? 1 : 2}>{t('total')}</th>
-                      </tr>
-                      <tr className="bg-gray-100">
-                        <th className="border p-2 border-l-2 border-black">{t('liter')}</th>
-                        <th className="border p-2">{t('fat')}</th>
-                        <th className="border p-2">{t('snf')}</th>
-                        {!hideRateAmount && <th className="border p-2">{t('rate')}</th>}
-                        {!hideRateAmount && <th className="border p-2">{t('amount')}</th>}
-                        <th className="border p-2">{t('liter')}</th>
-                        <th className="border p-2">{t('fat')}</th>
-                        <th className="border p-2">{t('snf')}</th>
-                        {!hideRateAmount && <th className="border p-2">{t('rate')}</th>}
-                        {!hideRateAmount && <th className="border p-2">{t('amount')}</th>}
-                        <th className="border p-2">{t('liter')}</th>
-                        {!hideRateAmount && <th className="border p-2">{t('amount')}</th>}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {displayTypes.map((type) => {
-                        const dateMap = typeDateMap.get(type)!;
-                        const dateRows = Array.from(dateMap.entries()).sort((a, b) => {
-                          const [d1, m1, y1] = a[0].split('-').map(Number);
-                          const [d2, m2, y2] = b[0].split('-').map(Number);
-                          return new Date(y1, m1 - 1, d1).getTime() - new Date(y2, m2 - 1, d2).getTime();
-                        });
-
-                        const typeTotals = dateRows.reduce(
-                          (acc, [, row]) => {
-                            acc.morningLiters += row.morning.liters;
-                            acc.morningAmount += row.morning.amount;
-                            acc.eveningLiters += row.evening.liters;
-                            acc.eveningAmount += row.evening.amount;
-                            acc.totalLiters += row.morning.liters + row.evening.liters;
-                            acc.totalAmount += row.morning.amount + row.evening.amount;
-                            return acc;
-                          },
-                          {
-                            morningLiters: 0,
-                            morningAmount: 0,
-                            eveningLiters: 0,
-                            eveningAmount: 0,
-                            totalLiters: 0,
-                            totalAmount: 0,
-                          }
-                        );
-
-                        return (
-                          <Fragment key={type}>
-                            <tr key={`${type}-header`} className="bg-gray-50 font-semibold">
-                              <td className="border p-2" colSpan={hideRateAmount ? 8 : 13}>
-                                {type}
-                              </td>
-                            </tr>
-                            {dateRows.map(([dateKey, row]) => {
-                              const totalLiters = row.morning.liters + row.evening.liters;
-                              const totalAmount = row.morning.amount + row.evening.amount;
-                              return (
-                                <tr key={`${type}-${dateKey}`} className="hover:bg-gray-50">
-                                  <td className="border p-2">{dateKey}</td>
-                                  <td className="border p-2 text-right">{row.morning.liters ? row.morning.liters.toFixed(1) : ''}</td>
-                                  <td className="border p-2 text-right">{formatAvg(row.morning.fatWeighted, row.morning.liters)}</td>
-                                  <td className="border p-2 text-right">{formatAvg(row.morning.snfWeighted, row.morning.liters)}</td>
-                                  {!hideRateAmount && <td className="border p-2 text-right">{formatAvg(row.morning.rateWeighted, row.morning.liters, 2)}</td>}
-                                  {!hideRateAmount && <td className="border p-2 text-right">{row.morning.amount ? row.morning.amount.toFixed(2) : ''}</td>}
-                                  <td className="border p-2 border-l-2 border-black text-right">{row.evening.liters ? row.evening.liters.toFixed(1) : ''}</td>
-                                  <td className="border p-2 text-right">{formatAvg(row.evening.fatWeighted, row.evening.liters)}</td>
-                                  <td className="border p-2 text-right">{formatAvg(row.evening.snfWeighted, row.evening.liters)}</td>
-                                  {!hideRateAmount && <td className="border p-2 text-right">{formatAvg(row.evening.rateWeighted, row.evening.liters, 2)}</td>}
-                                  {!hideRateAmount && <td className="border p-2 text-right">{row.evening.amount ? row.evening.amount.toFixed(2) : ''}</td>}
-                                  <td className="border p-2 text-right">{totalLiters ? totalLiters.toFixed(1) : ''}</td>
-                                  {!hideRateAmount && <td className="border p-2 text-right">{totalAmount ? totalAmount.toFixed(2) : ''}</td>}
-                                </tr>
-                              );
-                            })}
-                            <tr key={`${type}-total`} className="bg-blue-50 font-bold">
-                              <td className="border p-2">{t('total_label')}</td>
-                              <td className="border p-2 text-right">{typeTotals.morningLiters.toFixed(1)}</td>
-                              <td className="border p-2"></td>
-                              <td className="border p-2"></td>
-                              {!hideRateAmount && <td className="border p-2"></td>}
-                              {!hideRateAmount && <td className="border p-2 text-right">{typeTotals.morningAmount.toFixed(2)}</td>}
-                              <td className="border p-2 border-l-2 border-black text-right">{typeTotals.eveningLiters.toFixed(1)}</td>
-                              <td className="border p-2"></td>
-                              <td className="border p-2"></td>
-                              {!hideRateAmount && <td className="border p-2"></td>}
-                              {!hideRateAmount && <td className="border p-2 text-right">{typeTotals.eveningAmount.toFixed(2)}</td>}
-                              <td className="border p-2 text-right">{typeTotals.totalLiters.toFixed(1)}</td>
-                              {!hideRateAmount && <td className="border p-2 text-right">{typeTotals.totalAmount.toFixed(2)}</td>}
-                            </tr>
-                          </Fragment>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-
-            {payments.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle>{t('payments_deductions')}</CardTitle>
+                  <CardTitle>{t('farmer_with_id_name', { id: farmerId, name: farmerData[0].farmer_name })}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="overflow-x-auto">
                     <table className="w-full border-collapse">
                       <thead>
                         <tr className="bg-gray-100">
-                          <th className="border p-2">{t('date')}</th>
-                          <th className="border p-2">{t('type')}</th>
-                          <th className="border p-2">{t('amount')}</th>
+                          <th className="border p-2" rowSpan={2}>{t('date')}</th>
+                          <th className="border p-2" colSpan={hideRateAmount ? 3 : 5}>{t('morning')}</th>
+                          <th className="border p-2 border-l-2 border-black" colSpan={hideRateAmount ? 3 : 5}>{t('evening')}</th>
+                          <th className="border p-2" colSpan={hideRateAmount ? 1 : 2}>{t('total')}</th>
+                          <th className="border p-2" rowSpan={2}>{t('actions', { defaultValue: 'Actions' })}</th>
+                        </tr>
+                        <tr className="bg-gray-100">
+                          <th className="border p-2 border-l-2 border-black">{t('liter')}</th>
+                          <th className="border p-2">{t('fat')}</th>
+                          <th className="border p-2">{t('snf')}</th>
+                          {!hideRateAmount && <th className="border p-2">{t('rate')}</th>}
+                          {!hideRateAmount && <th className="border p-2">{t('amount')}</th>}
+                          <th className="border p-2">{t('liter')}</th>
+                          <th className="border p-2">{t('fat')}</th>
+                          <th className="border p-2">{t('snf')}</th>
+                          {!hideRateAmount && <th className="border p-2">{t('rate')}</th>}
+                          {!hideRateAmount && <th className="border p-2">{t('amount')}</th>}
+                          <th className="border p-2">{t('liter')}</th>
+                          {!hideRateAmount && <th className="border p-2">{t('amount')}</th>}
                         </tr>
                       </thead>
                       <tbody>
-                        {payments.map((payment) => (
-                          <tr key={payment.id} className="hover:bg-gray-50">
-                            <td className="border p-2">{formatDate(payment.date)}</td>
-                            <td className="border p-2">{payment.payment_type}</td>
-                            <td className="border p-2 text-right">₹{parseFloat(payment.amount_taken || '0').toFixed(2)}</td>
-                          </tr>
-                        ))}
+                        {displayTypes.map((type) => {
+                          const dateMap = typeDateMap.get(type)!;
+                          const dateRows = Array.from(dateMap.entries()).sort((a, b) => {
+                            const [d1, m1, y1] = a[0].split('-').map(Number);
+                            const [d2, m2, y2] = b[0].split('-').map(Number);
+                            return new Date(y1, m1 - 1, d1).getTime() - new Date(y2, m2 - 1, d2).getTime();
+                          });
+
+                          const typeTotals = dateRows.reduce(
+                            (acc, [, row]) => {
+                              acc.morningLiters += row.morning.liters;
+                              acc.morningAmount += row.morning.amount;
+                              acc.eveningLiters += row.evening.liters;
+                              acc.eveningAmount += row.evening.amount;
+                              acc.totalLiters += row.morning.liters + row.evening.liters;
+                              acc.totalAmount += row.morning.amount + row.evening.amount;
+                              return acc;
+                            },
+                            {
+                              morningLiters: 0,
+                              morningAmount: 0,
+                              eveningLiters: 0,
+                              eveningAmount: 0,
+                              totalLiters: 0,
+                              totalAmount: 0,
+                            }
+                          );
+
+                          return (
+                            <Fragment key={type}>
+                              <tr key={`${type}-header`} className="bg-gray-50 font-semibold">
+                                <td className="border p-2" colSpan={hideRateAmount ? 9 : 14}>
+                                  {type}
+                                </td>
+                              </tr>
+                              {dateRows.map(([dateKey, row]) => {
+                                const totalLiters = row.morning.liters + row.evening.liters;
+                                const totalAmount = row.morning.amount + row.evening.amount;
+                                return (
+                                  <tr key={`${type}-${dateKey}`} className="hover:bg-gray-50">
+                                    <td className="border p-2">{dateKey}</td>
+                                    <td className="border p-2 text-right">
+                                      {row.morning.liters ? row.morning.liters.toFixed(1) : ''}
+                                    </td>
+                                    <td className="border p-2 text-right">{formatAvg(row.morning.fatWeighted, row.morning.liters)}</td>
+                                    <td className="border p-2 text-right">{formatAvg(row.morning.snfWeighted, row.morning.liters)}</td>
+                                    {!hideRateAmount && <td className="border p-2 text-right">{formatAvg(row.morning.rateWeighted, row.morning.liters, 2)}</td>}
+                                    {!hideRateAmount && <td className="border p-2 text-right">{row.morning.amount ? row.morning.amount.toFixed(2) : ''}</td>}
+                                    <td className="border p-2 border-l-2 border-black text-right">
+                                      {row.evening.liters ? row.evening.liters.toFixed(1) : ''}
+                                    </td>
+                                    <td className="border p-2 text-right">{formatAvg(row.evening.fatWeighted, row.evening.liters)}</td>
+                                    <td className="border p-2 text-right">{formatAvg(row.evening.snfWeighted, row.evening.liters)}</td>
+                                    {!hideRateAmount && <td className="border p-2 text-right">{formatAvg(row.evening.rateWeighted, row.evening.liters, 2)}</td>}
+                                    {!hideRateAmount && <td className="border p-2 text-right">{row.evening.amount ? row.evening.amount.toFixed(2) : ''}</td>}
+                                    <td className="border p-2 text-right">{totalLiters ? totalLiters.toFixed(1) : ''}</td>
+                                    {!hideRateAmount && <td className="border p-2 text-right">{totalAmount ? totalAmount.toFixed(2) : ''}</td>}
+                                    <td className="border p-2 text-center">
+                                      <div className="flex justify-center gap-2">
+                                        {row.morning.liters ? (
+                                          <button onClick={() => handleEditShift(farmerId, dateKey, 'Morning', type)} className="text-blue-600 hover:text-blue-800 flex items-center gap-1 bg-blue-50 px-2 py-1 rounded-md border border-blue-100 transition-colors" title={`${t('edit')} ${t('morning')}`}>
+                                            <span className="text-xs font-semibold">M</span><Pencil className="w-3 h-3" />
+                                          </button>
+                                        ) : null}
+                                        {row.evening.liters ? (
+                                          <button onClick={() => handleEditShift(farmerId, dateKey, 'Evening', type)} className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100 transition-colors" title={`${t('edit')} ${t('evening')}`}>
+                                            <span className="text-xs font-semibold">E</span><Pencil className="w-3 h-3" />
+                                          </button>
+                                        ) : null}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                              <tr key={`${type}-total`} className="bg-blue-50 font-bold">
+                                <td className="border p-2">{t('total_label')}</td>
+                                <td className="border p-2 text-right">{typeTotals.morningLiters.toFixed(1)}</td>
+                                <td className="border p-2"></td>
+                                <td className="border p-2"></td>
+                                {!hideRateAmount && <td className="border p-2"></td>}
+                                {!hideRateAmount && <td className="border p-2 text-right">{typeTotals.morningAmount.toFixed(2)}</td>}
+                                <td className="border p-2 border-l-2 border-black text-right">{typeTotals.eveningLiters.toFixed(1)}</td>
+                                <td className="border p-2"></td>
+                                <td className="border p-2"></td>
+                                {!hideRateAmount && <td className="border p-2"></td>}
+                                {!hideRateAmount && <td className="border p-2 text-right">{typeTotals.eveningAmount.toFixed(2)}</td>}
+                                <td className="border p-2 text-right">{typeTotals.totalLiters.toFixed(1)}</td>
+                                {!hideRateAmount && <td className="border p-2 text-right">{typeTotals.totalAmount.toFixed(2)}</td>}
+                                <td className="border p-2"></td>
+                              </tr>
+                            </Fragment>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
                 </CardContent>
               </Card>
-            )}
 
-            {bill && bill.current_bill && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>{t('bill_summary')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 bg-gray-50 rounded">
-                      <p className="text-sm text-gray-600">{t('total_milk_amount')}</p>
-                      <p className="text-xl font-bold">₹{parseFloat(bill.current_bill.milk_total || '0').toFixed(2)}</p>
+              {payments.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{t('payments_deductions')}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="bg-gray-100">
+                            <th className="border p-2">{t('date')}</th>
+                            <th className="border p-2">{t('type')}</th>
+                            <th className="border p-2">{t('amount')}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {payments.map((payment) => (
+                            <tr key={payment.id} className="hover:bg-gray-50">
+                              <td className="border p-2">{formatDate(payment.date)}</td>
+                              <td className="border p-2">{payment.payment_type}</td>
+                              <td className="border p-2 text-right">₹{parseFloat(payment.amount_taken || '0').toFixed(2)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                    <div className="p-4 bg-gray-50 rounded">
-                      <p className="text-sm text-gray-600">{t('advance')}</p>
-                      <p className="text-xl font-bold">₹{parseFloat(bill.current_bill.advance_total || '0').toFixed(2)}</p>
-                    </div>
-                    {vlcCommission && (new Date(toDate) >= new Date(vlcCommission.effective_from)) && (
+                  </CardContent>
+                </Card>
+              )}
+
+              {bill && bill.current_bill && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{t('bill_summary')}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-4">
                       <div className="p-4 bg-gray-50 rounded">
-                        <p className="text-sm text-gray-600">{t('travel_commission')}</p>
-                        <p className="text-xl font-bold">
-                          ₹{(vlcCommission.type === 'Commission' 
-                            ? (farmerData.reduce((acc, curr) => acc + parseFloat(curr.liters || '0'), 0) * parseFloat(vlcCommission.amount))
-                            : parseFloat(vlcCommission.amount)
-                          ).toFixed(2)}
-                        </p>
+                        <p className="text-sm text-gray-600">{t('total_milk_amount')}</p>
+                        <p className="text-xl font-bold">₹{parseFloat(bill.current_bill.milk_total || '0').toFixed(2)}</p>
                       </div>
-                    )}
-                    <div className="p-4 bg-blue-50 border border-blue-200 rounded">
-                      <p className="text-sm text-blue-600 font-semibold">{t('net_payable')}</p>
-                      <p className="text-2xl font-bold text-blue-700">
-                        ₹{(parseFloat(bill.current_bill.net_payable || '0') + (vlcCommission && (new Date(toDate) >= new Date(vlcCommission.effective_from)) ? (vlcCommission.type === 'Commission' 
+                      <div className="p-4 bg-gray-50 rounded">
+                        <p className="text-sm text-gray-600">{t('advance')}</p>
+                        <p className="text-xl font-bold">₹{parseFloat(bill.current_bill.advance_total || '0').toFixed(2)}</p>
+                      </div>
+                      {vlcCommission && (new Date(toDate) >= new Date(vlcCommission.effective_from)) && (
+                        <div className="p-4 bg-gray-50 rounded">
+                          <p className="text-sm text-gray-600">{t('travel_commission')}</p>
+                          <p className="text-xl font-bold">
+                            ₹{(vlcCommission.type === 'Commission'
+                              ? (farmerData.reduce((acc, curr) => acc + parseFloat(curr.liters || '0'), 0) * parseFloat(vlcCommission.amount))
+                              : parseFloat(vlcCommission.amount)
+                            ).toFixed(2)}
+                          </p>
+                        </div>
+                      )}
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded">
+                        <p className="text-sm text-blue-600 font-semibold">{t('net_payable')}</p>
+                        <p className="text-2xl font-bold text-blue-700">
+                          ₹{(parseFloat(bill.current_bill.net_payable || '0') + (vlcCommission && (new Date(toDate) >= new Date(vlcCommission.effective_from)) ? (vlcCommission.type === 'Commission'
                             ? (farmerData.reduce((acc, curr) => acc + parseFloat(curr.liters || '0'), 0) * parseFloat(vlcCommission.amount))
                             : parseFloat(vlcCommission.amount)) : 0)).toFixed(2)}
-                      </p>
+                        </p>
+                      </div>
+                      <div className="p-4 bg-gray-50 rounded">
+                        <p className="text-sm text-gray-600">{t('other_deductions')}</p>
+                        <p className="text-xl font-bold">₹{(parseFloat(bill.current_bill.other1_total || '0') + parseFloat(bill.current_bill.other2_total || '0')).toFixed(2)}</p>
+                      </div>
+                      <div className="p-4 bg-green-50 rounded col-span-2">
+                        <p className="text-sm text-gray-600">{t('net_payable')}</p>
+                        <p className="text-2xl font-bold text-green-600">₹{parseFloat(bill.current_bill.net_payable || '0').toFixed(2)}</p>
+                      </div>
                     </div>
-                    <div className="p-4 bg-gray-50 rounded">
-                      <p className="text-sm text-gray-600">{t('other_deductions')}</p>
-                      <p className="text-xl font-bold">₹{(parseFloat(bill.current_bill.other1_total || '0') + parseFloat(bill.current_bill.other2_total || '0')).toFixed(2)}</p>
-                    </div>
-                    <div className="p-4 bg-green-50 rounded col-span-2">
-                      <p className="text-sm text-gray-600">{t('net_payable')}</p>
-                      <p className="text-2xl font-bold text-green-600">₹{parseFloat(bill.current_bill.net_payable || '0').toFixed(2)}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </>
         );
       })()}
+
+      <Sheet open={editSheetOpen} onOpenChange={setEditSheetOpen}>
+        <SheetContent className="bg-white z-[100] sm:max-w-md w-full overflow-y-auto" side="right">
+          <SheetHeader className="border-b border-gray-100 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-blue-100 p-2.5 rounded-xl">
+                <Pencil className="w-5 h-5 text-blue-700" />
+              </div>
+              <div className="text-left">
+                <SheetTitle className="text-xl font-bold text-gray-900 tracking-tight">
+                  Edit Collection
+                </SheetTitle>
+                <SheetDescription className="text-sm text-gray-500 mt-0.5">
+                  Update milk collection records
+                </SheetDescription>
+              </div>
+            </div>
+
+            <div className="mt-5 bg-gray-50 p-4 rounded-xl border border-gray-100/80 flex flex-col gap-3 text-left">
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Farmer Details</p>
+                <p className="text-sm font-bold text-gray-800">
+                  {editingFarmerData ? `${editingFarmerData.farmerName || editingFarmerData.farmer_name || 'Farmer'}` : 'Farmer Details'}
+                  <span className="text-gray-500 font-medium ml-1">
+                    (#{editingFarmerData?.farmerId || editingFarmerData?.farmer_id || editCollection?.farmer_id || ''})
+                  </span>
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">
+                  {editCollection?.shift} Shift
+                </span>
+                <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                  {editCollection?.type || editCollection?.milkType} Milk
+                </span>
+              </div>
+            </div>
+          </SheetHeader>
+          <div className="space-y-6">
+            {editLoading ? (
+              <div className="flex justify-center items-center h-40">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+              </div>
+            ) : (
+              <div className="bg-gray-50/50 p-5 rounded-xl border border-gray-100 shadow-sm space-y-5">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">Quantity (Liter)</Label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        value={editFormData.quantity}
+                        onChange={e => setEditFormData(p => ({ ...p, quantity: e.target.value }))}
+                        className="pl-3 pr-8 py-2 border-gray-300 focus:ring-blue-500 focus:border-blue-500 transition-all rounded-lg bg-white"
+                      />
+                      <span className="absolute right-3 top-2.5 text-gray-400 text-sm font-medium">L</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">Fat</Label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        value={editFormData.fat}
+                        onChange={e => setEditFormData(p => ({ ...p, fat: e.target.value }))}
+                        className="pl-3 pr-8 py-2 border-gray-300 focus:ring-blue-500 focus:border-blue-500 transition-all rounded-lg bg-white"
+                      />
+                      <span className="absolute right-3 top-2.5 text-gray-400 text-sm font-medium">%</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">SNF</Label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        value={editFormData.snf}
+                        onChange={e => setEditFormData(p => ({ ...p, snf: e.target.value }))}
+                        className="pl-3 pr-8 py-2 border-gray-300 focus:ring-blue-500 focus:border-blue-500 transition-all rounded-lg bg-white"
+                      />
+                      <span className="absolute right-3 top-2.5 text-gray-400 text-sm font-medium">%</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-500">Rate</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-gray-400 font-medium">₹</span>
+                      <Input
+                        type="number"
+                        value={editFormData.rate}
+                        disabled
+                        className="pl-8 py-2 bg-gray-100/70 border-gray-200 text-gray-600 font-medium rounded-lg cursor-not-allowed"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-500">Amount</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-gray-400 font-medium">₹</span>
+                      <Input
+                        type="number"
+                        value={editFormData.amount}
+                        disabled
+                        className="pl-8 py-2 bg-gray-100/70 border-gray-200 text-gray-600 font-medium rounded-lg cursor-not-allowed"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <Button
+                    className="w-full py-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-base rounded-xl transition-colors shadow-sm"
+                    onClick={handleSaveEdit}
+                    disabled={editSaving}
+                  >
+                    {editSaving ? (
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    ) : (
+                      <Pencil className="w-5 h-5 mr-2" />
+                    )}
+                    {editSaving ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <Dialog open={showExportModal} onOpenChange={setShowExportModal}>
         <DialogContent className="sm:max-w-[425px] bg-white">
@@ -1490,8 +1776,8 @@ const FarmerBillInvoiceReport = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="py-2">
-            <RadioGroup 
-              value={exportFormat} 
+            <RadioGroup
+              value={exportFormat}
               onValueChange={(val) => setExportFormat(val as any)}
               className="space-y-3"
             >
@@ -1503,7 +1789,7 @@ const FarmerBillInvoiceReport = () => {
                 <RadioGroupItem value="2-per-page" id="2-per-page" />
                 <Label htmlFor="2-per-page" className="flex-1 font-semibold cursor-pointer">{t('export_option_2_per_page')}</Label>
               </div>
-{/* 
+              {/* 
               <div className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExportFormat('3-per-page')}>
                 <RadioGroupItem value="3-per-page" id="3-per-page" />
                 <Label htmlFor="3-per-page" className="flex-1 font-semibold cursor-pointer">{t('export_option_3_per_page')}</Label>

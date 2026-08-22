@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +14,7 @@ import { toast } from "react-toastify";
 import { Loader2 } from "lucide-react";
 
 const SetNewPassword = () => {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     newPassword: "",
     confirmPassword: ""
@@ -36,12 +38,12 @@ const SetNewPassword = () => {
     setError("");
 
     if (formData.newPassword !== formData.confirmPassword) {
-      setError("Passwords do not match");
+      setError(t("passwords_do_not_match", "Passwords do not match"));
       return;
     }
 
     if (formData.newPassword.length < 6) {
-      setError("Password must be at least 6 characters");
+      setError(t("password_min_6_chars", "Password must be at least 6 characters"));
       return;
     }
 
@@ -49,7 +51,7 @@ const SetNewPassword = () => {
 
     try {
       if (!tempUserData) {
-        setError("Session expired. Please login again.");
+        setError(t("session_expired_please_login", "Session expired. Please login again."));
         return;
       }
 
@@ -64,13 +66,13 @@ const SetNewPassword = () => {
         localStorage.removeItem("token");
         
         // Show success message and redirect to login
-        toast.success("Password set successfully! Please login with your new password.");
+        toast.success(t("password_set_successfully_login", "Password set successfully! Please login with your new password."));
         navigate(ROUTES.AUTH.LOGIN);
       } else {
-        setError(data.message || "Failed to set password");
+        setError(data.message || t("failed_to_set_password", "Failed to set password"));
       }
     } catch (error) {
-      setError("Network error occurred");
+      setError(t("network_error_occurred", "Network error occurred"));
     } finally {
       setLoading(false);
     }
@@ -83,13 +85,13 @@ const SetNewPassword = () => {
           <div className="mx-auto w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center mb-4">
             <Lock className="w-6 h-6 text-white" />
           </div>
-          <CardTitle className="text-2xl">Set New Password</CardTitle>
-          <p className="text-gray-600">Create a secure password for your account</p>
+          <CardTitle className="text-2xl">{t("set_new_password", "Set New Password")}</CardTitle>
+          <p className="text-gray-600">{t("create_secure_password", "Create a secure password for your account")}</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="newPassword">New Password</Label>
+              <Label htmlFor="newPassword">{t("new_password", "New Password")}</Label>
               <div className="relative">
                 <Input
                   id="newPassword"
@@ -113,7 +115,7 @@ const SetNewPassword = () => {
             </div>
 
             <div>
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Label htmlFor="confirmPassword">{t("confirm_password", "Confirm Password")}</Label>
               <Input
                 id="confirmPassword"
                 name="confirmPassword"
@@ -132,7 +134,7 @@ const SetNewPassword = () => {
 
             <Button type="submit" disabled={loading} className="w-full">
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {loading ? "Setting Password..." : "Set Password"}
+              {loading ? t("setting_password", "Setting Password...") : t("set_password", "Set Password")}
             </Button>
           </form>
         </CardContent>

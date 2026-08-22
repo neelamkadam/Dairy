@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAppSelector } from "@/redux/store";
 import { toast } from "react-toastify";
 import { shiftTimingApi } from "@/services/shiftTimingApi";
@@ -42,6 +43,7 @@ const pickWindow = (data: any, shift: "morning" | "evening"): ShiftWindow => {
 };
 
 const ShiftTimings = () => {
+  const { t } = useTranslation();
   const authState = useAppSelector((state) => state.authData);
   const userId = authState?.userData?.id ? Number(authState.userData.id) : null;
 
@@ -159,19 +161,19 @@ const ShiftTimings = () => {
 
   const handleSave = async () => {
     if (!userId) {
-      toast.error("User not found");
+      toast.error(t("user_not_found", "User not found"));
       return;
     }
     if (morning.restricted && (!morning.start || !morning.end)) {
-      toast.error("Morning shift needs both start and end time");
+      toast.error(t("morning_shift_needs_both_start_and_end_time", "Morning shift needs both start and end time"));
       return;
     }
     if (evening.restricted && (!evening.start || !evening.end)) {
-      toast.error("Evening shift needs both start and end time");
+      toast.error(t("evening_shift_needs_both_start_and_end_time", "Evening shift needs both start and end time"));
       return;
     }
     if (selectedVlcs.length === 0) {
-      toast.error("Please select at least one Target VLC to apply shift timings");
+      toast.error(t("please_select_at_least_one_target_vlc_to_apply_shift_timings", "Please select at least one Target VLC to apply shift timings"));
       return;
     }
 
@@ -186,13 +188,13 @@ const ShiftTimings = () => {
         vlcIds: selectedVlcs,
       });
       if (response?.data?.success === false) {
-        toast.error(response?.data?.message || "Failed to save shift timings");
+        toast.error(response?.data?.message || t("failed_to_save_shift_timings", "Failed to save shift timings"));
         return;
       }
-      toast.success(response?.data?.message || "Shift timings saved successfully");
+      toast.success(response?.data?.message || t("shift_timings_saved_successfully", "Shift timings saved successfully"));
       loadStatus();
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to save shift timings");
+      toast.error(error?.response?.data?.message || t("failed_to_save_shift_timings", "Failed to save shift timings"));
     } finally {
       setIsSaving(false);
     }
@@ -209,11 +211,11 @@ const ShiftTimings = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {icon}
-            <span className="font-semibold text-gray-800">{label} Shift</span>
+            <span className="font-semibold text-gray-800">{label} {t("shift", "Shift")}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600">
-              {window.restricted ? "Restricted" : "Open all times"}
+              {window.restricted ? t("restricted", "Restricted") : t("open_all_times", "Open all times")}
             </span>
             <Switch
               checked={window.restricted}
@@ -228,7 +230,7 @@ const ShiftTimings = () => {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="text-sm font-medium text-gray-700">
-                Start Time (IST) <span className="text-red-500">*</span>
+                {t("start_time_ist", "Start Time (IST)")} <span className="text-red-500">*</span>
               </Label>
               <Input
                 type="time"
@@ -239,7 +241,7 @@ const ShiftTimings = () => {
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-medium text-gray-700">
-                End Time (IST) <span className="text-red-500">*</span>
+                {t("end_time_ist", "End Time (IST)")} <span className="text-red-500">*</span>
               </Label>
               <Input
                 type="time"
@@ -251,7 +253,7 @@ const ShiftTimings = () => {
           </div>
         ) : (
           <p className="text-sm text-gray-500">
-            Mobile users can make {label.toLowerCase()} shift entries at any time.
+            {t("mobile_users_can_make_entries_at_any_time", "Mobile users can make {{shift}} shift entries at any time.", { shift: label.toLowerCase() })}
           </p>
         )}
       </CardContent>
@@ -265,10 +267,10 @@ const ShiftTimings = () => {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <CardTitle className="text-xl font-semibold text-gray-800">
-                Shift Timings
+                {t("shift_timings", "Shift Timings")}
               </CardTitle>
               <p className="text-sm text-gray-600 mt-1">
-                Control when mobile app users can make collection entries. All times are IST.
+                {t("control_mobile_app_users_entries_all_times_ist", "Control when mobile app users can make collection entries. All times are IST.")}
               </p>
             </div>
             <Button
@@ -278,7 +280,7 @@ const ShiftTimings = () => {
               className="border-gray-200 flex items-center gap-2"
             >
               <RefreshCw className={isLoading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
-              Refresh
+              {t("refresh", "Refresh")}
             </Button>
           </div>
         </CardHeader>
@@ -289,7 +291,7 @@ const ShiftTimings = () => {
               <Clock className="h-4 w-4 text-blue-600" />
               {serverTime && (
                 <span className="text-sm text-gray-700">
-                  Server time (IST): <span className="font-semibold">{serverTime}</span>
+                  {t("server_time_ist", "Server time (IST):")} <span className="font-semibold">{serverTime}</span>
                 </span>
               )}
               {entryAllowed !== null && (
@@ -300,12 +302,12 @@ const ShiftTimings = () => {
                       : "bg-red-100 text-red-800 hover:bg-red-100"
                   }
                 >
-                  {entryAllowed ? "Entries currently allowed" : "Entries currently blocked"}
+                  {entryAllowed ? t("entries_currently_allowed", "Entries currently allowed") : t("entries_currently_blocked", "Entries currently blocked")}
                 </Badge>
               )}
               {allowedShifts.length > 0 && (
                 <span className="text-sm text-gray-700">
-                  Allowed now: <span className="font-semibold">{allowedShifts.join(", ")}</span>
+                  {t("allowed_now", "Allowed now:")} <span className="font-semibold">{allowedShifts.join(", ")}</span>
                 </span>
               )}
             </div>
@@ -316,7 +318,7 @@ const ShiftTimings = () => {
             <div className="bg-indigo-50/50 px-4 py-3 border-b border-indigo-100 flex items-center gap-2">
               <ListChecks className="h-5 w-5 text-indigo-600" />
               <Label className="text-sm font-bold text-indigo-900 m-0">
-                Filter & Select Target Dairies (VLCs)
+                {t("filter_and_select_target_dairies", "Filter & Select Target Dairies (VLCs)")}
               </Label>
             </div>
             <CardContent className="p-4">
@@ -326,9 +328,9 @@ const ShiftTimings = () => {
                     <Snowflake className="h-3.5 w-3.5 text-purple-500" /> CC
                   </Label>
                   <Select value={ccSel} onValueChange={setCcSel}>
-                    <SelectTrigger className="bg-gray-50 border-gray-200 h-10"><SelectValue placeholder="All" /></SelectTrigger>
+                    <SelectTrigger className="bg-gray-50 border-gray-200 h-10"><SelectValue placeholder={t("all", "All")} /></SelectTrigger>
                     <SelectContent className="bg-white">
-                      <SelectItem value="none">All</SelectItem>
+                      <SelectItem value="none">{t("all", "All")}</SelectItem>
                       {ccList.map((cc) => (
                         <SelectItem key={cc.cc_id ?? cc.id} value={String(cc.cc_id ?? cc.id)}>
                           {cc.cc_id ?? cc.id} - {cc.name}
@@ -342,9 +344,9 @@ const ShiftTimings = () => {
                     <Warehouse className="h-3.5 w-3.5 text-blue-500" /> BMC
                   </Label>
                   <Select value={bmcSel} onValueChange={setBmcSel}>
-                    <SelectTrigger className="bg-gray-50 border-gray-200 h-10"><SelectValue placeholder="All" /></SelectTrigger>
+                    <SelectTrigger className="bg-gray-50 border-gray-200 h-10"><SelectValue placeholder={t("all", "All")} /></SelectTrigger>
                     <SelectContent className="bg-white">
-                      <SelectItem value="none">All</SelectItem>
+                      <SelectItem value="none">{t("all", "All")}</SelectItem>
                       {bmcList.map((bmc) => (
                         <SelectItem key={bmc.bmc_id ?? bmc.id} value={String(bmc.bmc_id ?? bmc.id)}>
                           {bmc.bmc_id ?? bmc.id} - {bmc.name}
@@ -358,9 +360,9 @@ const ShiftTimings = () => {
                     <RouteIcon className="h-3.5 w-3.5 text-green-500" /> Route
                   </Label>
                   <Select value={routeSel} onValueChange={setRouteSel}>
-                    <SelectTrigger className="bg-gray-50 border-gray-200 h-10"><SelectValue placeholder="All" /></SelectTrigger>
+                    <SelectTrigger className="bg-gray-50 border-gray-200 h-10"><SelectValue placeholder={t("all", "All")} /></SelectTrigger>
                     <SelectContent className="bg-white">
-                      <SelectItem value="none">All</SelectItem>
+                      <SelectItem value="none">{t("all", "All")}</SelectItem>
                       {routeList.map((route) => (
                         <SelectItem key={route.route_id ?? route.id} value={String(route.route_id ?? route.id)}>
                           {route.route_id ?? route.id} - {route.name}
@@ -371,25 +373,25 @@ const ShiftTimings = () => {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold flex items-center gap-1.5">
-                    Target VLCs <span className="text-red-500">*</span>
+                    {t("target_vlcs", "Target VLCs")} <span className="text-red-500">*</span>
                   </Label>
                   <Popover open={isVlcDropdownOpen} onOpenChange={setIsVlcDropdownOpen}>
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full justify-start text-left font-normal bg-gray-50 border-gray-200 h-10">
-                        {selectedVlcs.length === 0 ? "Select VLCs" : `${selectedVlcs.length} VLC(s) selected`}
+                        {selectedVlcs.length === 0 ? t("select_vlcs", "Select VLCs") : t("vlcs_selected", "{{count}} VLC(s) selected", { count: selectedVlcs.length })}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-80 p-0 bg-white" align="start">
                       <div className="p-2 border-b flex gap-2">
                         <Button variant="outline" size="sm" onClick={toggleSelectAllVlcs} className="flex-1 text-xs">
-                          {selectedVlcs.length > 0 && selectedVlcs.length === availableVlcs.length ? 'Deselect All' : 'Select All'}
+                          {selectedVlcs.length > 0 && selectedVlcs.length === availableVlcs.length ? t("deselect_all", "Deselect All") : t("select_all", "Select All")}
                         </Button>
                         {selectedVlcs.length > 0 && (
-                          <Button variant="outline" size="sm" onClick={() => setSelectedVlcs([])} className="flex-1 text-xs">Clear</Button>
+                          <Button variant="outline" size="sm" onClick={() => setSelectedVlcs([])} className="flex-1 text-xs">{t("clear", "Clear")}</Button>
                         )}
                       </div>
                       <div className="max-h-60 overflow-y-auto p-2">
-                        {availableVlcs.length === 0 && <p className="text-sm text-gray-500 p-2 text-center">No VLCs found</p>}
+                        {availableVlcs.length === 0 && <p className="text-sm text-gray-500 p-2 text-center">{t("no_vlcs_found", "No VLCs found")}</p>}
                         {availableVlcs.map((v, i) => {
                           const rawId = v.vlc_id ?? v.branch_id ?? v.id;
                           const vId = Number(rawId);
@@ -415,13 +417,13 @@ const ShiftTimings = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {renderShiftCard(
-              "Morning",
+              t("morning", "Morning"),
               <Sun className="h-5 w-5 text-orange-500" />,
               morning,
               setMorning
             )}
             {renderShiftCard(
-              "Evening",
+              t("evening", "Evening"),
               <Moon className="h-5 w-5 text-indigo-500" />,
               evening,
               setEvening
@@ -429,8 +431,7 @@ const ShiftTimings = () => {
           </div>
 
           <p className="text-xs text-gray-500">
-            Turning a shift off ("Open all times") clears its window — mobile entries for that
-            shift are allowed round the clock.
+            {t("turning_shift_off_clears_window", "Turning a shift off (\"Open all times\") clears its window — mobile entries for that shift are allowed round the clock.")}
           </p>
 
           <Button
@@ -439,7 +440,7 @@ const ShiftTimings = () => {
             className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 disabled:opacity-50 mt-4 flex items-center gap-2"
           >
             <Save className="h-4 w-4" />
-            {isSaving ? "Saving..." : "Save Timings"}
+            {isSaving ? t("saving", "Saving...") : t("save_timings", "Save Timings")}
           </Button>
         </CardContent>
       </Card>

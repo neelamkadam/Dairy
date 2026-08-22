@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +14,7 @@ interface CreateUserResponse {
 }
 
 const CreateUser = () => {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -45,7 +47,7 @@ const CreateUser = () => {
     } catch (error) {
       setResponse({
         success: false,
-        message: "Network error occurred. Please try again."
+        message: t("network_error_occurred_try_again", "Network error occurred. Please try again.")
       });
     } finally {
       setLoading(false);
@@ -71,8 +73,8 @@ const CreateUser = () => {
               <UserPlus className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-lg md:text-xl font-bold text-gray-900 tracking-tight">Create User</h1>
-              <p className="text-xs text-gray-500 mt-0.5">Add a new user to the system</p>
+              <h1 className="text-lg md:text-xl font-bold text-gray-900 tracking-tight">{t("create_user", "Create User")}</h1>
+              <p className="text-xs text-gray-500 mt-0.5">{t("add_a_new_user", "Add a new user to the system")}</p>
             </div>
           </div>
         </div>
@@ -85,7 +87,7 @@ const CreateUser = () => {
           <CardHeader className="border-b border-gray-100 bg-white pb-4 pt-5">
             <CardTitle className="flex items-center gap-2 text-lg font-semibold text-gray-800">
               <User className="w-5 h-5 text-gray-500" />
-              User Information
+              {t("user_information", "User Information")}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-5 md:p-6">
@@ -93,12 +95,12 @@ const CreateUser = () => {
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="name" className="text-sm font-medium text-gray-700">
-                    Full Name
+                    {t("full_name", "Full Name")}
                   </Label>
                   <Input
                     id="name"
                     name="name"
-                    placeholder="Enter full name"
+                    placeholder={t("enter_full_name", "Enter full name")}
                     value={formData.name}
                     onChange={handleInputChange}
                     className="h-10 border-gray-200 focus:ring-1 focus:ring-blue-600 focus:border-blue-600 text-sm transition-shadow rounded-md"
@@ -108,13 +110,13 @@ const CreateUser = () => {
 
                 <div className="space-y-1.5">
                   <Label htmlFor="email" className="text-sm font-medium text-gray-700">
-                    Email Address
+                    {t("email_address", "Email Address")}
                   </Label>
                   <Input
                     id="email"
                     name="email"
                     type="email"
-                    placeholder="Enter email address"
+                    placeholder={t("enter_email_address", "Enter email address")}
                     value={formData.email}
                     onChange={handleInputChange}
                     className="h-10 border-gray-200 focus:ring-1 focus:ring-blue-600 focus:border-blue-600 text-sm transition-shadow rounded-md"
@@ -124,12 +126,12 @@ const CreateUser = () => {
 
                 <div className="space-y-1.5">
                   <Label htmlFor="mobile_number" className="text-sm font-medium text-gray-700">
-                    Mobile Number
+                    {t("mobile_number", "Mobile Number")}
                   </Label>
                   <Input
                     id="mobile_number"
                     name="mobile_number"
-                    placeholder="Enter mobile number"
+                    placeholder={t("enter_mobile_number", "Enter mobile number")}
                     value={formData.mobile_number}
                     onChange={handleInputChange}
                     className="h-10 border-gray-200 focus:ring-1 focus:ring-blue-600 focus:border-blue-600 text-sm transition-shadow rounded-md"
@@ -147,12 +149,12 @@ const CreateUser = () => {
                   {loading ? (
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                      <span>Creating User...</span>
+                      <span>{t("creating_user", "Creating User...")}</span>
                     </div>
                   ) : (
                     <div className="flex items-center justify-center gap-2">
                       <UserPlus className="w-4 h-4" />
-                      <span>Create User</span>
+                      <span>{t("create_user", "Create User")}</span>
                     </div>
                   )}
                 </Button>
@@ -183,7 +185,7 @@ const CreateUser = () => {
           <Card className="shadow-sm border border-green-100 bg-white rounded-lg animate-in fade-in slide-in-from-top-2 duration-300">
             <CardHeader className="border-b border-green-50 bg-green-50/30 pb-3 pt-4">
               <CardTitle className="text-sm font-semibold text-green-700 flex items-center gap-2">
-                Temporary Password
+                {t("temporary_password", "Temporary Password")}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 md:p-5">
@@ -215,11 +217,11 @@ const CreateUser = () => {
                 </div>
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-gray-500 font-medium">
-                    Please share securely. The user will change it on first login.
+                    {t("share_password_securely_user", "Please share securely. The user will change it on first login.")}
                   </p>
                   {copied && (
                     <span className="text-xs text-green-600 font-medium animate-in fade-in">
-                      Copied!
+                      {t("copied", "Copied!")}
                     </span>
                   )}
                 </div>

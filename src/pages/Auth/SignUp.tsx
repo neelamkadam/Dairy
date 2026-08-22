@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import AppButton from "@/components/AppButton";
 import AppInputField from "@/components/AppInput";
 import { ROUTES } from "@/constatnts/routesConstants";
@@ -10,6 +11,7 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import NeoDairyLogo from "@/assets/NeoDairy_Logo.png";
 
 const SignUp = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const form: UseFormReturn<SignUpFormType> = useForm<SignUpFormType>({
@@ -68,11 +70,11 @@ const SignUp = () => {
               className="w-20 xl:w-24 h-auto mx-auto mb-4 bg-white rounded-2xl p-2"
             />
             <div>
-              <h1 className="text-2xl xl:text-4xl font-bold mb-2 leading-tight">Neo Dairy Sales and Services</h1>
-              <p className="text-base xl:text-lg text-green-100">Pvt Ltd.</p>
+              <h1 className="text-2xl xl:text-4xl font-bold mb-2 leading-tight">{t("neo_dairy_sales_and_services", "Neo Dairy Sales and Services")}</h1>
+              <p className="text-base xl:text-lg text-green-100">{t("pvt_ltd", "Pvt Ltd.")}</p>
             </div>
             <div className="space-y-2">
-              <p className="text-sm xl:text-base text-green-50">Empowering Dairy with Technology</p>
+              <p className="text-sm xl:text-base text-green-50">{t("empowering_dairy_with_technology", "Empowering Dairy with Technology")}</p>
             </div>
           </div>
         </div>
@@ -83,14 +85,14 @@ const SignUp = () => {
         <div className="w-full max-w-xl my-auto py-8">
           {/* Mobile logo */}
           <div className="lg:hidden text-center mb-8">
-            <h2 className="text-2xl font-bold text-blue-600">Neo Dairy Sales and Services</h2>
-            <p className="text-sm text-gray-600">Pvt Ltd.</p>
+            <h2 className="text-2xl font-bold text-blue-600">{t("neo_dairy_sales_and_services", "Neo Dairy Sales and Services")}</h2>
+            <p className="text-sm text-gray-600">{t("pvt_ltd", "Pvt Ltd.")}</p>
           </div>
 
           <div className="bg-white rounded-lg shadow-lg border border-slate-200 p-6 md:p-8 space-y-6">
             <div className="text-center">
-              <h2 className="text-2xl font-bold text-gray-900">Create Account</h2>
-              <p className="text-gray-600 mt-2">Start your digital dairy experience today</p>
+              <h2 className="text-2xl font-bold text-gray-900">{t("create_account", "Create Account")}</h2>
+              <p className="text-gray-600 mt-2">{t("start_digital_dairy_experience", "Start your digital dairy experience today")}</p>
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
@@ -98,67 +100,67 @@ const SignUp = () => {
                 name="diaryName"
                 form={form}
                 type="text"
-                placeholder="Enter your dairy's name"
-                label="Dairy Name"
+                placeholder={t("enter_dairy_name", "Enter your dairy's name")}
+                label={t("dairy_name", "Dairy Name")}
               />
               <AppInputField<SignUpFormType>
                 name="fullName"
                 form={form}
                 type="text"
-                placeholder="Enter your full name"
-                label="Owner Name"
+                placeholder={t("enter_full_name", "Enter your full name")}
+                label={t("owner_name", "Owner Name")}
               />
               
               <div className="pt-2">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3 border-b border-gray-100 pb-2">Location Details</h3>
+                <h3 className="text-sm font-semibold text-gray-900 mb-3 border-b border-gray-100 pb-2">{t("location_details", "Location Details")}</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <AppInputField<SignUpFormType>
                     name="pincode"
                     form={form}
                     type="number"
-                    placeholder="Pincode"
-                    label="Pincode"
+                    placeholder={t("pincode", "Pincode")}
+                    label={t("pincode", "Pincode")}
                   />
                   <AppInputField<SignUpFormType>
                     name="villageName"
                     form={form}
                     type="text"
-                    placeholder="Village"
-                    label="Village Name"
+                    placeholder={t("village", "Village")}
+                    label={t("village_name", "Village Name")}
                   />
                   <AppInputField<SignUpFormType>
                     name="talukaName"
                     form={form}
                     type="text"
-                    placeholder="Taluka"
-                    label="Taluka Name"
+                    placeholder={t("taluka", "Taluka")}
+                    label={t("taluka_name", "Taluka Name")}
                   />
                   <AppInputField<SignUpFormType>
                     name="state"
                     form={form}
                     type="text"
-                    placeholder="State"
-                    label="State"
+                    placeholder={t("state", "State")}
+                    label={t("state", "State")}
                   />
                 </div>
               </div>
 
               <div className="pt-2">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3 border-b border-gray-100 pb-2">Mobile Verification</h3>
+                <h3 className="text-sm font-semibold text-gray-900 mb-3 border-b border-gray-100 pb-2">{t("mobile_verification", "Mobile Verification")}</h3>
                 <div className="flex gap-4 items-end">
                   <div className="flex-1">
                     <AppInputField<SignUpFormType>
                       name="mobileNumber"
                       form={form}
                       type="number"
-                      placeholder="Mobile number"
-                      label="Mobile Number"
+                      placeholder={t("mobile_number_placeholder", "Mobile number")}
+                      label={t("mobile_number", "Mobile Number")}
                     />
                   </div>
                   <AppButton
                     type="button"
                     className="h-[46px] w-[100px] text-sm text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md font-semibold transition-colors"
-                    label="Send OTP"
+                    label={t("send_otp", "Send OTP")}
                   />
                 </div>
                 <div className="flex gap-4 items-end mt-4">
@@ -167,34 +169,34 @@ const SignUp = () => {
                       name="enterOtp"
                       form={form}
                       type="number"
-                      placeholder="Enter OTP"
-                      label="OTP"
+                      placeholder={t("enter_otp", "Enter OTP")}
+                      label={t("otp", "OTP")}
                     />
                   </div>
                   <AppButton
                     type="button"
                     className="h-[46px] w-[100px] text-sm text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-md font-semibold transition-colors"
-                    label="Verify"
+                    label={t("verify", "Verify")}
                   />
                 </div>
               </div>
 
               <div className="pt-2">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3 border-b border-gray-100 pb-2">Security</h3>
+                <h3 className="text-sm font-semibold text-gray-900 mb-3 border-b border-gray-100 pb-2">{t("security", "Security")}</h3>
                 <div className="grid md:grid-cols-2 gap-4">
                   <AppInputField<SignUpFormType>
                     name="password"
                     form={form}
                     type="password"
-                    placeholder="Create password"
-                    label="Password"
+                    placeholder={t("create_password", "Create password")}
+                    label={t("password", "Password")}
                   />
                   <AppInputField<SignUpFormType>
                     name="confirmPassword"
                     form={form}
                     type="password"
-                    placeholder="Repeat password"
-                    label="Repeat Password"
+                    placeholder={t("repeat_password", "Repeat password")}
+                    label={t("repeat_password_label", "Repeat Password")}
                   />
                 </div>
               </div>
@@ -202,18 +204,18 @@ const SignUp = () => {
               <AppButton
                 type="submit"
                 className="w-full text-white bg-blue-600 hover:bg-blue-700 py-2.5 rounded-md font-semibold transition-colors shadow-sm mt-6"
-                label="Create Account"
+                label={t("create_account", "Create Account")}
                 isLoading={isLoading}
               />
               
               <div className="text-center mt-6">
                 <span className="text-sm text-gray-500">
-                  Already have an account?{" "}
+                  {t("already_have_an_account", "Already have an account?")}{" "}
                   <NavLink
                     to={ROUTES.AUTH.LOGIN}
                     className="text-blue-600 font-semibold hover:underline"
                   >
-                    Sign in
+                    {t("sign_in_link", "Sign in")}
                   </NavLink>
                 </span>
               </div>
@@ -221,7 +223,7 @@ const SignUp = () => {
           </div>
           
           <p className="text-center text-sm text-gray-500 mt-6">
-            © {new Date().getFullYear()} Neo Dairy Sales and Services Pvt Ltd. All rights reserved.
+            {t("copyright_notice", "© {{year}} Neo Dairy Sales and Services Pvt Ltd. All rights reserved.", { year: new Date().getFullYear() })}
           </p>
         </div>
       </div>

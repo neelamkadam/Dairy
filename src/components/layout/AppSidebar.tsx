@@ -52,23 +52,23 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
       icon: <FolderOpen size={20} className="stroke-[1.5]" />,
       children: [
         { title: t('vlc_collection'), icon: <Dot size={24} />, href: ROUTES.COLLECTION.VLC_COLLECTION },
-        { title: "BMC Collection", icon: <Dot size={24} />, href: ROUTES.COLLECTION.BMC_COLLECTION },
-        { title: "CC Collection", icon: <Dot size={24} />, href: ROUTES.CC_COLLECTION.CHILLING_CENTER },
+        { title: t('bmc_collection', 'BMC Collection'), icon: <Dot size={24} />, href: ROUTES.COLLECTION.BMC_COLLECTION },
+        { title: t('cc_collection', 'CC Collection'), icon: <Dot size={24} />, href: ROUTES.CC_COLLECTION.CHILLING_CENTER },
       ]
     });
   }
 
   if (access?.master) {
     const createChildren: MenuItem[] = [
-      { title: "Create Route", icon: <Dot size={24} />, href: ROUTES.MASTER.CREATE_ROUTE },
-      { title: "Create BMC", icon: <Dot size={24} />, href: ROUTES.MASTER.CREATE_BMC },
-      { title: "Create CC", icon: <Dot size={24} />, href: ROUTES.MASTER.CREATE_CC },
+      { title: t('create_route', 'Create Route'), icon: <Dot size={24} />, href: ROUTES.MASTER.CREATE_ROUTE },
+      { title: t('create_bmc', 'Create BMC'), icon: <Dot size={24} />, href: ROUTES.MASTER.CREATE_BMC },
+      { title: t('create_cc', 'Create CC'), icon: <Dot size={24} />, href: ROUTES.MASTER.CREATE_CC },
     ];
 
     if (isAdmin) {
       createChildren.push(
-        { title: "Create Supervisor (Sub User)", icon: <Dot size={24} />, href: ROUTES.SETTINGS.CREATE_USER },
-        { title: "Create Dairy", icon: <Dot size={24} />, href: ROUTES.SETTINGS.CREATE_DAIRY },
+        { title: t('create_supervisor', 'Create Supervisor (Sub User)'), icon: <Dot size={24} />, href: ROUTES.SETTINGS.CREATE_USER },
+        { title: t('create_dairy', 'Create Dairy'), icon: <Dot size={24} />, href: ROUTES.SETTINGS.CREATE_DAIRY },
       );
     }
 
@@ -81,16 +81,16 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
         { title: t('cattle_feed_stock'), icon: <Dot size={24} />, href: ROUTES.SETTINGS.CATTLE_FEED_STOCK },
         { title: t('bonus'), icon: <Dot size={24} />, href: ROUTES.MASTER.BONUS },
         {
-          title: "Create",
+          title: t('create', 'Create'),
           icon: <PlusCircle size={18} className="stroke-[1.5]" />,
           children: createChildren
         },
         {
-          title: "Commission Entry",
+          title: t('commission_entry', 'Commission Entry'),
           icon: <FileText size={18} className="stroke-[1.5]" />,
           children: [
             { title: t('vlc_commission_entry'), icon: <Dot size={24} />, href: ROUTES.BILLING.VLC_COMMISSION_ENTRY },
-            { title: "Farmer Commission Entry", icon: <Dot size={24} />, href: ROUTES.BILLING.FARMER_COMMISSION_ENTRY }
+            { title: t('farmer_commission_entry', 'Farmer Commission Entry'), icon: <Dot size={24} />, href: ROUTES.BILLING.FARMER_COMMISSION_ENTRY }
           ]
         }
       ]
@@ -116,8 +116,8 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
       icon: <LineChart size={20} className="stroke-[1.5]" />,
       children: [
         { title: t('shift_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.SHIFT_REPORTS },
-        { title: "Manual/Auto Shift Report", icon: <Dot size={24} />, href: ROUTES.REPORTS.MANUAL_AUTO_SHIFT_REPORT },
-        { title: "Dispatch Status Report", icon: <Dot size={24} />, href: ROUTES.REPORTS.DISPATCH_STATUS_REPORT },
+        { title: t('manual_auto_shift_report', 'Manual/Auto Shift Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.MANUAL_AUTO_SHIFT_REPORT },
+        { title: t('dispatch_status_report', 'Dispatch Status Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.DISPATCH_STATUS_REPORT },
         { title: t('farmer_collection'), icon: <Dot size={24} />, href: ROUTES.REPORTS.FARMER_COLLECTION },
         { title: t('total_collection_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.TOTAL_COLLECTION_REPORT },
         { title: t('payment_summary_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.PAYMENT_SUMMARY },
@@ -137,13 +137,13 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
         { title: t('vlc_commission_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.VLC_COMMISSION_REPORT },
         { title: t('pl_statement'), icon: <Dot size={24} />, href: ROUTES.REPORTS.PL_STATEMENT },
         {
-          title: "Cattle Feed Report",
+          title: t('cattle_feed_report', 'Cattle Feed Report'),
           icon: <Dot size={24} />,
           children: [
-            { title: "Farmer-wise Cattle Feed Report", icon: <Dot size={24} />, href: ROUTES.REPORTS.CATTLE_FEED_FARMER_WISE_REPORT },
-            { title: "Cattle Feed Sales Report", icon: <Dot size={24} />, href: ROUTES.REPORTS.CATTLE_FEED_SALES_REPORT },
-            { title: "Cattle Feed Stock Report", icon: <Dot size={24} />, href: ROUTES.REPORTS.CATTLE_FEED_STOCK_REPORT },
-            { title: "Cattle Feed Purchases Report", icon: <Dot size={24} />, href: ROUTES.REPORTS.CATTLE_FEED_PURCHASE_REPORT },
+            { title: t('farmer_wise_cattle_feed_report', 'Farmer-wise Cattle Feed Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.CATTLE_FEED_FARMER_WISE_REPORT },
+            { title: t('cattle_feed_sales_report', 'Cattle Feed Sales Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.CATTLE_FEED_SALES_REPORT },
+            { title: t('cattle_feed_stock_report', 'Cattle Feed Stock Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.CATTLE_FEED_STOCK_REPORT },
+            { title: t('cattle_feed_purchases_report', 'Cattle Feed Purchases Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.CATTLE_FEED_PURCHASE_REPORT },
           ]
         },
         { title: t('bonus_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.BONUS_REPORT },
@@ -158,9 +158,9 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
     ];
 
     if (isAdmin) {
-      settingsChildren.push({ title: "Tanker Collector", icon: <Dot size={24} />, href: ROUTES.TANKER_COLLECTION });
-      settingsChildren.push({ title: "Sidebar Access", icon: <Dot size={24} />, href: ROUTES.SETTINGS.SIDEBAR_ACCESS });
-      settingsChildren.push({ title: "Shift Timings", icon: <Dot size={24} />, href: ROUTES.SETTINGS.SHIFT_TIMINGS });
+      settingsChildren.push({ title: t('tanker_collector', 'Tanker Collector'), icon: <Dot size={24} />, href: ROUTES.TANKER_COLLECTION });
+      settingsChildren.push({ title: t('sidebar_access', 'Sidebar Access'), icon: <Dot size={24} />, href: ROUTES.SETTINGS.SIDEBAR_ACCESS });
+      settingsChildren.push({ title: t('shift_timings', 'Shift Timings'), icon: <Dot size={24} />, href: ROUTES.SETTINGS.SHIFT_TIMINGS });
     } else {
       console.log('❌ Not adding Sidebar Access - user is not admin');
     }
@@ -174,7 +174,7 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
 
   if (access?.shubham_milk_product) {
     items.push({
-      title: "Shubham Milk Product",
+      title: t('shubham_milk_product', 'Shubham Milk Product'),
       icon: <Milk size={20} className="stroke-[1.5]" />,
       href: ROUTES.SHUBHAM_MILK_PRODUCT,
     });
@@ -182,12 +182,12 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
 
   if (true) {
     items.push({
-      title: "Group Stock",
+      title: t('group_stock', 'Group Stock'),
       icon: <Boxes size={20} className="stroke-[1.5]" />,
       href: ROUTES.GROUP_CATTLE_FEED_STOCK,
     });
     items.push({
-      title: "Farmer Payment",
+      title: t('farmer_payment', 'Farmer Payment'),
       icon: <Wallet size={20} className="stroke-[1.5]" />,
       href: ROUTES.FARMER_PAYMENT,
     });
@@ -195,7 +195,7 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
 
   if (access?.dyn) {
     items.push({
-      title: "Dynamic Bill Cycle",
+      title: t('dynamic_bill_cycle', 'Dynamic Bill Cycle'),
       icon: <CalendarDays size={20} className="stroke-[1.5]" />,
       href: ROUTES.DYNAMIC_BILL_CYCLE,
     });
@@ -390,7 +390,7 @@ const AppSidebar = ({ isOpen, onToggle }: SidebarProps) => {
               {isOpen && (
                 <div className="flex flex-col">
                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {showCompany ? 'Welcome To' : 'Welcome'}
+                    {showCompany ? t('welcome_to', 'Welcome To') : t('welcome', 'Welcome')}
                   </span>
                   <span
                     className={cn(

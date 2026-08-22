@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +20,7 @@ import { reportsApi } from "@/services/reportsApi";
 import { History, TrendingUp, Wallet, Calendar, CheckCircle2, Copy } from "lucide-react";
 
 const VlcCCommissionEntry: React.FC = () => {
+  const { t } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
   const [formData, setFormData] = useState({
     vlcc: "",
@@ -34,7 +36,7 @@ const VlcCCommissionEntry: React.FC = () => {
   const handleCopy = () => {
     navigator.clipboard.writeText(inputValue).then(
       () => {
-        toast.success("Copied to clipboard!");
+        toast.success(t("copied_to_clipboard", "Copied to clipboard!"));
       },
       (err) => {
         console.error("Failed to copy: ", err);
@@ -78,7 +80,7 @@ const VlcCCommissionEntry: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.vlcc || !formData.commissionAmount || !formData.effectiveDate) {
-      toast.error("Please fill all required fields");
+      toast.error(t("please_fill_all_required_fields", "Please fill all required fields"));
       return;
     }
     setLoading(true);
@@ -98,7 +100,7 @@ const VlcCCommissionEntry: React.FC = () => {
         setTimeout(() => setIsSubmitted(false), 5000);
       }
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to submit commission");
+      toast.error(error?.response?.data?.message || t("failed_to_submit_commission", "Failed to submit commission"));
     } finally {
       setLoading(false);
     }
@@ -111,10 +113,10 @@ const VlcCCommissionEntry: React.FC = () => {
         {/* Header Section */}
         <div className="flex flex-col items-start text-left gap-1.5 animate-in fade-in slide-in-from-top-4 duration-700">
           <h1 className="text-xl md:text-2xl font-semibold text-slate-800 tracking-tight">
-            VLC Commission Configuration
+            {t("vlc_commission_configuration", "VLC Commission Configuration")}
           </h1>
           <p className="text-sm text-slate-500 max-w-2xl">
-            Set and manage commission rates or fixed payments for Village Level Collection Centers.
+            {t("set_and_manage_commission_rates", "Set and manage commission rates or fixed payments for Village Level Collection Centers.")}
           </p>
         </div>
 
@@ -126,7 +128,7 @@ const VlcCCommissionEntry: React.FC = () => {
               <CardHeader className="px-6 py-5 border-b border-slate-100/50 bg-white/50 rounded-t-2xl">
                 <CardTitle className="text-xl font-bold text-slate-800 flex items-center gap-2">
                   <Wallet className="w-5 h-5 text-indigo-600" />
-                  Commission Entry
+                  {t("commission_entry", "Commission Entry")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
@@ -135,7 +137,7 @@ const VlcCCommissionEntry: React.FC = () => {
                   {/* VLC Selection */}
                   <div className="space-y-2 group">
                     <Label htmlFor="vlcc" className="text-sm font-semibold text-slate-700 group-hover:text-indigo-600 transition-colors">
-                      Select VLC <span className="text-red-500">*</span>
+                      {t("select_vlc", "Select VLC")} <span className="text-red-500">*</span>
                     </Label>
                     <div className="relative">
                       <VLCDropdown
@@ -143,7 +145,7 @@ const VlcCCommissionEntry: React.FC = () => {
                         value={formData.vlcc}
                         onChange={(value) => setFormData({ ...formData, vlcc: value })}
                         valueKey="branch_id"
-                        placeholder="Choose a VLC center..."
+                        placeholder={t("choose_a_vlc_center", "Choose a VLC center...")}
                       />
                     </div>
                   </div>
@@ -151,7 +153,7 @@ const VlcCCommissionEntry: React.FC = () => {
                   {/* Commission Type */}
                   <div className="space-y-3">
                     <Label className="text-sm font-semibold text-slate-700">
-                      Commission Type <span className="text-red-500">*</span>
+                      {t("commission_type", "Commission Type")} <span className="text-red-500">*</span>
                     </Label>
                     <RadioGroup
                       value={formData.commissionType}
@@ -171,8 +173,8 @@ const VlcCCommissionEntry: React.FC = () => {
                       >
                         <RadioGroupItem value="per-liter" id="per-liter" className="text-indigo-600" />
                         <div className="flex flex-col">
-                          <span className="font-bold text-sm text-slate-900">Per Liter</span>
-                          <span className="text-xs text-slate-500 font-medium">Commission based on volume</span>
+                          <span className="font-bold text-sm text-slate-900">{t("per_liter", "Per Liter")}</span>
+                          <span className="text-xs text-slate-500 font-medium">{t("commission_based_on_volume", "Commission based on volume")}</span>
                         </div>
                       </Label>
                       
@@ -187,8 +189,8 @@ const VlcCCommissionEntry: React.FC = () => {
                       >
                         <RadioGroupItem value="fixed" id="fixed" className="text-indigo-600" />
                         <div className="flex flex-col">
-                          <span className="font-bold text-sm text-slate-900">Fixed Payment</span>
-                          <span className="text-xs text-slate-500 font-medium">Flat amount per cycle</span>
+                          <span className="font-bold text-sm text-slate-900">{t("fixed_payment", "Fixed Payment")}</span>
+                          <span className="text-xs text-slate-500 font-medium">{t("flat_amount_per_cycle", "Flat amount per cycle")}</span>
                         </div>
                       </Label>
                     </RadioGroup>
@@ -198,7 +200,7 @@ const VlcCCommissionEntry: React.FC = () => {
                     {/* Amount */}
                     <div className="space-y-2 group">
                       <Label htmlFor="commissionAmount" className="text-sm font-semibold text-slate-700 group-hover:text-indigo-600 transition-colors">
-                        Amount <span className="text-red-500">*</span>
+                        {t("amount", "Amount")} <span className="text-red-500">*</span>
                       </Label>
                       <div className="relative group/input">
                         <span className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-500 font-semibold group-hover/input:text-indigo-600 transition-colors">
@@ -225,7 +227,7 @@ const VlcCCommissionEntry: React.FC = () => {
                     {/* Effective Date */}
                     <div className="space-y-2 group">
                       <Label className="text-sm font-semibold text-slate-700 group-hover:text-indigo-600 transition-colors">
-                        Effective Date From <span className="text-red-500">*</span>
+                        {t("effective_date_from", "Effective Date From")} <span className="text-red-500">*</span>
                       </Label>
                       <div className="relative">
                         <Input
@@ -250,10 +252,10 @@ const VlcCCommissionEntry: React.FC = () => {
                       {loading ? (
                         <>
                           <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          <span>Processing...</span>
+                          <span>{t("processing", "Processing...")}</span>
                         </>
                       ) : (
-                        "Save Configuration"
+                        t("save_configuration", "Save Configuration")
                       )}
                     </Button>
                   </div>
@@ -263,11 +265,11 @@ const VlcCCommissionEntry: React.FC = () => {
                   <div className="mt-6 p-5 bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200/60 rounded-xl animate-in slide-in-from-bottom-2 fade-in duration-300">
                     <div className="flex items-center gap-2.5 text-green-800 font-bold mb-3">
                       <CheckCircle2 className="w-6 h-6 text-green-600 animate-in zoom-in duration-300 delay-100" />
-                      Configuration saved successfully
+                      {t("configuration_saved_successfully", "Configuration saved successfully")}
                     </div>
                     <div className="relative group/copy">
                       <Label className="text-xs font-semibold text-green-700 uppercase tracking-wider mb-1.5 block">
-                        Reference ID
+                        {t("reference_id", "Reference ID")}
                       </Label>
                       <div className="flex items-center">
                         <Input
@@ -281,7 +283,7 @@ const VlcCCommissionEntry: React.FC = () => {
                           variant="outline"
                           onClick={handleCopy}
                           className="h-10 rounded-l-none rounded-r-lg border-green-200/60 bg-white hover:bg-green-100/50 hover:text-green-700 text-green-600 border-l-0 px-3 transition-colors"
-                          title="Copy to clipboard"
+                          title={t("copy_to_clipboard", "Copy to clipboard")}
                         >
                           <Copy className="w-4 h-4" />
                         </Button>
@@ -299,7 +301,7 @@ const VlcCCommissionEntry: React.FC = () => {
               <CardHeader className="px-5 py-4 border-b border-slate-100/50 bg-white/50 rounded-t-2xl shrink-0">
                 <CardTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
                   <History className="w-5 h-5 text-indigo-500" />
-                  Commission History
+                  {t("commission_history", "Commission History")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0 flex-1 overflow-hidden relative">
@@ -332,7 +334,7 @@ const VlcCCommissionEntry: React.FC = () => {
                             {isActive && (
                               <div className="flex items-center gap-1.5 mb-2.5">
                                 <span className="px-2.5 py-0.5 bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-wider rounded-full shadow-sm">
-                                  Currently Active
+                                  {t("currently_active", "Currently Active")}
                                 </span>
                               </div>
                             )}
@@ -340,16 +342,16 @@ const VlcCCommissionEntry: React.FC = () => {
                             <div className="flex justify-between items-start mb-3">
                               <div className="space-y-1">
                                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider ml-5">
-                                  Type
+                                  {t("type", "Type")}
                                 </p>
                                 <p className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
                                   <TrendingUp className="w-3.5 h-3.5 text-slate-400" />
-                                  {comm.type === 'Commission' ? 'Per Liter' : 'Fixed Payment'}
+                                  {comm.type === 'Commission' ? t("per_liter", "Per Liter") : t("fixed_payment", "Fixed Payment")}
                                 </p>
                               </div>
                               <div className="space-y-1 text-right">
                                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                                  Rate
+                                  {t("rate", "Rate")}
                                 </p>
                                 <p className="text-lg font-black text-indigo-600 tracking-tight leading-none">
                                   ₹{parseFloat(comm.amount).toFixed(2)}
@@ -361,7 +363,7 @@ const VlcCCommissionEntry: React.FC = () => {
                               <Calendar className="w-4 h-4 text-slate-400" />
                               <div className="flex-1">
                                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">
-                                  {isActive ? 'Effective Since' : 'Active Period'}
+                                  {isActive ? t("effective_since", "Effective Since") : t("active_period", "Active Period")}
                                 </p>
                                 <p className="text-xs font-medium text-slate-700">
                                   {isActive 
@@ -383,9 +385,9 @@ const VlcCCommissionEntry: React.FC = () => {
                     <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mb-4 border border-slate-100 shadow-sm">
                       <History className="w-8 h-8 text-slate-300" />
                     </div>
-                    <h3 className="text-sm font-bold text-slate-800 mb-1">No History Found</h3>
+                    <h3 className="text-sm font-bold text-slate-800 mb-1">{t("no_history_found", "No History Found")}</h3>
                     <p className="text-xs font-medium text-slate-500 max-w-[200px]">
-                      Select a VLC center to view its past and current commission configurations.
+                      {t("select_a_vlc_center_to_view_history", "Select a VLC center to view its past and current commission configurations.")}
                     </p>
                   </div>
                 )}

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -74,6 +75,7 @@ interface SummaryRecord {
 }
 
 const FarmerCommissionEntry = () => {
+  const { t } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
   const [selectedVlc, setSelectedVlc] = useState("");
   const [farmers, setFarmers] = useState<FarmerRow[]>([]);
@@ -207,7 +209,7 @@ const FarmerCommissionEntry = () => {
         setFarmers([]);
       }
     } catch {
-      toast.error("Failed to fetch farmers");
+      toast.error(t("failed_to_fetch_farmers", "Failed to fetch farmers"));
       setFarmers([]);
     } finally {
       setFetchingFarmers(false);
@@ -279,7 +281,7 @@ const FarmerCommissionEntry = () => {
         const hasBuffalo = farmer.buffaloCommissionAmount && parseFloat(farmer.buffaloCommissionAmount) > 0 && farmer.buffaloEffectiveDate;
 
         if (!hasCow && !hasBuffalo) {
-          toast.error("Enter at least one commission amount and effective date");
+          toast.error(t("enter_at_least_one_commission_amount_and_date", "Enter at least one commission amount and effective date"));
           return;
         }
 
@@ -310,7 +312,7 @@ const FarmerCommissionEntry = () => {
         }
 
         await Promise.all(saves);
-        toast.success(`Commission saved for ${farmer.fullName}`);
+        toast.success(t("commission_saved_for", "Commission saved for ") + farmer.fullName);
         const histRes = await vlcCommissionApi.getByFarmer(selectedVlc, farmer.username);
         updateFarmer(farmer.username, {
           history: histRes.data?.data ?? [],
@@ -320,7 +322,7 @@ const FarmerCommissionEntry = () => {
         });
       } else {
         if (!farmer.commissionAmount || !farmer.effectiveDate) {
-          toast.error("Enter amount and effective date before saving");
+          toast.error(t("enter_amount_and_effective_date_before_saving", "Enter amount and effective date before saving"));
           return;
         }
         const payload = {
@@ -332,7 +334,7 @@ const FarmerCommissionEntry = () => {
         };
         const res = await vlcCommissionApi.create(payload);
         if (res.data.success) {
-          toast.success(`Commission saved for ${farmer.fullName}`);
+          toast.success(t("commission_saved_for", "Commission saved for ") + farmer.fullName);
           const histRes = await vlcCommissionApi.getByFarmer(selectedVlc, farmer.username);
           updateFarmer(farmer.username, {
             history: histRes.data?.data ?? [],
@@ -342,7 +344,7 @@ const FarmerCommissionEntry = () => {
         }
       }
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Failed to save commission");
+      toast.error(err?.response?.data?.message || t("failed_to_save_commission", "Failed to save commission"));
     } finally {
       updateFarmer(farmer.username, { saving: false });
     }
@@ -360,7 +362,7 @@ const FarmerCommissionEntry = () => {
       return f.commissionAmount && parseFloat(f.commissionAmount) > 0;
     });
     if (toSave.length === 0) {
-      toast.error("No commission amounts filled in");
+      toast.error(t("no_commission_amounts_filled_in", "No commission amounts filled in"));
       return;
     }
     for (const f of toSave) {
@@ -383,7 +385,7 @@ const FarmerCommissionEntry = () => {
 
   const fetchSummary = async () => {
     if (!selectedVlc) {
-      toast.error("Please select a VLC first");
+      toast.error(t("please_select_vlc_first_report", "Please select a VLC first"));
       return;
     }
     setSummaryOpen(true);
@@ -400,7 +402,7 @@ const FarmerCommissionEntry = () => {
       });
       setSummaryData(grouped);
     } catch {
-      toast.error("Failed to load summary");
+      toast.error(t("failed_to_load_summary", "Failed to load summary"));
     } finally {
       setSummaryLoading(false);
     }
@@ -419,8 +421,8 @@ const FarmerCommissionEntry = () => {
         <SelectValue />
       </SelectTrigger>
       <SelectContent className="bg-white">
-        <SelectItem value="per-liter">Per Liter</SelectItem>
-        <SelectItem value="fixed">Fixed</SelectItem>
+        <SelectItem value="per-liter">{t("per_liter", "Per Liter")}</SelectItem>
+        <SelectItem value="fixed">{t("fixed", "Fixed")}</SelectItem>
       </SelectContent>
     </Select>
   );
@@ -433,10 +435,10 @@ const FarmerCommissionEntry = () => {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-700">
           <div className="flex flex-col gap-1.5 text-left">
             <h1 className="text-xl md:text-2xl font-semibold text-slate-800 tracking-tight">
-              Farmer Commission Entry
+              {t("farmer_commission_entry", "Farmer Commission Entry")}
             </h1>
             <p className="text-sm text-slate-500 max-w-2xl">
-              Set per-farmer commission amounts for a billing period
+              {t("set_per_farmer_commission_amounts", "Set per-farmer commission amounts for a billing period")}
             </p>
           </div>
           <div className="shrink-0 w-full sm:w-auto">
@@ -445,7 +447,7 @@ const FarmerCommissionEntry = () => {
               className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white text-indigo-700 hover:bg-indigo-50 border border-indigo-200 shadow-sm transition-all"
             >
               <LayoutList className="w-4 h-4" />
-              Summary
+              {t("summary", "Summary")}
             </Button>
           </div>
         </div>
@@ -455,7 +457,7 @@ const FarmerCommissionEntry = () => {
           {/* ── VLC selector ─────────────────────────────── */}
           <div className="max-w-sm space-y-2 group">
             <Label className="text-sm font-semibold text-slate-700 group-hover:text-indigo-600 transition-colors">
-              Select VLC <span className="text-red-500">*</span>
+              {t("select_vlc", "Select VLC")} <span className="text-red-500">*</span>
             </Label>
             <div className="relative">
               <VLCDropdown
@@ -463,7 +465,7 @@ const FarmerCommissionEntry = () => {
                 value={selectedVlc}
                 onChange={(val) => setSelectedVlc(String(val))}
                 valueKey="branch_id"
-                placeholder="Choose a VLC center..."
+                placeholder={t("choose_vlc_center", "Choose a VLC center...")}
               />
             </div>
           </div>
@@ -472,12 +474,12 @@ const FarmerCommissionEntry = () => {
             <>
               {/* ── Quick Apply ──────────────────────────── */}
               <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-lg border-2 border-indigo-200 space-y-4">
-                <h3 className="text-sm font-semibold text-gray-700">Quick Apply to All / Cow / Buffalo</h3>
+                <h3 className="text-sm font-semibold text-gray-700">{t("quick_apply_to_all_cow_buffalo", "Quick Apply to All / Cow / Buffalo")}</h3>
 
                 {/* Type + date row */}
                 <div className="flex flex-wrap gap-6 items-end">
                   <div>
-                    <Label className="text-sm font-medium mb-2 block">Commission Type</Label>
+                    <Label className="text-sm font-medium mb-2 block">{t("commission_type", "Commission Type")}</Label>
                     <RadioGroup
                       value={bulkType}
                       onValueChange={setBulkType}
@@ -493,7 +495,7 @@ const FarmerCommissionEntry = () => {
                         )}
                       >
                         <RadioGroupItem value="per-liter" id="bulk-per-liter" />
-                        Per Liter
+                        {t("per_liter", "Per Liter")}
                       </Label>
                       <Label
                         htmlFor="bulk-fixed"
@@ -505,12 +507,12 @@ const FarmerCommissionEntry = () => {
                         )}
                       >
                         <RadioGroupItem value="fixed" id="bulk-fixed" />
-                        Fixed
+                        {t("fixed", "Fixed")}
                       </Label>
                     </RadioGroup>
                   </div>
                   <div>
-                    <Label className="text-sm font-medium mb-2 block">Effective Date</Label>
+                    <Label className="text-sm font-medium mb-2 block">{t("effective_date", "Effective Date")}</Label>
                     <Input
                       type="date"
                       value={bulkDate}
@@ -523,7 +525,7 @@ const FarmerCommissionEntry = () => {
                 {/* Amount row */}
                 <div className="flex flex-wrap gap-4">
                   <div className="flex-1 min-w-[160px]">
-                    <Label className="text-sm font-medium mb-2 block">All Farmers</Label>
+                    <Label className="text-sm font-medium mb-2 block">{t("all_farmers", "All Farmers")}</Label>
                     <div className="flex gap-2">
                       <Input
                         type="number"
@@ -538,12 +540,12 @@ const FarmerCommissionEntry = () => {
                         onClick={() => applyBulk("All")}
                         className="bg-indigo-600 hover:bg-indigo-700 text-white whitespace-nowrap"
                       >
-                        Apply
+                        {t("apply", "Apply")}
                       </Button>
                     </div>
                   </div>
                   <div className="flex-1 min-w-[160px]">
-                    <Label className="text-sm font-medium mb-2 block">All Cow</Label>
+                    <Label className="text-sm font-medium mb-2 block">{t("all_cow", "All Cow")}</Label>
                     <div className="flex gap-2">
                       <Input
                         type="number"
@@ -558,12 +560,12 @@ const FarmerCommissionEntry = () => {
                         onClick={() => applyBulk("Cow")}
                         className="bg-amber-500 hover:bg-amber-600 text-white whitespace-nowrap"
                       >
-                        Apply
+                        {t("apply", "Apply")}
                       </Button>
                     </div>
                   </div>
                   <div className="flex-1 min-w-[160px]">
-                    <Label className="text-sm font-medium mb-2 block">All Buffalo</Label>
+                    <Label className="text-sm font-medium mb-2 block">{t("all_buffalo", "All Buffalo")}</Label>
                     <div className="flex gap-2">
                       <Input
                         type="number"
@@ -578,7 +580,7 @@ const FarmerCommissionEntry = () => {
                         onClick={() => applyBulk("Buffalo")}
                         className="bg-blue-500 hover:bg-blue-600 text-white whitespace-nowrap"
                       >
-                        Apply
+                        {t("apply", "Apply")}
                       </Button>
                     </div>
                   </div>
@@ -590,7 +592,7 @@ const FarmerCommissionEntry = () => {
                 <div className="relative w-64">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
                   <Input
-                    placeholder="Search farmers..."
+                    placeholder={t("search_farmers", "Search farmers...")}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10 border-gray-300"
@@ -599,14 +601,14 @@ const FarmerCommissionEntry = () => {
                 <div className="flex items-center gap-3">
                   {totalEntered > 0 && (
                     <div className="bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-semibold px-4 py-2 rounded-lg">
-                      Total: ₹{totalEntered.toFixed(2)}
+                      {t("total", "Total")}: ₹{totalEntered.toFixed(2)}
                     </div>
                   )}
                   <Button
                     onClick={saveAll}
                     className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold px-6"
                   >
-                    Save All
+                    {t("save_all", "Save All")}
                   </Button>
                 </div>
               </div>
@@ -616,19 +618,19 @@ const FarmerCommissionEntry = () => {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-gradient-to-r from-gray-50 to-gray-100">
-                      <TableHead className="font-semibold text-gray-700">Farmer</TableHead>
-                      <TableHead className="font-semibold text-gray-700">Milk</TableHead>
-                      <TableHead className="font-semibold text-gray-700 w-36">Type</TableHead>
-                      <TableHead className="font-semibold text-gray-700 w-36">Amount (₹)</TableHead>
-                      <TableHead className="font-semibold text-gray-700 w-44">Effective Date</TableHead>
-                      <TableHead className="font-semibold text-gray-700 text-center w-32">Actions</TableHead>
+                      <TableHead className="font-semibold text-gray-700">{t("farmer", "Farmer")}</TableHead>
+                      <TableHead className="font-semibold text-gray-700">{t("milk", "Milk")}</TableHead>
+                      <TableHead className="font-semibold text-gray-700 w-36">{t("type", "Type")}</TableHead>
+                      <TableHead className="font-semibold text-gray-700 w-36">{t("amount_rs", "Amount (₹)")}</TableHead>
+                      <TableHead className="font-semibold text-gray-700 w-44">{t("effective_date", "Effective Date")}</TableHead>
+                      <TableHead className="font-semibold text-gray-700 text-center w-32">{t("actions", "Actions")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filtered.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={6} className="text-center text-gray-500 py-8">
-                          No farmers found
+                          {t("no_farmers_found", "No farmers found")}
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -649,7 +651,7 @@ const FarmerCommissionEntry = () => {
                                   </div>
                                   {farmer.hasExisting && (
                                     <span className="text-[10px] font-bold bg-green-100 text-green-700 border border-green-200 px-1.5 py-0.5 rounded-full whitespace-nowrap">
-                                      ✓ Existing
+                                      ✓ {t("existing", "Existing")}
                                     </span>
                                   )}
                                 </div>
@@ -658,7 +660,7 @@ const FarmerCommissionEntry = () => {
                               {/* Milk badge */}
                               <TableCell>
                                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
-                                  Both
+                                  {t("both", "Both")}
                                 </span>
                               </TableCell>
 
@@ -668,7 +670,7 @@ const FarmerCommissionEntry = () => {
                                   {/* Cow fields */}
                                   <div className="flex-1 space-y-1 min-w-0">
                                     <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wide">
-                                      🐄 Cow
+                                      🐄 {t("cow", "Cow")}
                                     </p>
                                     <div className="flex gap-1 flex-wrap">
                                       <CommissionTypeSelect
@@ -702,7 +704,7 @@ const FarmerCommissionEntry = () => {
                                   {/* Buffalo fields */}
                                   <div className="flex-1 space-y-1 min-w-0">
                                     <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wide">
-                                      🐃 Buffalo
+                                      🐃 {t("buffalo", "Buffalo")}
                                     </p>
                                     <div className="flex gap-1 flex-wrap">
                                       <CommissionTypeSelect
@@ -741,14 +743,14 @@ const FarmerCommissionEntry = () => {
                                     disabled={farmer.saving}
                                     className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 h-8"
                                   >
-                                    {farmer.saving ? "..." : "Save"}
+                                    {farmer.saving ? "..." : t("save", "Save")}
                                   </Button>
                                   <Button
                                     size="sm"
                                     variant="outline"
                                     onClick={() => toggleHistory(farmer)}
                                     className="text-xs px-2 h-8 border-gray-300"
-                                    title="View history"
+                                    title={t("view_history", "View history")}
                                   >
                                     {farmer.historyOpen ? (
                                       <ChevronDown className="w-3.5 h-3.5" />
@@ -852,14 +854,14 @@ const FarmerCommissionEntry = () => {
                                     disabled={farmer.saving}
                                     className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 h-8"
                                   >
-                                    {farmer.saving ? "..." : "Save"}
+                                    {farmer.saving ? "..." : t("save", "Save")}
                                   </Button>
                                   <Button
                                     size="sm"
                                     variant="outline"
                                     onClick={() => toggleHistory(farmer)}
                                     className="text-xs px-2 h-8 border-gray-300"
-                                    title="View history"
+                                    title={t("view_history", "View history")}
                                   >
                                     {farmer.historyOpen ? (
                                       <ChevronDown className="w-3.5 h-3.5" />
@@ -877,9 +879,9 @@ const FarmerCommissionEntry = () => {
                             <TableRow key={`${farmer.username}-history`} className="bg-indigo-50/50">
                               <TableCell colSpan={6} className="py-3 px-6">
                                 {farmer.historyLoading ? (
-                                  <p className="text-sm text-gray-500">Loading history…</p>
+                                  <p className="text-sm text-gray-500">{t("loading_history", "Loading history…")}</p>
                                 ) : farmer.history.length === 0 ? (
-                                  <p className="text-sm text-gray-400">No commission history found.</p>
+                                  <p className="text-sm text-gray-400">{t("no_commission_history_found", "No commission history found.")}</p>
                                 ) : (
                                   <div className="flex flex-wrap gap-2">
                                     {farmer.history.map((h, idx) => {
@@ -904,7 +906,7 @@ const FarmerCommissionEntry = () => {
                                         >
                                           {isActive && (
                                             <span className="block text-[10px] font-bold text-green-700 mb-1 uppercase tracking-wide">
-                                              Active
+                                              {t("active", "Active")}
                                             </span>
                                           )}
                                           {h.milk_type && (
@@ -918,12 +920,12 @@ const FarmerCommissionEntry = () => {
                                             </span>
                                           )}
                                           <p className="font-semibold text-gray-700">
-                                            {h.type === "Commission" ? "Per Liter" : "Fixed"} — ₹
+                                            {h.type === "Commission" ? t("per_liter", "Per Liter") : t("fixed", "Fixed")} — ₹
                                             {parseFloat(h.amount).toFixed(2)}
                                           </p>
                                           <p className="text-gray-500 mt-0.5">
                                             {isActive
-                                              ? `From ${format(effectiveFrom, "dd-MM-yyyy")}`
+                                              ? `${t("from", "From")} ${format(effectiveFrom, "dd-MM-yyyy")}`
                                               : endDate
                                               ? `${format(effectiveFrom, "dd-MM-yyyy")} → ${format(endDate, "dd-MM-yyyy")}`
                                               : format(effectiveFrom, "dd-MM-yyyy")}
@@ -947,15 +949,15 @@ const FarmerCommissionEntry = () => {
 
           {/* Empty states */}
           {selectedVlc && !fetchingFarmers && farmers.length === 0 && (
-            <div className="text-center py-10 text-gray-500">No farmers found for this VLC</div>
+            <div className="text-center py-10 text-gray-500">{t("no_farmers_found_for_vlc", "No farmers found for this VLC")}</div>
           )}
           {fetchingFarmers && (
-            <div className="text-center py-10 text-gray-400 animate-pulse">Loading farmers…</div>
+            <div className="text-center py-10 text-gray-400 animate-pulse">{t("loading_farmers", "Loading farmers…")}</div>
           )}
           {!selectedVlc && (
             <div className="text-center py-16 text-gray-400">
               <div className="text-5xl mb-3">💰</div>
-              <p className="text-base font-medium">Select a VLC to load farmers</p>
+              <p className="text-base font-medium">{t("select_vlc_to_load_farmers", "Select a VLC to load farmers")}</p>
             </div>
           )}
         </CardContent>
@@ -966,32 +968,32 @@ const FarmerCommissionEntry = () => {
         <DialogContent className="bg-white max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-gray-800">
-              Farmer Commission Summary
+              {t("farmer_commission_summary", "Farmer Commission Summary")}
             </DialogTitle>
             <p className="text-sm text-gray-500">
-              Active commissions — farmer wise
+              {t("active_commissions_farmer_wise", "Active commissions — farmer wise")}
             </p>
           </DialogHeader>
 
           {summaryLoading ? (
             <div className="flex items-center justify-center py-16 text-gray-400">
               <Loader2 className="w-6 h-6 animate-spin mr-2" />
-              Loading…
+              {t("loading", "Loading…")}
             </div>
           ) : Object.keys(summaryData).length === 0 ? (
             <div className="text-center py-12 text-gray-400">
               <div className="text-4xl mb-3">📭</div>
-              <p className="text-sm">No commissions found for this VLC</p>
+              <p className="text-sm">{t("no_commissions_found_for_vlc", "No commissions found for this VLC")}</p>
             </div>
           ) : (
             <div className="mt-2 border border-gray-200 rounded-xl overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-gradient-to-r from-indigo-50 to-purple-50">
-                    <TableHead className="font-semibold text-gray-700">Farmer ID</TableHead>
-                    <TableHead className="font-semibold text-gray-700">Type</TableHead>
-                    <TableHead className="font-semibold text-gray-700 text-right">Amount</TableHead>
-                    <TableHead className="font-semibold text-gray-700">Effective From</TableHead>
+                    <TableHead className="font-semibold text-gray-700">{t("farmer_id", "Farmer ID")}</TableHead>
+                    <TableHead className="font-semibold text-gray-700">{t("type", "Type")}</TableHead>
+                    <TableHead className="font-semibold text-gray-700 text-right">{t("amount", "Amount")}</TableHead>
+                    <TableHead className="font-semibold text-gray-700">{t("effective_from", "Effective From")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1022,7 +1024,7 @@ const FarmerCommissionEntry = () => {
                                   : "bg-purple-100 text-purple-700"
                               )}
                             >
-                              {latest.type === "Commission" ? "Per Liter" : "Fixed"}
+                              {latest.type === "Commission" ? t("per_liter", "Per Liter") : t("fixed", "Fixed")}
                             </span>
                           </TableCell>
                           <TableCell className="text-right font-bold text-green-600">
@@ -1047,11 +1049,11 @@ const FarmerCommissionEntry = () => {
                                 className="bg-gray-50 border-l-2 border-indigo-200"
                               >
                                 <TableCell className="text-gray-400 text-xs pl-8">
-                                  ↳ prev
+                                  {t("prev_arrow", "↳ prev")}
                                 </TableCell>
                                 <TableCell>
                                   <span className="text-xs text-gray-500">
-                                    {r.type === "Commission" ? "Per Liter" : "Fixed"}
+                                    {r.type === "Commission" ? t("per_liter", "Per Liter") : t("fixed", "Fixed")}
                                   </span>
                                 </TableCell>
                                 <TableCell className="text-right text-xs text-gray-600 font-medium">

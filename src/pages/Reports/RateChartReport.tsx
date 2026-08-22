@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "react-i18next";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,6 +12,7 @@ import { Download, FileSpreadsheet } from "lucide-react";
 import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 
 const RateChartReport = () => {
+  const { t } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
   const [vlcId, setVlcId] = useState("");
   const [milkType, setMilkType] = useState("cow");
@@ -43,7 +45,7 @@ const RateChartReport = () => {
   };
   const handleShow = async () => {
     if (!vlcId) {
-      toast.error("Please select a VLC");
+      toast.error(t('please_select_vlc_first_report', 'Please select a VLC'));
       return;
     }
 
@@ -72,19 +74,19 @@ const RateChartReport = () => {
           setRateMatrix(filterEmptyColumns(data.matrix));
           setMatrices([]);
         } else {
-          toast.error(data.message || 'No rate chart data found');
+          toast.error(data.message || t('no_rate_chart_data', 'No rate chart data found'));
           setRateMatrix([]);
           setMatrices([]);
           return;
         }
-        toast.success('Rate chart loaded successfully');
+        toast.success(t('rate_chart_loaded_successfully', 'Rate chart loaded successfully'));
       } else {
-        toast.error(data.message || 'No rate chart data found');
+        toast.error(data.message || t('no_rate_chart_data', 'No rate chart data found'));
         setRateMatrix([]);
         setMatrices([]);
       }
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || error?.message || "Failed to fetch rate chart");
+      toast.error(error?.response?.data?.message || error?.message || t('failed_to_fetch_rate_chart', 'Failed to fetch rate chart'));
       setRateMatrix([]);
     } finally {
       setLoading(false);
@@ -93,7 +95,7 @@ const RateChartReport = () => {
 
   const handleExportExcel = () => {
     if ((!rateMatrix || rateMatrix.length === 0) && (!matrices || matrices.length === 0)) {
-      toast.error("No data to export");
+      toast.error(t('no_data_to_export', 'No data to export'));
       return;
     }
     
@@ -110,9 +112,9 @@ const RateChartReport = () => {
       } else if (rateMatrix.length > 0) {
         generateRateChartReportExcel(vlcName, milkType, rateMatrix);
       }
-      toast.success("Excel exported successfully");
+      toast.success(t('excel_exported_successfully', 'Excel exported successfully'));
     } catch (error) {
-      toast.error("Failed to export Excel");
+      toast.error(t('failed_to_export_excel', 'Failed to export Excel'));
     }
   };
   
@@ -121,37 +123,37 @@ const RateChartReport = () => {
       {/* Header */}
       <div className="flex flex-col items-start text-left gap-1 animate-in fade-in slide-in-from-top-4 duration-700 px-2 mb-2">
         <h1 className="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600">
-          VLCC Rate Chart
+          {t('vlcc_rate_chart', 'VLCC Rate Chart')}
         </h1>
       </div>
       
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-end bg-white p-3 sm:p-4 rounded-lg shadow-sm mx-2 mb-4 text-left">
         <div className="space-y-2">
-          <Label className="mb-1">VLC Name</Label>
+          <Label className="mb-1">{t('vlc_name', 'VLC Name')}</Label>
           <VLCDropdown
             branches={branches || []}
             value={vlcId}
             onChange={setVlcId}
             valueKey="branch_id"
-            placeholder="Select VLC"
+            placeholder={t('select_vlc_center', 'Select VLC')}
           />
         </div>
         
         <div className="space-y-2">
-          <Label className="mb-1">Milk Type</Label>
+          <Label className="mb-1">{t('milk_type', 'Milk Type')}</Label>
           <Select value={milkType} onValueChange={setMilkType}>
             <SelectTrigger className="w-full border-gray-200 bg-white">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-white">
-              <SelectItem value="cow">cow</SelectItem>
-              <SelectItem value="Buffalo">Buffalo</SelectItem>
+              <SelectItem value="cow">{t('cow', 'cow')}</SelectItem>
+              <SelectItem value="Buffalo">{t('buffalo', 'Buffalo')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
         
         <div className="space-y-2">
-          <Label className="mb-1">Rate Chart</Label>
+          <Label className="mb-1">{t('rate_chart', 'Rate Chart')}</Label>
           <Select value={rateChartName} onValueChange={setRateChartName}>
             <SelectTrigger className="w-full border-gray-200 bg-white">
               <SelectValue />
@@ -166,7 +168,7 @@ const RateChartReport = () => {
         
         <div className="xl:col-span-2 flex flex-wrap gap-2 justify-end">
           <Button onClick={handleShow} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white w-[120px] h-10">
-            {loading ? "Loading..." : "Show"}
+            {loading ? t('loading', 'Loading...') : t('show', 'Show')}
           </Button>
           
           <Button 
@@ -176,7 +178,7 @@ const RateChartReport = () => {
             className="bg-green-600 text-white hover:bg-green-700 flex items-center gap-2 h-10"
           >
             <FileSpreadsheet size={16} />
-            Export Excel
+            {t('export_excel', 'Export Excel')}
           </Button>
         </div>
       </div>
@@ -187,7 +189,7 @@ const RateChartReport = () => {
             {matrices.map((matrixData, idx) => (
               <div key={idx} className="border rounded-lg overflow-hidden">
                 <div className="bg-blue-100 p-3 border-b">
-                  <h2 className="text-xl font-bold text-blue-800">{matrixData.shift} Shift Rate Chart</h2>
+                  <h2 className="text-xl font-bold text-blue-800">{matrixData.shift} {t('shift_rate_chart', 'Shift Rate Chart')}</h2>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[750px]">
@@ -244,7 +246,7 @@ const RateChartReport = () => {
         ) : (
           <div className="border rounded-lg">
             <div className="text-center py-10 text-gray-500">
-              Select VLC and click Show to view rate chart
+              {t('select_vlc_show_rate_chart', 'Select VLC and click Show to view rate chart')}
             </div>
           </div>
         )}

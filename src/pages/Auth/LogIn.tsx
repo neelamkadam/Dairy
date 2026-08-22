@@ -89,13 +89,13 @@ const Login: React.FC = () => {
           dispatch(fetchUserBranches(result.email));
           
           navigate(userRole === "admin" ? ROUTES.ADMIN_DASHBOARD : ROUTES.DASHBOARD);
-          toast.success(result.message || "Logged in successfully");
+          toast.success(result.message || t("logged_in_successfully", "Logged in successfully"));
         }
       } else {
-        toast.error(result.message || "Invalid username or password");
+        toast.error(result.message || t("invalid_username_or_password", "Invalid username or password"));
       }
     } catch (error) {
-      toast.error("Invalid username or password");
+      toast.error(t("invalid_username_or_password", "Invalid username or password"));
     } finally {
       setIsLoading(false);
     }
@@ -133,11 +133,11 @@ const Login: React.FC = () => {
               className="w-20 xl:w-24 h-auto mx-auto mb-4 bg-white rounded-2xl p-2"
             />
             <div>
-              <h1 className="text-2xl xl:text-4xl font-bold mb-2 leading-tight">Neo Dairy Sales and Services</h1>
-              <p className="text-base xl:text-lg text-green-100">Pvt Ltd.</p>
+              <h1 className="text-2xl xl:text-4xl font-bold mb-2 leading-tight">{t("neo_dairy_sales_and_services", "Neo Dairy Sales and Services")}</h1>
+              <p className="text-base xl:text-lg text-green-100">{t("pvt_ltd", "Pvt Ltd.")}</p>
             </div>
             <div className="space-y-2">
-              <p className="text-sm xl:text-base text-green-50">Empowering Dairy with Technology</p>
+              <p className="text-sm xl:text-base text-green-50">{t("empowering_dairy_with_technology", "Empowering Dairy with Technology")}</p>
             </div>
           </div>
         </div>
@@ -148,8 +148,8 @@ const Login: React.FC = () => {
         <div className="w-full max-w-md">
           {/* Mobile logo */}
           <div className="lg:hidden text-center mb-8">
-            <h2 className="text-2xl font-bold text-blue-600">Neo Dairy Sales and Services</h2>
-            <p className="text-sm text-gray-600">Pvt Ltd.</p>
+            <h2 className="text-2xl font-bold text-blue-600">{t("neo_dairy_sales_and_services", "Neo Dairy Sales and Services")}</h2>
+            <p className="text-sm text-gray-600">{t("pvt_ltd", "Pvt Ltd.")}</p>
           </div>
 
           {/* Login Card */}
@@ -217,7 +217,7 @@ const Login: React.FC = () => {
             </div>
 
             <p className="text-center text-sm text-gray-500 mt-6">
-              © {new Date().getFullYear()} Neo Dairy Sales and Services Pvt Ltd. All rights reserved.
+              {t("copyright_notice", "© {{year}} Neo Dairy Sales and Services Pvt Ltd. All rights reserved.", { year: new Date().getFullYear() })}
             </p>
           </div>
         </div>

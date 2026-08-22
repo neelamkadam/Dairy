@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,6 +52,7 @@ interface Dairy {
 }
 
 const AddBranch = () => {
+  const { t } = useTranslation();
   const [mobileNumber, setMobileNumber] = useState("");
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<BranchResponse | null>(null);
@@ -81,17 +83,17 @@ const AddBranch = () => {
 
       if (data.success) {
         const branchCount = data.branches ? data.branches.length : 0;
-        toast.success(`Found ${branchCount} branches`);
+        toast.success(t("found_branches_count", "Found {{count}} branches", { count: branchCount }));
       } else {
-        toast.error(data.message || "User not found");
+        toast.error(data.message || t("user_not_found", "User not found"));
       }
     } catch (error) {
       const errorResponse = {
         success: false,
-        message: "Network error occurred"
+        message: t("network_error_occurred", "Network error occurred")
       };
       setResponse(errorResponse);
-      toast.error("Network error occurred");
+      toast.error(t("network_error_occurred", "Network error occurred"));
     } finally {
       setLoading(false);
     }
@@ -115,7 +117,7 @@ const AddBranch = () => {
 
   const handleFinalSubmit = async () => {
     if (selectedBranches.length === 0) {
-      toast.error("Please select at least one branch");
+      toast.error(t("please_select_at_least_one_branch", "Please select at least one branch"));
       return;
     }
 
@@ -127,13 +129,13 @@ const AddBranch = () => {
       });
 
       if (data.success) {
-        toast.success("Branches updated successfully!");
+        toast.success(t("branches_updated_successfully", "Branches updated successfully!"));
         setSelectedBranches([]);
       } else {
-        toast.error(data.message || "Failed to update branches");
+        toast.error(data.message || t("failed_to_update_branches", "Failed to update branches"));
       }
     } catch (error) {
-      toast.error("Network error occurred");
+      toast.error(t("network_error_occurred", "Network error occurred"));
     } finally {
       setLoading(false);
     }
@@ -149,10 +151,10 @@ const AddBranch = () => {
         setWebUsers(data.data.webUsers || []);
         setDairies(data.data.dairyManagers || []);
       } else {
-        toast.error("Failed to fetch users");
+        toast.error(t("failed_to_fetch_users", "Failed to fetch users"));
       }
     } catch (error) {
-      toast.error("Failed to fetch users");
+      toast.error(t("failed_to_fetch_users", "Failed to fetch users"));
     } finally {
       setUsersLoading(false);
     }
@@ -229,7 +231,7 @@ const AddBranch = () => {
   const handleSaveAssignments = async () => {
     if (!selectedWebUser) return;
     if (!selectedWebUser.mobile_number) {
-      toast.error("This web user has no mobile number, cannot update branches");
+      toast.error(t("user_no_mobile_error", "This web user has no mobile number, cannot update branches"));
       return;
     }
 
@@ -246,16 +248,16 @@ const AddBranch = () => {
         dairy_ids,
       });
       if (data.success) {
-        toast.success(`Dairies updated for ${selectedWebUser.name}`);
+        toast.success(t("dairies_updated_for", "Dairies updated for {{name}}", { name: selectedWebUser.name }));
         const updatedUser = { ...selectedWebUser, branches: dairy_ids };
         setWebUsers(prev => prev.map(u => (u.id === selectedWebUser.id ? updatedUser : u)));
         setSelectedWebUser(updatedUser);
         setCheckedIds(new Set(dairy_ids));
       } else {
-        toast.error(data.message || "Failed to update dairies");
+        toast.error(data.message || t("failed_to_update_dairies", "Failed to update dairies"));
       }
     } catch (error) {
-      toast.error("Network error occurred");
+      toast.error(t("network_error_occurred", "Network error occurred"));
     } finally {
       setSaving(false);
     }
@@ -272,8 +274,8 @@ const AddBranch = () => {
               <Building2 className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-lg md:text-xl font-bold text-gray-900 tracking-tight">Branch Assignment</h1>
-              <p className="text-xs text-gray-500 mt-0.5">View user's assigned branches</p>
+              <h1 className="text-lg md:text-xl font-bold text-gray-900 tracking-tight">{t("branch_assignment", "Branch Assignment")}</h1>
+              <p className="text-xs text-gray-500 mt-0.5">{t("view_user_assigned_branches", "View user's assigned branches")}</p>
             </div>
           </div>
           <Button
@@ -285,7 +287,7 @@ const AddBranch = () => {
             }
           >
             <Users className="w-4 h-4 mr-2" />
-            {showManager ? "Back to Search" : "Manage User Dairies"}
+            {showManager ? t("back_to_search", "Back to Search") : t("manage_user_dairies", "Manage User Dairies")}
           </Button>
         </div>
       </div>
@@ -298,7 +300,7 @@ const AddBranch = () => {
               <Card className="shadow-sm border border-gray-200/60 bg-white rounded-lg">
                 <CardContent className="p-12 flex items-center justify-center gap-3 text-gray-500">
                   <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                  <span className="font-medium">Loading users...</span>
+                  <span className="font-medium">{t("loading_users", "Loading users...")}</span>
                 </CardContent>
               </Card>
             ) : (
@@ -309,7 +311,7 @@ const AddBranch = () => {
                     <CardTitle className="flex items-center justify-between text-base font-semibold text-gray-800">
                       <span className="flex items-center gap-2">
                         <Monitor className="w-4 h-4 text-blue-600" />
-                        Web Users
+                        {t("web_users", "Web Users")}
                       </span>
                       <span className="text-xs font-normal text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">
                         {filteredWebUsers.length} of {webUsers.length}
@@ -320,7 +322,7 @@ const AddBranch = () => {
                     <div className="relative mb-3">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <Input
-                        placeholder="Search by name, mobile or email"
+                        placeholder={t("search_by_name_mobile_or_email", "Search by name, mobile or email")}
                         value={webSearch}
                         onChange={(e) => setWebSearch(e.target.value)}
                         className="pl-9 h-9 text-sm border-gray-200 focus:ring-1 focus:ring-blue-600 focus:border-blue-600 rounded-md transition-shadow"
@@ -329,7 +331,7 @@ const AddBranch = () => {
                     <div className="max-h-[480px] overflow-y-auto space-y-1.5 pr-1">
                       {filteredWebUsers.length === 0 ? (
                         <div className="p-8 text-center text-sm text-gray-500">
-                          No web users found.
+                          {t("no_web_users_found", "No web users found.")}
                         </div>
                       ) : (
                         filteredWebUsers.map((user) => {
@@ -351,7 +353,7 @@ const AddBranch = () => {
                                     {user.name || "-"}
                                   </div>
                                   <div className="text-xs text-gray-500 truncate mt-0.5">
-                                    {user.mobile_number || "No mobile"}
+                                    {user.mobile_number || t("no_mobile", "No mobile")}
                                     {user.email ? ` · ${user.email}` : ""}
                                   </div>
                                 </div>
@@ -362,7 +364,7 @@ const AddBranch = () => {
                                       : "bg-gray-100 text-gray-500"
                                   }`}
                                 >
-                                  {(user.branches || []).length} dairies
+                                  {(user.branches || []).length} {t("dairies", "dairies")}
                                 </span>
                               </div>
                             </button>
@@ -379,11 +381,11 @@ const AddBranch = () => {
                     <CardTitle className="flex items-center justify-between text-base font-semibold text-gray-800">
                       <span className="flex items-center gap-2">
                         <Smartphone className="w-4 h-4 text-green-600" />
-                        Mobile Users (Dairies)
+                        {t("mobile_users_dairies", "Mobile Users (Dairies)")}
                       </span>
                       {selectedWebUser && (
                         <span className="text-xs font-normal text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">
-                          {checkedIds.size} selected
+                          {checkedIds.size} {t("selected", "selected")}
                         </span>
                       )}
                     </CardTitle>
@@ -392,16 +394,16 @@ const AddBranch = () => {
                     {!selectedWebUser ? (
                       <div className="p-12 flex flex-col items-center justify-center text-center text-gray-500">
                         <Users className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-                        <p className="font-medium text-gray-700">Select a web user</p>
+                        <p className="font-medium text-gray-700">{t("select_a_web_user", "Select a web user")}</p>
                         <p className="text-xs mt-1 text-gray-500 max-w-[200px]">
-                          Choose a web user on the left to see and manage their dairies.
+                          {t("choose_a_web_user_description", "Choose a web user on the left to see and manage their dairies.")}
                         </p>
                       </div>
                     ) : (
                       <>
                         <div className="mb-3 px-3 py-2 rounded-md bg-blue-50/50 border border-blue-100/50 text-xs text-blue-800 flex items-center justify-between">
                           <span>
-                            Managing dairies for <span className="font-semibold">{selectedWebUser.name}</span>
+                            {t("managing_dairies_for", "Managing dairies for")} <span className="font-semibold">{selectedWebUser.name}</span>
                           </span>
                           {selectedWebUser.mobile_number && (
                             <span className="font-mono text-blue-600">{selectedWebUser.mobile_number}</span>
@@ -410,7 +412,7 @@ const AddBranch = () => {
                         <div className="relative mb-3">
                           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                           <Input
-                            placeholder="Search dairy, branch, owner or village"
+                            placeholder={t("search_dairy_branch_owner_village", "Search dairy, branch, owner or village")}
                             value={dairySearch}
                             onChange={(e) => setDairySearch(e.target.value)}
                             className="pl-9 h-9 text-sm border-gray-200 focus:ring-1 focus:ring-blue-600 focus:border-blue-600 rounded-md transition-shadow"
@@ -419,7 +421,7 @@ const AddBranch = () => {
                         <div className="max-h-[380px] overflow-y-auto space-y-1.5 pr-1">
                           {filteredDairies.length === 0 ? (
                             <div className="p-8 text-center text-sm text-gray-500">
-                              No dairies found.
+                              {t("no_dairies_found", "No dairies found.")}
                             </div>
                           ) : (
                             filteredDairies.map((dairy) => {
@@ -456,7 +458,7 @@ const AddBranch = () => {
                                               : "bg-red-100 text-red-700"
                                           }`}
                                         >
-                                          {isChecked ? "Adding" : "Removing"}
+                                          {isChecked ? t("adding", "Adding") : t("removing", "Removing")}
                                         </span>
                                       )}
                                     </div>
@@ -482,17 +484,17 @@ const AddBranch = () => {
                               <div className="flex items-center gap-1.5">
                                 {addedCount > 0 && (
                                   <span className="text-green-600 font-semibold bg-green-50 px-2 py-1 rounded-md border border-green-100">
-                                    +{addedCount} new
+                                    +{addedCount} {t("new", "new")}
                                   </span>
                                 )}
                                 {removedCount > 0 && (
                                   <span className="text-red-600 font-semibold bg-red-50 px-2 py-1 rounded-md border border-red-100">
-                                    -{removedCount} removed
+                                    -{removedCount} {t("removed", "removed")}
                                   </span>
                                 )}
                               </div>
                             ) : (
-                              <span className="text-gray-500">No pending changes</span>
+                              <span className="text-gray-500">{t("no_pending_changes", "No pending changes")}</span>
                             )}
                           </div>
                           <div className="flex gap-2">
@@ -503,7 +505,7 @@ const AddBranch = () => {
                               className="h-9 text-xs font-medium rounded-md"
                             >
                               <RotateCcw className="w-3 h-3 mr-1.5" />
-                              Reset
+                              {t("reset", "Reset")}
                             </Button>
                             <Button
                               onClick={handleSaveAssignments}
@@ -513,12 +515,12 @@ const AddBranch = () => {
                               {saving ? (
                                 <div className="flex items-center gap-2">
                                   <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                                  <span>Saving...</span>
+                                  <span>{t("saving", "Saving...")}</span>
                                 </div>
                               ) : (
                                 <>
                                   <Save className="w-3.5 h-3.5 mr-1.5" />
-                                  Save Changes
+                                  {t("save_changes", "Save Changes")}
                                 </>
                               )}
                             </Button>
@@ -537,18 +539,18 @@ const AddBranch = () => {
               <CardHeader className="border-b border-gray-100 bg-white pb-3 pt-4">
                 <CardTitle className="flex items-center gap-2 text-lg font-semibold text-gray-800">
                   <Phone className="w-5 h-5 text-gray-500" />
-                  Search User
+                  {t("search_user", "Search User")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 md:p-6">
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="mobile_number" className="text-sm font-medium text-gray-700">
-                      Mobile Number
+                      {t("mobile_number", "Mobile Number")}
                     </Label>
                     <Input
                       id="mobile_number"
-                      placeholder="Enter user's mobile number"
+                      placeholder={t("enter_user_mobile_number", "Enter user's mobile number")}
                       value={mobileNumber}
                       onChange={(e) => setMobileNumber(e.target.value)}
                       className="h-10 border-gray-200 focus:ring-1 focus:ring-blue-600 focus:border-blue-600 text-sm transition-shadow rounded-md"
@@ -565,12 +567,12 @@ const AddBranch = () => {
                       {loading ? (
                         <div className="flex items-center justify-center gap-2">
                           <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                          <span>Searching...</span>
+                          <span>{t("searching", "Searching...")}</span>
                         </div>
                       ) : (
                         <div className="flex items-center justify-center gap-2">
                           <Search className="w-4 h-4" />
-                          <span>Search User</span>
+                          <span>{t("search_user", "Search User")}</span>
                         </div>
                       )}
                     </Button>
@@ -590,7 +592,7 @@ const AddBranch = () => {
                     )}
                     <div className="flex-1 mt-0.5 font-medium">
                       {response.success
-                        ? (response.message || `Found ${response.branches?.length || 0} assigned branches.`)
+                        ? (response.message || t("found_assigned_branches", "Found {{count}} assigned branches.", { count: response.branches?.length || 0 }))
                         : response.message}
                     </div>
                   </div>
@@ -604,7 +606,7 @@ const AddBranch = () => {
                 <CardHeader className="border-b border-gray-100 bg-gray-50/50 pb-3 pt-4">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                     <CardTitle className="text-base font-semibold text-gray-800">
-                      Assign Branches for <span className="text-blue-600 font-mono font-bold tracking-tight">{response.mobile_number}</span>
+                      {t("assign_branches_for", "Assign Branches for")} <span className="text-blue-600 font-mono font-bold tracking-tight">{response.mobile_number}</span>
                     </CardTitle>
                     <div className="flex items-center space-x-2">
                       <Checkbox
@@ -614,7 +616,7 @@ const AddBranch = () => {
                         className="border-gray-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
                       />
                       <Label htmlFor="select-all" className="text-sm font-medium text-gray-700 cursor-pointer select-none">
-                        Select All
+                        {t("select_all", "Select All")}
                       </Label>
                     </div>
                   </div>
@@ -654,12 +656,12 @@ const AddBranch = () => {
                         {loading ? (
                           <div className="flex items-center justify-center gap-2">
                             <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                            <span>Updating...</span>
+                            <span>{t("updating", "Updating...")}</span>
                           </div>
                         ) : (
                           <div className="flex items-center justify-center gap-2">
                             <Save className="w-4 h-4" />
-                            <span>Update {selectedBranches.length} Branch{selectedBranches.length > 1 ? 'es' : ''}</span>
+                            <span>{t("update_branches_count", "Update {{count}} Branch", { count: selectedBranches.length })}{selectedBranches.length > 1 ? t("es", "es") : ''}</span>
                           </div>
                         )}
                       </Button>

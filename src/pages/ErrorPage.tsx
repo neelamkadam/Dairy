@@ -1,10 +1,12 @@
 import { useRouteError } from "react-router-dom";
 import { Phone, RefreshCw, Home, MilkOff } from "lucide-react";
 import NeoDairyLogo from "@/assets/NeoDairy_Logo.png";
+import { useTranslation } from "react-i18next";
 
 const DEVELOPER_PHONE = "9970610663";
 
 const ErrorPage = () => {
+  const { t } = useTranslation();
   const error = useRouteError() as any;
   console.error("Application error:", error);
 
@@ -43,17 +45,17 @@ const ErrorPage = () => {
             </div>
 
             <h1 className="text-2xl font-bold tracking-tight text-gray-900 mb-2">
-              Oops! Something went wrong
+              {t("oops_something_went_wrong", "Oops! Something went wrong")}
             </h1>
             <p className="text-sm leading-relaxed text-gray-500">
-              Don't worry — your data is completely safe.
+              {t("data_is_safe_msg", "Don't worry — your data is completely safe.")}
               <br />
-              Please refresh the page and try again.
+              {t("refresh_page_msg", "Please refresh the page and try again.")}
             </p>
             <p className="mt-1 text-sm leading-relaxed text-gray-500">
-              काळजी करू नका — तुमचा डेटा पूर्णपणे सुरक्षित आहे.
+              {t("data_is_safe_msg_mr", "काळजी करू नका — तुमचा डेटा पूर्णपणे सुरक्षित आहे.")}
               <br />
-              कृपया पेज रिफ्रेश करून पुन्हा प्रयत्न करा.
+              {t("refresh_page_msg_mr", "कृपया पेज रिफ्रेश करून पुन्हा प्रयत्न करा.")}
             </p>
 
             {/* Actions */}
@@ -63,14 +65,14 @@ const ErrorPage = () => {
                 className="flex-1 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700 hover:shadow-lg active:scale-[0.98]"
               >
                 <RefreshCw className="h-4 w-4" />
-                Refresh Page
+                {t("refresh_page_btn", "Refresh Page")}
               </button>
               <button
                 onClick={() => (window.location.href = "/dashboard")}
                 className="flex-1 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-5 text-sm font-semibold text-gray-700 transition-all hover:bg-gray-50 hover:border-gray-300 active:scale-[0.98]"
               >
                 <Home className="h-4 w-4" />
-                Go to Dashboard
+                {t("go_to_dashboard_btn", "Go to Dashboard")}
               </button>
             </div>
           </div>
@@ -78,7 +80,7 @@ const ErrorPage = () => {
           {/* Developer contact strip */}
           <div className="border-t border-gray-100 bg-gradient-to-r from-blue-50/80 to-sky-50/80 px-8 py-5">
             <p className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-2">
-              Still facing the issue? · अजूनही समस्या येत आहे?
+              {t("still_facing_issue_msg", "Still facing the issue? · अजूनही समस्या येत आहे?")}
             </p>
             <a
               href={`tel:${DEVELOPER_PHONE}`}
@@ -89,7 +91,7 @@ const ErrorPage = () => {
               </span>
               <span className="text-left">
                 <span className="block text-[11px] text-gray-400 leading-none mb-0.5">
-                  Call Developer
+                  {t("call_developer_btn", "Call Developer")}
                 </span>
                 <span className="block text-base font-bold text-blue-700 leading-none tracking-wide">
                   {DEVELOPER_PHONE}
@@ -103,7 +105,7 @@ const ErrorPage = () => {
         {errorText && (
           <details className="mt-4 text-center">
             <summary className="cursor-pointer text-[11px] text-gray-300 hover:text-gray-400 select-none list-none">
-              technical details
+              {t("technical_details", "technical details")}
             </summary>
             <p className="mt-2 mx-auto max-w-full overflow-x-auto rounded-lg bg-gray-900 px-3 py-2 text-left text-[11px] font-mono text-gray-300">
               {errorText}
