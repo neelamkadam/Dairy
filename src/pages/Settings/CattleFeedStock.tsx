@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cattleFeedApi, CattleFeedStock } from "@/services/cattleFeedApi";
+import { appendPurchaseEntry } from "@/utils/cattleFeedPurchases";
 import { toast } from "react-toastify";
 import { useAppSelector } from "@/redux/store";
 import { format, parseISO, isValid } from "date-fns";
@@ -154,7 +155,12 @@ const CattleFeedStockSettings: React.FC = () => {
         amount: parseFloat(amount),
         stock: parseFloat(stock),
         purchase_rate: parseFloat(purchaseRate),
-        date: [format(purchaseDate, "yyyy-MM-dd")]
+        // Opening purchase - the date column is a log, so seed it with an entry.
+        date: [{
+          purchase_date: format(purchaseDate, "yyyy-MM-dd"),
+          qty: parseFloat(stock),
+          purchase_rate: parseFloat(purchaseRate),
+        }],
       } as any;
 
       await cattleFeedApi.createStock(payload);
@@ -203,12 +209,21 @@ const CattleFeedStockSettings: React.FC = () => {
 
     try {
       setLoading(true);
-      const newTotalStock = (parseFloat(restockItem.stock.toString()) || 0) + parseFloat(restockQty);
+      const addQty = parseFloat(restockQty) || 0;
+      const newTotalStock = (parseFloat(restockItem.stock.toString()) || 0) + addQty;
+      // A restock is a purchase, so append it to the log and leave earlier
+      // entries alone - that history is what the purchases report reads.
       const payload = {
         stock_name: restockItem.stock_name,
         stock: newTotalStock,
         purchase_rate: parseFloat(restockRate),
-        date: [format(restockDate, "yyyy-MM-dd")]
+        date: addQty > 0
+          ? appendPurchaseEntry(restockItem, {
+              purchase_date: format(restockDate, "yyyy-MM-dd"),
+              qty: addQty,
+              purchase_rate: parseFloat(restockRate),
+            })
+          : undefined,
       } as any;
 
       await cattleFeedApi.updateStock(restockItem.id, payload);

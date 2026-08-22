@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
-import { Download } from "lucide-react";
+import { Download, Package } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { toast } from "react-toastify";
@@ -10,25 +10,26 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { VLCDropdown } from "@/components/ui/vlc-dropdown";
-
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useAppSelector } from "@/redux/store";
 import { cattleFeedApi } from "@/services/cattleFeedApi";
+import { parsePurchaseEntries } from "@/utils/cattleFeedPurchases";
+import { registerDevanagariFont } from "@/utils/pdfFonts";
 
 interface PurchaseRow {
-  id: number;
   date: string;
-  feedType: string;
   qty: number;
-  perchesesRate: number;
-  sellingRate: number;
+  purchaseRate: number;
+  value: number;
   remark: string;
+}
+
+interface StockSection {
+  id: number;
+  stockName: string;
+  sellingRate: number;
+  rows: PurchaseRow[];
+  qty: number;
+  value: number;
 }
 
 interface StockRecord {
@@ -47,15 +48,18 @@ interface StockGetResponse {
   data: StockRecord[];
 }
 
-const normalizeDate = (d: string) =>
-  d.includes("T") ? d.split("T")[0] : d;
+const formatDay = (value: string) => {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? "—" : format(parsed, "dd-MM-yyyy");
+};
 
 const CattleFeedPurchasesReport = () => {
   const { t } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
   const [dairyId, setDairyId] = useState("");
   const [loading, setLoading] = useState(false);
-  const [rows, setRows] = useState<PurchaseRow[]>([]);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [sections, setSections] = useState<StockSection[]>([]);
 
   const [startDate, setStartDate] = useState<string>(() => {
     const today = new Date();
@@ -74,14 +78,15 @@ const CattleFeedPurchasesReport = () => {
 
   const totals = useMemo(
     () =>
-      rows.reduce(
-        (acc, r) => ({
-          qty: acc.qty + r.qty,
-          sellingTotal: acc.sellingTotal + r.qty * r.sellingRate,
+      sections.reduce(
+        (acc, section) => ({
+          qty: acc.qty + section.qty,
+          value: acc.value + section.value,
+          sellingTotal: acc.sellingTotal + section.qty * section.sellingRate,
         }),
-        { qty: 0, sellingTotal: 0 }
+        { qty: 0, value: 0, sellingTotal: 0 }
       ),
-    [rows]
+    [sections]
   );
 
   const handleShowReport = async () => {
@@ -100,41 +105,40 @@ const CattleFeedPurchasesReport = () => {
           ? (response as StockRecord[])
           : [];
 
-      const transformed: PurchaseRow[] = [];
-
+      // One section per feed item, holding the purchases it logged in the period.
+      const grouped: StockSection[] = [];
       stockData.forEach((item) => {
-        let dates: { purchase_date?: string; date?: string; remark?: string; qty?: number; purchase_rate?: number }[] = [];
-        try {
-          const parsed = typeof item.date === 'string' ? JSON.parse(item.date) : item.date;
-          if (Array.isArray(parsed)) {
-            dates = parsed;
-          }
-        } catch (e) {
-          if (item.date) dates = [{ purchase_date: item.date }];
-        }
+        const rows: PurchaseRow[] = parsePurchaseEntries(item)
+          .filter(
+            (entry) =>
+              entry.purchase_date >= startDate && entry.purchase_date <= endDate
+          )
+          .map((entry) => ({
+            date: entry.purchase_date,
+            qty: entry.qty,
+            purchaseRate: entry.purchase_rate,
+            value: entry.qty * entry.purchase_rate,
+            remark: entry.remark?.trim() || item.remark?.trim() || "—",
+          }));
 
-        dates.forEach((d: any) => {
-          const rawDate = typeof d === 'string' ? d : (d.purchase_date || d.date || "");
-          const normDate = normalizeDate(rawDate);
-          if (normDate >= startDate && normDate <= endDate) {
-            transformed.push({
-              id: item.id,
-              date: normDate,
-              feedType: item.stock_name?.trim() || "—",
-              qty: Number(d.qty || item.stock || 0),
-              perchesesRate: Number(d.purchase_rate || item.purchase_rate || 0),
-              sellingRate: Number(item.amount || 0),
-              remark: d.remark?.trim() || item.remark?.trim() || "—",
-            });
-          }
+        // A purchases report only speaks to what was bought in the window.
+        if (rows.length === 0) return;
+
+        grouped.push({
+          id: item.id,
+          stockName: item.stock_name?.trim() || "—",
+          sellingRate: Number(item.amount) || 0,
+          rows,
+          qty: rows.reduce((sum, row) => sum + row.qty, 0),
+          value: rows.reduce((sum, row) => sum + row.value, 0),
         });
       });
 
-      // Sort by date then id
-      transformed.sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id);
+      grouped.sort((a, b) => a.stockName.localeCompare(b.stockName));
 
-      setRows(transformed);
-      if (transformed.length === 0) {
+      setSections(grouped);
+      setHasSearched(true);
+      if (grouped.length === 0) {
         toast.info(t("no_purchase_records"));
       } else {
         toast.success(t("report_loaded_successfully"));
@@ -142,190 +146,303 @@ const CattleFeedPurchasesReport = () => {
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
       toast.error(err.response?.data?.message || t("failed_to_fetch_report"));
-      setRows([]);
+      setSections([]);
+      setHasSearched(true);
     } finally {
       setLoading(false);
     }
   };
 
-  const exportToPDF = () => {
-    if (rows.length === 0) {
+  const exportToPDF = async () => {
+    if (sections.length === 0) {
       toast.error(t("no_data_available"));
       return;
     }
 
     const doc = new jsPDF();
+    // Feed names and branch names are often Marathi, which the default font
+    // cannot render.
+    const font = await registerDevanagariFont(doc);
     const dairyName = selectedBranch
       ? `${selectedBranch.username} - ${selectedBranch.name}`
       : "";
 
+    doc.setFont(font, "normal");
     doc.setFontSize(16);
     doc.text("Cattle Feed Purchases Report", 14, 15);
     doc.setFontSize(10);
     if (dairyName) doc.text(dairyName, 14, 22);
-    doc.text(
-      `Period: ${format(new Date(startDate), "dd-MM-yyyy")} to ${format(new Date(endDate), "dd-MM-yyyy")}`,
-      14,
-      28
-    );
+    doc.text(`Period: ${formatDay(startDate)} to ${formatDay(endDate)}`, 14, 28);
+
+    const body: string[][] = [];
+    sections.forEach((section) => {
+      section.rows.forEach((row, index) => {
+        body.push([
+          index === 0 ? section.stockName : "",
+          formatDay(row.date),
+          row.qty.toString(),
+          row.purchaseRate > 0 ? row.purchaseRate.toFixed(2) : "—",
+          row.value > 0 ? row.value.toFixed(2) : "—",
+          section.sellingRate > 0 ? section.sellingRate.toFixed(2) : "—",
+          row.remark,
+        ]);
+      });
+      body.push([
+        `${section.stockName} Total`,
+        "",
+        section.qty.toString(),
+        "",
+        section.value.toFixed(2),
+        "",
+        "",
+      ]);
+    });
+    body.push([
+      "Grand Total",
+      "",
+      totals.qty.toString(),
+      "",
+      totals.value.toFixed(2),
+      "",
+      "",
+    ]);
 
     autoTable(doc, {
       startY: 35,
       head: [
-        ["Date", "Feed Type", "Qty (Kg/Bag)", "Purchase Rate", "Selling Rate", "Remark"],
-      ],
-      body: [
-        ...rows.map((row) => [
-          row.date && !isNaN(new Date(row.date).getTime())
-            ? format(new Date(row.date), "dd-MM-yy")
-            : "—",
-          row.feedType,
-          row.qty > 0 ? row.qty.toString() : "—",
-          row.perchesesRate > 0 ? row.perchesesRate.toFixed(2) : "—",
-          row.sellingRate > 0 ? row.sellingRate.toFixed(2) : "—",
-          row.remark,
-        ]),
         [
-          "Total",
-          "",
-          totals.qty.toString(),
-          "",
-          totals.sellingTotal > 0 ? totals.sellingTotal.toFixed(2) : "—",
-          "",
+          "Feed Type",
+          "Purchase Date",
+          "Qty (Kg/Bag)",
+          "Percheses Rate",
+          "Purchase Value",
+          "Selling Rate",
+          "Remark",
         ],
       ],
+      body,
       theme: "grid",
-      headStyles: { fillColor: [66, 139, 202] },
+      styles: { font },
+      headStyles: { font, fillColor: [66, 139, 202] },
       didParseCell: (data) => {
-        if (data.section === "body" && data.row.index === rows.length) {
+        if (data.section !== "body") return;
+        if (data.row.index === body.length - 1) {
           data.cell.styles.textColor = [255, 0, 0];
+          data.cell.styles.fontStyle = "bold";
+        } else if (String(body[data.row.index]?.[0] ?? "").endsWith(" Total")) {
           data.cell.styles.fontStyle = "bold";
         }
       },
     });
 
-    doc.save(
-      `Cattle_Feed_Purchases_Report_${startDate}_to_${endDate}.pdf`
-    );
+    doc.save(`Cattle_Feed_Purchases_Report_${startDate}_to_${endDate}.pdf`);
     toast.success(t("pdf_exported_successfully"));
   };
 
   return (
-    <div className="p-4">
-      <div className="text-left p-4">
-        <h1 className="font-bold text-2xl">{t("cattle_feed_purchases_report")}</h1>
-        <p className="text-sm text-gray-600">
-          {t("purchase_records_from")}{" "}
-          {format(new Date(startDate), "dd-MM-yyyy")} {t("to")}{" "}
-          {format(new Date(endDate), "dd-MM-yyyy")}.
-        </p>
-      </div>
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <header className="flex flex-col">
+          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+            <Package className="w-6 h-6 text-blue-600" />
+            Cattle Feed Purchases Report
+          </h1>
+          <p className="text-sm text-slate-500 font-medium">
+            Every feed item a branch bought in the period, with the dates and quantity purchased.
+          </p>
+        </header>
 
-      <Card className="border-gray-300 mb-7">
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-3 bg-gray-50 rounded-lg">
-            <div>
-              <Label className="mb-1">{t("dairy")}</Label>
-              <VLCDropdown branches={branches || []} value={dairyId} onChange={setDairyId} valueKey="branch_id" placeholder={t("select_dairy_placeholder")} />
-            </div>
-
-            <div>
-              <Label className="mb-1">{t("start_date")}</Label>
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="border-gray-200"
-              />
-            </div>
-
-            <div>
-              <Label className="mb-1">{t("end_date")}</Label>
-              <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="border-gray-200"
-              />
-            </div>
-
-            <div className="flex items-end">
-              <div className="flex gap-2">
+        <Card className="border-none shadow-[0_4px_20px_rgb(0,0,0,0.05)] bg-white">
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-slate-700">{t("dairy")}</Label>
+                <VLCDropdown
+                  branches={branches || []}
+                  value={dairyId}
+                  onChange={setDairyId}
+                  valueKey="branch_id"
+                  placeholder={t("select_dairy_placeholder")}
+                  className="w-full h-11 bg-slate-50 border-slate-200"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-slate-700">{t("start_date")}</Label>
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="bg-slate-50 border-slate-200 h-11"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-slate-700">{t("end_date")}</Label>
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="bg-slate-50 border-slate-200 h-11"
+                />
+              </div>
+              <div className="flex items-end gap-2">
                 <Button
                   onClick={handleShowReport}
                   disabled={loading}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 h-11 font-bold shadow-md shadow-indigo-100"
                 >
                   {loading ? t("loading") : t("show_report")}
                 </Button>
                 <Button
                   onClick={exportToPDF}
-                  disabled={rows.length === 0}
-                  className="bg-red-600 hover:bg-red-700 text-white flex items-center gap-2"
+                  disabled={sections.length === 0}
+                  variant="outline"
+                  className="h-11 border-slate-200 bg-white hover:bg-slate-50 font-bold text-slate-700"
                 >
-                  <Download className="h-4 w-4" />
-                  {t("export_pdf")}
+                  <Download className="h-4 w-4 mr-2 text-indigo-600" />
+                  PDF
                 </Button>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {rows.length > 0 && (
-        <Card className="border-gray-300 mb-7">
-          <CardContent className="p-4">
-            <h2 className="font-semibold text-lg mb-4">
-              {t("cattle_feed_purchases_report")} (
-              {format(new Date(startDate), "dd-MM-yyyy")} {t("to")}{" "}
-              {format(new Date(endDate), "dd-MM-yyyy")})
-            </h2>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="border border-gray-300 p-2 text-center">{t("date")}</th>
-                    <th className="border border-gray-300 p-2 text-center">{t("feed_type")}</th>
-                    <th className="border border-gray-300 p-2 text-center">{t("qty_kg_bag")}</th>
-                    <th className="border border-gray-300 p-2 text-center">{t("purchase_rate")}</th>
-                    <th className="border border-gray-300 p-2 text-center">{t("selling_rate")}</th>
-                    <th className="border border-gray-300 p-2 text-center">{t("remark")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <tr key={row.id} className="hover:bg-gray-50">
-                      <td className="border border-gray-300 p-2 text-center">
-                        {row.date && !isNaN(new Date(row.date).getTime())
-                          ? format(new Date(row.date), "dd-MM-yy")
-                          : "—"}
-                      </td>
-                      <td className="border border-gray-300 p-2 text-center">{row.feedType}</td>
-                      <td className="border border-gray-300 p-2 text-center">{row.qty || "—"}</td>
-                      <td className="border border-gray-300 p-2 text-center">
-                        {row.perchesesRate > 0 ? row.perchesesRate.toFixed(2) : "—"}
-                      </td>
-                      <td className="border border-gray-300 p-2 text-center">
-                        {row.sellingRate > 0 ? row.sellingRate.toFixed(2) : "—"}
-                      </td>
-                      <td className="border border-gray-300 p-2 text-center">{row.remark}</td>
-                    </tr>
-                  ))}
-                  <tr className="bg-red-50 font-bold text-red-600">
-                    <td className="border border-gray-300 p-2 text-center" colSpan={2}>{t("total")}</td>
-                    <td className="border border-gray-300 p-2 text-center">{totals.qty}</td>
-                    <td className="border border-gray-300 p-2 text-center">—</td>
-                    <td className="border border-gray-300 p-2 text-center">
-                      {totals.sellingTotal > 0 ? totals.sellingTotal.toFixed(2) : "—"}
-                    </td>
-                    <td className="border border-gray-300 p-2 text-center">—</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
           </CardContent>
         </Card>
-      )}
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="border-none shadow-[0_4px_20px_rgb(0,0,0,0.03)] bg-white border-l-4 border-l-indigo-600">
+            <CardContent className="p-5">
+              <div className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1.5">
+                Qty Purchased
+              </div>
+              <div className="text-2xl font-black text-slate-900">{totals.qty}</div>
+            </CardContent>
+          </Card>
+          <Card className="border-none shadow-[0_4px_20px_rgb(0,0,0,0.03)] bg-white border-l-4 border-l-green-600">
+            <CardContent className="p-5">
+              <div className="text-[10px] text-green-600 font-black uppercase tracking-widest mb-1.5">
+                Purchase Value
+              </div>
+              <div className="text-2xl font-black text-green-700">₹{totals.value.toFixed(2)}</div>
+            </CardContent>
+          </Card>
+          <Card className="border-none shadow-[0_4px_20px_rgb(0,0,0,0.03)] bg-white border-l-4 border-l-slate-900">
+            <CardContent className="p-5">
+              <div className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1.5">
+                Value At Selling Rate
+              </div>
+              <div className="text-2xl font-black text-slate-900">
+                ₹{totals.sellingTotal.toFixed(2)}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card className="border-none shadow-[0_4px_20px_rgb(0,0,0,0.05)] bg-white">
+          <CardContent className="p-6">
+            {loading ? (
+              <div className="py-24 text-center text-slate-400 font-medium">Loading report...</div>
+            ) : sections.length === 0 ? (
+              <div className="py-24 flex flex-col items-center justify-center text-center">
+                <Package className="w-16 h-16 text-slate-200 mb-4" />
+                <h3 className="text-slate-800 font-bold text-lg">
+                  {hasSearched ? "No Purchase Records Found" : "No Report Loaded"}
+                </h3>
+                <p className="text-slate-400 max-w-[300px]">
+                  {hasSearched
+                    ? "No feed was purchased by this branch in the selected period."
+                    : "Select a dairy and a period, then click Show Report."}
+                </p>
+              </div>
+            ) : (
+              <>
+                <h2 className="font-bold text-lg text-slate-800 mb-4">
+                  Purchases ({formatDay(startDate)} to {formatDay(endDate)})
+                </h2>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100">
+                        <th className="border border-slate-200 p-2 text-left">Feed Type</th>
+                        <th className="border border-slate-200 p-2 text-center">Purchase Date</th>
+                        <th className="border border-slate-200 p-2 text-center">Qty (Kg/Bag)</th>
+                        <th className="border border-slate-200 p-2 text-center">Percheses Rate</th>
+                        <th className="border border-slate-200 p-2 text-center">Purchase Value</th>
+                        <th className="border border-slate-200 p-2 text-center">Selling Rate</th>
+                        <th className="border border-slate-200 p-2 text-center">Remark</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sections.map((section) => (
+                        <React.Fragment key={section.id}>
+                          {section.rows.map((row, index) => (
+                            <tr key={`${section.id}-${index}`} className="hover:bg-slate-50">
+                              {index === 0 && (
+                                <td
+                                  className="border border-slate-200 p-2 font-bold text-slate-900 uppercase align-top"
+                                  rowSpan={section.rows.length}
+                                >
+                                  {section.stockName}
+                                </td>
+                              )}
+                              <td className="border border-slate-200 p-2 text-center">
+                                {formatDay(row.date)}
+                              </td>
+                              <td className="border border-slate-200 p-2 text-center font-bold">
+                                {row.qty || "—"}
+                              </td>
+                              <td className="border border-slate-200 p-2 text-center">
+                                {row.purchaseRate > 0 ? `₹${row.purchaseRate.toFixed(2)}` : "—"}
+                              </td>
+                              <td className="border border-slate-200 p-2 text-center">
+                                {row.value > 0 ? `₹${row.value.toFixed(2)}` : "—"}
+                              </td>
+                              {index === 0 && (
+                                <td
+                                  className="border border-slate-200 p-2 text-center align-top"
+                                  rowSpan={section.rows.length}
+                                >
+                                  {section.sellingRate > 0
+                                    ? `₹${section.sellingRate.toFixed(2)}`
+                                    : "—"}
+                                </td>
+                              )}
+                              <td className="border border-slate-200 p-2 text-center text-slate-500">
+                                {row.remark}
+                              </td>
+                            </tr>
+                          ))}
+                          <tr className="bg-slate-50 font-bold">
+                            <td className="border border-slate-200 p-2 text-right" colSpan={2}>
+                              {section.stockName} Total
+                            </td>
+                            <td className="border border-slate-200 p-2 text-center">
+                              {section.qty}
+                            </td>
+                            <td className="border border-slate-200 p-2" />
+                            <td className="border border-slate-200 p-2 text-center">
+                              ₹{section.value.toFixed(2)}
+                            </td>
+                            <td className="border border-slate-200 p-2" colSpan={2} />
+                          </tr>
+                        </React.Fragment>
+                      ))}
+                      <tr className="bg-slate-900 text-white font-bold">
+                        <td className="border border-slate-700 p-2 text-right" colSpan={2}>
+                          Grand Total
+                        </td>
+                        <td className="border border-slate-700 p-2 text-center">{totals.qty}</td>
+                        <td className="border border-slate-700 p-2" />
+                        <td className="border border-slate-700 p-2 text-center">
+                          ₹{totals.value.toFixed(2)}
+                        </td>
+                        <td className="border border-slate-700 p-2" colSpan={2} />
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

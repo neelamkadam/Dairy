@@ -60,6 +60,7 @@ import CattleFeedStockReport from "@/pages/Reports/CattleFeedStockReport";
 import CattleFeedFarmerWiseReport from "@/pages/Reports/CattleFeedFarmerWiseReport";
 import CattleFeedSalesReport from "@/pages/Reports/CattleFeedSalesReport";
 import CattleFeedPurchasesReport from "@/pages/Reports/CattleFeedPurchasesReport";
+import GroupCattleFeedStockReport from "@/pages/Reports/GroupCattleFeedStockReport";
 import BonusReport from "@/pages/Reports/BonusReport";
 import GeneralSettings from "@/pages/Settings/GeneralSettings";
 import CattleFeedStockSettings from "@/pages/Settings/CattleFeedStock";
@@ -285,6 +286,10 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "cattle-feed-purchase-report",
         element: <CattleFeedPurchasesReport />,
+      },
+      {
+        path: "group-cattle-feed-stock-report",
+        element: <GroupCattleFeedStockReport />,
       },
       {
         path: "bonus-report",

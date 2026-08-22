@@ -46,6 +46,7 @@ export const ROUTES = {
     CATTLE_FEED_SALES_REPORT:`/dashboard/cattle-feed-sales-report`,
     CATTLE_FEED_STOCK_REPORT:`/dashboard/cattle-feed-stock-report`,
     CATTLE_FEED_PURCHASE_REPORT:`/dashboard/cattle-feed-purchase-report`,
+    GROUP_CATTLE_FEED_STOCK_REPORT:`/dashboard/group-cattle-feed-stock-report`,
     FARMER_LIST:`/dashboard/farmer-list`,
     FARMER_PASSBOOK:`/dashboard/farmer-passbook`,
     PAYMENT_SUMMARY:`/dashboard/payment-summary`,

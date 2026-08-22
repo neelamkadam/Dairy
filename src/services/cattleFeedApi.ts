@@ -1,5 +1,20 @@
 import { api } from "./config";
 
+/**
+ * One purchase logged against a stock row. The `date` column holds a list of
+ * these so a restock records when it happened and how much was bought, instead
+ * of overwriting the previous purchase date.
+ */
+export interface CattleFeedPurchaseEntry {
+  purchase_date: string;
+  qty: number;
+  purchase_rate: number;
+  remark?: string;
+}
+
+/** Legacy rows store bare date strings; new writes store purchase entries. */
+export type CattleFeedDateValue = string | CattleFeedPurchaseEntry;
+
 export interface CattleFeedStockRequest {
   owner_type: "group" | "vlc";
   owner_id: string | number;
@@ -7,7 +22,7 @@ export interface CattleFeedStockRequest {
   amount: number;
   stock: number;
   purchase_rate: number;
-  date?: string[];
+  date?: CattleFeedDateValue[];
 }
 
 export interface CattleFeedStockUpdateRequest {
@@ -15,7 +30,7 @@ export interface CattleFeedStockUpdateRequest {
   amount?: number;
   stock?: number;
   purchase_rate?: number;
-  date?: string[];
+  date?: CattleFeedDateValue[];
 }
 
 export interface CattleFeedStock {
@@ -27,7 +42,7 @@ export interface CattleFeedStock {
   amount: string | number;
   stock: number;
   purchase_rate: number;
-  date: string | string[];
+  date: string | CattleFeedDateValue[];
   created_at?: string;
 }
 
