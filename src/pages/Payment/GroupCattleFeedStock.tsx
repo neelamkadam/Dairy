@@ -6,10 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import { cattleFeedApi, CattleFeedStock } from "@/services/cattleFeedApi";
+import { appendPurchaseEntry, latestPurchaseDate, toRawEntries } from "@/utils/cattleFeedPurchases";
 import { toast } from "react-toastify";
 import { useAppSelector } from "@/redux/store";
 import { format } from "date-fns";
-import { Pencil, Trash2, Plus, FileText, Search, Package, IndianRupee, Calendar as CalendarIcon, ArrowRightLeft } from "lucide-react";
+import { Pencil, Trash2, Plus, FileText, Search, Package, IndianRupee, Calendar as CalendarIcon, ArrowRightLeft, ClipboardList } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +24,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constatnts/routesConstants";
+
+const formatLastPurchase = (item: CattleFeedStock) => {
+  const day = latestPurchaseDate(item);
+  if (!day) return "—";
+  const parsed = new Date(day);
+  return Number.isNaN(parsed.getTime()) ? "—" : format(parsed, "dd MMM, yyyy");
+};
 
 const GroupCattleFeedStock: React.FC = () => {
   const navigate = useNavigate();
@@ -95,7 +103,12 @@ const GroupCattleFeedStock: React.FC = () => {
         amount: parseFloat(amount),
         stock: parseFloat(stock),
         purchase_rate: parseFloat(purchaseRate),
-        date: [format(purchaseDate, "yyyy-MM-dd")]
+        // Opening purchase - the date column is a log, so seed it with an entry.
+        date: [{
+          purchase_date: format(purchaseDate, "yyyy-MM-dd"),
+          qty: parseFloat(stock),
+          purchase_rate: parseFloat(purchaseRate),
+        }],
       };
       
       await cattleFeedApi.createStock(payload);
@@ -116,8 +129,7 @@ const GroupCattleFeedStock: React.FC = () => {
     setEditAddStock("");
     setEditAmount(item.amount.toString());
     setEditPurchaseRate(item.purchase_rate.toString());
-    const rawDate = Array.isArray(item.date) ? item.date[0] : item.date;
-    setEditDate(rawDate ? new Date(rawDate) : new Date());
+    setEditDate(new Date());
     setIsEditOpen(true);
   };
 
@@ -131,12 +143,23 @@ const GroupCattleFeedStock: React.FC = () => {
     const newTotal = parseFloat(editStock) + addQty;
     setLoading(true);
     try {
+      // Adding quantity means a fresh purchase, so append it to the log and
+      // leave earlier entries alone. A rename or rate correction carries no
+      // quantity, so it must not write a phantom purchase.
+      const purchaseLog = addQty > 0
+        ? appendPurchaseEntry(editItem, {
+            purchase_date: format(editDate, "yyyy-MM-dd"),
+            qty: addQty,
+            purchase_rate: parseFloat(editPurchaseRate),
+          })
+        : toRawEntries(editItem.date);
+
       await cattleFeedApi.updateStock(editItem.id, {
         stock_name: editStockName.trim(),
         stock: newTotal,
         amount: parseFloat(editAmount),
         purchase_rate: parseFloat(editPurchaseRate),
-        date: [format(editDate, "yyyy-MM-dd")],
+        date: purchaseLog,
       });
       toast.success("Stock updated successfully");
       setIsEditOpen(false);
@@ -195,14 +218,24 @@ const GroupCattleFeedStock: React.FC = () => {
             </h1>
             <p className="text-sm text-slate-500 font-medium">Coordinate central inventory and distribution to VLC branches.</p>
           </div>
-          <Button 
-            variant="outline" 
-            onClick={() => navigate(ROUTES.REPORTS.CATTLE_FEED_STOCK_REPORT)}
-            className="w-fit bg-white border-slate-200 hover:bg-slate-50 h-11 px-6 shadow-sm font-bold text-slate-700"
-          >
-            <FileText className="w-4 h-4 mr-2 text-indigo-600" />
-            Cattle Feed Report
-          </Button>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              variant="outline"
+              onClick={() => navigate(ROUTES.REPORTS.GROUP_CATTLE_FEED_STOCK_REPORT)}
+              className="w-fit bg-white border-slate-200 hover:bg-slate-50 h-11 px-6 shadow-sm font-bold text-slate-700"
+            >
+              <ClipboardList className="w-4 h-4 mr-2 text-indigo-600" />
+              Stock Report
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate(ROUTES.REPORTS.CATTLE_FEED_STOCK_REPORT)}
+              className="w-fit bg-white border-slate-200 hover:bg-slate-50 h-11 px-6 shadow-sm font-bold text-slate-700"
+            >
+              <FileText className="w-4 h-4 mr-2 text-indigo-600" />
+              Cattle Feed Report
+            </Button>
+          </div>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -311,7 +344,7 @@ const GroupCattleFeedStock: React.FC = () => {
                         <h4 className="font-black text-slate-900 text-xl group-hover:text-indigo-600 transition-colors uppercase tracking-tight">
                             {item.stock_name}
                         </h4>
-                        <div className="text-xs text-slate-400 font-medium">Last updated: {format(new Date(Array.isArray(item.date) ? item.date[0] : (typeof item.date === 'string' ? item.date : new Date())), "dd MMM, yyyy")}</div>
+                        <div className="text-xs text-slate-400 font-medium">Last purchased: {formatLastPurchase(item)}</div>
                       </div>
                       <div className="flex gap-2">
                         <Button
@@ -373,7 +406,7 @@ const GroupCattleFeedStock: React.FC = () => {
               Edit Stock — {editItem?.stock_name}
             </DialogTitle>
             <DialogDescription className="text-slate-400 text-sm mt-2">
-              Update the stock details. Quantity here replaces the current balance.
+              Update the stock details. Quantity entered here is added to the current balance and logged as a new purchase.
             </DialogDescription>
           </DialogHeader>
           <div className="p-8 space-y-5 bg-white">
