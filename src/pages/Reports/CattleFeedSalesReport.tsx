@@ -208,6 +208,31 @@ const CattleFeedSalesReport = () => {
     [stockSummaryRows]
   );
 
+  // Compute Used Feed Summary from sales rows (aggregate by feed type)
+  const usedSummaryRows = useMemo(() => {
+    const usedMap = rows.reduce<Record<string, StockSummaryRow>>((acc, row) => {
+      const feedType = row.feedType?.trim() || "Cattle Feed";
+      if (!acc[feedType]) {
+        acc[feedType] = { feedType, qty: 0, amount: 0 };
+      }
+      acc[feedType].qty += row.qty;
+      acc[feedType].amount += row.amount;
+      return acc;
+    }, {});
+    return Object.values(usedMap).sort((a, b) => a.feedType.localeCompare(b.feedType));
+  }, [rows]);
+
+  const totalUsedSummary = useMemo(
+    () => usedSummaryRows.reduce(
+      (acc, row) => ({
+        qty: acc.qty + row.qty,
+        amount: acc.amount + row.amount,
+      }),
+      { qty: 0, amount: 0 }
+    ),
+    [usedSummaryRows]
+  );
+
   const handleShowReport = async () => {
     if (!dairyId) {
       toast.error(t("please_select_dairy"));
@@ -330,11 +355,49 @@ const CattleFeedSalesReport = () => {
       headStyles: { fillColor: [66, 139, 202] },
     });
 
-    if (stockSummaryRows.length > 0) {
+    // Used Feed Summary in PDF
+    if (usedSummaryRows.length > 0) {
+      const usedStartY = (doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY
+        ? ((doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY || 35) + 15
+        : 35;
+
+      doc.setFontSize(12);
+      doc.text("Used Feed Summary", 14, usedStartY);
+
       autoTable(doc, {
-        startY: (doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY
-          ? ((doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY || 35) + 10
-          : 35,
+        startY: usedStartY + 5,
+        head: [["Feed Type", "Qty", "Amount"]],
+        body: [
+          ...usedSummaryRows.map((row) => [
+            row.feedType,
+            row.qty.toString(),
+            row.amount.toFixed(2),
+          ]),
+          ["Total", totalUsedSummary.qty.toString(), totalUsedSummary.amount.toFixed(2)],
+        ],
+        theme: "grid",
+        headStyles: { fillColor: [66, 139, 202] },
+        didParseCell: (data) => {
+          const isTotalRow = data.section === "body" && data.row.index === usedSummaryRows.length;
+          if (isTotalRow) {
+            data.cell.styles.textColor = [255, 0, 0];
+            data.cell.styles.fontStyle = "bold";
+          }
+        },
+      });
+    }
+
+    // Remaining Feed Summary in PDF
+    if (stockSummaryRows.length > 0) {
+      const remainingStartY = (doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY
+        ? ((doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY || 35) + 15
+        : 35;
+
+      doc.setFontSize(12);
+      doc.text("Remaining Feed Summary", 14, remainingStartY);
+
+      autoTable(doc, {
+        startY: remainingStartY + 5,
         head: [["Feed Type", "Qty", "Amount"]],
         body: [
           ...stockSummaryRows.map((row) => [
@@ -463,38 +526,77 @@ const CattleFeedSalesReport = () => {
           </CardContent>
         </Card>
       )}
+      {/* Feed Summaries - side by side */}
+      {(usedSummaryRows.length > 0 || stockSummaryRows.length > 0) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-7">
+          {/* Used Feed Summary - Left */}
+          {usedSummaryRows.length > 0 && (
+            <Card className="border-gray-300">
+              <CardContent className="p-4">
+                <h2 className="font-semibold text-lg mb-4">{t("used_feed_summary")}</h2>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="border border-gray-300 p-2 text-center">{t("feed_type")}</th>
+                        <th className="border border-gray-300 p-2 text-center">{t("quantity")}</th>
+                        <th className="border border-gray-300 p-2 text-center">{t("amount")}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {usedSummaryRows.map((row) => (
+                        <tr key={row.feedType} className="hover:bg-gray-50">
+                          <td className="border border-gray-300 p-2 text-center">{row.feedType}</td>
+                          <td className="border border-gray-300 p-2 text-center">{row.qty}</td>
+                          <td className="border border-gray-300 p-2 text-center">{row.amount.toFixed(2)}</td>
+                        </tr>
+                      ))}
+                      <tr className="font-bold text-red-600">
+                        <td className="border border-gray-300 p-2 text-center">{t("total")}</td>
+                        <td className="border border-gray-300 p-2 text-center">{totalUsedSummary.qty}</td>
+                        <td className="border border-gray-300 p-2 text-center">{totalUsedSummary.amount.toFixed(2)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-      {stockSummaryRows.length > 0 && (
-        <Card className="border-gray-300 mb-7">
-          <CardContent className="p-4">
-            <h2 className="font-semibold text-lg mb-4">{t("feed_summary")}</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full max-w-md border-collapse">
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="border border-gray-300 p-2 text-center">{t("feed_type")}</th>
-                    <th className="border border-gray-300 p-2 text-center">{t("quantity")}</th>
-                    <th className="border border-gray-300 p-2 text-center">{t("amount")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stockSummaryRows.map((row) => (
-                    <tr key={row.feedType} className="hover:bg-gray-50">
-                      <td className="border border-gray-300 p-2 text-center">{row.feedType}</td>
-                      <td className="border border-gray-300 p-2 text-center">{row.qty}</td>
-                      <td className="border border-gray-300 p-2 text-center">{row.amount.toFixed(2)}</td>
-                    </tr>
-                  ))}
-                  <tr className="font-bold text-red-600">
-                    <td className="border border-gray-300 p-2 text-center">{t("total")}</td>
-                    <td className="border border-gray-300 p-2 text-center">{totalStockSummary.qty}</td>
-                    <td className="border border-gray-300 p-2 text-center">{totalStockSummary.amount.toFixed(2)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+          {/* Remaining Feed Summary - Right */}
+          {stockSummaryRows.length > 0 && (
+            <Card className="border-gray-300">
+              <CardContent className="p-4">
+                <h2 className="font-semibold text-lg mb-4">{t("remaining_feed_summary")}</h2>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="border border-gray-300 p-2 text-center">{t("feed_type")}</th>
+                        <th className="border border-gray-300 p-2 text-center">{t("quantity")}</th>
+                        <th className="border border-gray-300 p-2 text-center">{t("amount")}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stockSummaryRows.map((row) => (
+                        <tr key={row.feedType} className="hover:bg-gray-50">
+                          <td className="border border-gray-300 p-2 text-center">{row.feedType}</td>
+                          <td className="border border-gray-300 p-2 text-center">{row.qty}</td>
+                          <td className="border border-gray-300 p-2 text-center">{row.amount.toFixed(2)}</td>
+                        </tr>
+                      ))}
+                      <tr className="font-bold text-red-600">
+                        <td className="border border-gray-300 p-2 text-center">{t("total")}</td>
+                        <td className="border border-gray-300 p-2 text-center">{totalStockSummary.qty}</td>
+                        <td className="border border-gray-300 p-2 text-center">{totalStockSummary.amount.toFixed(2)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
     </div>
   );

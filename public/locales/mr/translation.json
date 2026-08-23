@@ -1024,5 +1024,7 @@
   "welcome": "Welcome",
   "welcome_back": "डेअरी ट्रेडमध्ये परत स्वागत आहे",
   "welcome_to": "Welcome To",
-  "what_would_you_like_to_do": "तुम्ही काय करू इच्छिता?"
+  "what_would_you_like_to_do": "तुम्ही काय करू इच्छिता?",
+  "used_feed_summary": "वापरलेला खाद्य सारांश",
+  "remaining_feed_summary": "शिल्लक खाद्य सारांश"
 }

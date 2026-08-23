@@ -1025,5 +1025,7 @@
   "welcome": "Welcome",
   "welcome_back": "ನಿಯೋಡೈರಿ ಸೇಲ್ಸ್ ಮತ್ತು ಸರ್ವಿಸಸ್‌ಗೆ ಮರಳಿ ಸ್ವಾಗತ",
   "welcome_to": "Welcome To",
-  "what_would_you_like_to_do": "ನೀವು ಏನು ಮಾಡಲು ಬಯಸುತ್ತೀರಿ?"
+  "what_would_you_like_to_do": "ನೀವು ಏನು ಮಾಡಲು ಬಯಸುತ್ತೀರಿ?",
+  "used_feed_summary": "ಬಳಸಿದ ಮೇವಿನ ಸಾರಾಂಶ",
+  "remaining_feed_summary": "ಉಳಿದ ಮೇವಿನ ಸಾರಾಂಶ"
 }

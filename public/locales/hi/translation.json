@@ -1024,5 +1024,7 @@
   "welcome": "Welcome",
   "welcome_back": "दुग्ध व्यापार में आपका स्वागत है",
   "welcome_to": "Welcome To",
-  "what_would_you_like_to_do": "आप क्या करना चाहेंगे?"
+  "what_would_you_like_to_do": "आप क्या करना चाहेंगे?",
+  "used_feed_summary": "उपयोग किया हुआ चारा सारांश",
+  "remaining_feed_summary": "शेष चारा सारांश"
 }
