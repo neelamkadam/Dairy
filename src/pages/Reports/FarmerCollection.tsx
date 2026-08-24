@@ -248,7 +248,7 @@ const FarmerCollection = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 <label className="text-sm font-medium">{t('from_date')}</label>
                 <AppDatePicker
                   date={fromDate}
@@ -256,9 +256,10 @@ const FarmerCollection = () => {
                     const parsed = parseISO(dateStr);
                     if (isValid(parsed)) setFromDate(parsed);
                   }}
+                  className="w-full"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 <label className="text-sm font-medium">{t('to_date')}</label>
                 <AppDatePicker
                   date={toDate}
@@ -266,6 +267,7 @@ const FarmerCollection = () => {
                     const parsed = parseISO(dateStr);
                     if (isValid(parsed)) setToDate(parsed);
                   }}
+                  className="w-full"
                 />
               </div>
               <div className="lg:col-span-4 xl:col-span-5 flex justify-end">

@@ -215,11 +215,11 @@ const FarmerBillInvoiceReport = () => {
         return;
       }
 
+      collection.date = response.date
       const farmerInfo = await userApi.getById(fId, Number(selectedVLC));
 
       setEditCollection(collection);
       setEditingFarmerData(farmerInfo);
-
       setEditFormData({
         quantity: collection.quantity?.toString() || collection.qty?.toString() || '',
         fat: collection.fat?.toString() || '',
@@ -261,7 +261,8 @@ const FarmerBillInvoiceReport = () => {
         snf,
         clr: parseFloat(clr || '0'),
         rate,
-        amount: amt
+        amount: amt,
+        date: editCollection.date
       };
 
       await collectionApi.update(editCollection.id, payload);
