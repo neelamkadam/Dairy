@@ -1,15 +1,63 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { format, isValid } from "date-fns";
-import { HelpCircle, Truck, Scale, Droplets, Banknote, Save, RefreshCcw, Loader2, IndianRupee } from "lucide-react";
-import { usePostApi } from "@/services/use-api";
+import { CustomDatePicker, CustomTimePicker } from "@/components/ui/datetime-inputs";
+import {
+  HelpCircle, Truck, Scale, Droplets, Banknote, Save, RefreshCcw,
+  Loader2, IndianRupee, User, Car, Layers, MapPin, Plus,
+  Clock, Beaker, Thermometer, Milk, AlertTriangle, Search,
+  FileText, ClipboardList
+} from "lucide-react";
+import { usePostApi, useGetApi } from "@/services/use-api";
 import { toast } from "react-toastify";
 import { useAppSelector } from "@/redux/store";
 import { VLCDropdown } from "@/components/ui/vlc-dropdown";
+import AxiosClient from "@/services/interceptor";
+
+const ADULTERANTS = ["sugar", "salt", "urea", "maltose", "soda", "starch"] as const;
+type Adulterant = typeof ADULTERANTS[number];
+
+interface Destination {
+  id?: number;
+  code: string;
+  name: string;
+  address?: string;
+  vlc?: string;
+}
 
 const DispatchEntry = () => {
   const { t } = useTranslation();
@@ -27,9 +75,88 @@ const DispatchEntry = () => {
     avgSnf: "",
     ratePerLiter: "",
     commissionPerLiter: "",
-    totalAmount: ""
+    totalAmount: "",
+    // New fields
+    driverName: "",
+    vehicleNumber: "",
+    compartment: "",
+    destinationName: "",
+    time: format(new Date(), "HH:mm"),
+    liter: "",
+    acidity: "",
+    temperature: "",
+    milkType: "Both",
   });
 
+  // Alteration state
+  const [alteration, setAlteration] = useState(false);
+  const [selectedAdulterant, setSelectedAdulterant] = useState<Adulterant | null>(null);
+
+  // Destination drawer state
+  const [destDrawerOpen, setDestDrawerOpen] = useState(false);
+  const [destForm, setDestForm] = useState({ code: "", name: "", address: "" });
+  const [destLoading, setDestLoading] = useState(false);
+  const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [destFetchLoading, setDestFetchLoading] = useState(false);
+  const [destCodeInput, setDestCodeInput] = useState("");
+
+  // Summary modals state
+  const [dispatchSummaryOpen, setDispatchSummaryOpen] = useState(false);
+  const [destSummaryOpen, setDestSummaryOpen] = useState(false);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [dispatchEntries, setDispatchEntries] = useState<any[]>([]);
+  const [destinationCount, setDestinationCount] = useState<number | null>(null);
+  const [destinationsListForSummary, setDestinationsListForSummary] = useState<Destination[]>([]);
+
+  const handleOpenDispatchSummary = async () => {
+    if (!formData.vlcId) {
+      toast.error(t('select_vlc_first', 'Please select a VLC first'));
+      return;
+    }
+    setDispatchSummaryOpen(true);
+    setSummaryLoading(true);
+    try {
+      const formattedDate = format(selectedDate, 'yyyy-MM-dd');
+      const response = await AxiosClient.get(
+        `/web/collection/dispatch-entries-by-vlc?date=${formattedDate}&vlc=${encodeURIComponent(formData.vlcId)}`
+      );
+      if (response?.data?.success) {
+        setDispatchEntries(Array.isArray(response.data.data) ? response.data.data : []);
+      } else {
+        toast.error(response?.data?.message || 'Failed to fetch dispatch summary');
+        setDispatchEntries([]);
+      }
+    } catch (error) {
+      toast.error('Error fetching dispatch summary');
+      setDispatchEntries([]);
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
+  const handleOpenDestSummary = async () => {
+    if (!formData.vlcId) {
+      toast.error(t('select_vlc_first', 'Please select a VLC first'));
+      return;
+    }
+    setDestSummaryOpen(true);
+    setSummaryLoading(true);
+    try {
+      // 1. Fetch total count
+      const countRes = await AxiosClient.get(
+        `/web/collection/dispatch-destination/count?vlc=${encodeURIComponent(formData.vlcId)}`
+      );
+      if (countRes?.data?.success) {
+        setDestinationCount(countRes.data.total);
+      } else {
+        setDestinationCount(0);
+      }
+    } catch (error) {
+      toast.error('Error fetching destination summary');
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
   const handleInputChange = (field: string, value: string) => {
     const updatedData = { ...formData, [field]: value };
 
@@ -48,37 +175,65 @@ const DispatchEntry = () => {
   const handleVLCIdChange = (val: string) => {
     setFormData(prev => ({
       ...prev,
-      vlcId: val
+      vlcId: val,
+      destinationName: "", // Reset destination when VLC changes
     }));
   };
 
   const handleSubmit = async () => {
     if (!formData.vlcId || !formData.weight || !formData.avgFat || !formData.avgSnf ||
-      !formData.ratePerLiter || !formData.commissionPerLiter || !formData.totalAmount) {
-      toast.error("All fields are required");
+      !formData.ratePerLiter || !formData.commissionPerLiter || !formData.totalAmount ||
+      !formData.driverName?.trim() || !formData.vehicleNumber?.trim() || !formData.compartment?.trim() ||
+      !formData.destinationName?.trim() || !formData.time?.trim() || !formData.liter || 
+      !formData.acidity || !formData.temperature || !formData.milkType) {
+      toast.error(t('all_fields_required', 'All fields are required'));
+      return;
+    }
+
+    // Validate alteration logic
+    if (alteration && !selectedAdulterant) {
+      toast.error(t('select_one_adulterant', 'Please select one adulterant when alteration is enabled'));
       return;
     }
 
     try {
-      const payload = {
-        date: format(selectedDate, 'yyyy-MM-dd HH:mm:ss'),
+      const payload: Record<string, any> = {
+        date: format(selectedDate, 'yyyy-MM-dd'),
         vlc_id: formData.vlcId,
         weight: parseFloat(formData.weight),
         avg_fat: parseFloat(formData.avgFat),
         avg_snf: parseFloat(formData.avgSnf),
         rate_per_liter: parseFloat(formData.ratePerLiter),
         commission_amount_per_liter: parseFloat(formData.commissionPerLiter),
-        total_amount: parseFloat(formData.totalAmount)
+        total_amount: parseFloat(formData.totalAmount),
+        // New fields
+        driver_name: formData.driverName,
+        vehicle_number: formData.vehicleNumber,
+        compartment: formData.compartment,
+        destination_name: formData.destinationName,
+        time: formData.time ? `${formData.time}:00` : undefined,
+        liter: formData.liter ? parseFloat(formData.liter) : undefined,
+        acidity: formData.acidity ? parseFloat(formData.acidity) : undefined,
+        temperature: formData.temperature ? parseFloat(formData.temperature) : undefined,
+        milk_type: formData.milkType,
+        // Alteration
+        alteration,
+        sugar: alteration && selectedAdulterant === 'sugar',
+        salt: alteration && selectedAdulterant === 'salt',
+        urea: alteration && selectedAdulterant === 'urea',
+        maltose: alteration && selectedAdulterant === 'maltose',
+        soda: alteration && selectedAdulterant === 'soda',
+        starch: alteration && selectedAdulterant === 'starch',
       };
 
       const response = await postData(payload);
 
       if (response?.data?.success) {
-        toast.success("Dispatch entry created successfully");
+        toast.success(t('dispatch_entry_created', 'Dispatch entry created successfully'));
         handleClear();
       }
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to create dispatch entry");
+      toast.error(error?.response?.data?.message || t('failed_create_dispatch', 'Failed to create dispatch entry'));
     }
   };
 
@@ -90,9 +245,21 @@ const DispatchEntry = () => {
       avgSnf: "",
       ratePerLiter: "",
       commissionPerLiter: "",
-      totalAmount: ""
+      totalAmount: "",
+      driverName: "",
+      vehicleNumber: "",
+      compartment: "",
+      destinationName: "",
+      time: format(new Date(), "HH:mm"),
+      liter: "",
+      acidity: "",
+      temperature: "",
+      milkType: "Both",
     });
     setSelectedDate(new Date());
+    setAlteration(false);
+    setSelectedAdulterant(null);
+    setDestCodeInput("");
   };
 
   const handleEnterAsTab = (e: React.KeyboardEvent<HTMLElement>) => {
@@ -108,7 +275,7 @@ const DispatchEntry = () => {
       const fields = Array.from(
         container.querySelectorAll('.enter-field:not([disabled]):not([readonly])')
       ) as HTMLElement[];
-      
+
       const index = fields.indexOf(target);
       if (index > -1 && index < fields.length - 1) {
         fields[index + 1].focus();
@@ -118,10 +285,101 @@ const DispatchEntry = () => {
     }
   };
 
+  const handleSearchDestCode = async () => {
+    if (!formData.vlcId) {
+      toast.error(t('select_vlc_first', 'Please select a VLC first'));
+      return;
+    }
+    if (!destCodeInput.trim()) {
+      handleInputChange("destinationName", "");
+      setDestinations([]);
+      return;
+    }
+
+    setDestFetchLoading(true);
+    try {
+      const response = await AxiosClient.get(
+        `/web/collection/dispatch-destination?vlc=${encodeURIComponent(formData.vlcId)}&code=${encodeURIComponent(destCodeInput.trim())}`
+      );
+      
+      let fetchedDestinations: Destination[] = [];
+      if (response?.data?.success && Array.isArray(response.data.data)) {
+        fetchedDestinations = response.data.data;
+      } else if (response?.data?.success && response.data.data) {
+        fetchedDestinations = [response.data.data];
+      }
+
+      setDestinations(fetchedDestinations);
+
+      // Now match the code exactly
+      const found = fetchedDestinations.find(d => d.code?.toLowerCase() === destCodeInput.trim().toLowerCase());
+      
+      if (found) {
+        handleInputChange("destinationName", found.name);
+        toast.success(t('destination_found', 'Destination found'));
+      } else if (fetchedDestinations.length > 0) {
+        // Fallback to first if API returned results but case mismatch
+        handleInputChange("destinationName", fetchedDestinations[0].name);
+        toast.success(t('destination_found', 'Destination found'));
+      } else {
+        handleInputChange("destinationName", "");
+        toast.error(t('destination_not_found', 'Destination not found'));
+      }
+    } catch (error) {
+       toast.error(t('failed_fetch_destinations', 'Failed to fetch destinations'));
+       handleInputChange("destinationName", "");
+       setDestinations([]);
+    } finally {
+      setDestFetchLoading(false);
+    }
+  };
+
+  const handleDestinationSelect = (name: string) => {
+    handleInputChange("destinationName", name);
+    const found = destinations.find(d => d.name === name);
+    if (found && found.code) {
+      setDestCodeInput(found.code);
+    } else {
+      setDestCodeInput("");
+    }
+  };
+
+  // Destination drawer handlers
+  const handleDestSubmit = async () => {
+    if (!destForm.code.trim() || !destForm.name.trim()) {
+      toast.error(t('code_name_required', 'Code and Name are required'));
+      return;
+    }
+    setDestLoading(true);
+    try {
+      const payload = {
+        code: destForm.code.trim(),
+        name: destForm.name.trim(),
+        address: destForm.address.trim(),
+        vlc: formData.vlcId,
+      };
+      const response = await AxiosClient.post('/web/collection/dispatch-destination', payload);
+      if (response?.data?.success) {
+        toast.success(t('destination_created', 'Destination created successfully'));
+        setDestForm({ code: "", name: "", address: "" });
+        setDestDrawerOpen(false);
+        // Auto-select the new destination and update local list
+        const newDest = { code: destForm.code.trim(), name: destForm.name.trim(), address: destForm.address.trim(), vlc: formData.vlcId };
+        setDestinations([newDest]);
+        setDestCodeInput(newDest.code);
+        setFormData(prev => ({ ...prev, destinationName: newDest.name }));
+      }
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || t('failed_create_destination', 'Failed to create destination'));
+    } finally {
+      setDestLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50/50 p-4 md:p-8 space-y-6" onKeyDown={handleEnterAsTab}>
       <div className="w-full max-w-7xl mx-auto space-y-6">
-        
+
         {/* Header Card */}
         <div className="flex items-center justify-between bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100">
           <div className="flex items-center space-x-3">
@@ -132,16 +390,28 @@ const DispatchEntry = () => {
               {t('tanker_dispatch') || 'Tanker Dispatch'}
             </h1>
           </div>
-          <HelpCircle className="h-6 w-6 text-gray-400 stroke-[1.5] shrink-0" />
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" onClick={handleOpenDispatchSummary} disabled={!formData.vlcId || summaryLoading} className="h-9 px-4 border-gray-200 text-gray-700 bg-white hover:bg-gray-50 rounded-xl font-medium shadow-sm">
+               <ClipboardList className="h-4 w-4 mr-2 text-indigo-500" />
+               <span className="hidden sm:inline">Tanker Dispatch Summary</span>
+               <span className="sm:hidden">Summary</span>
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleOpenDestSummary} disabled={!formData.vlcId || summaryLoading} className="h-9 px-4 border-gray-200 text-gray-700 bg-white hover:bg-gray-50 rounded-xl font-medium shadow-sm">
+               <FileText className="h-4 w-4 mr-2 text-orange-500" />
+               <span className="hidden sm:inline">Destination Summary</span>
+               <span className="sm:hidden">Destinations</span>
+            </Button>
+            <HelpCircle className="h-6 w-6 text-gray-400 stroke-[1.5] shrink-0 ml-1" />
+          </div>
         </div>
 
         {/* Form Card */}
         <Card className="shadow-sm border border-gray-100 bg-white rounded-2xl overflow-hidden">
-          <CardContent className="p-4 md:p-6 space-y-6 enter-nav-container">
-            
-            {/* Row 1: VLC Dropdown, Date and Weight */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-              <div className="flex flex-col justify-end space-y-1.5">
+          <CardContent className="p-4 md:p-6 space-y-4 enter-nav-container">
+
+            {/* Row 1: VLC Dropdown, Date and Time */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+              <div className="flex flex-col justify-end space-y-1">
                 <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 block text-left">
                   {t('select_vlc') || 'Select VLC'}
                 </Label>
@@ -150,29 +420,187 @@ const DispatchEntry = () => {
                   value={formData.vlcId}
                   onChange={handleVLCIdChange}
                   valueKey="username"
-                  className="h-11"
+                  className="h-10"
                 />
               </div>
 
-              <div className="flex flex-col justify-end space-y-1.5">
+              <div className="flex flex-col justify-end space-y-1">
                 <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 block text-left">
-                  {t('dispatch_date')}
+                  {t('dispatch_date', 'Dispatch Date')}
+                </Label>
+                <CustomDatePicker
+                  value={selectedDate || undefined}
+                  onChange={(d) => setSelectedDate(d || null)}
+                />
+              </div>
+
+              <div className="flex flex-col justify-end space-y-1">
+                <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-2">
+                  <Clock className="h-3.5 w-3.5 text-blue-500 stroke-[1.5]" />
+                  <span>{t('dispatch_time', 'Time')}</span>
+                </Label>
+                <CustomTimePicker
+                  value={formData.time}
+                  onChange={(t) => handleInputChange("time", t)}
+                />
+              </div>
+            </div>
+
+            {/* Row 2: Driver Name, Vehicle Number, Compartment */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+              <div className="flex flex-col justify-end space-y-1">
+                <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-2">
+                  <User className="h-3.5 w-3.5 text-indigo-500 stroke-[1.5]" />
+                  <span>{t('driver_name', 'Driver Name')}</span>
                 </Label>
                 <Input
-                  type="date"
-                  value={selectedDate ? format(selectedDate, "yyyy-MM-dd") : ""}
-                  onChange={(e) => {
-                    const d = new Date(e.target.value);
-                    if (isValid(d)) setSelectedDate(d);
-                  }}
-                  className="h-11 bg-white border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 text-sm font-medium text-gray-800 shadow-sm enter-field"
+                  type="text"
+                  placeholder={t('enter_driver_name', 'Enter driver name')}
+                  value={formData.driverName}
+                  onChange={(e) => handleInputChange("driverName", e.target.value)}
+                  className="h-10 bg-white border-gray-200 focus:ring-2 focus:ring-indigo-500/20 text-sm font-medium rounded-xl text-gray-800 shadow-sm enter-field"
                 />
               </div>
 
-              <div className="flex flex-col justify-end space-y-1.5">
+              <div className="flex flex-col justify-end space-y-1">
                 <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-2">
-                  <Scale className="h-4 w-4 text-blue-500 stroke-[1.5]" />
-                  <span>{t('weight')} (LTR)</span>
+                  <Car className="h-3.5 w-3.5 text-indigo-500 stroke-[1.5]" />
+                  <span>{t('vehicle_number', 'Vehicle Number')}</span>
+                </Label>
+                <Input
+                  type="text"
+                  placeholder={t('enter_vehicle_number', 'e.g. MH 12 AB 1234')}
+                  value={formData.vehicleNumber}
+                  onChange={(e) => handleInputChange("vehicleNumber", e.target.value.toUpperCase())}
+                  className="h-10 bg-white border-gray-200 focus:ring-2 focus:ring-indigo-500/20 text-sm font-semibold rounded-xl text-gray-800 shadow-sm enter-field uppercase"
+                />
+              </div>
+
+              <div className="flex flex-col justify-end space-y-1">
+                <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-2">
+                  <Layers className="h-3.5 w-3.5 text-indigo-500 stroke-[1.5]" />
+                  <span>{t('compartment', 'Compartment')}</span>
+                </Label>
+                <Input
+                  type="text"
+                  placeholder={t('enter_compartment', 'e.g. A1')}
+                  value={formData.compartment}
+                  onChange={(e) => handleInputChange("compartment", e.target.value)}
+                  className="h-10 bg-white border-gray-200 focus:ring-2 focus:ring-indigo-500/20 text-sm font-medium rounded-xl text-gray-800 shadow-sm enter-field"
+                />
+              </div>
+            </div>
+
+            {/* Row 3: Destination Code + Name + Milk Type */}
+            <div className="grid grid-cols-1 md:grid-cols-[150px_1fr_auto_180px] gap-3 md:gap-4 items-end">
+              <div className="flex flex-col space-y-1">
+                <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-2">
+                  <span>{t('destination_code', 'Dest Code')}</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    type="text"
+                    placeholder={t('enter_dest_code_numeric', 'e.g. 101')}
+                    value={destCodeInput}
+                    onChange={(e) => setDestCodeInput(e.target.value.replace(/\D/g, ''))}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleSearchDestCode();
+                      }
+                    }}
+                    disabled={!formData.vlcId}
+                    className="h-10 bg-white border-gray-200 focus:ring-2 focus:ring-orange-500/20 text-sm font-medium rounded-xl text-gray-800 shadow-sm enter-field pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSearchDestCode}
+                    disabled={!formData.vlcId || !destCodeInput.trim()}
+                    className="absolute right-0 top-0 h-10 w-10 flex items-center justify-center text-gray-400 hover:text-orange-500 transition-colors disabled:opacity-50"
+                  >
+                    <Search className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-col space-y-1">
+                <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-2">
+                  <MapPin className="h-3.5 w-3.5 text-orange-500 stroke-[1.5]" />
+                  <span>{t('destination_name', 'Destination Name')}</span>
+                </Label>
+                <Select
+                  value={formData.destinationName}
+                  onValueChange={handleDestinationSelect}
+                  disabled={true}
+                >
+                  <SelectTrigger className="h-10 w-full bg-white border-gray-200 rounded-xl shadow-sm text-sm font-medium text-gray-800">
+                    <SelectValue placeholder={
+                      destFetchLoading
+                        ? t('loading_destinations', 'Loading...')
+                        : t('select_destination', 'Select Destination')
+                    } />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white rounded-xl shadow-lg border-gray-100">
+                    {destinations.map((dest, idx) => (
+                      <SelectItem key={`${dest.code}-${idx}`} value={dest.name}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{dest.name}</span>
+                          {dest.address && (
+                            <span className="text-xs text-gray-400">{dest.address}</span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                    {destinations.length === 0 && !destFetchLoading && (
+                      <div className="px-3 py-2 text-sm text-gray-400 text-center">
+                        {t('no_destinations', 'No destinations found')}
+                      </div>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  if (!formData.vlcId) {
+                    toast.error(t('select_vlc_first', 'Please select a VLC first'));
+                    return;
+                  }
+                  setDestDrawerOpen(true);
+                }}
+                className="h-10 w-10 p-0 shrink-0 border-orange-200 text-orange-600 hover:bg-orange-50 hover:text-orange-700 rounded-xl shadow-sm transition-all"
+                title={t('add_destination', 'Add Destination')}
+              >
+                <Plus className="h-4 w-4 stroke-[2.5]" />
+              </Button>
+              <div className="flex flex-col space-y-1">
+                <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-2">
+                  <Milk className="h-3.5 w-3.5 text-cyan-500 stroke-[1.5]" />
+                  <span>{t('milk_type', 'Milk Type')}</span>
+                </Label>
+                <Select
+                  value={formData.milkType}
+                  onValueChange={(val) => handleInputChange("milkType", val)}
+                >
+                  <SelectTrigger className="h-10 w-full bg-white border-gray-200 rounded-xl shadow-sm text-sm font-medium text-gray-800">
+                    <SelectValue placeholder={t('select_milk_type', 'Select Milk Type')} />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white rounded-xl shadow-lg border-gray-100">
+                    <SelectItem value="Cow">{t('cow', 'Cow')}</SelectItem>
+                    <SelectItem value="Buffalo">{t('buffalo', 'Buffalo')}</SelectItem>
+                    <SelectItem value="Both">{t('both', 'Both')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Row 4: All numeric milk parameters — Weight, Liter, Fat, SNF, Acidity, Temperature */}
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-3 md:gap-4">
+              <div className="flex flex-col space-y-1">
+                <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-1.5">
+                  <Scale className="h-3.5 w-3.5 text-blue-500 stroke-[1.5]" />
+                  <span>{t('weight')}</span>
                 </Label>
                 <Input
                   type="number"
@@ -180,16 +608,28 @@ const DispatchEntry = () => {
                   placeholder="0.00"
                   value={formData.weight}
                   onChange={(e) => handleInputChange("weight", e.target.value)}
-                  className="h-11 bg-white border-gray-200 focus:border-blue-400 text-blue-500 text-sm font-semibold rounded-xl text-center shadow-sm enter-field"
+                  className="h-10 bg-white border-gray-200 focus:border-blue-400 text-blue-500 text-sm font-semibold rounded-xl text-center shadow-sm enter-field"
                 />
               </div>
-            </div>
 
-            {/* Row 2: Fat and SNF */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-              <div className="flex flex-col justify-end space-y-1.5">
-                <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-2">
-                  <Droplets className="h-4 w-4 text-fuchsia-500 stroke-[1.5]" />
+              <div className="flex flex-col space-y-1">
+                <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-1.5">
+                  <Droplets className="h-3.5 w-3.5 text-blue-500 stroke-[1.5]" />
+                  <span>{t('liter', 'Liter')}</span>
+                </Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.liter}
+                  onChange={(e) => handleInputChange("liter", e.target.value)}
+                  className="h-10 bg-white border-gray-200 focus:ring-2 focus:ring-blue-500/20 text-sm font-semibold rounded-xl text-center text-gray-800 shadow-sm enter-field"
+                />
+              </div>
+
+              <div className="flex flex-col space-y-1">
+                <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-1.5">
+                  <Droplets className="h-3.5 w-3.5 text-fuchsia-500 stroke-[1.5]" />
                   <span>{t('avg_fat')}</span>
                 </Label>
                 <Input
@@ -198,12 +638,13 @@ const DispatchEntry = () => {
                   placeholder="0.0"
                   value={formData.avgFat}
                   onChange={(e) => handleInputChange("avgFat", e.target.value)}
-                  className="h-11 bg-white border-gray-200 focus:ring-2 focus:ring-fuchsia-500/20 text-sm font-semibold rounded-xl text-center text-gray-800 shadow-sm enter-field"
+                  className="h-10 bg-white border-gray-200 focus:ring-2 focus:ring-fuchsia-500/20 text-sm font-semibold rounded-xl text-center text-gray-800 shadow-sm enter-field"
                 />
               </div>
-              <div className="flex flex-col justify-end space-y-1.5">
-                <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-2">
-                  <Droplets className="h-4 w-4 text-fuchsia-500 stroke-[1.5]" />
+
+              <div className="flex flex-col space-y-1">
+                <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-1.5">
+                  <Droplets className="h-3.5 w-3.5 text-fuchsia-500 stroke-[1.5]" />
                   <span>{t('avg_snf')}</span>
                 </Label>
                 <Input
@@ -212,16 +653,46 @@ const DispatchEntry = () => {
                   placeholder="0.0"
                   value={formData.avgSnf}
                   onChange={(e) => handleInputChange("avgSnf", e.target.value)}
-                  className="h-11 bg-white border-gray-200 focus:ring-2 focus:ring-fuchsia-500/20 text-sm font-semibold rounded-xl text-center text-gray-800 shadow-sm enter-field"
+                  className="h-10 bg-white border-gray-200 focus:ring-2 focus:ring-fuchsia-500/20 text-sm font-semibold rounded-xl text-center text-gray-800 shadow-sm enter-field"
+                />
+              </div>
+
+              <div className="flex flex-col space-y-1">
+                <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-1.5">
+                  <Beaker className="h-3.5 w-3.5 text-amber-500 stroke-[1.5]" />
+                  <span>{t('acidity', 'Acidity')}</span>
+                </Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.acidity}
+                  onChange={(e) => handleInputChange("acidity", e.target.value)}
+                  className="h-10 bg-white border-gray-200 focus:ring-2 focus:ring-amber-500/20 text-sm font-semibold rounded-xl text-center text-gray-800 shadow-sm enter-field"
+                />
+              </div>
+
+              <div className="flex flex-col space-y-1">
+                <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-1.5">
+                  <Thermometer className="h-3.5 w-3.5 text-red-500 stroke-[1.5]" />
+                  <span>{t('temperature', 'Temp')} °C</span>
+                </Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  placeholder="0.0"
+                  value={formData.temperature}
+                  onChange={(e) => handleInputChange("temperature", e.target.value)}
+                  className="h-10 bg-white border-gray-200 focus:ring-2 focus:ring-red-500/20 text-sm font-semibold rounded-xl text-center text-gray-800 shadow-sm enter-field"
                 />
               </div>
             </div>
 
-            {/* Row 3: Rate, Commission, Total */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-              <div className="flex flex-col justify-end space-y-1.5">
-                <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-2">
-                  <Banknote className="h-4 w-4 text-emerald-500 stroke-[1.5]" />
+            {/* Row 5: Rate, Commission, Total */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+              <div className="flex flex-col space-y-1">
+                <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-1.5">
+                  <Banknote className="h-3.5 w-3.5 text-emerald-500 stroke-[1.5]" />
                   <span>{t('rate_per_liter')}</span>
                 </Label>
                 <Input
@@ -230,13 +701,13 @@ const DispatchEntry = () => {
                   placeholder="0.00"
                   value={formData.ratePerLiter}
                   onChange={(e) => handleInputChange("ratePerLiter", e.target.value)}
-                  className="h-11 bg-white border-gray-200 focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold rounded-xl text-center text-gray-800 shadow-sm enter-field"
+                  className="h-10 bg-white border-gray-200 focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold rounded-xl text-center text-gray-800 shadow-sm enter-field"
                 />
               </div>
-              <div className="flex flex-col justify-end space-y-1.5">
-                <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-2">
-                  <Banknote className="h-4 w-4 text-emerald-500 stroke-[1.5]" />
-                  <span>{t('commission_per_liter') || 'Commission Amount Per Liter'}</span>
+              <div className="flex flex-col space-y-1">
+                <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-1.5">
+                  <Banknote className="h-3.5 w-3.5 text-emerald-500 stroke-[1.5]" />
+                  <span>{t('commission_per_liter') || 'Commission/Ltr'}</span>
                 </Label>
                 <Input
                   type="number"
@@ -244,17 +715,17 @@ const DispatchEntry = () => {
                   placeholder="0.00"
                   value={formData.commissionPerLiter}
                   onChange={(e) => handleInputChange("commissionPerLiter", e.target.value)}
-                  className="h-11 bg-white border-gray-200 focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold rounded-xl text-center text-gray-800 shadow-sm enter-field"
+                  className="h-10 bg-white border-gray-200 focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold rounded-xl text-center text-gray-800 shadow-sm enter-field"
                 />
               </div>
 
-              <div className="flex flex-col justify-end space-y-1.5">
-                <Label className="text-xs font-bold uppercase tracking-widest text-emerald-600 flex items-center gap-2">
+              <div className="flex flex-col space-y-1">
+                <Label className="text-xs font-bold uppercase tracking-widest text-emerald-600 flex items-center gap-1.5">
                   <span>{t('total_amount')}</span>
                 </Label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <IndianRupee className="h-4 w-4 text-emerald-600 stroke-[2]" />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <IndianRupee className="h-3.5 w-3.5 text-emerald-600 stroke-[2]" />
                   </div>
                   <Input
                     type="number"
@@ -262,18 +733,78 @@ const DispatchEntry = () => {
                     placeholder="0.00"
                     value={formData.totalAmount}
                     readOnly
-                    className="h-11 pl-10 pr-10 text-sm font-bold text-center bg-emerald-50/30 border-emerald-100 rounded-xl text-emerald-700 cursor-not-allowed shadow-sm"
+                    className="h-10 pl-8 pr-4 text-sm font-bold text-center bg-emerald-50/30 border-emerald-100 rounded-xl text-emerald-700 cursor-not-allowed shadow-sm"
                   />
                 </div>
               </div>
             </div>
 
+            {/* Adultration Section */}
+            <div className="border border-gray-100 rounded-xl p-3 md:p-4 space-y-3 bg-gray-50/30">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-1 bg-red-50 rounded-lg">
+                    <AlertTriangle className="h-3.5 w-3.5 text-red-500 stroke-[1.5]" />
+                  </div>
+                  <Label className="text-sm font-semibold text-gray-800">
+                    {t('adulteration', 'Adulteration')}
+                  </Label>
+                </div>
+                <Switch
+                  checked={alteration}
+                  onCheckedChange={(checked) => {
+                    setAlteration(checked);
+                    if (!checked) setSelectedAdulterant(null);
+                  }}
+                />
+              </div>
+
+              {/* Adulterant categories - shown when alteration is ON */}
+              {alteration && (
+                <div className="pt-2.5 border-t border-gray-200/60 space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <p className="text-[11px] font-semibold text-gray-500">
+                    {t('adulterant_found', 'Adulterant Found')} <span className="text-red-500">*</span>
+                    <span className="font-normal text-gray-400 ml-1">({t('only_one_adulterant', 'Only one can be recorded per entry.')})</span>
+                  </p>
+                  <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                    {ADULTERANTS.map((adulterant) => {
+                      const isSelected = selectedAdulterant === adulterant;
+                      return (
+                        <button
+                          key={adulterant}
+                          type="button"
+                          onClick={() => setSelectedAdulterant(isSelected ? null : adulterant)}
+                          className={`
+                            flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all duration-200 text-xs font-medium cursor-pointer
+                            ${isSelected
+                              ? 'border-red-400 bg-red-50 text-red-700 shadow-sm shadow-red-100'
+                              : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                            }
+                          `}
+                        >
+                          <div className={`
+                            w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all duration-200
+                            ${isSelected ? 'border-red-500' : 'border-gray-300'}
+                          `}>
+                            {isSelected && (
+                              <div className="w-2 h-2 rounded-full bg-red-500 animate-in zoom-in-50 duration-200" />
+                            )}
+                          </div>
+                          <span className="capitalize">{t(adulterant, adulterant.charAt(0).toUpperCase() + adulterant.slice(1))}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Buttons */}
-            <div className="flex flex-col sm:flex-row justify-end gap-4 pt-6">
+            <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4">
               <Button
                 onClick={handleClear}
                 variant="outline"
-                className="h-11 px-6 text-sm font-semibold border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 hover:text-gray-900 transition-all shadow-sm"
+                className="h-10 px-5 text-sm font-semibold border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 hover:text-gray-900 transition-all shadow-sm"
               >
                 <RefreshCcw className="h-4 w-4 mr-2 stroke-[2]" />
                 {t('clear_form')}
@@ -281,7 +812,7 @@ const DispatchEntry = () => {
               <Button
                 onClick={handleSubmit}
                 disabled={isLoading}
-                className="h-11 px-8 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-sm transition-all enter-field"
+                className="h-10 px-6 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-sm transition-all enter-field"
               >
                 {isLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -294,6 +825,195 @@ const DispatchEntry = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Add Destination Sheet/Drawer */}
+      <Sheet open={destDrawerOpen} onOpenChange={setDestDrawerOpen}>
+        <SheetContent side="right" className="bg-white w-full sm:max-w-md">
+          <SheetHeader className="pb-4 border-b border-gray-100">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-orange-50 rounded-xl">
+                <MapPin className="h-5 w-5 text-orange-600" />
+              </div>
+              <div>
+                <SheetTitle className="text-lg font-bold text-gray-800">
+                  {t('add_destination', 'Add Destination')}
+                </SheetTitle>
+                <SheetDescription className="text-sm text-gray-500 mt-0.5">
+                  {t('add_destination_desc', 'Create a new dispatch destination')}
+                </SheetDescription>
+              </div>
+            </div>
+          </SheetHeader>
+
+          <div className="flex-1 space-y-5 p-4 overflow-y-auto">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600">
+                {t('destination_code', 'Destination Code')} <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                type="text"
+                placeholder={t('enter_dest_code_numeric', 'e.g. 101')}
+                value={destForm.code}
+                onChange={(e) => setDestForm(prev => ({ ...prev, code: e.target.value.replace(/\D/g, '') }))}
+                className="h-11 bg-gray-50/50 border-gray-200 rounded-xl text-sm font-medium shadow-sm"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600">
+                {t('name', 'Name')} <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                type="text"
+                placeholder={t('enter_destination_name', 'e.g. Central Processing Unit')}
+                value={destForm.name}
+                onChange={(e) => setDestForm(prev => ({ ...prev, name: e.target.value }))}
+                className="h-11 bg-gray-50/50 border-gray-200 rounded-xl text-sm font-medium shadow-sm"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600">
+                {t('address', 'Address')}
+              </Label>
+              <Input
+                type="text"
+                placeholder={t('enter_address', 'Enter address (optional)')}
+                value={destForm.address}
+                onChange={(e) => setDestForm(prev => ({ ...prev, address: e.target.value }))}
+                className="h-11 bg-gray-50/50 border-gray-200 rounded-xl text-sm font-medium shadow-sm"
+              />
+            </div>
+
+
+          </div>
+
+          <SheetFooter className="border-t border-gray-100 p-4">
+            <div className="flex gap-3 w-full">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setDestDrawerOpen(false);
+                  setDestForm({ code: "", name: "", address: "" });
+                }}
+                className="flex-1 h-11 rounded-xl border-gray-200 text-gray-700 font-semibold"
+              >
+                {t('cancel', 'Cancel')}
+              </Button>
+              <Button
+                type="button"
+                onClick={handleDestSubmit}
+                disabled={destLoading}
+                className="flex-1 h-11 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-semibold shadow-sm transition-all"
+              >
+                {destLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2 stroke-[2]" />
+                )}
+                {t('save_destination', 'Save Destination')}
+              </Button>
+            </div>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+      {/* Tanker Dispatch Summary Dialog */}
+      <Dialog open={dispatchSummaryOpen} onOpenChange={setDispatchSummaryOpen}>
+        <DialogContent className="max-w-5xl bg-white rounded-2xl max-h-[85vh] overflow-hidden flex flex-col p-0 gap-0">
+          <DialogHeader className="px-6 py-5 border-b border-gray-100 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl shrink-0">
+                <ClipboardList className="h-5 w-5" />
+              </div>
+              <DialogTitle className="text-xl font-bold text-gray-800 font-serif">
+                Tanker Dispatch Summary
+              </DialogTitle>
+            </div>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-auto p-6 bg-gray-50/30">
+            {summaryLoading ? (
+              <div className="flex justify-center items-center h-40">
+                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+              </div>
+            ) : dispatchEntries.length === 0 ? (
+              <div className="text-center py-10 text-gray-500 font-medium">No dispatch entries found for this date and VLC.</div>
+            ) : (
+              <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                <Table>
+                  <TableHeader className="bg-gray-50">
+                    <TableRow>
+                      <TableHead className="font-semibold text-gray-700">Date/Time</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Driver/Vehicle</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Destination</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Milk Type</TableHead>
+                      <TableHead className="font-semibold text-gray-700 text-right">Liter / Weight</TableHead>
+                      <TableHead className="font-semibold text-gray-700 text-right">Total (₹)</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {dispatchEntries.map((entry, idx) => (
+                      <TableRow key={idx} className="hover:bg-gray-50/50">
+                        <TableCell className="font-medium text-gray-800 text-xs">
+                          {entry.date} <br />
+                          <span className="text-gray-500 font-normal">{entry.time}</span>
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          <span className="font-medium text-gray-800">{entry.driver_name}</span> <br />
+                          <span className="text-gray-500">{entry.vehicle_number}</span>
+                        </TableCell>
+                        <TableCell className="text-sm font-medium text-gray-700">{entry.destination_name}</TableCell>
+                        <TableCell>
+                          <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700">
+                            {entry.milk_type}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right text-xs">
+                          <span className="font-medium text-gray-800">{entry.liter} L</span> <br />
+                          <span className="text-gray-500">{entry.weight} Kg</span>
+                        </TableCell>
+                        <TableCell className="text-right font-bold text-gray-800">
+                          ₹{entry.total_amount?.toLocaleString()}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Destination Summary Dialog */}
+      <Dialog open={destSummaryOpen} onOpenChange={setDestSummaryOpen}>
+        <DialogContent className="max-w-md bg-white rounded-2xl p-0 gap-0 overflow-hidden shadow-xl">
+          <DialogHeader className="px-6 py-5 border-b border-gray-100 bg-orange-50/50">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-orange-100 text-orange-600 rounded-xl shrink-0">
+                <FileText className="h-5 w-5" />
+              </div>
+              <DialogTitle className="text-xl font-bold text-gray-800 font-serif">
+                Destination Summary
+              </DialogTitle>
+            </div>
+          </DialogHeader>
+          
+          <div className="p-8 flex flex-col items-center justify-center bg-white min-h-[160px]">
+            {summaryLoading ? (
+              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+            ) : (
+              <div className="text-center space-y-2">
+                <p className="text-sm font-semibold uppercase tracking-widest text-gray-500">Total Destinations</p>
+                <div className="text-5xl font-black text-gray-800 tracking-tight">
+                  {destinationCount !== null ? destinationCount : 0}
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
