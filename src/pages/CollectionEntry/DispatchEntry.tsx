@@ -168,11 +168,17 @@ const DispatchEntry = () => {
       );
       if (countRes?.data?.success) {
         setDestinationCount(countRes.data.total);
+        setDestinationsListForSummary(
+          Array.isArray(countRes.data.destinations) ? countRes.data.destinations : []
+        );
       } else {
         setDestinationCount(0);
+        setDestinationsListForSummary([]);
       }
     } catch (error) {
       toast.error('Error fetching destination summary');
+      setDestinationCount(0);
+      setDestinationsListForSummary([]);
     } finally {
       setSummaryLoading(false);
     }
@@ -1047,8 +1053,8 @@ const DispatchEntry = () => {
 
       {/* Destination Summary Dialog */}
       <Dialog open={destSummaryOpen} onOpenChange={setDestSummaryOpen}>
-        <DialogContent className="max-w-md bg-white rounded-2xl p-0 gap-0 overflow-hidden shadow-xl">
-          <DialogHeader className="px-6 py-5 border-b border-gray-100 bg-orange-50/50">
+        <DialogContent className="max-w-lg bg-white rounded-2xl p-0 gap-0 max-h-[85vh] overflow-hidden flex flex-col shadow-xl">
+          <DialogHeader className="px-6 py-5 border-b border-gray-100 bg-orange-50/50 shrink-0">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-orange-100 text-orange-600 rounded-xl shrink-0">
                 <FileText className="h-5 w-5" />
@@ -1058,19 +1064,50 @@ const DispatchEntry = () => {
               </DialogTitle>
             </div>
           </DialogHeader>
-          
-          <div className="p-8 flex flex-col items-center justify-center bg-white min-h-[160px]">
-            {summaryLoading ? (
+
+          {summaryLoading ? (
+            <div className="p-8 flex items-center justify-center min-h-[160px]">
               <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-            ) : (
-              <div className="text-center space-y-2">
-                <p className="text-sm font-semibold uppercase tracking-widest text-gray-500">Total Destinations</p>
-                <div className="text-5xl font-black text-gray-800 tracking-tight">
+            </div>
+          ) : (
+            <>
+              <div className="px-6 py-2 flex items-center justify-between border-b border-gray-100 bg-white shrink-0">
+                <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">Total Destinations</p>
+                <div className="text-xl font-black text-gray-800 tracking-tight leading-none">
                   {destinationCount !== null ? destinationCount : 0}
                 </div>
               </div>
-            )}
-          </div>
+
+              <div className="flex-1 overflow-auto p-6 bg-gray-50/30">
+                {destinationsListForSummary.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 font-medium text-sm">
+                    No destinations added for this VLC yet.
+                  </div>
+                ) : (
+                  <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                    <Table>
+                      <TableHeader className="bg-gray-50">
+                        <TableRow>
+                          <TableHead className="font-semibold text-gray-700 w-20">Code</TableHead>
+                          <TableHead className="font-semibold text-gray-700">Name</TableHead>
+                          <TableHead className="font-semibold text-gray-700">Address</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {destinationsListForSummary.map((destination, idx) => (
+                          <TableRow key={destination.code || idx} className="hover:bg-gray-50/50">
+                            <TableCell className="text-xs font-semibold text-gray-500">{destination.code}</TableCell>
+                            <TableCell className="text-sm font-medium text-gray-800">{destination.name}</TableCell>
+                            <TableCell className="text-sm text-gray-600">{destination.address || '-'}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
