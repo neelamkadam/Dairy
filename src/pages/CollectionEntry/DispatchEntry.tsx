@@ -47,6 +47,8 @@ import { toast } from "react-toastify";
 import { useAppSelector } from "@/redux/store";
 import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import AxiosClient from "@/services/interceptor";
+import { generateDispatchVoucherPDF } from "@/templates/DispatchVoucherTemplate";
+import { calculateLiterFromWeight, calculateWeightFromLiter } from "@/utils/milkCalculations";
 
 const ADULTERANTS = ["sugar", "salt", "urea", "maltose", "soda", "starch"] as const;
 type Adulterant = typeof ADULTERANTS[number];
@@ -66,6 +68,7 @@ const DispatchEntry = () => {
   });
 
   const { branches } = useAppSelector((state) => state.branch);
+  const { userData } = useAppSelector((state) => state.authData);
 
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [formData, setFormData] = useState({
@@ -107,6 +110,23 @@ const DispatchEntry = () => {
   const [dispatchEntries, setDispatchEntries] = useState<any[]>([]);
   const [destinationCount, setDestinationCount] = useState<number | null>(null);
   const [destinationsListForSummary, setDestinationsListForSummary] = useState<Destination[]>([]);
+
+  // Backend sends the date as an ISO timestamp and the time as a plain "HH:mm:ss" clock value.
+  const formatEntryDate = (value?: string) => {
+    if (!value) return '-';
+    const parsed = new Date(value);
+    return isValid(parsed) ? format(parsed, 'dd-MM-yyyy') : value;
+  };
+
+  const formatEntryTime = (value?: string) => {
+    if (!value) return '-';
+    const [hourStr, minuteStr] = value.split(':');
+    const hour = Number(hourStr);
+    if (isNaN(hour)) return value;
+    const suffix = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+    return `${String(hour12).padStart(2, '0')}:${minuteStr || '00'} ${suffix}`;
+  };
 
   const handleOpenDispatchSummary = async () => {
     if (!formData.vlcId) {
@@ -160,13 +180,21 @@ const DispatchEntry = () => {
   const handleInputChange = (field: string, value: string) => {
     const updatedData = { ...formData, [field]: value };
 
-    // Auto-calculate total amount when weight, rate, or commission changes
-    if (field === 'weight' || field === 'ratePerLiter' || field === 'commissionPerLiter') {
-      const weight = parseFloat(field === 'weight' ? value : updatedData.weight) || 0;
-      const rate = parseFloat(field === 'ratePerLiter' ? value : updatedData.ratePerLiter) || 0;
-      const commission = parseFloat(field === 'commissionPerLiter' ? value : updatedData.commissionPerLiter) || 0;
+    // Weight and liter are two views of the same quantity — fill the other one in.
+    if (field === 'weight') {
+      updatedData.liter = calculateLiterFromWeight(value);
+    } else if (field === 'liter') {
+      updatedData.weight = calculateWeightFromLiter(value);
+    }
 
-      updatedData.totalAmount = ((weight * rate) + (weight * commission)).toFixed(2);
+    // Auto-calculate total amount when quantity, rate, or commission changes.
+    // Rate and commission are per liter, so the liter value drives the amount.
+    if (field === 'weight' || field === 'liter' || field === 'ratePerLiter' || field === 'commissionPerLiter') {
+      const liter = parseFloat(updatedData.liter) || 0;
+      const rate = parseFloat(updatedData.ratePerLiter) || 0;
+      const commission = parseFloat(updatedData.commissionPerLiter) || 0;
+
+      updatedData.totalAmount = ((liter * rate) + (liter * commission)).toFixed(2);
     }
 
     setFormData(updatedData);
@@ -180,9 +208,43 @@ const DispatchEntry = () => {
     }));
   };
 
+  const downloadVoucher = (payload: Record<string, any>, created?: any) => {
+    try {
+      const branch = branches?.find((b: any) => String(b.username) === formData.vlcId);
+      const adulterant = ADULTERANTS.find((a) => payload[a]) || null;
+
+      generateDispatchVoucherPDF({
+        voucherNo: created?.id ?? created?.voucher_no ?? `${payload.date.replace(/-/g, "")}-${(payload.time || "").replace(/:/g, "").slice(0, 4)}`,
+        date: payload.date,
+        time: payload.time,
+        vlc: payload.vlc,
+        vlcName: branch?.name || branch?.branchName,
+        dairyName: userData?.name || "Dairy",
+        driverName: payload.driver_name,
+        vehicleNumber: payload.vehicle_number,
+        compartment: payload.compartment,
+        destinationName: payload.destination_name,
+        milkType: payload.milk_type,
+        weight: parseFloat(formData.weight),
+        liter: payload.liter,
+        avgFat: payload.avg_fat,
+        avgSnf: payload.avg_snf,
+        acidity: payload.acidity,
+        temperature: payload.temperature,
+        ratePerLiter: payload.rate_per_liter,
+        commissionPerLiter: payload.commission_amount_per_liter,
+        totalAmount: payload.total_amount,
+        alteration: payload.alteration,
+        adulterant,
+      });
+    } catch (error) {
+      toast.error(t('voucher_download_failed', 'Entry saved, but the voucher PDF could not be generated'));
+    }
+  };
+
   const handleSubmit = async () => {
     if (!formData.vlcId || !formData.weight || !formData.avgFat || !formData.avgSnf ||
-      !formData.ratePerLiter || !formData.commissionPerLiter || !formData.totalAmount ||
+      !formData.ratePerLiter || !formData.totalAmount ||
       !formData.driverName?.trim() || !formData.vehicleNumber?.trim() || !formData.compartment?.trim() ||
       !formData.destinationName?.trim() || !formData.time?.trim() || !formData.liter || 
       !formData.acidity || !formData.temperature || !formData.milkType) {
@@ -190,21 +252,16 @@ const DispatchEntry = () => {
       return;
     }
 
-    // Validate alteration logic
-    if (alteration && !selectedAdulterant) {
-      toast.error(t('select_one_adulterant', 'Please select one adulterant when alteration is enabled'));
-      return;
-    }
-
     try {
       const payload: Record<string, any> = {
         date: format(selectedDate, 'yyyy-MM-dd'),
-        vlc_id: formData.vlcId,
-        weight: parseFloat(formData.weight),
+        vlc: formData.vlcId,
+        // The backend's weight column stores the liter value.
+        weight: parseFloat(formData.liter),
         avg_fat: parseFloat(formData.avgFat),
         avg_snf: parseFloat(formData.avgSnf),
         rate_per_liter: parseFloat(formData.ratePerLiter),
-        commission_amount_per_liter: parseFloat(formData.commissionPerLiter),
+        commission_amount_per_liter: formData.commissionPerLiter ? parseFloat(formData.commissionPerLiter) : 0,
         total_amount: parseFloat(formData.totalAmount),
         // New fields
         driver_name: formData.driverName,
@@ -230,6 +287,7 @@ const DispatchEntry = () => {
 
       if (response?.data?.success) {
         toast.success(t('dispatch_entry_created', 'Dispatch entry created successfully'));
+        downloadVoucher(payload, response?.data?.data);
         handleClear();
       }
     } catch (error: any) {
@@ -708,6 +766,7 @@ const DispatchEntry = () => {
                 <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-1.5">
                   <Banknote className="h-3.5 w-3.5 text-emerald-500 stroke-[1.5]" />
                   <span>{t('commission_per_liter') || 'Commission/Ltr'}</span>
+                  <span className="text-[10px] font-normal normal-case text-gray-400">({t('optional', 'Optional')})</span>
                 </Label>
                 <Input
                   type="number"
@@ -763,7 +822,7 @@ const DispatchEntry = () => {
               {alteration && (
                 <div className="pt-2.5 border-t border-gray-200/60 space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
                   <p className="text-[11px] font-semibold text-gray-500">
-                    {t('adulterant_found', 'Adulterant Found')} <span className="text-red-500">*</span>
+                    {t('adulterant_found', 'Adulterant Found')}
                     <span className="font-normal text-gray-400 ml-1">({t('only_one_adulterant', 'Only one can be recorded per entry.')})</span>
                   </p>
                   <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
@@ -956,8 +1015,8 @@ const DispatchEntry = () => {
                     {dispatchEntries.map((entry, idx) => (
                       <TableRow key={idx} className="hover:bg-gray-50/50">
                         <TableCell className="font-medium text-gray-800 text-xs">
-                          {entry.date} <br />
-                          <span className="text-gray-500 font-normal">{entry.time}</span>
+                          {formatEntryDate(entry.date)} <br />
+                          <span className="text-gray-500 font-normal">{formatEntryTime(entry.time)}</span>
                         </TableCell>
                         <TableCell className="text-xs">
                           <span className="font-medium text-gray-800">{entry.driver_name}</span> <br />

@@ -53,6 +53,7 @@ import ManualAutoShiftReport from "@/pages/Reports/ManualAutoShiftReport";
 import DispatchStatusReport from "@/pages/Reports/DispatchStatusReport";
 import TotalCollectionReport from "@/pages/Reports/TotalCollectionReport";
 import VlcCommissionReport from "@/pages/Reports/VlcCommissionReport";
+import TankerDispatchReport from "@/pages/Reports/TankerDispatchReport";
 import VlcDifferenceReport from "@/pages/Reports/VlcDifferenceReport";
 import VlcDifferenceReport2 from "@/pages/Reports/VlcDifferenceReport2";
 import BankSummary from "@/pages/Reports/BankSummary";
@@ -250,6 +251,10 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "dispatch-status-report",
         element: <DispatchStatusReport />,
+      },
+      {
+        path: "tanker-dispatch-report",
+        element: <TankerDispatchReport />,
       },
       {
         path: "total-collection-report",

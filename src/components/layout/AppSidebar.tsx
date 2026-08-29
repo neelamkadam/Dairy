@@ -118,6 +118,7 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
         { title: t('shift_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.SHIFT_REPORTS },
         { title: t('manual_auto_shift_report', 'Manual/Auto Shift Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.MANUAL_AUTO_SHIFT_REPORT },
         { title: t('dispatch_status_report', 'Dispatch Status Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.DISPATCH_STATUS_REPORT },
+        { title: t('tanker_dispatch_report', 'Tanker Dispatch Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.TANKER_DISPATCH_REPORT },
         { title: t('farmer_collection'), icon: <Dot size={24} />, href: ROUTES.REPORTS.FARMER_COLLECTION },
         { title: t('total_collection_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.TOTAL_COLLECTION_REPORT },
         { title: t('payment_summary_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.PAYMENT_SUMMARY },
