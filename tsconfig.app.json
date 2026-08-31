@@ -7,7 +7,7 @@
     "module": "ESNext",
     "skipLibCheck": true,
     /* import */
-    "baseUrl": "https://api.neodairysales.com",
+    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     },

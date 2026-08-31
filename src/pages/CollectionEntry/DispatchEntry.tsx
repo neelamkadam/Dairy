@@ -40,9 +40,9 @@ import {
   HelpCircle, Truck, Scale, Droplets, Banknote, Save, RefreshCcw,
   Loader2, IndianRupee, User, Car, Layers, MapPin, Plus,
   Clock, Beaker, Thermometer, Milk, AlertTriangle, Search,
-  FileText, ClipboardList
+  FileText, ClipboardList, Pencil
 } from "lucide-react";
-import { usePostApi, useGetApi } from "@/services/use-api";
+import { usePostApi, useGetApi, usePutApi } from "@/services/use-api";
 import { toast } from "react-toastify";
 import { useAppSelector } from "@/redux/store";
 import { VLCDropdown } from "@/components/ui/vlc-dropdown";
@@ -64,6 +64,10 @@ interface Destination {
 const DispatchEntry = () => {
   const { t } = useTranslation();
   const { postData, isLoading } = usePostApi({
+    path: "/web/collection/dispatch-entry"
+  });
+
+  const { putData, isLoading: isPutLoading } = usePutApi({
     path: "/web/collection/dispatch-entry"
   });
 
@@ -89,7 +93,14 @@ const DispatchEntry = () => {
     acidity: "",
     temperature: "",
     milkType: "Both",
+    clr: "",
+    sealsInput: "",   // comma-separated raw input
   });
+
+  // Parsed seals array derived from sealsInput
+  const parsedSeals = formData.sealsInput
+    ? formData.sealsInput.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
 
   // Alteration state
   const [alteration, setAlteration] = useState(false);
@@ -102,6 +113,51 @@ const DispatchEntry = () => {
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [destFetchLoading, setDestFetchLoading] = useState(false);
   const [destCodeInput, setDestCodeInput] = useState("");
+
+  // Edit entry state
+  const [editSheetOpen, setEditSheetOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState({
+    clr: "",
+    sealsInput: "",
+  });
+
+  const parsedEditSeals = editForm.sealsInput
+    ? editForm.sealsInput.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
+
+  const handleEditOpen = (entry: any) => {
+    setEditingEntry(entry);
+    setEditForm({
+      clr: entry.clr != null ? String(entry.clr) : "",
+      sealsInput: Array.isArray(entry.seals) ? entry.seals.join(", ") : "",
+    });
+    setEditSheetOpen(true);
+  };
+
+  const handleEditSubmit = async () => {
+    if (!editingEntry?.id) return;
+    try {
+      const body: Record<string, any> = {};
+      if (editForm.clr) body.clr = parseFloat(editForm.clr);
+      if (parsedEditSeals.length > 0) body.seals = parsedEditSeals;
+
+      const response = await putData(
+        body,
+        `/web/collection/dispatch-entry/${editingEntry.id}`
+      );
+
+      if (response?.data?.success) {
+        toast.success(response.data.message || t('dispatch_entry_updated', 'Dispatch entry updated successfully'));
+        setEditSheetOpen(false);
+        setEditingEntry(null);
+        // Refresh the summary list
+        handleOpenDispatchSummary();
+      }
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || t('failed_update_dispatch', 'Failed to update dispatch entry'));
+    }
+  };
 
   // Summary modals state
   const [dispatchSummaryOpen, setDispatchSummaryOpen] = useState(false);
@@ -242,6 +298,8 @@ const DispatchEntry = () => {
         totalAmount: payload.total_amount,
         alteration: payload.alteration,
         adulterant,
+        clr: payload.clr,
+        seals: payload.seals,
       });
     } catch (error) {
       toast.error(t('voucher_download_failed', 'Entry saved, but the voucher PDF could not be generated'));
@@ -287,6 +345,9 @@ const DispatchEntry = () => {
         maltose: alteration && selectedAdulterant === 'maltose',
         soda: alteration && selectedAdulterant === 'soda',
         starch: alteration && selectedAdulterant === 'starch',
+        // Optional new fields
+        ...(formData.clr ? { clr: parseFloat(formData.clr) } : {}),
+        ...(parsedSeals.length > 0 ? { seals: parsedSeals } : {}),
       };
 
       const response = await postData(payload);
@@ -319,6 +380,8 @@ const DispatchEntry = () => {
       acidity: "",
       temperature: "",
       milkType: "Both",
+      clr: "",
+      sealsInput: "",
     });
     setSelectedDate(new Date());
     setAlteration(false);
@@ -659,8 +722,8 @@ const DispatchEntry = () => {
               </div>
             </div>
 
-            {/* Row 4: All numeric milk parameters — Weight, Liter, Fat, SNF, Acidity, Temperature */}
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-3 md:gap-4">
+            {/* Row 4: All numeric milk parameters — Weight, Liter, Fat, SNF, Acidity, Temperature, CLR */}
+            <div className="grid grid-cols-2 md:grid-cols-7 gap-3 md:gap-4">
               <div className="flex flex-col space-y-1">
                 <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-1.5">
                   <Scale className="h-3.5 w-3.5 text-blue-500 stroke-[1.5]" />
@@ -750,6 +813,22 @@ const DispatchEntry = () => {
                   className="h-10 bg-white border-gray-200 focus:ring-2 focus:ring-red-500/20 text-sm font-semibold rounded-xl text-center text-gray-800 shadow-sm enter-field"
                 />
               </div>
+
+              <div className="flex flex-col space-y-1">
+                <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-1.5">
+                  <Droplets className="h-3.5 w-3.5 text-sky-500 stroke-[1.5]" />
+                  <span>{t('clr', 'CLR')}</span>
+                  <span className="text-[10px] font-normal normal-case text-gray-400">({t('optional', 'Optional')})</span>
+                </Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  placeholder="0.0"
+                  value={formData.clr}
+                  onChange={(e) => handleInputChange("clr", e.target.value)}
+                  className="h-10 bg-white border-gray-200 focus:ring-2 focus:ring-sky-500/20 text-sm font-semibold rounded-xl text-center text-gray-800 shadow-sm enter-field"
+                />
+              </div>
             </div>
 
             {/* Row 5: Rate, Commission, Total */}
@@ -802,6 +881,30 @@ const DispatchEntry = () => {
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Seals Section */}
+            <div className="flex flex-col space-y-1">
+              <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-2">
+                <span>{t('seal_numbers', 'Seal Numbers')}</span>
+                <span className="text-[10px] font-normal normal-case text-gray-400">({t('optional_comma_separated', 'Optional — comma separated, e.g. A-1042, A-1043')})</span>
+              </Label>
+              <Input
+                type="text"
+                placeholder="e.g. A-1042, A-1043"
+                value={formData.sealsInput}
+                onChange={(e) => handleInputChange("sealsInput", e.target.value)}
+                className="h-10 bg-white border-gray-200 focus:ring-2 focus:ring-violet-500/20 text-sm font-medium rounded-xl text-gray-800 shadow-sm enter-field"
+              />
+              {parsedSeals.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {parsedSeals.map((seal, i) => (
+                    <span key={i} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-violet-50 text-violet-700 border border-violet-200">
+                      {seal}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Adultration Section */}
@@ -1015,6 +1118,7 @@ const DispatchEntry = () => {
                       <TableHead className="font-semibold text-gray-700">Milk Type</TableHead>
                       <TableHead className="font-semibold text-gray-700 text-right">Liter / Weight</TableHead>
                       <TableHead className="font-semibold text-gray-700 text-right">Total (₹)</TableHead>
+                      <TableHead className="font-semibold text-gray-700 text-center w-16">Edit</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1040,6 +1144,16 @@ const DispatchEntry = () => {
                         </TableCell>
                         <TableCell className="text-right font-bold text-gray-800">
                           ₹{entry.total_amount?.toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleEditOpen(entry)}
+                            className="inline-flex items-center justify-center h-7 w-7 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
+                            title="Edit CLR & Seals"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -1110,6 +1224,117 @@ const DispatchEntry = () => {
           )}
         </DialogContent>
       </Dialog>
+      {/* Edit Dispatch Entry Sheet */}
+      <Sheet open={editSheetOpen} onOpenChange={setEditSheetOpen}>
+        <SheetContent side="right" className="bg-white w-full sm:max-w-md">
+          <SheetHeader className="pb-4 border-b border-gray-100">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-indigo-50 rounded-xl">
+                <Pencil className="h-5 w-5 text-indigo-600" />
+              </div>
+              <div>
+                <SheetTitle className="text-lg font-bold text-gray-800">
+                  {t('edit_dispatch_entry', 'Edit Dispatch Entry')}
+                </SheetTitle>
+                <SheetDescription className="text-sm text-gray-500 mt-0.5">
+                  {editingEntry ? `Entry #${editingEntry.id} · ${formatEntryDate(editingEntry.date)}` : ''}
+                </SheetDescription>
+              </div>
+            </div>
+          </SheetHeader>
+
+          <div className="flex-1 space-y-5 p-4 overflow-y-auto">
+            {/* Read-only summary */}
+            {editingEntry && (
+              <div className="rounded-xl bg-gray-50 border border-gray-100 p-3 space-y-1 text-xs text-gray-600">
+                <div className="flex justify-between">
+                  <span className="font-semibold text-gray-500">Driver</span>
+                  <span className="font-medium text-gray-800">{editingEntry.driver_name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-semibold text-gray-500">Vehicle</span>
+                  <span className="font-medium text-gray-800">{editingEntry.vehicle_number}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-semibold text-gray-500">Destination</span>
+                  <span className="font-medium text-gray-800">{editingEntry.destination_name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-semibold text-gray-500">Liter / Weight</span>
+                  <span className="font-medium text-gray-800">{editingEntry.liter} L / {editingEntry.weight} Kg</span>
+                </div>
+              </div>
+            )}
+
+            {/* CLR */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-2">
+                <Droplets className="h-3.5 w-3.5 text-sky-500 stroke-[1.5]" />
+                {t('clr', 'CLR')}
+                <span className="text-[10px] font-normal normal-case text-gray-400">({t('optional', 'Optional')})</span>
+              </Label>
+              <Input
+                type="number"
+                step="0.1"
+                placeholder="0.0"
+                value={editForm.clr}
+                onChange={(e) => setEditForm(prev => ({ ...prev, clr: e.target.value }))}
+                className="h-11 bg-gray-50/50 border-gray-200 rounded-xl text-sm font-semibold text-center shadow-sm"
+              />
+            </div>
+
+            {/* Seals */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600">
+                {t('seal_numbers', 'Seal Numbers')}
+                <span className="ml-2 text-[10px] font-normal normal-case text-gray-400">({t('optional_comma_separated', 'comma separated')})</span>
+              </Label>
+              <Input
+                type="text"
+                placeholder="e.g. A-1042, A-1043"
+                value={editForm.sealsInput}
+                onChange={(e) => setEditForm(prev => ({ ...prev, sealsInput: e.target.value }))}
+                className="h-11 bg-gray-50/50 border-gray-200 rounded-xl text-sm font-medium shadow-sm"
+              />
+              {parsedEditSeals.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {parsedEditSeals.map((seal, i) => (
+                    <span key={i} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-violet-50 text-violet-700 border border-violet-200">
+                      {seal}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <SheetFooter className="border-t border-gray-100 p-4">
+            <div className="flex gap-3 w-full">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => { setEditSheetOpen(false); setEditingEntry(null); }}
+                className="flex-1 h-11 rounded-xl border-gray-200 text-gray-700 font-semibold"
+              >
+                {t('cancel', 'Cancel')}
+              </Button>
+              <Button
+                type="button"
+                onClick={handleEditSubmit}
+                disabled={isPutLoading}
+                className="flex-1 h-11 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold shadow-sm transition-all"
+              >
+                {isPutLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2 stroke-[2]" />
+                )}
+                {t('save_changes', 'Save Changes')}
+              </Button>
+            </div>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };

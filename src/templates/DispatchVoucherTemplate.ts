@@ -1,9 +1,29 @@
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
+import { NotoSansDevanagariRegular } from "@/assets/fonts/notoSansDevanagari";
 
 if (pdfMake.vfs === undefined) {
   pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts;
 }
+
+// Register Noto Sans Devanagari for Marathi / Hindi text support
+pdfMake.vfs["NotoSansDevanagari-Regular.ttf"] = NotoSansDevanagariRegular;
+pdfMake.fonts = {
+  // Keep Roboto for fallback
+  Roboto: {
+    normal: "Roboto-Regular.ttf",
+    bold: "Roboto-Medium.ttf",
+    italics: "Roboto-Italic.ttf",
+    bolditalics: "Roboto-MediumItalic.ttf",
+  },
+  // Devanagari-capable font
+  NotoSansDevanagari: {
+    normal: "NotoSansDevanagari-Regular.ttf",
+    bold: "NotoSansDevanagari-Regular.ttf",
+    italics: "NotoSansDevanagari-Regular.ttf",
+    bolditalics: "NotoSansDevanagari-Regular.ttf",
+  },
+};
 
 export interface DispatchVoucherData {
   voucherNo?: string | number;
@@ -23,11 +43,13 @@ export interface DispatchVoucherData {
   avgSnf: number;
   acidity: number;
   temperature: number;
+  clr?: number;              // Optional CLR value
   ratePerLiter: number;
   commissionPerLiter: number;
   totalAmount: number;
   alteration: boolean;
   adulterant?: string | null;
+  seals?: string[];          // Optional seal numbers
 }
 
 const formatDate = (dateStr: string) => {
@@ -194,6 +216,18 @@ const buildVoucher = (data: DispatchVoucherData, copyLabel: string) => {
                     labelCell("Milk Type"), valueCell(data.milkType)],
                     [labelCell("Destination"), valueCell(data.destinationName),
                     labelCell("VLC ID"), valueCell(data.vlc)],
+                    ...(data.seals && data.seals.length > 0
+                      ? [[
+                          labelCell("Seal Nos"),
+                          {
+                            text: data.seals.join("  |  "),
+                            style: "fieldValue",
+                            colSpan: 3,
+                            margin: [0, 4, 8, 4],
+                          },
+                          {}, {},
+                        ]]
+                      : []),
                   ],
                 },
                 layout: gridLayout,
@@ -202,7 +236,7 @@ const buildVoucher = (data: DispatchVoucherData, copyLabel: string) => {
               // Quantity & quality
               {
                 table: {
-                  widths: ["*", "*", "*", "*", "*", "*"],
+                  widths: data.clr != null ? ["*", "*", "*", "*", "*", "*", "*"] : ["*", "*", "*", "*", "*", "*"],
                   body: [
                     [
                       { text: "Weight (Kg)", style: "tableHeader" },
@@ -211,6 +245,7 @@ const buildVoucher = (data: DispatchVoucherData, copyLabel: string) => {
                       { text: "SNF (%)", style: "tableHeader" },
                       { text: "Acidity", style: "tableHeader" },
                       { text: "Temp (°C)", style: "tableHeader" },
+                      ...(data.clr != null ? [{ text: "CLR", style: "tableHeader" }] : []),
                     ],
                     [
                       { text: num(data.weight), style: "tableValue" },
@@ -219,6 +254,7 @@ const buildVoucher = (data: DispatchVoucherData, copyLabel: string) => {
                       { text: num(data.avgSnf, 1), style: "tableValue" },
                       { text: num(data.acidity), style: "tableValue" },
                       { text: num(data.temperature, 1), style: "tableValue" },
+                      ...(data.clr != null ? [{ text: num(data.clr, 1), style: "tableValue" }] : []),
                     ],
                   ],
                 },
@@ -279,7 +315,7 @@ const buildVoucher = (data: DispatchVoucherData, copyLabel: string) => {
               {
                 columns: [
                   { text: "Driver's Signature", style: "signature", alignment: "left" },
-                  { text: "Checked By", style: "signature", alignment: "center" },
+                  { text: "Incharge Signatory", style: "signature", alignment: "center" },
                   { text: "Authorised Signatory", style: "signature", alignment: "right" },
                 ],
                 margin: [10, 20, 10, 6],
@@ -322,7 +358,7 @@ export const generateDispatchVoucherPDF = (data: DispatchVoucherData) => {
       },
       buildVoucher(data, "DRIVER COPY"),
     ],
-    defaultStyle: { fontSize: 9, color: "#1f2937" },
+    defaultStyle: { fontSize: 9, color: "#1f2937", font: "NotoSansDevanagari" },
     styles: {
       dairyName: { fontSize: 14, bold: true, color: "#0f172a" },
       vlcLine: { fontSize: 9, color: "#64748b", margin: [0, 2, 0, 0] },
