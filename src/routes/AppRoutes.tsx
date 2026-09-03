@@ -78,6 +78,7 @@ import GroupCattleFeedStock from "@/pages/Payment/GroupCattleFeedStock";
 import FarmerPayment from "@/pages/Payment/FarmerPayment";
 import Attendance from "@/pages/Attendance/Attendance";
 import Supervisor from "@/pages/Attendance/Supervisor";
+import QuotationMaker from "@/pages/AdminMaster/QuotationMaker";
 import ErrorPage from "@/pages/ErrorPage";
 import { createBrowserRouter } from "react-router-dom";
 
@@ -418,6 +419,10 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "attendance/supervisor",
         element: <Supervisor />,
+      },
+      {
+        path: "quotation-maker",
+        element: <QuotationMaker />,
       },
     ],
   },

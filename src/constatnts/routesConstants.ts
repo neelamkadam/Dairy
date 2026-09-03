@@ -98,5 +98,6 @@ export const ROUTES = {
   ACTIVATION:{
     ACTIVATION:`/admin/activation`,
     WEB_APPLICATION_ACTIVATION:`/admin/web-application-activation`,
-  }
+  },
+  QUOTATION: `/admin/quotation-maker`,
 };

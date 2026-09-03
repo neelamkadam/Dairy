@@ -3,7 +3,7 @@ import {
   ChevronDown, Menu, X,
   LayoutDashboard, Building2, Settings,
   ShieldAlert, UserCheck, Smartphone,
-  Monitor, ShieldCheck, Dot
+  Monitor, ShieldCheck, Dot, FileText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -63,6 +63,11 @@ const getMenuItems = (t: any): MenuItem[] => [
     title: t('attendance_supervisor', 'Attendance & Supervisior'),
     icon: <UserCheck size={20} className="stroke-[1.5]" />,
     href: ROUTES.ATTENDANCE.SUPERVISOR
+  },
+  {
+    title: t('quotation_maker', 'Quotation Maker'),
+    icon: <FileText size={20} className="stroke-[1.5]" />,
+    href: ROUTES.QUOTATION
   }
 ];
 
