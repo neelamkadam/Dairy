@@ -1,10 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -38,7 +37,7 @@ import { format, isValid } from "date-fns";
 import { CustomDatePicker, CustomTimePicker } from "@/components/ui/datetime-inputs";
 import {
   HelpCircle, Truck, Scale, Droplets, Banknote, Save, RefreshCcw,
-  Loader2, IndianRupee, User, Car, Layers, MapPin, Plus,
+  Loader2, IndianRupee, User, Car, Layers, MapPin, Plus, Minus,
   Clock, Beaker, Thermometer, Milk, AlertTriangle, Search,
   FileText, ClipboardList, Pencil
 } from "lucide-react";
@@ -48,10 +47,31 @@ import { useAppSelector } from "@/redux/store";
 import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import AxiosClient from "@/services/interceptor";
 import { generateDispatchVoucherPDF } from "@/templates/DispatchVoucherTemplate";
-import { calculateLiterFromWeight, calculateWeightFromLiter } from "@/utils/milkCalculations";
+import {
+  calculateLiterFromWeight,
+  calculateWeightFromLiter,
+  calculateCLRFromFatAndSNF,
+  calculateSNFFromFatAndCLR,
+} from "@/utils/milkCalculations";
 
 const ADULTERANTS = ["sugar", "salt", "urea", "maltose", "soda", "starch"] as const;
 type Adulterant = typeof ADULTERANTS[number];
+
+/** Every adulterant is reported either positive (found) or negative (absent).
+ *  Absent is the default, so an untouched form reports all six as negative. */
+type AdulterantResults = Record<Adulterant, boolean>;
+
+const allNegative = (): AdulterantResults =>
+  ADULTERANTS.reduce((acc, a) => ({ ...acc, [a]: false }), {} as AdulterantResults);
+
+/**
+ * Operators restricted to a single dairy on this page only. Keyed by the id the
+ * login response returns as `userId` (stored as a string on userData.id).
+ * Values match a branch's `username` (the dairy code) or its `branch_id`.
+ */
+const DISPATCH_VLC_RESTRICTIONS: Record<string, string[]> = {
+  '3': ['500020'],
+};
 
 interface Destination {
   id?: number;
@@ -102,9 +122,26 @@ const DispatchEntry = () => {
     ? formData.sealsInput.split(",").map((s) => s.trim()).filter(Boolean)
     : [];
 
-  // Alteration state
-  const [alteration, setAlteration] = useState(false);
-  const [selectedAdulterant, setSelectedAdulterant] = useState<Adulterant | null>(null);
+  // Every adulterant carries a positive/negative result; "alteration" is simply
+  // whether any of them came back positive.
+  const [adulterantResults, setAdulterantResults] = useState<AdulterantResults>(allNegative);
+  const alteration = ADULTERANTS.some((a) => adulterantResults[a]);
+
+  const allowedVlcCodes = DISPATCH_VLC_RESTRICTIONS[String(userData?.id ?? '')];
+  const availableBranches = useMemo(() => {
+    const list = branches || [];
+    if (!allowedVlcCodes) return list;
+    return list.filter((b: any) =>
+      allowedVlcCodes.includes(String(b.username)) ||
+      allowedVlcCodes.includes(String(b.branch_id))
+    );
+  }, [branches, allowedVlcCodes]);
+
+  // A restricted operator has nothing to choose between — preselect their dairy.
+  useEffect(() => {
+    if (!allowedVlcCodes || formData.vlcId || availableBranches.length !== 1) return;
+    setFormData(prev => ({ ...prev, vlcId: String(availableBranches[0].username) }));
+  }, [allowedVlcCodes, availableBranches, formData.vlcId]);
 
   // Destination drawer state
   const [destDrawerOpen, setDestDrawerOpen] = useState(false);
@@ -249,6 +286,16 @@ const DispatchEntry = () => {
       updatedData.weight = calculateWeightFromLiter(value);
     }
 
+    // FAT/SNF/CLR are related the same way they are on the farmer collection entry:
+    // FAT + SNF derives CLR, and typing a CLR back-solves SNF.
+    if (field === 'avgFat' || field === 'avgSnf') {
+      const derivedClr = calculateCLRFromFatAndSNF(updatedData.avgFat, updatedData.avgSnf);
+      if (derivedClr) updatedData.clr = derivedClr;
+    } else if (field === 'clr') {
+      const derivedSnf = calculateSNFFromFatAndCLR(updatedData.avgFat, value);
+      if (derivedSnf) updatedData.avgSnf = derivedSnf;
+    }
+
     // Auto-calculate total amount when quantity, rate, or commission changes.
     // Rate and commission are per liter, so the liter value drives the amount.
     if (field === 'weight' || field === 'liter' || field === 'ratePerLiter' || field === 'commissionPerLiter') {
@@ -273,7 +320,6 @@ const DispatchEntry = () => {
   const downloadVoucher = (payload: Record<string, any>, created?: any) => {
     try {
       const branch = branches?.find((b: any) => String(b.username) === formData.vlcId);
-      const adulterant = ADULTERANTS.find((a) => payload[a]) || null;
 
       generateDispatchVoucherPDF({
         voucherNo: created?.id ?? created?.voucher_no ?? `${payload.date.replace(/-/g, "")}-${(payload.time || "").replace(/:/g, "").slice(0, 4)}`,
@@ -297,7 +343,7 @@ const DispatchEntry = () => {
         commissionPerLiter: payload.commission_amount_per_liter,
         totalAmount: payload.total_amount,
         alteration: payload.alteration,
-        adulterant,
+        adulterants: adulterantResults,
         clr: payload.clr,
         seals: payload.seals,
       });
@@ -310,9 +356,14 @@ const DispatchEntry = () => {
     if (!formData.vlcId || !formData.weight || !formData.avgFat || !formData.avgSnf ||
       !formData.ratePerLiter || !formData.totalAmount ||
       !formData.driverName?.trim() || !formData.vehicleNumber?.trim() || !formData.compartment?.trim() ||
-      !formData.destinationName?.trim() || !formData.time?.trim() || !formData.liter || 
+      !formData.destinationName?.trim() || !formData.time?.trim() || !formData.liter ||
       !formData.acidity || !formData.temperature || !formData.milkType) {
       toast.error(t('all_fields_required', 'All fields are required'));
+      return;
+    }
+
+    if (parsedSeals.length === 0) {
+      toast.error(t('seal_numbers_required', 'At least one seal number is required'));
       return;
     }
 
@@ -337,17 +388,17 @@ const DispatchEntry = () => {
         acidity: formData.acidity ? parseFloat(formData.acidity) : undefined,
         temperature: formData.temperature ? parseFloat(formData.temperature) : undefined,
         milk_type: formData.milkType,
-        // Alteration
+        // Adulteration: true = positive (found), false = negative (absent).
+        // `alteration` stays as the roll-up of "anything positive".
         alteration,
-        sugar: alteration && selectedAdulterant === 'sugar',
-        salt: alteration && selectedAdulterant === 'salt',
-        urea: alteration && selectedAdulterant === 'urea',
-        maltose: alteration && selectedAdulterant === 'maltose',
-        soda: alteration && selectedAdulterant === 'soda',
-        starch: alteration && selectedAdulterant === 'starch',
-        // Optional new fields
+        sugar: adulterantResults.sugar,
+        salt: adulterantResults.salt,
+        urea: adulterantResults.urea,
+        maltose: adulterantResults.maltose,
+        soda: adulterantResults.soda,
+        starch: adulterantResults.starch,
+        seals: parsedSeals,
         ...(formData.clr ? { clr: parseFloat(formData.clr) } : {}),
-        ...(parsedSeals.length > 0 ? { seals: parsedSeals } : {}),
       };
 
       const response = await postData(payload);
@@ -384,8 +435,7 @@ const DispatchEntry = () => {
       sealsInput: "",
     });
     setSelectedDate(new Date());
-    setAlteration(false);
-    setSelectedAdulterant(null);
+    setAdulterantResults(allNegative());
     setDestCodeInput("");
   };
 
@@ -543,10 +593,11 @@ const DispatchEntry = () => {
                   {t('select_vlc') || 'Select VLC'}
                 </Label>
                 <VLCDropdown
-                  branches={branches || []}
+                  branches={availableBranches}
                   value={formData.vlcId}
                   onChange={handleVLCIdChange}
                   valueKey="username"
+                  disabled={!!allowedVlcCodes && availableBranches.length <= 1}
                   className="h-10"
                 />
               </div>
@@ -786,6 +837,21 @@ const DispatchEntry = () => {
 
               <div className="flex flex-col space-y-1">
                 <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-1.5">
+                  <Droplets className="h-3.5 w-3.5 text-sky-500 stroke-[1.5]" />
+                  <span>{t('clr', 'CLR')}</span>
+                  <span className="text-[10px] font-normal normal-case text-gray-400">({t('auto_calculated', 'Auto')})</span>
+                </Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  placeholder="0.0"
+                  value={formData.clr}
+                  onChange={(e) => handleInputChange("clr", e.target.value)}
+                  className="h-10 bg-white border-gray-200 focus:ring-2 focus:ring-sky-500/20 text-sm font-semibold rounded-xl text-center text-gray-800 shadow-sm enter-field"
+                />
+              </div>
+              <div className="flex flex-col space-y-1">
+                <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-1.5">
                   <Beaker className="h-3.5 w-3.5 text-amber-500 stroke-[1.5]" />
                   <span>{t('acidity', 'Acidity')}</span>
                 </Label>
@@ -814,21 +880,6 @@ const DispatchEntry = () => {
                 />
               </div>
 
-              <div className="flex flex-col space-y-1">
-                <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-1.5">
-                  <Droplets className="h-3.5 w-3.5 text-sky-500 stroke-[1.5]" />
-                  <span>{t('clr', 'CLR')}</span>
-                  <span className="text-[10px] font-normal normal-case text-gray-400">({t('optional', 'Optional')})</span>
-                </Label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  placeholder="0.0"
-                  value={formData.clr}
-                  onChange={(e) => handleInputChange("clr", e.target.value)}
-                  className="h-10 bg-white border-gray-200 focus:ring-2 focus:ring-sky-500/20 text-sm font-semibold rounded-xl text-center text-gray-800 shadow-sm enter-field"
-                />
-              </div>
             </div>
 
             {/* Row 5: Rate, Commission, Total */}
@@ -887,7 +938,8 @@ const DispatchEntry = () => {
             <div className="flex flex-col space-y-1">
               <Label className="text-xs font-semibold uppercase tracking-widest text-gray-600 flex items-center gap-2">
                 <span>{t('seal_numbers', 'Seal Numbers')}</span>
-                <span className="text-[10px] font-normal normal-case text-gray-400">({t('optional_comma_separated', 'Optional — comma separated, e.g. A-1042, A-1043')})</span>
+                <span className="text-red-500">*</span>
+                <span className="text-[10px] font-normal normal-case text-gray-400">({t('comma_separated_seals', 'comma separated, e.g. A-1042, A-1043')})</span>
               </Label>
               <Input
                 type="text"
@@ -907,64 +959,79 @@ const DispatchEntry = () => {
               )}
             </div>
 
-            {/* Adultration Section */}
+            {/* Adulteration — every adulterant is reported, positive or negative */}
             <div className="border border-gray-100 rounded-xl p-3 md:p-4 space-y-3 bg-gray-50/30">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <div className="p-1 bg-red-50 rounded-lg">
-                    <AlertTriangle className="h-3.5 w-3.5 text-red-500 stroke-[1.5]" />
+                  <div className={`p-1 rounded-lg ${alteration ? 'bg-red-50' : 'bg-emerald-50'}`}>
+                    <AlertTriangle className={`h-3.5 w-3.5 stroke-[1.5] ${alteration ? 'text-red-500' : 'text-emerald-500'}`} />
                   </div>
                   <Label className="text-sm font-semibold text-gray-800">
                     {t('adulteration', 'Adulteration')}
                   </Label>
+                  <span className="text-[11px] font-normal text-gray-400">
+                    {t('adulteration_all_reported', 'All tests are recorded on the voucher.')}
+                  </span>
                 </div>
-                <Switch
-                  checked={alteration}
-                  onCheckedChange={(checked) => {
-                    setAlteration(checked);
-                    if (!checked) setSelectedAdulterant(null);
-                  }}
-                />
+                <span
+                  className={`inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wide border shrink-0 ${
+                    alteration
+                      ? 'bg-red-50 text-red-700 border-red-200'
+                      : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  }`}
+                >
+                  {alteration ? t('positive', 'Positive') : t('negative', 'Negative')}
+                </span>
               </div>
 
-              {/* Adulterant categories - shown when alteration is ON */}
-              {alteration && (
-                <div className="pt-2.5 border-t border-gray-200/60 space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                  <p className="text-[11px] font-semibold text-gray-500">
-                    {t('adulterant_found', 'Adulterant Found')}
-                    <span className="font-normal text-gray-400 ml-1">({t('only_one_adulterant', 'Only one can be recorded per entry.')})</span>
-                  </p>
-                  <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-                    {ADULTERANTS.map((adulterant) => {
-                      const isSelected = selectedAdulterant === adulterant;
-                      return (
+              <div className="pt-2.5 border-t border-gray-200/60 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {ADULTERANTS.map((adulterant) => {
+                  const isPositive = adulterantResults[adulterant];
+                  const setResult = (positive: boolean) =>
+                    setAdulterantResults(prev => ({ ...prev, [adulterant]: positive }));
+
+                  return (
+                    <div
+                      key={adulterant}
+                      className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border bg-white transition-colors ${
+                        isPositive ? 'border-red-200' : 'border-gray-200'
+                      }`}
+                    >
+                      <span className={`text-xs font-medium capitalize ${isPositive ? 'text-red-700' : 'text-gray-700'}`}>
+                        {t(adulterant, adulterant.charAt(0).toUpperCase() + adulterant.slice(1))}
+                      </span>
+                      <div className="flex items-center gap-1 shrink-0">
                         <button
-                          key={adulterant}
                           type="button"
-                          onClick={() => setSelectedAdulterant(isSelected ? null : adulterant)}
-                          className={`
-                            flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all duration-200 text-xs font-medium cursor-pointer
-                            ${isSelected
-                              ? 'border-red-400 bg-red-50 text-red-700 shadow-sm shadow-red-100'
-                              : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
-                            }
-                          `}
+                          onClick={() => setResult(true)}
+                          aria-pressed={isPositive}
+                          title={t('positive', 'Positive')}
+                          className={`h-7 w-7 rounded-md border flex items-center justify-center transition-all ${
+                            isPositive
+                              ? 'border-red-400 bg-red-500 text-white shadow-sm'
+                              : 'border-gray-200 bg-white text-gray-400 hover:border-red-200 hover:text-red-500'
+                          }`}
                         >
-                          <div className={`
-                            w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all duration-200
-                            ${isSelected ? 'border-red-500' : 'border-gray-300'}
-                          `}>
-                            {isSelected && (
-                              <div className="w-2 h-2 rounded-full bg-red-500 animate-in zoom-in-50 duration-200" />
-                            )}
-                          </div>
-                          <span className="capitalize">{t(adulterant, adulterant.charAt(0).toUpperCase() + adulterant.slice(1))}</span>
+                          <Plus className="h-3.5 w-3.5 stroke-[3]" />
                         </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+                        <button
+                          type="button"
+                          onClick={() => setResult(false)}
+                          aria-pressed={!isPositive}
+                          title={t('negative', 'Negative')}
+                          className={`h-7 w-7 rounded-md border flex items-center justify-center transition-all ${
+                            !isPositive
+                              ? 'border-emerald-400 bg-emerald-500 text-white shadow-sm'
+                              : 'border-gray-200 bg-white text-gray-400 hover:border-emerald-200 hover:text-emerald-500'
+                          }`}
+                        >
+                          <Minus className="h-3.5 w-3.5 stroke-[3]" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Buttons */}

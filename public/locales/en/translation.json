@@ -1099,5 +1099,16 @@
   "dispatch": "Dispatch",
   "commission": "Commission",
   "purchase": "Purchase",
-  "net": "Net"
+  "net": "Net",
+  "collection_qty": "Coll. Qty (L)",
+  "collection_cost": "Coll. Cost",
+  "per_liter_commission": "Per-Litre Comm.",
+  "dispatch_weight": "Disp. Wt",
+  "dispatch_amount": "Dispatch",
+  "positive": "Positive",
+  "negative": "Negative",
+  "seal_numbers_required": "At least one seal number is required",
+  "auto_calculated": "Auto",
+  "comma_separated_seals": "comma separated, e.g. A-1042, A-1043",
+  "adulteration_all_reported": "All tests are recorded on the voucher."
 }

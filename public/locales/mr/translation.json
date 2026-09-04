@@ -1080,5 +1080,16 @@
   "dispatch": "डिस्पॅच",
   "commission": "कमिशन",
   "purchase": "खरेदी",
-  "net": "निव्वळ"
+  "net": "निव्वळ",
+  "collection_qty": "संकलन प्रमाण (लि)",
+  "collection_cost": "संकलन खर्च",
+  "per_liter_commission": "प्रति लिटर कमिशन",
+  "dispatch_weight": "डिस्पॅच वजन",
+  "dispatch_amount": "डिस्पॅच",
+  "positive": "पॉझिटिव्ह",
+  "negative": "निगेटिव्ह",
+  "seal_numbers_required": "किमान एक सील क्रमांक आवश्यक आहे",
+  "auto_calculated": "स्वयं",
+  "comma_separated_seals": "स्वल्पविरामाने वेगळे, उदा. A-1042, A-1043",
+  "adulteration_all_reported": "सर्व चाचण्या व्हाउचरवर नोंदवल्या जातात."
 }

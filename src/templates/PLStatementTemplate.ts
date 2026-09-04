@@ -1,10 +1,6 @@
 import pdfMake from "pdfmake/build/pdfmake";
-import pdfFonts from "pdfmake/build/vfs_fonts";
-import type { PLLine, PLDailyRow, PLPeriodCharge } from "@/pages/Reports/PLStatement";
-
-if (pdfMake.vfs === undefined) {
-  pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts;
-}
+import { PDF_FONT } from "@/utils/pdfMakeFonts";
+import type { PLLine, PLDailyRow, PLPeriodCharge } from "@/utils/plStatement";
 
 export interface PLStatementPdfData {
   vlcName: string;
@@ -47,15 +43,26 @@ const sectionRows = (lines: PLLine[], emptyLabel: string) => {
       {},
     ]];
   }
-  return lines.map((line) => ([
-    {
-      stack: [
-        { text: line.label, style: 'tableValue' },
-        ...(line.hint ? [{ text: line.hint, style: 'hint' }] : []),
-      ],
-    },
-    { text: money(line.amount), style: 'tableValue', alignment: 'right' },
-  ]));
+  const rows: any[] = [];
+  lines.forEach((line) => {
+    rows.push([
+      {
+        stack: [
+          { text: line.label, style: 'tableValue', bold: true },
+          ...(line.meta ? [{ text: line.meta, style: 'hint' }] : []),
+          ...(line.hint ? [{ text: line.hint, style: 'hint', italics: true }] : []),
+        ],
+      },
+      { text: money(line.amount), style: 'tableValue', bold: true, alignment: 'right' },
+    ]);
+    line.subLines?.forEach((sub) => {
+      rows.push([
+        { text: sub.label, style: 'subValue', margin: [16, 3, 4, 3] },
+        { text: money(sub.amount), style: 'subValue', alignment: 'right' },
+      ]);
+    });
+  });
+  return rows;
 };
 
 export const generatePLStatementPDF = (data: PLStatementPdfData) => {
@@ -209,30 +216,48 @@ export const generatePLStatementPDF = (data: PLStatementPdfData) => {
       style: 'hint',
       margin: [0, 0, 0, 8],
     });
+    const dailyTotals = daily.reduce(
+      (acc, row) => ({
+        collectionQuantity: acc.collectionQuantity + row.collectionQuantity,
+        collectionCost: acc.collectionCost + row.collectionCost,
+        perLiterCommission: acc.perLiterCommission + row.perLiterCommission,
+        dispatch: acc.dispatch + row.dispatchBaseAmount + row.dispatchCommission,
+        income: acc.income + row.income,
+        expense: acc.expense + row.expense,
+      }),
+      { collectionQuantity: 0, collectionCost: 0, perLiterCommission: 0, dispatch: 0, income: 0, expense: 0 }
+    );
+
     content.push({
       table: {
         headerRows: 1,
-        widths: ['*', 60, 75, 75, 75, 75],
+        widths: ['*', 48, 58, 55, 55, 58, 58],
         body: [
           [
             { text: 'Date', style: 'tableHeader' },
-            { text: 'Litres', style: 'tableHeader', alignment: 'right' },
+            { text: 'Qty (L)', style: 'tableHeader', alignment: 'right' },
+            { text: 'Coll. Cost', style: 'tableHeader', alignment: 'right' },
+            { text: 'Comm.', style: 'tableHeader', alignment: 'right' },
             { text: 'Dispatch', style: 'tableHeader', alignment: 'right' },
-            { text: 'Commission', style: 'tableHeader', alignment: 'right' },
-            { text: 'Purchase', style: 'tableHeader', alignment: 'right' },
+            { text: 'Income', style: 'tableHeader', alignment: 'right' },
             { text: 'Net', style: 'tableHeader', alignment: 'right' },
           ],
           ...daily.map((row) => ([
             { text: row.date, style: 'smallValue' },
-            { text: row.liters.toFixed(2), style: 'smallValue', alignment: 'right' },
-            { text: money(row.dispatch), style: 'smallValue', alignment: 'right' },
-            { text: money(row.commission), style: 'smallValue', alignment: 'right' },
-            { text: money(row.purchase), style: 'smallValue', alignment: 'right' },
+            { text: row.collectionQuantity.toFixed(2), style: 'smallValue', alignment: 'right' },
+            { text: money(row.collectionCost), style: 'smallValue', alignment: 'right' },
+            { text: money(row.perLiterCommission), style: 'smallValue', alignment: 'right' },
+            { text: money(row.dispatchBaseAmount + row.dispatchCommission), style: 'smallValue', alignment: 'right' },
+            { text: money(row.income), style: 'smallValue', alignment: 'right' },
             { text: money(row.net), style: 'smallValue', alignment: 'right' },
           ])),
           [
-            { text: 'Sum of daily net', style: 'totalLabel', colSpan: 5 },
-            {}, {}, {}, {},
+            { text: 'Total', style: 'totalLabel' },
+            { text: dailyTotals.collectionQuantity.toFixed(2), style: 'totalValue', alignment: 'right' },
+            { text: money(dailyTotals.collectionCost), style: 'totalValue', alignment: 'right' },
+            { text: money(dailyTotals.perLiterCommission), style: 'totalValue', alignment: 'right' },
+            { text: money(dailyTotals.dispatch), style: 'totalValue', alignment: 'right' },
+            { text: money(dailyTotals.income), style: 'totalValue', alignment: 'right' },
             { text: money(dailyNetSum), style: 'totalValue', alignment: 'right' },
           ],
         ],
@@ -246,6 +271,7 @@ export const generatePLStatementPDF = (data: PLStatementPdfData) => {
   }
 
   const docDefinition: any = {
+    defaultStyle: { font: PDF_FONT },
     pageOrientation: 'portrait',
     pageMargins: [40, 60, 40, 60],
     content,
@@ -258,6 +284,7 @@ export const generatePLStatementPDF = (data: PLStatementPdfData) => {
       sectionTitle: { fontSize: 13, bold: true },
       tableHeader: { fontSize: 11, bold: true, fillColor: '#eef2ff', margin: [4, 6, 4, 6] },
       tableValue: { fontSize: 11, margin: [4, 5, 4, 5] },
+      subValue: { fontSize: 9, color: '#555555', margin: [4, 3, 4, 3] },
       smallValue: { fontSize: 9, margin: [3, 3, 3, 3] },
       hint: { fontSize: 9, color: '#666666' },
       note: { fontSize: 9, color: '#8a6d3b', italics: true },

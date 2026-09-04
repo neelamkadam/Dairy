@@ -1,9 +1,5 @@
 import pdfMake from "pdfmake/build/pdfmake";
-import pdfFonts from "pdfmake/build/vfs_fonts";
-
-if (pdfMake.vfs === undefined) {
-  pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts;
-}
+import { PDF_FONT } from "@/utils/pdfMakeFonts";
 
 export const generateVlcCommissionReportPDF = (
   reportData: any[],
@@ -44,6 +40,7 @@ export const generateVlcCommissionReportPDF = (
   ];
 
   const docDefinition: any = {
+    defaultStyle: { font: PDF_FONT },
     pageOrientation: "portrait",
     pageMargins: [40, 60, 40, 60],
     content: [

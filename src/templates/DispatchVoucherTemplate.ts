@@ -1,29 +1,5 @@
 import pdfMake from "pdfmake/build/pdfmake";
-import pdfFonts from "pdfmake/build/vfs_fonts";
-import { NotoSansDevanagariRegular } from "@/assets/fonts/notoSansDevanagari";
-
-if (pdfMake.vfs === undefined) {
-  pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts;
-}
-
-// Register Noto Sans Devanagari for Marathi / Hindi text support
-pdfMake.vfs["NotoSansDevanagari-Regular.ttf"] = NotoSansDevanagariRegular;
-pdfMake.fonts = {
-  // Keep Roboto for fallback
-  Roboto: {
-    normal: "Roboto-Regular.ttf",
-    bold: "Roboto-Medium.ttf",
-    italics: "Roboto-Italic.ttf",
-    bolditalics: "Roboto-MediumItalic.ttf",
-  },
-  // Devanagari-capable font
-  NotoSansDevanagari: {
-    normal: "NotoSansDevanagari-Regular.ttf",
-    bold: "NotoSansDevanagari-Regular.ttf",
-    italics: "NotoSansDevanagari-Regular.ttf",
-    bolditalics: "NotoSansDevanagari-Regular.ttf",
-  },
-};
+import { PDF_FONT } from "@/utils/pdfMakeFonts";
 
 export interface DispatchVoucherData {
   voucherNo?: string | number;
@@ -48,7 +24,9 @@ export interface DispatchVoucherData {
   commissionPerLiter: number;
   totalAmount: number;
   alteration: boolean;
-  adulterant?: string | null;
+  /** Every adulterant tested, true = positive (found), false = negative (absent).
+   *  All of them are printed, so a clean load carries proof it was tested. */
+  adulterants?: Record<string, boolean>;
   seals?: string[];          // Optional seal numbers
 }
 
@@ -116,13 +94,13 @@ const amountInWords = (value: number) => {
 const labelCell = (text: string) => ({
   text,
   style: "fieldLabel",
-  margin: [8, 5, 4, 5],
+  margin: [8, 4, 4, 4],
 });
 
 const valueCell = (text: string) => ({
   text: text || "-",
   style: "fieldValue",
-  margin: [0, 4, 8, 4],
+  margin: [0, 3, 8, 3],
 });
 
 const boxLayout = {
@@ -143,12 +121,41 @@ const gridLayout = {
   vLineColor: () => "#e2e8f0",
 };
 
+const ADULTERANT_ORDER = ["sugar", "salt", "urea", "maltose", "soda", "starch"];
+
 const buildVoucher = (data: DispatchVoucherData, copyLabel: string) => {
-  const adulterationText = data.alteration
-    ? data.adulterant
-      ? `FOUND — ${data.adulterant.charAt(0).toUpperCase()}${data.adulterant.slice(1)}`
-      : "FOUND"
-    : "NOT FOUND";
+  const results = data.adulterants ?? {};
+  const testedAdulterants = ADULTERANT_ORDER.filter((a) => a in results).length
+    ? ADULTERANT_ORDER.filter((a) => a in results)
+    : ADULTERANT_ORDER;
+
+  // Header row of names over a row of POSITIVE/NEGATIVE, so the voucher records
+  // the full test panel rather than only what was found.
+  const adulterationTable = {
+    table: {
+      widths: testedAdulterants.map(() => "*"),
+      body: [
+        testedAdulterants.map((a) => ({
+          text: a.charAt(0).toUpperCase() + a.slice(1),
+          fontSize: 7,
+          bold: true,
+          color: "#475569",
+          alignment: "center",
+          margin: [0, 2, 0, 2],
+        })),
+        testedAdulterants.map((a) => ({
+          text: results[a] ? "POSITIVE" : "NEGATIVE",
+          fontSize: 7,
+          bold: true,
+          color: results[a] ? "#b91c1c" : "#047857",
+          alignment: "center",
+          margin: [0, 2, 0, 2],
+        })),
+      ],
+    },
+    layout: gridLayout,
+    margin: [10, 2, 10, 6],
+  };
 
   return {
     table: {
@@ -178,7 +185,7 @@ const buildVoucher = (data: DispatchVoucherData, copyLabel: string) => {
                     ],
                   },
                 ],
-                margin: [10, 10, 10, 10],
+                margin: [10, 8, 10, 8],
               },
 
               // Meta strip
@@ -200,8 +207,8 @@ const buildVoucher = (data: DispatchVoucherData, copyLabel: string) => {
                   fillColor: () => "#f1f5f9",
                   paddingLeft: () => 10,
                   paddingRight: () => 10,
-                  paddingTop: () => 5,
-                  paddingBottom: () => 5,
+                  paddingTop: () => 4,
+                  paddingBottom: () => 4,
                 },
               },
 
@@ -296,20 +303,21 @@ const buildVoucher = (data: DispatchVoucherData, copyLabel: string) => {
                   { text: "Amount in words: ", style: "fieldLabel" },
                   { text: amountInWords(data.totalAmount), style: "wordsValue" },
                 ],
-                margin: [10, 7, 10, 3],
+                margin: [10, 5, 10, 2],
               },
               {
                 text: [
                   { text: "Adulteration: ", style: "fieldLabel" },
                   {
-                    text: adulterationText,
+                    text: data.alteration ? "FOUND" : "NOT FOUND",
                     bold: true,
                     fontSize: 8.5,
                     color: data.alteration ? "#b91c1c" : "#047857",
                   },
                 ],
-                margin: [10, 0, 10, 10],
+                margin: [10, 0, 10, 3],
               },
+              adulterationTable,
 
               // Signatures
               {
@@ -318,12 +326,12 @@ const buildVoucher = (data: DispatchVoucherData, copyLabel: string) => {
                   { text: "Incharge Signatory", style: "signature", alignment: "center" },
                   { text: "Authorised Signatory", style: "signature", alignment: "right" },
                 ],
-                margin: [10, 20, 10, 6],
+                margin: [10, 10, 10, 3],
               },
               {
                 text: "This is a computer generated voucher.",
                 style: "footNote",
-                margin: [10, 0, 10, 8],
+                margin: [10, 0, 10, 6],
               },
             ],
           },
@@ -334,11 +342,13 @@ const buildVoucher = (data: DispatchVoucherData, copyLabel: string) => {
   };
 };
 
-export const generateDispatchVoucherPDF = (data: DispatchVoucherData) => {
-  const docDefinition: any = {
+/** Both copies must fit one A4 page, so heights here are deliberately tight.
+ *  Exported separately from the download so the page count can be measured. */
+export const buildDispatchVoucherDoc = (data: DispatchVoucherData): any => {
+  return {
     pageSize: "A4",
     pageOrientation: "portrait",
-    pageMargins: [28, 26, 28, 26],
+    pageMargins: [26, 18, 26, 18],
     content: [
       buildVoucher(data, "OFFICE COPY"),
       {
@@ -354,27 +364,32 @@ export const generateDispatchVoucherPDF = (data: DispatchVoucherData) => {
             dash: { length: 4, space: 3 },
           },
         ],
-        margin: [0, 18, 0, 18],
+        margin: [0, 12, 0, 12],
       },
       buildVoucher(data, "DRIVER COPY"),
     ],
-    defaultStyle: { fontSize: 9, color: "#1f2937", font: "NotoSansDevanagari" },
+    defaultStyle: { fontSize: 9, color: "#1f2937", font: PDF_FONT },
     styles: {
-      dairyName: { fontSize: 14, bold: true, color: "#0f172a" },
+      dairyName: { fontSize: 13, bold: true, color: "#0f172a" },
       vlcLine: { fontSize: 9, color: "#64748b", margin: [0, 2, 0, 0] },
       voucherTitle: { fontSize: 11, bold: true, color: "#1d4ed8", alignment: "right" },
       copyLabel: { fontSize: 8, color: "#64748b", alignment: "right", margin: [0, 3, 0, 0] },
       metaCell: { fontSize: 9, bold: true, color: "#334155" },
       fieldLabel: { fontSize: 8, bold: true, color: "#64748b" },
-      fieldValue: { fontSize: 9.5, bold: true, color: "#0f172a" },
-      tableHeader: { fontSize: 8, bold: true, color: "#64748b", alignment: "center", margin: [0, 4, 0, 4] },
-      tableValue: { fontSize: 10, bold: true, color: "#0f172a", alignment: "center", margin: [0, 5, 0, 5] },
-      totalValue: { fontSize: 11, bold: true, color: "#047857", alignment: "center", margin: [0, 5, 0, 5] },
-      wordsValue: { fontSize: 8.5, italics: true, color: "#334155" },
+      fieldValue: { fontSize: 9, bold: true, color: "#0f172a" },
+      tableHeader: { fontSize: 8, bold: true, color: "#64748b", alignment: "center", margin: [0, 3, 0, 3] },
+      tableValue: { fontSize: 9.5, bold: true, color: "#0f172a", alignment: "center", margin: [0, 3, 0, 3] },
+      totalValue: { fontSize: 10.5, bold: true, color: "#047857", alignment: "center", margin: [0, 3, 0, 3] },
+      wordsValue: { fontSize: 8, italics: true, color: "#334155" },
       signature: { fontSize: 8, color: "#64748b" },
       footNote: { fontSize: 7, color: "#94a3b8", alignment: "center" },
     },
   };
+
+};
+
+export const generateDispatchVoucherPDF = (data: DispatchVoucherData) => {
+  const docDefinition = buildDispatchVoucherDoc(data);
 
   const fileName = `Dispatch_Voucher_${data.vlc}_${data.date}${
     data.voucherNo ? `_${data.voucherNo}` : ""

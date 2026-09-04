@@ -1,9 +1,5 @@
 import pdfMake from "pdfmake/build/pdfmake";
-import pdfFonts from "pdfmake/build/vfs_fonts";
-
-if (pdfMake.vfs === undefined) {
-  pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts;
-}
+import { PDF_FONT } from "@/utils/pdfMakeFonts";
 
 export const generateVLCDifferenceReportPDF = (
   reportData: any[],
@@ -193,6 +189,7 @@ export const generateVLCDifferenceReportPDF = (
       },
     },
     defaultStyle: {
+      font: PDF_FONT,
       fontSize: 7,
     },
   };

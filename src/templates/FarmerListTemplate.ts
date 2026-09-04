@@ -1,9 +1,5 @@
 import pdfMake from "pdfmake/build/pdfmake";
-import pdfFonts from "pdfmake/build/vfs_fonts";
-
-if (pdfMake.vfs === undefined) {
-  pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts;
-}
+import { PDF_FONT } from "@/utils/pdfMakeFonts";
 
 export const generateFarmerListPDF = (
   vlcName: string,
@@ -42,6 +38,7 @@ export const generateFarmerListPDF = (
   ];
 
   const docDefinition: any = {
+    defaultStyle: { font: PDF_FONT },
     pageOrientation: "landscape",
     pageMargins: [40, 60, 40, 60],
     content: [

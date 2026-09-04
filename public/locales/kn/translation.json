@@ -1099,5 +1099,16 @@
   "dispatch": "ಡಿಸ್ಪ್ಯಾಚ್",
   "commission": "ಕಮಿಷನ್",
   "purchase": "ಖರೀದಿ",
-  "net": "ನಿವ್ವಳ"
+  "net": "ನಿವ್ವಳ",
+  "collection_qty": "ಸಂಗ್ರಹ ಪ್ರಮಾಣ (ಲೀ)",
+  "collection_cost": "ಸಂಗ್ರಹ ವೆಚ್ಚ",
+  "per_liter_commission": "ಪ್ರತಿ ಲೀಟರ್ ಕಮಿಷನ್",
+  "dispatch_weight": "ಡಿಸ್ಪ್ಯಾಚ್ ತೂಕ",
+  "dispatch_amount": "ಡಿಸ್ಪ್ಯಾಚ್",
+  "positive": "ಪಾಸಿಟಿವ್",
+  "negative": "ನೆಗೆಟಿವ್",
+  "seal_numbers_required": "ಕನಿಷ್ಠ ಒಂದು ಸೀಲ್ ಸಂಖ್ಯೆ ಅಗತ್ಯವಿದೆ",
+  "auto_calculated": "ಸ್ವಯಂ",
+  "comma_separated_seals": "ಅಲ್ಪವಿರಾಮದಿಂದ ಬೇರ್ಪಡಿಸಿ, ಉದಾ. A-1042, A-1043",
+  "adulteration_all_reported": "ಎಲ್ಲಾ ಪರೀಕ್ಷೆಗಳನ್ನು ವೋಚರ್‌ನಲ್ಲಿ ದಾಖಲಿಸಲಾಗುತ್ತದೆ."
 }
