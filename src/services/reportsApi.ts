@@ -73,4 +73,18 @@ export const reportsApi = {
     console.log('📥 Response:', data);
     return data;
   },
+
+  // No milk_type / shift params by design: dispatch_entry has no shift column and its
+  // milk_type is usually 'Both', so revenue cannot be sliced the way cost can.
+  getProfitLossStatement: async (params: {
+    dairy_id: string;
+    from: string;
+    to: string;
+  }) => {
+    const queryString = new URLSearchParams(params as any).toString();
+    console.log('📡 Full API URL:', `${api.defaults.baseURL}/webreports/profit-loss?${queryString}`);
+    const { data } = await api.get('/webreports/profit-loss', { params });
+    console.log('📥 Response:', data);
+    return data;
+  },
 };
