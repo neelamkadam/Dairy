@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Fragment } from 'react';
+import React, { useState, useEffect, useRef, Fragment } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -196,8 +196,42 @@ const FarmerBillInvoiceReport = () => {
   const [editLoading, setEditLoading] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   const [editingFarmerData, setEditingFarmerData] = useState<any>(null);
+  // Effective date of the collection being edited (yyyy-MM-dd) — rate charts are
+  // versioned by effective_date, so the rate must always be resolved against the
+  // day of the collection, never today.
+  const [editEffectiveDate, setEditEffectiveDate] = useState<string>('');
+  const [editCollectionTime, setEditCollectionTime] = useState<string>('');
+  const [rateLoading, setRateLoading] = useState(false);
+  const [rateUnavailable, setRateUnavailable] = useState(false);
+  const rateRequestRef = useRef(0);
+
+  // Pull "HH:mm:ss" out of whatever date shape the API returns, so an update keeps
+  // the original entry time instead of stamping it with the current time.
+  const extractTime = (value: unknown): string => {
+    const raw = String(value ?? '');
+    // ISO timestamps carry a timezone — convert to local before taking the clock time.
+    if (/\d{4}-\d{2}-\d{2}T/.test(raw)) {
+      const parsed = new Date(raw);
+      if (!Number.isNaN(parsed.getTime())) return format(parsed, 'HH:mm:ss');
+    }
+    const match = raw.match(/(\d{2}):(\d{2})(?::(\d{2}))?/);
+    if (!match) return format(new Date(), 'HH:mm:ss');
+    return `${match[1]}:${match[2]}:${match[3] || '00'}`;
+  };
+
+  const resetEditState = () => {
+    setEditCollection(null);
+    setEditingFarmerData(null);
+    setEditEffectiveDate('');
+    setEditCollectionTime('');
+    setEditFormData({ quantity: '', fat: '', snf: '', rate: '', amount: '' });
+    setRateLoading(false);
+    setRateUnavailable(false);
+    rateRequestRef.current += 1;
+  };
 
   const handleEditShift = async (fId: string, dateStr: string, shiftToEdit: 'Morning' | 'Evening', milkType: string) => {
+    resetEditState();
     setEditSheetOpen(true);
     setEditLoading(true);
     try {
@@ -215,11 +249,12 @@ const FarmerBillInvoiceReport = () => {
         return;
       }
 
-      collection.date = response.date
       const farmerInfo = await userApi.getById(fId, Number(selectedVLC));
 
       setEditCollection(collection);
       setEditingFarmerData(farmerInfo);
+      setEditEffectiveDate(apiDate);
+      setEditCollectionTime(extractTime(collection.date || collection.created_at || response.date));
       setEditFormData({
         quantity: collection.quantity?.toString() || collection.qty?.toString() || '',
         fat: collection.fat?.toString() || '',
@@ -243,12 +278,22 @@ const FarmerBillInvoiceReport = () => {
       return;
     }
 
+    if (rateLoading) {
+      toast.error(t('please_wait_fetching_rate'));
+      return;
+    }
+
+    const rate = parseFloat(editFormData.rate);
+    if (!editFormData.rate || Number.isNaN(rate)) {
+      toast.error(t('rate_not_available_for_fat_snf'));
+      return;
+    }
+
     setEditSaving(true);
     try {
       const qty = parseFloat(editFormData.quantity);
       const fat = parseFloat(editFormData.fat);
       const snf = parseFloat(editFormData.snf);
-      const rate = parseFloat(editFormData.rate);
       const amt = qty * rate;
       const clr = calculateCLRFromFatAndSNF(fat.toString(), snf.toString());
 
@@ -262,12 +307,14 @@ const FarmerBillInvoiceReport = () => {
         clr: parseFloat(clr || '0'),
         rate,
         amount: amt,
-        date: editCollection.date
+        // Keep the collection on its own day — never re-stamp it with today.
+        date: `${editEffectiveDate} ${editCollectionTime}`
       };
 
       await collectionApi.update(editCollection.id, payload);
       toast.success(t('collection_updated_successfully'));
       setEditSheetOpen(false);
+      resetEditState();
       handleShow();
     } catch (error) {
       console.error(error);
@@ -277,41 +324,75 @@ const FarmerBillInvoiceReport = () => {
     }
   };
 
+  // Rate is fully derived: any change to FAT/SNF (or the collection's effective date)
+  // blanks it immediately, shows a loader, and refetches on a debounce. Save stays
+  // disabled until a rate comes back.
   useEffect(() => {
-    const timer = setTimeout(async () => {
-      if (editSheetOpen && editFormData.fat && editFormData.snf && editingFarmerData?.rateChart && editCollection) {
-        try {
-          let apiDate = editCollection.date;
-          if (apiDate && apiDate.includes('T')) apiDate = apiDate.split('T')[0];
+    if (!editSheetOpen || !editCollection) return;
 
-          const dateStr = format(new Date(), 'yyyy-MM-dd');
-          const response = await rateChartApi.getRate(
-            parseFloat(editFormData.fat),
-            parseFloat(editFormData.snf),
-            Number(selectedVLC),
-            editingFarmerData.rateChart,
-            editCollection.type || editCollection.milkType || 'Cow',
-            dateStr,
-            editCollection.shift
-          );
-          if (response?.price) {
-            const price = parseFloat(response.price);
-            const qty = parseFloat(editFormData.quantity) || 0;
-            setEditFormData(prev => ({
-              ...prev,
-              rate: price.toString(),
-              amount: (qty * price).toFixed(2)
-            }));
-          } else {
-            setEditFormData(prev => ({ ...prev, rate: '0.00', amount: '0.00' }));
-          }
-        } catch (error) {
-          console.error(error);
+    const fat = editFormData.fat;
+    const snf = editFormData.snf;
+    const requestId = rateRequestRef.current + 1;
+    rateRequestRef.current = requestId;
+
+    setEditFormData(prev => (prev.rate === '' ? prev : { ...prev, rate: '' }));
+    setRateUnavailable(false);
+
+    if (!fat || !snf || !editingFarmerData?.rateChart || !editEffectiveDate) {
+      setRateLoading(false);
+      return;
+    }
+
+    setRateLoading(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        const response = await rateChartApi.getRate(
+          parseFloat(fat),
+          parseFloat(snf),
+          Number(selectedVLC),
+          editingFarmerData.rateChart,
+          editCollection.type || editCollection.milkType || 'Cow',
+          editEffectiveDate,
+          editCollection.shift
+        );
+
+        // Ignore a response that a newer keystroke has already superseded.
+        if (rateRequestRef.current !== requestId) return;
+
+        const price = parseFloat(response?.price);
+        if (response?.price !== undefined && response?.price !== null && !Number.isNaN(price)) {
+          setEditFormData(prev => ({ ...prev, rate: price.toString() }));
+        } else {
+          setRateUnavailable(true);
         }
+      } catch (error) {
+        console.error(error);
+        if (rateRequestRef.current !== requestId) return;
+        setRateUnavailable(true);
+      } finally {
+        if (rateRequestRef.current === requestId) setRateLoading(false);
       }
-    }, 500);
+    }, 400);
+
     return () => clearTimeout(timer);
-  }, [editFormData.fat, editFormData.snf, editFormData.quantity, editingFarmerData, editSheetOpen, editCollection, selectedVLC]);
+  }, [
+    editSheetOpen,
+    editFormData.fat,
+    editFormData.snf,
+    editingFarmerData,
+    editEffectiveDate,
+    editCollection,
+    selectedVLC
+  ]);
+
+  // Amount follows quantity × rate without touching the rate lookup.
+  useEffect(() => {
+    const qty = parseFloat(editFormData.quantity);
+    const rate = parseFloat(editFormData.rate);
+    const amount = Number.isNaN(qty) || Number.isNaN(rate) ? '' : (qty * rate).toFixed(2);
+    setEditFormData(prev => (prev.amount === amount ? prev : { ...prev, amount }));
+  }, [editFormData.quantity, editFormData.rate]);
 
   const [milkTypeFilter, setMilkTypeFilter] = useState<'All' | 'Cow' | 'Buffalo'>('All');
 
@@ -1638,7 +1719,13 @@ const FarmerBillInvoiceReport = () => {
         );
       })()}
 
-      <Sheet open={editSheetOpen} onOpenChange={setEditSheetOpen}>
+      <Sheet
+        open={editSheetOpen}
+        onOpenChange={(open) => {
+          setEditSheetOpen(open);
+          if (!open) resetEditState();
+        }}
+      >
         <SheetContent className="bg-white z-[100] sm:max-w-md w-full overflow-y-auto" side="right">
           <SheetHeader className="border-b border-gray-100 pb-4">
             <div className="flex items-center gap-3">
@@ -1665,14 +1752,25 @@ const FarmerBillInvoiceReport = () => {
                   </span>
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">
                   {editCollection?.shift} Shift
                 </span>
                 <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
                   {editCollection?.type || editCollection?.milkType} Milk
                 </span>
+                {editEffectiveDate && (
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100">
+                    {format(new Date(editEffectiveDate), 'dd-MM-yyyy')}
+                  </span>
+                )}
               </div>
+              {editEffectiveDate && (
+                <p className="text-xs text-gray-500">
+                  Rate is resolved from the rate chart effective on{' '}
+                  <span className="font-semibold text-gray-700">{format(new Date(editEffectiveDate), 'dd-MM-yyyy')}</span>.
+                </p>
+              )}
             </div>
           </SheetHeader>
           <div className="space-y-6">
@@ -1730,9 +1828,19 @@ const FarmerBillInvoiceReport = () => {
                         type="number"
                         value={editFormData.rate}
                         disabled
-                        className="pl-8 py-2 bg-gray-100/70 border-gray-200 text-gray-600 font-medium rounded-lg cursor-not-allowed"
+                        placeholder={rateLoading ? '' : '—'}
+                        className="pl-8 pr-9 py-2 bg-gray-100/70 border-gray-200 text-gray-600 font-medium rounded-lg cursor-not-allowed"
                       />
+                      {rateLoading && (
+                        <Loader2 className="w-4 h-4 animate-spin text-blue-600 absolute right-3 top-3" />
+                      )}
                     </div>
+                    {rateLoading && (
+                      <p className="text-xs text-blue-600">Fetching rate…</p>
+                    )}
+                    {!rateLoading && rateUnavailable && (
+                      <p className="text-xs text-red-600">No rate for this FAT/SNF on this date.</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-500">Amount</Label>
@@ -1750,16 +1858,23 @@ const FarmerBillInvoiceReport = () => {
 
                 <div className="pt-2">
                   <Button
-                    className="w-full py-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-base rounded-xl transition-colors shadow-sm"
+                    className="w-full py-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-base rounded-xl transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                     onClick={handleSaveEdit}
-                    disabled={editSaving}
+                    disabled={
+                      editSaving ||
+                      rateLoading ||
+                      !editFormData.rate ||
+                      !editFormData.quantity ||
+                      !editFormData.fat ||
+                      !editFormData.snf
+                    }
                   >
-                    {editSaving ? (
+                    {editSaving || rateLoading ? (
                       <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                     ) : (
                       <Pencil className="w-5 h-5 mr-2" />
                     )}
-                    {editSaving ? 'Saving...' : 'Save Changes'}
+                    {editSaving ? 'Saving...' : rateLoading ? 'Fetching rate…' : 'Save Changes'}
                   </Button>
                 </div>
               </div>

@@ -1031,15 +1031,8 @@
   "select_vlc_first": "कृपया पहले एक वीएलसी चुनें",
   "code_name_required": "कोड और नाम आवश्यक हैं",
   "dispatch_time": "समय",
-  "dispatch_date": "प्रेषण तिथि",
-  "liter": "लीटर",
   "acidity": "अम्लता",
   "temperature": "तापमान",
-  "milk_type": "दूध का प्रकार",
-  "select_milk_type": "दूध का प्रकार चुनें",
-  "cow": "गाय",
-  "buffalo": "भैंस",
-  "both": "दोनों",
   "adulteration": "मिलावट",
   "adulteration_desc": "यदि मिलावट का पता चला है तो टॉगल करें",
   "adulterant_found": "मिलावटी पदार्थ मिला",
@@ -1053,5 +1046,7 @@
   "select_one_adulterant": "मिलावट चालू होने पर कृपया एक मिलावट का चयन करें",
   "dispatch_entry_created": "प्रेषण प्रविष्टि सफलतापूर्वक बनाई गई",
   "failed_create_dispatch": "प्रेषण प्रविष्टि बनाने में विफल",
-  "all_fields_required": "सभी फ़ील्ड आवश्यक हैं"
+  "all_fields_required": "सभी फ़ील्ड आवश्यक हैं",
+  "please_wait_fetching_rate": "कृपया प्रतीक्षा करें, दर प्राप्त की जा रही है...",
+  "rate_not_available_for_fat_snf": "इस तारीख को इस FAT/SNF के लिए दर उपलब्ध नहीं है"
 }
