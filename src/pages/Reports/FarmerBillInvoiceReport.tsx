@@ -764,6 +764,14 @@ const FarmerBillInvoiceReport = () => {
 
   const exportToPDF = async (templateFn: typeof generateTemplate2 = generateTemplate2) => {
     setPdfLoading(true);
+
+    // Format 5 (Milk Bill) is drawn at full page width and exactly 75% of the page
+    // height, so the bottom 25% of every farmer's page stays empty below the table.
+    // Other formats keep their existing aspect-ratio placement.
+    const A4_WIDTH = 210, A4_HEIGHT = 297;
+    const isMilkBill = templateFn === generateTemplate5MilkBill;
+    const milkBillHeight = A4_HEIGHT * 0.75;
+
     try {
       const selectedBranch = branches.find(v => v.branch_id.toString() === selectedVLC);
       const dairyName = selectedBranch?.name || 'Dairy';
@@ -961,7 +969,11 @@ const FarmerBillInvoiceReport = () => {
           const page = await generatePage(htmlContent);
 
           if (i > 0) pdf.addPage();
-          pdf.addImage(page.imgData, 'JPEG', 0, 0, page.imgWidth, page.imgHeight);
+          if (isMilkBill) {
+            pdf.addImage(page.imgData, 'JPEG', 0, 0, A4_WIDTH, milkBillHeight);
+          } else {
+            pdf.addImage(page.imgData, 'JPEG', 0, 0, page.imgWidth, page.imgHeight);
+          }
         }
 
         // Save in batches to avoid memory issues

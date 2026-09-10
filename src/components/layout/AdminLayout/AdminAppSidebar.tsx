@@ -3,7 +3,7 @@ import {
   ChevronDown, Menu, X,
   LayoutDashboard, Building2, Settings,
   ShieldAlert, UserCheck, Smartphone,
-  Monitor, ShieldCheck, Dot, FileText
+  Monitor, ShieldCheck, Dot, FileText, Ban
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -68,6 +68,13 @@ const getMenuItems = (t: any): MenuItem[] => [
     title: t('quotation_maker', 'Quotation Maker'),
     icon: <FileText size={20} className="stroke-[1.5]" />,
     href: ROUTES.QUOTATION
+  },
+  {
+    title: t('block_number', 'Block Number'),
+    icon: <Ban size={20} className="stroke-[1.5]" />,
+    children: [
+      { title: t('blocked_numbers', 'Blocked Numbers'), icon: <Dot size={24} />, href: ROUTES.BLOCKED_NUMBERS }
+    ]
   }
 ];
 

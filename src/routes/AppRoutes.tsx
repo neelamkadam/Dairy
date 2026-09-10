@@ -37,6 +37,7 @@ import Dashboard from "@/pages/Dashboard/Dashboard";
 import { AddFarmer } from "@/pages/Master/AddFarmer";
 import AddRateChart from "@/pages/Master/AddRateChart";
 import Bonus from "@/pages/Master/Bonus";
+import OtherExpense from "@/pages/Master/OtherExpense";
 import CreateRoute from "@/pages/Master/CreateRoute";
 import CreateBMC from "@/pages/Master/CreateBMC";
 import CreateCC from "@/pages/Master/CreateCC";
@@ -79,6 +80,7 @@ import FarmerPayment from "@/pages/Payment/FarmerPayment";
 import Attendance from "@/pages/Attendance/Attendance";
 import Supervisor from "@/pages/Attendance/Supervisor";
 import QuotationMaker from "@/pages/AdminMaster/QuotationMaker";
+import BlockedNumbers from "@/pages/AdminMaster/BlockedNumbers";
 import ErrorPage from "@/pages/ErrorPage";
 import { createBrowserRouter } from "react-router-dom";
 
@@ -172,6 +174,10 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "bonus",
         element: <Bonus />,
+      },
+      {
+        path: "other-expense",
+        element: <OtherExpense />,
       },
       {
         path: "create-route",
@@ -423,6 +429,10 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "quotation-maker",
         element: <QuotationMaker />,
+      },
+      {
+        path: "blocked-numbers",
+        element: <BlockedNumbers />,
       },
     ],
   },

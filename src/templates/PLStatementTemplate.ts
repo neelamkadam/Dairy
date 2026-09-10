@@ -1,6 +1,6 @@
 import pdfMake from "pdfmake/build/pdfmake";
 import { PDF_FONT } from "@/utils/pdfMakeFonts";
-import type { PLLine, PLDailyRow, PLPeriodCharge } from "@/utils/plStatement";
+import type { PLLine, PLDailyRow, PLPeriodCharge, PLFarmerRow } from "@/utils/plStatement";
 
 export interface PLStatementPdfData {
   vlcName: string;
@@ -9,6 +9,9 @@ export interface PLStatementPdfData {
   toDate: string;
   income: PLLine[];
   expenses: PLLine[];
+  otherExpenses: PLLine[];
+  otherExpensesTotal: number;
+  grossProfit: number;
   totalIncome: number;
   totalExpenses: number;
   netProfit: number;
@@ -16,9 +19,12 @@ export interface PLStatementPdfData {
   marginPercent: number;
   netPerLiterCollected: number;
   fixedCommissionTotal: number;
+  vlcWideFixedTotal: number;
   periodCharges: PLPeriodCharge[];
+  farmers: PLFarmerRow[];
   daily: PLDailyRow[];
   collectionsWithoutCommission: number;
+  warnings: string[];
 }
 
 const money = (value: number) =>
@@ -34,6 +40,14 @@ const formatDate = (dateStr: string) => {
   const months = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
   return `${date.getDate()} - ${months[date.getMonth()]} - ${date.getFullYear()}`;
+};
+
+/** "farmer wise / per liter @ 2" — which rule produced this farmer's commission. */
+const commissionRule = (row: PLFarmerRow) => {
+  const parts = [(row.commissionSource || '-').replace(/_/g, ' ')];
+  if (row.commissionType) parts.push(`/ ${row.commissionType.replace(/_/g, ' ')}`);
+  if (row.ratesApplied.length) parts.push(`@ ${row.ratesApplied.join(', ')}`);
+  return parts.join(' ');
 };
 
 const sectionRows = (lines: PLLine[], emptyLabel: string) => {
@@ -68,9 +82,10 @@ const sectionRows = (lines: PLLine[], emptyLabel: string) => {
 export const generatePLStatementPDF = (data: PLStatementPdfData) => {
   const {
     vlcName, dairyName, fromDate, toDate,
-    income, expenses, totalIncome, totalExpenses,
+    income, expenses, otherExpenses, otherExpensesTotal, grossProfit, totalIncome, totalExpenses,
     netProfit, status, marginPercent, netPerLiterCollected,
-    fixedCommissionTotal, periodCharges, daily, collectionsWithoutCommission,
+    fixedCommissionTotal, vlcWideFixedTotal, periodCharges, farmers, daily,
+    collectionsWithoutCommission, warnings,
   } = data;
 
   const isProfit = netProfit >= 0;
@@ -103,12 +118,30 @@ export const generatePLStatementPDF = (data: PLStatementPdfData) => {
         widths: ['*', 120],
         body: [
           [
-            { text: 'Income', style: 'tableHeader' },
+            { text: 'Milk Purchase', style: 'tableHeader' },
             { text: 'Amount (Rs.)', style: 'tableHeader', alignment: 'right' },
           ],
-          ...sectionRows(income, 'No income recorded for this period'),
+          ...sectionRows(expenses, 'No milk purchase recorded for this period'),
           [
-            { text: 'Total Income', style: 'totalLabel' },
+            { text: 'Total Milk Purchase', style: 'totalLabel' },
+            { text: money(totalExpenses), style: 'totalValue', alignment: 'right' },
+          ],
+        ],
+      },
+      margin: [0, 0, 0, 20],
+    },
+    {
+      table: {
+        headerRows: 1,
+        widths: ['*', 120],
+        body: [
+          [
+            { text: 'Milk Sale', style: 'tableHeader' },
+            { text: 'Amount (Rs.)', style: 'tableHeader', alignment: 'right' },
+          ],
+          ...sectionRows(income, 'No milk sale recorded for this period'),
+          [
+            { text: 'Total Milk Sale', style: 'totalLabel' },
             { text: money(totalIncome), style: 'totalValue', alignment: 'right' },
           ],
         ],
@@ -121,13 +154,13 @@ export const generatePLStatementPDF = (data: PLStatementPdfData) => {
         widths: ['*', 120],
         body: [
           [
-            { text: 'Expenses', style: 'tableHeader' },
+            { text: 'Other Expenses', style: 'tableHeader' },
             { text: 'Amount (Rs.)', style: 'tableHeader', alignment: 'right' },
           ],
-          ...sectionRows(expenses, 'No expenses recorded for this period'),
+          ...sectionRows(otherExpenses, 'No other expenses recorded for this period'),
           [
-            { text: 'Total Expenses', style: 'totalLabel' },
-            { text: money(totalExpenses), style: 'totalValue', alignment: 'right' },
+            { text: 'Total Other Expenses', style: 'totalLabel' },
+            { text: money(otherExpensesTotal), style: 'totalValue', alignment: 'right' },
           ],
         ],
       },
@@ -137,6 +170,22 @@ export const generatePLStatementPDF = (data: PLStatementPdfData) => {
       table: {
         widths: ['*', 120],
         body: [
+          [
+            { text: 'Total Milk Sale', style: 'tableValue' },
+            { text: money(totalIncome), style: 'tableValue', alignment: 'right' },
+          ],
+          [
+            { text: 'Less: Milk Purchase', style: 'tableValue' },
+            { text: money(-totalExpenses), style: 'tableValue', alignment: 'right' },
+          ],
+          [
+            { text: 'Gross Profit', style: 'totalLabel' },
+            { text: money(grossProfit), style: 'totalValue', alignment: 'right' },
+          ],
+          [
+            { text: 'Less: Other Expenses', style: 'tableValue' },
+            { text: money(-otherExpensesTotal), style: 'tableValue', alignment: 'right' },
+          ],
           [
             { text: isProfit ? 'Net Profit' : 'Net Loss', style: 'netLabel' },
             { text: money(netProfit), style: 'netValue', alignment: 'right' },
@@ -159,6 +208,14 @@ export const generatePLStatementPDF = (data: PLStatementPdfData) => {
     },
   ];
 
+  if (warnings.length) {
+    content.push({
+      text: `Warnings: ${warnings.join(' | ')}`,
+      style: 'note',
+      margin: [0, 0, 0, 12],
+    });
+  }
+
   if (collectionsWithoutCommission > 0) {
     content.push({
       text: `Note: ${collectionsWithoutCommission} collection(s) predate every configured effective date and earn zero commission. The Tally API back-dates onto the oldest entry instead, so small commission differences between the two are expected.`,
@@ -169,12 +226,12 @@ export const generatePLStatementPDF = (data: PLStatementPdfData) => {
 
   if (periodCharges.length) {
     content.push({
-      text: 'Period Charges (Fixed)',
+      text: 'Period Charges (VLC-wide Fixed)',
       style: 'sectionTitle',
       margin: [0, 0, 0, 4],
     });
     content.push({
-      text: 'Charged once per commission entry for the whole range — not once globally.',
+      text: 'Charged once for the whole range — not once per day.',
       style: 'hint',
       margin: [0, 0, 0, 8],
     });
@@ -196,7 +253,69 @@ export const generatePLStatementPDF = (data: PLStatementPdfData) => {
           [
             { text: 'Total Fixed Charges', style: 'totalLabel', colSpan: 2 },
             {},
-            { text: money(fixedCommissionTotal), style: 'totalValue', alignment: 'right' },
+            { text: money(vlcWideFixedTotal), style: 'totalValue', alignment: 'right' },
+          ],
+        ],
+      },
+      margin: [0, 0, 0, 20],
+    });
+  }
+
+  if (farmers.length) {
+    content.push({
+      text: 'Farmer-wise Cost',
+      style: 'sectionTitle',
+      margin: [0, 0, 0, 4],
+    });
+    content.push({
+      text: 'Purchase amount plus the purchase commission rule applied to each farmer.',
+      style: 'hint',
+      margin: [0, 0, 0, 8],
+    });
+    const farmerTotals = farmers.reduce(
+      (acc, row) => ({
+        quantity: acc.quantity + row.quantity,
+        purchaseAmount: acc.purchaseAmount + row.purchaseAmount,
+        commissionTotal: acc.commissionTotal + row.commissionTotal,
+        totalCost: acc.totalCost + row.totalCost,
+      }),
+      { quantity: 0, purchaseAmount: 0, commissionTotal: 0, totalCost: 0 }
+    );
+
+    content.push({
+      table: {
+        headerRows: 1,
+        widths: [36, '*', 30, 50, 62, 78, 56, 62],
+        body: [
+          [
+            { text: 'Code', style: 'tableHeader' },
+            { text: 'Farmer Name', style: 'tableHeader' },
+            { text: 'Ent.', style: 'tableHeader', alignment: 'right' },
+            { text: 'Qty (L)', style: 'tableHeader', alignment: 'right' },
+            { text: 'Purchase', style: 'tableHeader', alignment: 'right' },
+            { text: 'Comm. Rule', style: 'tableHeader' },
+            { text: 'Comm.', style: 'tableHeader', alignment: 'right' },
+            { text: 'Total Cost', style: 'tableHeader', alignment: 'right' },
+          ],
+          ...farmers.map((row) => ([
+            { text: row.farmerId || '-', style: 'smallValue' },
+            { text: row.farmerName || '-', style: 'smallValue' },
+            { text: String(row.entries), style: 'smallValue', alignment: 'right' },
+            { text: row.quantity.toFixed(2), style: 'smallValue', alignment: 'right' },
+            { text: money(row.purchaseAmount), style: 'smallValue', alignment: 'right' },
+            { text: commissionRule(row), style: 'smallValue' },
+            { text: money(row.commissionTotal), style: 'smallValue', alignment: 'right' },
+            { text: money(row.totalCost), style: 'smallValue', alignment: 'right' },
+          ])),
+          [
+            { text: 'Total', style: 'totalLabel', colSpan: 3 },
+            {},
+            {},
+            { text: farmerTotals.quantity.toFixed(2), style: 'totalValue', alignment: 'right' },
+            { text: money(farmerTotals.purchaseAmount), style: 'totalValue', alignment: 'right' },
+            { text: '', style: 'totalValue' },
+            { text: money(farmerTotals.commissionTotal), style: 'totalValue', alignment: 'right' },
+            { text: money(farmerTotals.totalCost), style: 'totalValue', alignment: 'right' },
           ],
         ],
       },
@@ -212,7 +331,7 @@ export const generatePLStatementPDF = (data: PLStatementPdfData) => {
       margin: [0, 0, 0, 4],
     });
     content.push({
-      text: 'Excludes fixed period charges — a flat range fee belongs to no single day.',
+      text: 'Excludes fixed purchase commission — a flat range fee belongs to no single day.',
       style: 'hint',
       margin: [0, 0, 0, 8],
     });
@@ -220,44 +339,43 @@ export const generatePLStatementPDF = (data: PLStatementPdfData) => {
       (acc, row) => ({
         collectionQuantity: acc.collectionQuantity + row.collectionQuantity,
         collectionCost: acc.collectionCost + row.collectionCost,
-        perLiterCommission: acc.perLiterCommission + row.perLiterCommission,
-        dispatch: acc.dispatch + row.dispatchBaseAmount + row.dispatchCommission,
+        purchaseCommission: acc.purchaseCommission + row.purchaseCommission,
         income: acc.income + row.income,
-        expense: acc.expense + row.expense,
+        otherExpenses: acc.otherExpenses + row.otherExpenses,
       }),
-      { collectionQuantity: 0, collectionCost: 0, perLiterCommission: 0, dispatch: 0, income: 0, expense: 0 }
+      { collectionQuantity: 0, collectionCost: 0, purchaseCommission: 0, income: 0, otherExpenses: 0 }
     );
 
     content.push({
       table: {
         headerRows: 1,
-        widths: ['*', 48, 58, 55, 55, 58, 58],
+        widths: ['*', 50, 64, 64, 64, 60, 64],
         body: [
           [
             { text: 'Date', style: 'tableHeader' },
             { text: 'Qty (L)', style: 'tableHeader', alignment: 'right' },
             { text: 'Coll. Cost', style: 'tableHeader', alignment: 'right' },
-            { text: 'Comm.', style: 'tableHeader', alignment: 'right' },
-            { text: 'Dispatch', style: 'tableHeader', alignment: 'right' },
-            { text: 'Income', style: 'tableHeader', alignment: 'right' },
+            { text: 'Purch. Comm.', style: 'tableHeader', alignment: 'right' },
+            { text: 'Milk Sale', style: 'tableHeader', alignment: 'right' },
+            { text: 'Other Exp.', style: 'tableHeader', alignment: 'right' },
             { text: 'Net', style: 'tableHeader', alignment: 'right' },
           ],
           ...daily.map((row) => ([
             { text: row.date, style: 'smallValue' },
             { text: row.collectionQuantity.toFixed(2), style: 'smallValue', alignment: 'right' },
             { text: money(row.collectionCost), style: 'smallValue', alignment: 'right' },
-            { text: money(row.perLiterCommission), style: 'smallValue', alignment: 'right' },
-            { text: money(row.dispatchBaseAmount + row.dispatchCommission), style: 'smallValue', alignment: 'right' },
+            { text: money(row.purchaseCommission), style: 'smallValue', alignment: 'right' },
             { text: money(row.income), style: 'smallValue', alignment: 'right' },
+            { text: money(row.otherExpenses), style: 'smallValue', alignment: 'right' },
             { text: money(row.net), style: 'smallValue', alignment: 'right' },
           ])),
           [
             { text: 'Total', style: 'totalLabel' },
             { text: dailyTotals.collectionQuantity.toFixed(2), style: 'totalValue', alignment: 'right' },
             { text: money(dailyTotals.collectionCost), style: 'totalValue', alignment: 'right' },
-            { text: money(dailyTotals.perLiterCommission), style: 'totalValue', alignment: 'right' },
-            { text: money(dailyTotals.dispatch), style: 'totalValue', alignment: 'right' },
+            { text: money(dailyTotals.purchaseCommission), style: 'totalValue', alignment: 'right' },
             { text: money(dailyTotals.income), style: 'totalValue', alignment: 'right' },
+            { text: money(dailyTotals.otherExpenses), style: 'totalValue', alignment: 'right' },
             { text: money(dailyNetSum), style: 'totalValue', alignment: 'right' },
           ],
         ],
@@ -265,7 +383,8 @@ export const generatePLStatementPDF = (data: PLStatementPdfData) => {
       margin: [0, 0, 0, 8],
     });
     content.push({
-      text: `Sum of daily net = Net Profit - Total Fixed Charges = ${money(netProfit - fixedCommissionTotal)}`,
+      text: 'Sum of daily net = Net Profit + Fixed Purchase Commission = ' +
+        money(netProfit + fixedCommissionTotal),
       style: 'hint',
     });
   }

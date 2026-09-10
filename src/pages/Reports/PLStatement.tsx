@@ -18,6 +18,7 @@ import {
   Info,
   AlertTriangle,
   Loader2,
+  Receipt,
 } from "lucide-react";
 
 import {
@@ -179,41 +180,60 @@ const PLStatement = () => {
     (acc, row) => ({
       collectionQuantity: acc.collectionQuantity + row.collectionQuantity,
       collectionCost: acc.collectionCost + row.collectionCost,
-      perLiterCommission: acc.perLiterCommission + row.perLiterCommission,
+      purchaseCommission: acc.purchaseCommission + row.purchaseCommission,
       dispatchWeight: acc.dispatchWeight + row.dispatchWeight,
-      dispatch: acc.dispatch + row.dispatchBaseAmount + row.dispatchCommission,
       income: acc.income + row.income,
       expense: acc.expense + row.expense,
+      otherExpenses: acc.otherExpenses + row.otherExpenses,
     }),
     {
       collectionQuantity: 0,
       collectionCost: 0,
-      perLiterCommission: 0,
+      purchaseCommission: 0,
       dispatchWeight: 0,
-      dispatch: 0,
       income: 0,
       expense: 0,
+      otherExpenses: 0,
     }
   );
 
-  // daily[] excludes period charges, so the day rows must reconcile to
-  // net_profit minus the flat fees. Surface it rather than assume it.
+  // daily[] leaves out the fixed slice of purchase commission — an expense — so
+  // the day rows read HIGH by exactly that amount. Surface it rather than assume it.
   const dailyNetSum = statement?.daily.reduce((sum, row) => sum + row.net, 0) ?? 0;
-  const expectedDailyNet = (statement?.netProfit ?? 0) - (statement?.fixedCommissionTotal ?? 0);
+  const expectedDailyNet = (statement?.netProfit ?? 0) + (statement?.fixedCommissionTotal ?? 0);
   const dailyReconciles = Math.abs(dailyNetSum - expectedDailyNet) < 0.01;
 
+  const farmerTotals = (statement?.farmers ?? []).reduce(
+    (acc, row) => ({
+      entries: acc.entries + row.entries,
+      quantity: acc.quantity + row.quantity,
+      purchaseAmount: acc.purchaseAmount + row.purchaseAmount,
+      commissionTotal: acc.commissionTotal + row.commissionTotal,
+      totalCost: acc.totalCost + row.totalCost,
+    }),
+    { entries: 0, quantity: 0, purchaseAmount: 0, commissionTotal: 0, totalCost: 0 }
+  );
+
+  // Milk purchase leads: this report is read cost-first, so the cost tile sits
+  // ahead of the sale tile.
   const kpis = statement ? [
     {
-      label: t('total_income', 'Total Income'),
+      label: t('milk_purchase', 'Total Milk Purchase'),
+      value: money(statement.totalExpenses),
+      icon: TrendingDown,
+      tone: 'text-rose-600 bg-rose-50',
+    },
+    {
+      label: t('milk_sale', 'Total Milk Sale'),
       value: money(statement.totalIncome),
       icon: TrendingUp,
       tone: 'text-emerald-600 bg-emerald-50',
     },
     {
-      label: t('total_expenses', 'Total Expenses'),
-      value: money(statement.totalExpenses),
-      icon: TrendingDown,
-      tone: 'text-rose-600 bg-rose-50',
+      label: t('other_expenses', 'Other Expenses'),
+      value: money(statement.otherExpensesTotal),
+      icon: Receipt,
+      tone: 'text-amber-600 bg-amber-50',
     },
     {
       label: isProfit ? t('net_profit', 'Net Profit') : t('net_loss', 'Net Loss'),
@@ -240,9 +260,10 @@ const PLStatement = () => {
     lines: PLLine[],
     total: number,
     emptyLabel: string,
-    tone: 'income' | 'expense'
+    tone: 'income' | 'expense',
+    totalLabel?: string
   ) => (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden py-0 gap-0">
       <div className={`px-4 py-3 border-b ${tone === 'income' ? 'bg-emerald-50/60 border-emerald-100' : 'bg-rose-50/60 border-rose-100'}`}>
         <h2 className={`text-sm font-bold uppercase tracking-wider ${tone === 'income' ? 'text-emerald-700' : 'text-rose-700'}`}>
           {title}
@@ -289,7 +310,7 @@ const PLStatement = () => {
           <tfoot>
             <tr className="bg-gray-50 border-t border-gray-200">
               <td className="px-4 py-3 text-left font-bold text-gray-800">
-                {tone === 'income' ? t('total_income', 'Total Income') : t('total_expenses', 'Total Expenses')}
+                {totalLabel ?? (tone === 'income' ? t('total_milk_sale', 'Total Milk Sale') : t('total_milk_purchase', 'Total Milk Purchase'))}
               </td>
               <td className={`px-4 py-3 text-right font-bold tabular-nums whitespace-nowrap ${tone === 'income' ? 'text-emerald-700' : 'text-rose-700'}`}>
                 {money(total)}
@@ -366,7 +387,7 @@ const PLStatement = () => {
         )}
 
         {!loading && apiUnavailable && (
-          <Card className="border-amber-200 bg-amber-50/60">
+          <Card className="border-amber-200 bg-amber-50/60 py-0 gap-0">
             <CardContent className="flex items-start gap-3 py-6 text-left">
               <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
               <div>
@@ -406,15 +427,17 @@ const PLStatement = () => {
 
         {!loading && statement && (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {kpis.map((kpi) => (
-                <Card key={kpi.label}>
-                  <CardContent className="flex items-center gap-3 p-4 text-left">
+                <Card key={kpi.label} className="py-0 gap-0">
+                  <CardContent className="flex items-center gap-3 px-4 py-3 text-left">
                     <div className={`p-2.5 rounded-xl shrink-0 ${kpi.tone}`}>
                       <kpi.icon className="w-5 h-5" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">
+                      {/* leading-5: truncate clips overflow, and the default 1rem line box
+                          cuts off Devanagari vowel signs above the letters. */}
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider leading-5 truncate">
                         {kpi.label}
                       </p>
                       <p className="text-lg font-bold text-gray-900 tabular-nums truncate">{kpi.value}</p>
@@ -424,11 +447,29 @@ const PLStatement = () => {
               ))}
             </div>
 
+            {statement.warnings.length > 0 && (
+              <Card className="border-amber-200 bg-amber-50/60 py-0 gap-0">
+                <CardContent className="flex items-start gap-3 py-4 text-left">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-amber-900 text-sm">
+                      {t('warnings', 'Warnings')}
+                    </p>
+                    <ul className="text-xs text-amber-800 mt-1 list-disc pl-4 space-y-0.5">
+                      {statement.warnings.map((warning, index) => (
+                        <li key={`${warning}-${index}`}>{warning}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Collections that fell outside every effective_from window earn zero
                 commission here — unlike the Tally endpoint, which back-dates onto
                 the oldest entry. Small differences between the two are expected. */}
             {statement.collectionsWithoutCommission > 0 && (
-              <Card className="border-amber-200 bg-amber-50/60">
+              <Card className="border-amber-200 bg-amber-50/60 py-0 gap-0">
                 <CardContent className="flex items-start gap-3 py-4 text-left">
                   <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                   <div>
@@ -449,64 +490,180 @@ const PLStatement = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {renderSection(
-                t('income', 'Income'),
-                statement.income,
-                statement.totalIncome,
-                t('no_income_recorded', 'No income recorded for this period'),
-                'income'
-              )}
-              {renderSection(
-                t('expenses', 'Expenses'),
+                t('milk_purchase', 'Milk Purchase'),
                 statement.expenses,
                 statement.totalExpenses,
-                t('no_expenses_recorded', 'No expenses recorded for this period'),
+                t('no_milk_purchase_recorded', 'No milk purchase recorded for this period'),
                 'expense'
+              )}
+              {renderSection(
+                t('milk_sale', 'Milk Sale'),
+                statement.income,
+                statement.totalIncome,
+                t('no_milk_sale_recorded', 'No milk sale recorded for this period'),
+                'income'
               )}
             </div>
 
-            <Card className={isProfit ? 'border-emerald-200' : 'border-rose-200'}>
-              <CardContent
-                className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-5 text-left ${
-                  isProfit ? 'bg-emerald-50/60' : 'bg-rose-50/60'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      {isProfit ? t('net_profit', 'Net Profit') : t('net_loss', 'Net Loss')}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {t('total_income', 'Total Income')} − {t('total_expenses', 'Total Expenses')}
-                    </p>
-                  </div>
-                  {statement.status && (
-                    <span
-                      className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wide border ${
-                        isProfit
-                          ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                          : 'bg-rose-100 text-rose-800 border-rose-200'
-                      }`}
-                    >
-                      {statement.status}
-                    </span>
-                  )}
-                </div>
-                <p className={`text-2xl font-bold tabular-nums ${isProfit ? 'text-emerald-700' : 'text-rose-700'}`}>
-                  {money(statement.netProfit)}
-                  <span className="text-sm font-semibold ml-2 text-gray-500">
-                    ({statement.marginPercent.toFixed(2)}%)
-                  </span>
-                </p>
-              </CardContent>
-            </Card>
+            {/* Other expenses come from the Other Expense master page and are taken
+                off gross profit to reach the final result. */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {renderSection(
+                t('other_expenses', 'Other Expenses'),
+                statement.otherExpenses,
+                statement.otherExpensesTotal,
+                t('no_other_expenses_recorded', 'No other expenses recorded for this period'),
+                'expense',
+                t('total_other_expenses', 'Total Other Expenses')
+              )}
 
-            {/* Period charges — fixed bills once per commission entry for the whole
-                range, so it is listed apart from the per-day rows. */}
+              <Card className={`overflow-hidden py-0 gap-0 ${isProfit ? 'border-emerald-200' : 'border-rose-200'}`}>
+                <div className="px-4 py-3 border-b bg-slate-50 border-slate-200">
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-slate-700">
+                    {t('profit_summary', 'Profit Summary')}
+                  </h2>
+                </div>
+                <CardContent className="p-0">
+                  <table className="w-full text-sm">
+                    <tbody>
+                      <tr className="border-b border-gray-100">
+                        <td className="px-4 py-2.5 text-left text-gray-700">{t('total_milk_sale', 'Total Milk Sale')}</td>
+                        <td className="px-4 py-2.5 text-right font-semibold text-gray-900 tabular-nums whitespace-nowrap">
+                          {money(statement.totalIncome)}
+                        </td>
+                      </tr>
+                      <tr className="border-b border-gray-100">
+                        <td className="px-4 py-2.5 text-left text-gray-700">{t('less_milk_purchase', 'Less: Milk Purchase')}</td>
+                        <td className="px-4 py-2.5 text-right font-semibold text-rose-700 tabular-nums whitespace-nowrap">
+                          {money(-statement.totalExpenses)}
+                        </td>
+                      </tr>
+                      <tr className="border-b border-gray-200 bg-gray-50/60">
+                        <td className="px-4 py-2.5 text-left font-bold text-gray-800">{t('gross_profit', 'Gross Profit')}</td>
+                        <td className={`px-4 py-2.5 text-right font-bold tabular-nums whitespace-nowrap ${statement.grossProfit >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                          {money(statement.grossProfit)}
+                        </td>
+                      </tr>
+                      <tr className="border-b border-gray-100">
+                        <td className="px-4 py-2.5 text-left text-gray-700">{t('less_other_expenses', 'Less: Other Expenses')}</td>
+                        <td className="px-4 py-2.5 text-right font-semibold text-rose-700 tabular-nums whitespace-nowrap">
+                          {money(-statement.otherExpensesTotal)}
+                        </td>
+                      </tr>
+                    </tbody>
+                    <tfoot>
+                      <tr className={isProfit ? 'bg-emerald-50/60' : 'bg-rose-50/60'}>
+                        <td className="px-4 py-3 text-left">
+                          <span className="font-bold text-gray-800">
+                            {isProfit ? t('net_profit', 'Net Profit') : t('net_loss', 'Net Loss')}
+                          </span>
+                          {statement.status && (
+                            <span
+                              className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold uppercase tracking-wide border ${
+                                isProfit
+                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                                  : 'bg-rose-100 text-rose-800 border-rose-200'
+                              }`}
+                            >
+                              {statement.status}
+                            </span>
+                          )}
+                        </td>
+                        <td className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${isProfit ? 'text-emerald-700' : 'text-rose-700'}`}>
+                          <span className="block text-xl font-bold">{money(statement.netProfit)}</span>
+                          <span className="block text-xs font-semibold text-gray-500">
+                            {t('margin', 'Margin')} {statement.marginPercent.toFixed(2)}%
+                          </span>
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Farmer-wise cost — purchase plus the commission rule that fired for
+                that farmer, which is where the expense-side commission comes from. */}
+            {statement.farmers.length > 0 && (
+              <Card className="overflow-hidden py-0 gap-0">
+                <div className="px-4 py-3 border-b bg-rose-50/60 border-rose-100">
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-rose-700">
+                    {t('farmer_wise_cost', 'Farmer-wise Cost')}
+                  </h2>
+                  <p className="text-xs text-rose-800/80 mt-0.5">
+                    {t(
+                      'farmer_wise_cost_desc',
+                      'Purchase amount plus the purchase commission rule applied to each farmer.'
+                    )}
+                  </p>
+                </div>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto max-h-[520px] overflow-y-auto">
+                    <table className="w-full text-sm min-w-[880px]">
+                      <thead className="sticky top-0 z-10">
+                        <tr className="bg-gray-50 border-b border-gray-200 text-xs uppercase tracking-wider text-gray-600">
+                          <th className="px-3 py-2.5 text-left font-semibold">{t('code', 'Code')}</th>
+                          <th className="px-3 py-2.5 text-left font-semibold">{t('farmer_name', 'Farmer Name')}</th>
+                          <th className="px-3 py-2.5 text-right font-semibold">{t('entries', 'Entries')}</th>
+                          <th className="px-3 py-2.5 text-right font-semibold">{t('quantity', 'Qty (L)')}</th>
+                          <th className="px-3 py-2.5 text-right font-semibold">{t('purchase_amount', 'Purchase Amt')}</th>
+                          <th className="px-3 py-2.5 text-left font-semibold">{t('commission_rule', 'Commission Rule')}</th>
+                          <th className="px-3 py-2.5 text-right font-semibold">{t('commission', 'Commission')}</th>
+                          <th className="px-3 py-2.5 text-right font-semibold">{t('total_cost', 'Total Cost')}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {statement.farmers.map((row, index) => (
+                          <tr key={`${row.farmerId}-${index}`} className="border-b border-gray-100 last:border-b-0">
+                            <td className="px-3 py-2.5 text-left text-gray-700 whitespace-nowrap">{row.farmerId || '—'}</td>
+                            <td className="px-3 py-2.5 text-left text-gray-800">{row.farmerName || '—'}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-gray-700">{row.entries}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-gray-700">{row.quantity.toFixed(2)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-gray-700">{money(row.purchaseAmount)}</td>
+                            <td className="px-3 py-2.5 text-left text-xs text-gray-500">
+                              <span className="capitalize">
+                                {(row.commissionSource || '—').replace(/_/g, ' ')}
+                              </span>
+                              {row.commissionType && (
+                                <span className="capitalize"> · {row.commissionType.replace(/_/g, ' ')}</span>
+                              )}
+                              {row.ratesApplied.length > 0 && (
+                                <span className="block text-gray-400">
+                                  {t('rate', 'Rate')}: {row.ratesApplied.join(', ')}
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-gray-700">{money(row.commissionTotal)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-rose-700">{money(row.totalCost)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot className="sticky bottom-0">
+                        <tr className="bg-gray-50 border-t border-gray-200 font-bold text-gray-800">
+                          <td className="px-3 py-3 text-left" colSpan={2}>{t('total', 'Total')}</td>
+                          <td className="px-3 py-3 text-right tabular-nums">{farmerTotals.entries}</td>
+                          <td className="px-3 py-3 text-right tabular-nums">{farmerTotals.quantity.toFixed(2)}</td>
+                          <td className="px-3 py-3 text-right tabular-nums">{money(farmerTotals.purchaseAmount)}</td>
+                          <td />
+                          <td className="px-3 py-3 text-right tabular-nums">{money(farmerTotals.commissionTotal)}</td>
+                          <td className="px-3 py-3 text-right tabular-nums text-rose-700 whitespace-nowrap">
+                            {money(farmerTotals.totalCost)}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Period charges — VLC-wide fixed fees billed once for the whole
+                range, so they are listed apart from the per-day rows. */}
             {statement.periodCharges.length > 0 && (
-              <Card className="overflow-hidden">
+              <Card className="overflow-hidden py-0 gap-0">
                 <div className="px-4 py-3 border-b bg-indigo-50/60 border-indigo-100">
                   <h2 className="text-sm font-bold uppercase tracking-wider text-indigo-700">
-                    {t('period_charges', 'Period Charges (Fixed)')}
+                    {t('period_charges', 'Period Charges (VLC-wide Fixed)')}
                   </h2>
                   <p className="text-xs text-indigo-800/80 mt-0.5">
                     {t(
@@ -541,7 +698,7 @@ const PLStatement = () => {
                           {t('total_fixed_charges', 'Total Fixed Charges')}
                         </td>
                         <td className="px-4 py-3 text-right font-bold text-gray-900 tabular-nums whitespace-nowrap">
-                          {money(statement.fixedCommissionTotal)}
+                          {money(statement.vlcWideFixedTotal)}
                         </td>
                       </tr>
                     </tfoot>
@@ -552,33 +709,33 @@ const PLStatement = () => {
 
             {/* Daily rows deliberately exclude period charges. */}
             {statement.daily.length > 0 && (
-              <Card className="overflow-hidden">
+              <Card className="overflow-hidden py-0 gap-0">
                 <div className="px-4 py-3 border-b bg-slate-50 border-slate-200">
                   <h2 className="text-sm font-bold uppercase tracking-wider text-slate-700">
                     {t('daily_breakdown', 'Daily Breakdown')}
                   </h2>
-                  {statement.dailyExcludesPeriodCharges && (
+                  {statement.dailyExcludesFixedCommission && (
                     <p className="text-xs text-slate-600 mt-0.5">
                       {t(
                         'daily_breakdown_desc',
-                        'Excludes fixed period charges — a flat range fee belongs to no single day.'
+                        'Excludes fixed purchase commission — a flat range fee belongs to no single day.'
                       )}
                     </p>
                   )}
                 </div>
                 <CardContent className="p-0">
                   <div className="overflow-x-auto max-h-[520px] overflow-y-auto">
-                    <table className="w-full text-sm min-w-[920px]">
+                    <table className="w-full text-sm min-w-[980px]">
                       <thead className="sticky top-0 z-10">
                         <tr className="bg-gray-50 border-b border-gray-200 text-xs uppercase tracking-wider text-gray-600">
                           <th className="px-3 py-2.5 text-left font-semibold">{t('date', 'Date')}</th>
                           <th className="px-3 py-2.5 text-right font-semibold">{t('collection_qty', 'Coll. Qty (L)')}</th>
                           <th className="px-3 py-2.5 text-right font-semibold">{t('collection_cost', 'Coll. Cost')}</th>
-                          <th className="px-3 py-2.5 text-right font-semibold">{t('per_liter_commission', 'Per-Litre Comm.')}</th>
+                          <th className="px-3 py-2.5 text-right font-semibold">{t('purchase_commission', 'Purch. Comm.')}</th>
                           <th className="px-3 py-2.5 text-right font-semibold">{t('dispatch_weight', 'Disp. Wt')}</th>
-                          <th className="px-3 py-2.5 text-right font-semibold">{t('dispatch_amount', 'Dispatch')}</th>
-                          <th className="px-3 py-2.5 text-right font-semibold">{t('income', 'Income')}</th>
-                          <th className="px-3 py-2.5 text-right font-semibold">{t('expenses', 'Expenses')}</th>
+                          <th className="px-3 py-2.5 text-right font-semibold">{t('milk_sale', 'Milk Sale')}</th>
+                          <th className="px-3 py-2.5 text-right font-semibold">{t('milk_purchase', 'Milk Purchase')}</th>
+                          <th className="px-3 py-2.5 text-right font-semibold">{t('other_expenses', 'Other Expenses')}</th>
                           <th className="px-3 py-2.5 text-right font-semibold">{t('net', 'Net')}</th>
                         </tr>
                       </thead>
@@ -588,13 +745,11 @@ const PLStatement = () => {
                             <td className="px-3 py-2.5 text-left text-gray-800 whitespace-nowrap">{row.date}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums text-gray-700">{row.collectionQuantity.toFixed(2)}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums text-gray-700">{money(row.collectionCost)}</td>
-                            <td className="px-3 py-2.5 text-right tabular-nums text-gray-700">{money(row.perLiterCommission)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-rose-700">{money(row.purchaseCommission)}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums text-gray-700">{row.dispatchWeight.toFixed(2)}</td>
-                            <td className="px-3 py-2.5 text-right tabular-nums text-gray-700">
-                              {money(row.dispatchBaseAmount + row.dispatchCommission)}
-                            </td>
                             <td className="px-3 py-2.5 text-right tabular-nums text-emerald-700">{money(row.income)}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums text-rose-700">{money(row.expense)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-amber-700">{money(row.otherExpenses)}</td>
                             <td className={`px-3 py-2.5 text-right tabular-nums font-semibold ${row.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                               {money(row.net)}
                             </td>
@@ -606,11 +761,11 @@ const PLStatement = () => {
                           <td className="px-3 py-3 text-left whitespace-nowrap">{t('total', 'Total')}</td>
                           <td className="px-3 py-3 text-right tabular-nums">{dailyTotals.collectionQuantity.toFixed(2)}</td>
                           <td className="px-3 py-3 text-right tabular-nums">{money(dailyTotals.collectionCost)}</td>
-                          <td className="px-3 py-3 text-right tabular-nums">{money(dailyTotals.perLiterCommission)}</td>
+                          <td className="px-3 py-3 text-right tabular-nums text-rose-700">{money(dailyTotals.purchaseCommission)}</td>
                           <td className="px-3 py-3 text-right tabular-nums">{dailyTotals.dispatchWeight.toFixed(2)}</td>
-                          <td className="px-3 py-3 text-right tabular-nums">{money(dailyTotals.dispatch)}</td>
                           <td className="px-3 py-3 text-right tabular-nums text-emerald-700">{money(dailyTotals.income)}</td>
                           <td className="px-3 py-3 text-right tabular-nums text-rose-700">{money(dailyTotals.expense)}</td>
+                          <td className="px-3 py-3 text-right tabular-nums text-amber-700">{money(dailyTotals.otherExpenses)}</td>
                           <td className={`px-3 py-3 text-right tabular-nums whitespace-nowrap ${dailyNetSum >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                             {money(dailyNetSum)}
                           </td>
@@ -622,7 +777,7 @@ const PLStatement = () => {
                     {dailyReconciles ? (
                       <>
                         {t('daily_reconciles', 'Reconciles')}: {t('sum_of_daily_net', 'Sum of daily net')} ={' '}
-                        {t('net_profit', 'Net Profit')} − {t('total_fixed_charges', 'Total Fixed Charges')} ={' '}
+                        {t('net_profit', 'Net Profit')} + {t('fixed_purchase_commission', 'Fixed Purchase Commission')} ={' '}
                         <span className="font-semibold tabular-nums">{money(expectedDailyNet)}</span>
                       </>
                     ) : (

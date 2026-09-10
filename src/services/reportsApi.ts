@@ -87,4 +87,68 @@ export const reportsApi = {
     console.log('📥 Response:', data);
     return data;
   },
+
+  // One row per expense — the Other Expense master page posts each line separately.
+  createOtherExpense: async (payload: {
+    dairy_id: number;
+    date: string;
+    expense_name: string;
+    amount: number;
+    created_by: string;
+  }) => {
+    const { data } = await api.post('/webreports/other-expenses', payload);
+    return data;
+  },
+
+  // Newest first. total / total_amount cover every matching row, not just this page;
+  // with no search, total_amount is what the P&L deducts for the same range.
+  getOtherExpenses: async (params: {
+    dairy_id: string | number;
+    from?: string;
+    to?: string;
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }) => {
+    const { data } = await api.get('/webreports/other-expenses', { params });
+    return data as OtherExpenseListResponse;
+  },
+
+  // Partial update — only the fields sent change. created_by: null clears it.
+  updateOtherExpense: async (id: number, payload: OtherExpenseUpdate) => {
+    const { data } = await api.put(`/webreports/other-expenses/${id}`, payload);
+    return data;
+  },
+
+  // Returns the removed row so the screen can say what was deleted.
+  deleteOtherExpense: async (id: number) => {
+    const { data } = await api.delete(`/webreports/other-expenses/${id}`);
+    return data;
+  },
 };
+
+export interface OtherExpense {
+  id: number;
+  dairy_id: number;
+  date: string;
+  expense_name: string;
+  amount: number | string;
+  created_by: string | null;
+  created_at?: string;
+}
+
+export interface OtherExpenseListResponse {
+  success?: boolean;
+  message?: string;
+  data: OtherExpense[];
+  total: number;
+  total_amount: number | string;
+}
+
+export type OtherExpenseUpdate = Partial<{
+  date: string;
+  expense_name: string;
+  amount: number;
+  created_by: string | null;
+  dairy_id: number;
+}>;

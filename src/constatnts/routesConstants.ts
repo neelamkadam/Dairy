@@ -27,6 +27,7 @@ export const ROUTES = {
     ADD_FARMER:`/dashboard/add-farmer`,
     ADD_RATECHART:`/dashboard/add-rate-chart`,
     BONUS:`/dashboard/bonus`,
+    OTHER_EXPENSE:`/dashboard/other-expense`,
     CREATE_ROUTE:`/dashboard/create-route`,
     CREATE_BMC:`/dashboard/create-bmc`,
     CREATE_CC:`/dashboard/create-cc`,
@@ -100,4 +101,5 @@ export const ROUTES = {
     WEB_APPLICATION_ACTIVATION:`/admin/web-application-activation`,
   },
   QUOTATION: `/admin/quotation-maker`,
+  BLOCKED_NUMBERS: `/admin/blocked-numbers`,
 };

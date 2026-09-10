@@ -80,6 +80,7 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
         { title: t('add_rate_chart'), icon: <Dot size={24} />, href: ROUTES.MASTER.ADD_RATECHART },
         { title: t('cattle_feed_stock'), icon: <Dot size={24} />, href: ROUTES.SETTINGS.CATTLE_FEED_STOCK },
         { title: t('bonus'), icon: <Dot size={24} />, href: ROUTES.MASTER.BONUS },
+        { title: t('other_expense', 'Other Expense'), icon: <Dot size={24} />, href: ROUTES.MASTER.OTHER_EXPENSE },
         {
           title: t('create', 'Create'),
           icon: <PlusCircle size={18} className="stroke-[1.5]" />,
