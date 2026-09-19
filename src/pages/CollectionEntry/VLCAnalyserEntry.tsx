@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { format, isValid } from "date-fns";
-import { FlaskConical, Loader2, Save, Search } from "lucide-react";
+import { EyeOff, FlaskConical, Loader2, Save, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -45,6 +45,9 @@ interface AnalysisRecord {
 }
 
 const RATE_CHART_NAME = 'Rate Chart 1';
+const BASIS_STORAGE_KEY = 'vlc_analyser_basis';
+// How often to look for newly weighed samples while there is nothing to analyse
+const IDLE_REFRESH_MS = 10000;
 
 const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) => {
   const { t } = useTranslation();
@@ -70,18 +73,32 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
   const [fat, setFat] = useState("");
   const [snf, setSnf] = useState("");
   const [clr, setClr] = useState("");
-  // Whichever of SNF/CLR the operator typed last; the other one is derived from it
-  const [basis, setBasis] = useState<'snf' | 'clr'>('snf');
+  // Whichever of SNF/CLR the operator typed last; the other one is derived from it.
+  // Remembered per machine, so FAT + Enter goes straight to the field this desk uses.
+  const [basis, setBasis] = useState<'snf' | 'clr'>(() =>
+    localStorage.getItem(BASIS_STORAGE_KEY) === 'clr' ? 'clr' : 'snf'
+  );
   const [rate, setRate] = useState("");
-  const [amount, setAmount] = useState(0);
   const [calculatingRate, setCalculatingRate] = useState(false);
   const [lookingUp, setLookingUp] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
+  // Samples sent to the back of the queue with Skip, oldest skip first
+  const [skippedIds, setSkippedIds] = useState<number[]>([]);
+  // Finalized here this session — kept out of the queue even before a refresh confirms it
+  const finalizedIdsRef = useRef<Set<number>>(new Set());
 
   const sampleInputRef = useRef<HTMLInputElement>(null);
   const fatRef = useRef<HTMLInputElement>(null);
+  const snfRef = useRef<HTMLInputElement>(null);
+  const clrRef = useRef<HTMLInputElement>(null);
 
   const saving = finalizing || isLoading || isUpdating;
+
+  // The date + shift the lists belong to; a response for an older pair is dropped
+  // so it can never feed the auto-queue with another shift's samples.
+  const scope = `${date}|${shift}`;
+  const scopeRef = useRef(scope);
+  scopeRef.current = scope;
 
   const listPayload = () => ({
     vlc_ids: (branches || []).map(branch => branch.username),
@@ -90,18 +107,20 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
   });
 
   const loadWeightEntries = async (): Promise<VLCWeightRecord[]> => {
+    const requestScope = scope;
     const response = await vlcCollectionApi.getWeights(listPayload());
     if (!response?.success) return [];
     const data = response.data || [];
-    setWeightEntries(data);
+    if (requestScope === scopeRef.current) setWeightEntries(data);
     return data;
   };
 
   const loadFinalEntries = async (): Promise<FinalEntry[]> => {
+    const requestScope = scope;
     const response = await fetchEntries(listPayload());
     if (!response?.data?.success) return [];
     const data = response.data.data || [];
-    setFinalEntries(data);
+    if (requestScope === scopeRef.current) setFinalEntries(data);
     return data;
   };
 
@@ -117,16 +136,28 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
   }, [branches, date, shift, refreshKey]);
 
   useEffect(() => {
+    // The previous shift's lists must not feed the auto-queue while the new ones load.
+    setWeightEntries([]);
+    setFinalEntries([]);
+    setSkippedIds([]);
     resetForm();
   }, [date, shift]);
 
   const isAnalysed = (weightRecord: VLCWeightRecord, finals: FinalEntry[] = finalEntries) =>
     isWeightCompleted(weightRecord) ||
+    finalizedIdsRef.current.has(weightRecord.id) ||
     finals.some(f => f.vlc_weight_id != null && String(f.vlc_weight_id) === String(weightRecord.id));
 
   const pendingSamples = weightEntries
     .filter(w => !isAnalysed(w))
     .sort((a, b) => (parseInt(String(a.sample_id)) || 0) - (parseInt(String(b.sample_id)) || 0));
+
+  // The order samples load in: lowest sample # first, skipped ones after the rest.
+  const skippedSamples = skippedIds
+    .map(id => pendingSamples.find(w => w.id === id))
+    .filter((w): w is VLCWeightRecord => !!w);
+  const queue = [...pendingSamples.filter(w => !skippedIds.includes(w.id)), ...skippedSamples];
+  const nextQueuedId = queue[0]?.id;
 
   const resetForm = () => {
     setRecord(null);
@@ -135,9 +166,7 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
     setFat("");
     setSnf("");
     setClr("");
-    setBasis('snf');
     setRate("");
-    setAmount(0);
   };
 
   const selectRecord = (weightRecord: VLCWeightRecord) => {
@@ -154,15 +183,38 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
     setFat("");
     setSnf("");
     setClr("");
-    setBasis('snf');
     setRate("");
-    setAmount(0);
     setTimeout(() => fatRef.current?.focus(), 50);
+  };
+
+  // Auto-advance: with nothing loaded, the next sample in the queue loads by
+  // itself, so the operator only ever types FAT, SNF or CLR and Enter.
+  useEffect(() => {
+    if (record || editingId || finalizing || lookingUp) return;
+    if (queue[0]) selectRecord(queue[0]);
+  }, [nextQueuedId, record, editingId, finalizing, lookingUp]);
+
+  // While there is nothing to analyse, look for newly weighed samples.
+  const refreshRef = useRef(refreshAll);
+  refreshRef.current = refreshAll;
+  useEffect(() => {
+    if (record || editingId) return;
+    const timer = setInterval(() => refreshRef.current(), IDLE_REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [record, editingId]);
+
+  const handleSkip = () => {
+    const skippedId = record?.weightId;
+    if (!skippedId) return;
+    setSkippedIds(prev => [...prev.filter(id => id !== skippedId), skippedId]);
+    resetForm();
   };
 
   const handleLookup = async () => {
     const key = sampleInput.trim();
     if (!key || !branches?.length) return;
+    // A failed jump leaves the loaded sample in place, so show its number again.
+    const restoreInput = () => setSampleInput(record?.sample_id != null ? String(record.sample_id) : "");
 
     setLookingUp(true);
     try {
@@ -171,10 +223,12 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
       const match = weights.find(w => Number(w.sample_id) === Number(key));
       if (!match) {
         toast.error(`No weight entry found for Sample #${key}`);
+        restoreInput();
         return;
       }
       if (isAnalysed(match, finals)) {
         toast.warning(`Sample #${key} is already analysed`);
+        restoreInput();
         return;
       }
       selectRecord(match);
@@ -195,14 +249,19 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
     }
   };
 
+  const rememberBasis = (next: 'snf' | 'clr') => {
+    setBasis(next);
+    localStorage.setItem(BASIS_STORAGE_KEY, next);
+  };
+
   const handleSnfChange = (value: string) => {
-    setBasis('snf');
+    rememberBasis('snf');
     setSnf(value);
     setClr(fat && value ? calculateCLRFromFatAndSNF(fat, value) : "");
   };
 
   const handleClrChange = (value: string) => {
-    setBasis('clr');
+    rememberBasis('clr');
     setClr(value);
     setSnf(fat && value ? calculateSNFFromFatAndCLR(fat, value) : "");
   };
@@ -223,11 +282,10 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
     return response?.price ? Number(response.price) : null;
   };
 
-  // Live rate/amount preview while FAT/SNF are being entered
+  // Live rate preview while FAT/SNF are being entered
   useEffect(() => {
     if (!record || !fat || !snf) {
       setRate("");
-      setAmount(0);
       setCalculatingRate(false);
       return;
     }
@@ -239,12 +297,10 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
         const price = await fetchRate(record, fat, snf);
         if (cancelled) return;
         setRate(price ? price.toString() : '0');
-        setAmount(price ? record.weight * price : 0);
       } catch (error: any) {
         if (cancelled) return;
         console.error('❌ Error fetching rate:', error);
         setRate('0');
-        setAmount(0);
         if (error?.response?.status === 404) {
           toast.error('Rate not found for selected parameters');
         }
@@ -260,7 +316,8 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
   }, [record, fat, snf, date, shift, branches]);
 
   const handleSubmit = async () => {
-    if (!record) return;
+    // Enter can repeat while a save is in flight; one save per sample.
+    if (!record || saving) return;
     if (!fat || !snf || !clr) {
       toast.error("FAT, SNF and CLR are required");
       return;
@@ -282,7 +339,6 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
 
       const finalAmount = Number((record.weight * price).toFixed(2));
       setRate(price.toString());
-      setAmount(finalAmount);
 
       const payload = {
         date: record.entryDate ?? `${date} ${format(new Date(), 'HH:mm:ss')}`,
@@ -308,12 +364,22 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
         toast.success(editingId
           ? "VLC entry updated successfully"
           : `Sample #${record.sample_id} analysed successfully`);
+        // Out of the queue right away, so the next sample loads without waiting for the refresh
+        if (!editingId && record.weightId) finalizedIdsRef.current.add(record.weightId);
+        const hasNext = queue.some(w => w.id !== record.weightId);
         resetForm();
         refreshAll();
-        setTimeout(() => sampleInputRef.current?.focus(), 50);
+        // Otherwise auto-advance loads the next sample and focuses FAT
+        if (!hasNext) setTimeout(() => sampleInputRef.current?.focus(), 50);
       }
     } catch (error: any) {
       toast.error(error?.response?.data?.message || `Failed to ${editingId ? 'update' : 'create'} VLC entry`);
+      // Finalized meanwhile at another analyser desk: move on to the next sample
+      if (error?.response?.status === 409 && !editingId && record.weightId) {
+        finalizedIdsRef.current.add(record.weightId);
+        resetForm();
+        refreshAll();
+      }
     } finally {
       setFinalizing(false);
     }
@@ -337,9 +403,7 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
     setFat(String(entry.fat ?? ""));
     setSnf(String(entry.snf ?? ""));
     setClr(String(entry.clr ?? ""));
-    setBasis('snf');
     setRate(entry.rate ? entry.rate.toString() : "");
-    setAmount(Number(entry.amount || (entry.weight * (entry.rate || 0)) || 0));
   };
 
   const handleDelete = async (id: number) => {
@@ -347,6 +411,9 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
     try {
       const response = await deleteData(`/api/web/collection/vlc-entry/${id}`);
       if (response?.data?.success) {
+        // The API hands its sample back to pending; let it back into the queue too.
+        const deleted = finalEntries.find(f => f.id === id);
+        if (deleted?.vlc_weight_id != null) finalizedIdsRef.current.delete(Number(deleted.vlc_weight_id));
         if (editingId === id) resetForm();
         refreshAll();
       }
@@ -355,12 +422,22 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
     }
   };
 
-  const submitOnEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      e.stopPropagation();
-      handleSubmit();
-    }
+  // FAT + Enter jumps to whichever of SNF / CLR this desk uses.
+  const handleFatEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    e.stopPropagation();
+    (basis === 'clr' ? clrRef : snfRef).current?.focus();
+  };
+
+  // SNF / CLR + Enter saves; on an empty field it hops to the other one instead.
+  const handleQualityEnter = (field: 'snf' | 'clr') => (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    e.stopPropagation();
+    const value = field === 'snf' ? snf : clr;
+    if (value.trim()) handleSubmit();
+    else (field === 'snf' ? clrRef : snfRef).current?.focus();
   };
 
   return (
@@ -384,6 +461,7 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
                     value={sampleInput}
                     disabled={!!editingId}
                     autoFocus
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) => setSampleInput(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
@@ -407,29 +485,38 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
 
             {!editingId && (
               <div className="space-y-2">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Pending samples <span className="text-amber-600">({pendingSamples.length})</span>
-                </p>
-                {pendingSamples.length > 0 ? (
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Pending samples <span className="text-amber-600">({queue.length})</span>
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    Samples load one after another — type a number to jump to a different one.
+                  </p>
+                </div>
+                {queue.length > 0 ? (
                   <div className="flex flex-wrap gap-2 max-h-28 overflow-y-auto">
-                    {pendingSamples.map((w) => (
+                    {queue.map((w) => (
                       <button
                         key={w.id}
                         type="button"
                         onClick={() => selectRecord(w)}
+                        title={skippedIds.includes(w.id) ? "Skipped — comes back after the others" : undefined}
                         className={cn(
                           "px-2.5 py-1 rounded-lg border text-xs font-semibold transition-colors",
+                          skippedIds.includes(w.id) && "border-dashed",
                           record?.weightId === w.id
                             ? "border-purple-400 bg-purple-50 text-purple-700"
                             : "border-gray-200 bg-white text-gray-700 hover:border-purple-300 hover:bg-purple-50/50"
                         )}
                       >
-                        #{w.sample_id} · {w.vlc_id} · {Number(w.weight).toFixed(2)} kg
+                        #{w.sample_id} · {w.type}
                       </button>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-gray-400">All weighed samples for this shift are analysed.</p>
+                  <p className="text-xs text-gray-400">
+                    All weighed samples for this shift are analysed. New ones load here automatically.
+                  </p>
                 )}
               </div>
             )}
@@ -439,27 +526,22 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
         {record ? (
           <Card className="shadow-sm border border-gray-200/60 bg-white/95 backdrop-blur-sm rounded-2xl overflow-hidden">
             <CardContent className="p-6 space-y-6 enter-nav-container">
-              {/* Weighed sample details */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-purple-50/40 rounded-xl border border-purple-100">
-                <div className="space-y-0.5 min-w-0">
-                  <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">{t('vlc_id')}</span>
-                  <p className="text-sm font-bold text-gray-900 truncate">{record.vlc_id}</p>
-                  <p className="text-xs text-gray-500 truncate">{record.vlc_name}</p>
+              {/* Sample details — blind test: the VLC and its weight are never shown to the analyser */}
+              <div className="flex flex-wrap items-center gap-x-8 gap-y-3 p-4 bg-purple-50/40 rounded-xl border border-purple-100">
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">{t('sample_id')}</span>
+                  <p className="text-2xl font-black text-purple-700 leading-none">
+                    {record.sample_id != null && record.sample_id !== '' ? `#${record.sample_id}` : '—'}
+                  </p>
                 </div>
                 <div className="space-y-0.5">
                   <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Type</span>
                   <div><Badge className="bg-purple-100 text-purple-700 text-[10px]">{record.type}</Badge></div>
                 </div>
-                <div className="space-y-0.5">
-                  <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">{t('weight')}</span>
-                  <p className="text-sm font-bold text-gray-900">{record.weight.toFixed(2)} <small className="font-normal text-gray-500">kg</small></p>
-                </div>
-                <div className="space-y-0.5">
-                  <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">{t('sample_id')}</span>
-                  <p className="text-sm font-bold text-purple-700">
-                    {record.sample_id != null && record.sample_id !== '' ? `#${record.sample_id}` : '—'}
-                  </p>
-                </div>
+                <p className="flex items-center gap-1.5 text-xs text-gray-500 sm:ml-auto">
+                  <EyeOff className="h-3.5 w-3.5" />
+                  VLC and weight are hidden for blind testing
+                </p>
               </div>
 
               {editingId && (
@@ -481,6 +563,7 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
                     placeholder="0.0"
                     value={fat}
                     onChange={(e) => handleFatChange(e.target.value)}
+                    onKeyDown={handleFatEnter}
                     className="bg-white border-gray-200 hover:border-purple-300 focus:border-purple-500 focus:ring-purple-500/20 transition-all w-full h-10 rounded-xl shadow-sm font-medium text-gray-900 enter-field"
                   />
                 </div>
@@ -490,13 +573,14 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
                     {t('snf')} <span className="text-gray-400 normal-case font-normal">(%)</span>
                   </Label>
                   <Input
+                    ref={snfRef}
                     id="snf"
                     type="number"
                     step="0.1"
                     placeholder="0.0"
                     value={snf}
                     onChange={(e) => handleSnfChange(e.target.value)}
-                    onKeyDown={submitOnEnter}
+                    onKeyDown={handleQualityEnter('snf')}
                     className="bg-white border-gray-200 hover:border-purple-300 focus:border-purple-500 focus:ring-purple-500/20 transition-all w-full h-10 rounded-xl shadow-sm font-medium text-gray-900 enter-field"
                   />
                 </div>
@@ -506,13 +590,14 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
                     {t('clr')}
                   </Label>
                   <Input
+                    ref={clrRef}
                     id="clr"
                     type="number"
                     step="0.1"
                     placeholder="0.0"
                     value={clr}
                     onChange={(e) => handleClrChange(e.target.value)}
-                    onKeyDown={submitOnEnter}
+                    onKeyDown={handleQualityEnter('clr')}
                     className="bg-white border-gray-200 hover:border-purple-300 focus:border-purple-500 focus:ring-purple-500/20 transition-all w-full h-10 rounded-xl shadow-sm font-medium text-gray-900 enter-field"
                   />
                 </div>
@@ -537,36 +622,29 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
                     )}
                   </div>
                 </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="amount" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    {t('total_amount')}
-                  </Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">₹</span>
-                    <Input
-                      id="amount"
-                      type="number"
-                      placeholder="0.00"
-                      value={Number(amount || 0).toFixed(2)}
-                      readOnly
-                      className="bg-green-50/30 border-green-200 text-green-900 font-bold w-full h-10 rounded-xl shadow-inner pl-7 cursor-not-allowed"
-                    />
-                  </div>
-                </div>
+                {/* No amount here: amount ÷ rate would give the hidden weight away. It is still computed on submit. */}
               </div>
 
               <div className="flex justify-end gap-3 pt-6 border-t border-gray-100 mt-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    resetForm();
-                    setTimeout(() => sampleInputRef.current?.focus(), 50);
-                  }}
-                  className="w-full sm:w-auto border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl px-6"
-                >
-                  Cancel
-                </Button>
+                {editingId ? (
+                  <Button
+                    variant="outline"
+                    onClick={resetForm}
+                    className="w-full sm:w-auto border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl px-6"
+                  >
+                    Cancel
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    onClick={handleSkip}
+                    disabled={saving || queue.length <= 1}
+                    title="Test this sample later — it goes to the end of the queue"
+                    className="w-full sm:w-auto border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl px-6"
+                  >
+                    Skip
+                  </Button>
+                )}
                 <Button
                   onClick={handleSubmit}
                   disabled={saving}
@@ -582,7 +660,7 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
         ) : (
           <div className="flex flex-col items-center justify-center h-48 bg-white rounded-2xl border border-dashed border-gray-200">
             <FlaskConical className="h-10 w-10 text-gray-200 mb-3" />
-            <p className="text-sm text-gray-500">Enter a sample ID (or pick a pending sample) to record FAT / SNF.</p>
+            <p className="text-sm text-gray-500">Waiting for the next weighed sample — it will load here automatically.</p>
           </div>
         )}
       </div>
@@ -592,6 +670,7 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
           entries={finalEntries}
           onEdit={(entry) => handleEdit(entry as FinalEntry)}
           onDelete={handleDelete}
+          hideVlcDetails
         />
       </div>
     </div>

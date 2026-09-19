@@ -22,10 +22,13 @@ interface LastEntryDetailsProps {
   entries?: Entry[];
   onEdit?: (entry: Entry) => void;
   onDelete?: (id: number) => void;
+  // Blind testing: identify entries by sample # only — no VLC ID, VLC name or weight.
+  hideVlcDetails?: boolean;
 }
 
-const LastEntryDetails = ({ entries = [], onEdit, onDelete }: LastEntryDetailsProps) => {
+const LastEntryDetails = ({ entries = [], onEdit, onDelete, hideVlcDetails = false }: LastEntryDetailsProps) => {
   const { t } = useTranslation();
+  const hasSample = (entry: Entry) => entry.sample_id != null && entry.sample_id !== '';
 
   return (
     <Card className="w-full shadow-lg border-0 bg-white">
@@ -41,9 +44,15 @@ const LastEntryDetails = ({ entries = [], onEdit, onDelete }: LastEntryDetailsPr
               <div key={entry.id} className="border-b pb-4 last:border-b-0">
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">{t('vlc_id')}:</span>
+                    <span className="text-sm text-gray-600">{hideVlcDetails ? t('sample_id') : t('vlc_id')}:</span>
                     <div className="flex items-center gap-2 max-w-[65%]">
-                      <span className="text-sm font-medium text-gray-800 truncate">{entry.vlc_id}</span>
+                      {hideVlcDetails ? (
+                        <span className="text-sm font-bold text-blue-600 truncate">
+                          {hasSample(entry) ? `#${entry.sample_id}` : '—'}
+                        </span>
+                      ) : (
+                        <span className="text-sm font-medium text-gray-800 truncate">{entry.vlc_id}</span>
+                      )}
                       <div className="flex gap-1 ml-2 flex-shrink-0">
                         <Button
                           variant="ghost"
@@ -64,24 +73,28 @@ const LastEntryDetails = ({ entries = [], onEdit, onDelete }: LastEntryDetailsPr
                       </div>
                     </div>
                   </div>
-                  {entry.sample_id != null && entry.sample_id !== '' && (
+                  {!hideVlcDetails && hasSample(entry) && (
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600">{t('sample_id')}:</span>
                       <span className="text-sm font-bold text-blue-600">#{entry.sample_id}</span>
                     </div>
                   )}
-                  <div className="flex justify-between gap-2">
-                    <span className="text-sm text-gray-600 flex-shrink-0">{t('vlc_name')}:</span>
-                    <span className="text-sm font-medium text-gray-800 text-right break-words">{entry.vlc_name}</span>
-                  </div>
+                  {!hideVlcDetails && (
+                    <div className="flex justify-between gap-2">
+                      <span className="text-sm text-gray-600 flex-shrink-0">{t('vlc_name')}:</span>
+                      <span className="text-sm font-medium text-gray-800 text-right break-words">{entry.vlc_name}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">{t('shift')}:</span>
                     <span className="text-sm font-medium text-gray-800">{entry.shift}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">{t('weight')}:</span>
-                    <span className="text-sm font-medium text-gray-800">{entry.weight} kg</span>
-                  </div>
+                  {!hideVlcDetails && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">{t('weight')}:</span>
+                      <span className="text-sm font-medium text-gray-800">{entry.weight} kg</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">{t('fat')}:</span>
                     <span className="text-sm font-medium text-gray-800">{entry.fat}%</span>
