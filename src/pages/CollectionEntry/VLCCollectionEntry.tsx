@@ -1,5 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -15,75 +14,51 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { format, isValid } from "date-fns";
-import { HelpCircle, Upload, Download, ChevronDown, Search, Check, X, Building } from "lucide-react";
+import { Upload, Download, Building, Scale, FlaskConical } from "lucide-react";
 import { cn } from "@/lib/utils";
-import LastEntryDetails from "@/components/LastEntryDetails";
 import { Input } from "@/components/ui/input";
-import { useState, useEffect, useRef } from "react";
-import { usePostApi, usePutApi, useDeleteApi } from "@/services/use-api";
+import { useState, useRef, ReactNode } from "react";
+import { usePostApi } from "@/services/use-api";
 import { toast } from "react-toastify";
 import { useAppSelector } from "@/redux/store";
-import { rateChartApi } from "@/services/rateChartApi";
-import { calculateCLRFromFatAndSNF, calculateSNFFromFatAndCLR } from "@/utils/milkCalculations";
 import { useTranslation } from "react-i18next";
 import * as XLSX from 'xlsx';
 import { VLCDropdown } from "@/components/ui/vlc-dropdown";
+import VLCWeightEntry from "./VLCWeightEntry";
+import VLCAnalyserEntry from "./VLCAnalyserEntry";
 
+type CollectionStep = 'weight' | 'analyser';
 
-interface FormData {
-  date: Date | undefined;
-  shift: string;
-  userId: string;
-  vlcName: string;
-  milkType: 'Cow' | 'Buffalo';
-  rateChartName: string;
-  weight: string;
-  fat: string;
-  snf: string;
-  clr: string;
-  rate: string;
-  amount: number;
-  type: 'Cow' | 'Buffalo' | 'Both';
-}
+const STEP_STORAGE_KEY = 'vlc_collection_step';
 
 const VLCCollectionEntry = () => {
   const { t } = useTranslation();
-  const { postData, isLoading } = usePostApi({
-    path: "/api/web/collection/vlc-entry"
-  });
-  const { postData: fetchEntries } = usePostApi({
-    path: "/api/web/collection/vlc-entries"
-  });
   const { postData: bulkPostData, isLoading: isBulkLoading } = usePostApi({
     path: "/api/web/collection/bulk-vlc-entries"
   });
-  const { putData, isLoading: isUpdating } = usePutApi({
-    path: "/api/web/collection/vlc-entry"
-  });
-  const { deleteData } = useDeleteApi({
-    path: "/api/web/collection/vlc-entry"
-  });
   const { branches } = useAppSelector((state) => state.branch);
-  const [lastEntries, setLastEntries] = useState([]);
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const [vlcOpen, setVlcOpen] = useState(false);
-  const [vlcSearch, setVlcSearch] = useState("");
-  const vlcSearchRef = useRef<HTMLInputElement>(null);
-  const vlcWrapperRef = useRef<HTMLDivElement>(null);
-
-  const [bulkVlcOpen, setBulkVlcOpen] = useState(false);
-  const [bulkVlcSearch, setBulkVlcSearch] = useState("");
-  const bulkVlcSearchRef = useRef<HTMLInputElement>(null);
-  const bulkVlcWrapperRef = useRef<HTMLDivElement>(null);
-
-
 
   const getDefaultShift = () => {
     const hour = new Date().getHours();
     return hour >= 17 ? "evening" : "morning";
+  };
+
+  // Weighing and analysing usually happen at different desks, so each machine remembers its step
+  const [step, setStep] = useState<CollectionStep>(() =>
+    localStorage.getItem(STEP_STORAGE_KEY) === 'analyser' ? 'analyser' : 'weight'
+  );
+  const [date, setDate] = useState<Date>(new Date());
+  const [shift, setShift] = useState(getDefaultShift());
+
+  const dateParam = format(date, 'yyyy-MM-dd');
+  const shiftParam = (shift.charAt(0).toUpperCase() + shift.slice(1)) as 'Morning' | 'Evening';
+
+  const handleStepChange = (next: CollectionStep) => {
+    setStep(next);
+    localStorage.setItem(STEP_STORAGE_KEY, next);
   };
 
   const [bulkFormData, setBulkFormData] = useState({
@@ -93,125 +68,6 @@ const VLCCollectionEntry = () => {
     vlcName: '',
     type: 'Both' as 'Cow' | 'Buffalo' | 'Both'
   });
-
-  const [formData, setFormData] = useState<FormData>({
-    date: new Date(),
-    shift: getDefaultShift(),
-    userId: "",
-    vlcName: "",
-    milkType: 'Cow',
-    rateChartName: 'Rate Chart 1',
-    weight: "",
-    fat: "",
-    snf: "",
-    clr: "",
-    rate: "",
-    amount: 0,
-    type: 'Both',
-  });
-
-  const handleInputChange = (field: keyof FormData, value: string | Date | undefined) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  const handleVLCIdChange = (username: string) => {
-    const selectedBranch = branches?.find(branch => branch.username === username);
-    setFormData(prev => ({
-      ...prev,
-      userId: username,
-      vlcName: selectedBranch?.name || ""
-    }));
-  };
-
-  // Auto-calculate CLR from FAT and SNF
-  useEffect(() => {
-    if (formData.fat && formData.snf && !formData.clr) {
-      const calculatedCLR = calculateCLRFromFatAndSNF(formData.fat, formData.snf);
-      if (calculatedCLR) setFormData(prev => ({ ...prev, clr: calculatedCLR }));
-    }
-  }, [formData.fat, formData.snf]);
-
-  // Auto-calculate SNF from FAT and CLR
-  useEffect(() => {
-    if (formData.fat && formData.clr && !formData.snf) {
-      const calculatedSNF = calculateSNFFromFatAndCLR(formData.fat, formData.clr);
-      if (calculatedSNF) setFormData(prev => ({ ...prev, snf: calculatedSNF }));
-    }
-  }, [formData.fat, formData.clr]);
-
-  // Calculate rate and amount when fat, snf, and weight change
-  useEffect(() => {
-    const fetchRate = async () => {
-      if (!formData.fat || !formData.snf || !formData.userId || !formData.date || !formData.rateChartName) return;
-
-      const selectedBranch = branches?.find(branch => branch.username === formData.userId);
-      if (!selectedBranch) return;
-
-      try {
-        const response = await rateChartApi.getRate(
-          parseFloat(formData.fat),
-          parseFloat(formData.snf),
-          selectedBranch.branch_id,
-          formData.rateChartName,
-          formData.type === 'Buffalo' ? 'Buffalo' : 'Cow',
-          format(formData.date, 'yyyy-MM-dd'),
-          formData.shift.charAt(0).toUpperCase() + formData.shift.slice(1) as 'Morning' | 'Evening'
-        );
-
-        if (response?.price) {
-          const rate = response.price.toString();
-          const amount = formData.weight ? parseFloat(formData.weight) * parseFloat(rate) : 0;
-          setFormData(prev => ({
-            ...prev,
-            rate,
-            amount
-          }));
-        } else {
-          setFormData(prev => ({ ...prev, rate: '0', amount: 0 }));
-        }
-      } catch (error: any) {
-        console.error('❌ Error fetching rate:', error);
-        setFormData(prev => ({ ...prev, rate: '0', amount: 0 }));
-        if (error?.response?.status === 404) {
-          toast.error('Rate not found for selected parameters');
-        }
-      }
-    };
-
-    const timer = setTimeout(fetchRate, 300);
-    return () => clearTimeout(timer);
-  }, [formData.fat, formData.snf, formData.weight, formData.userId, formData.date, formData.type, formData.rateChartName, formData.shift, branches]);
-
-  const fetchLastEntries = async () => {
-    if (!branches?.length || !formData.date || !formData.shift) return;
-
-    try {
-      const vlcIds = branches.map(branch => branch.username);
-      const payload = {
-        vlc_ids: vlcIds,
-        date: format(formData.date, 'yyyy-MM-dd'),
-        shift: formData.shift.charAt(0).toUpperCase() + formData.shift.slice(1)
-      };
-      const response = await fetchEntries(payload);
-
-      if (response?.data?.success) {
-        setLastEntries(response.data.data || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch last entries:', error);
-    }
-  };
-
-  useEffect(() => {
-    fetchLastEntries();
-  }, [branches, formData.date, formData.shift]);
-
-  const getFilteredEntries = () => {
-    return lastEntries;
-  };
 
   const downloadTemplate = () => {
     const headers = ['weight', 'fat', 'snf', 'clr', 'rate', 'amount', 'type'];
@@ -334,7 +190,7 @@ const VLCCollectionEntry = () => {
             vlcName: '',
             type: 'Both'
           });
-          fetchLastEntries();
+          setRefreshKey(key => key + 1);
         }
       } catch (error: any) {
         toast.error(error?.response?.data?.message || 'Failed to import bulk entries');
@@ -350,98 +206,6 @@ const VLCCollectionEntry = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleSubmit = async () => {
-    // Validation
-    if (!formData.date || !formData.shift || !formData.userId || !formData.vlcName ||
-      !formData.weight || !formData.fat || !formData.snf || !formData.clr || !formData.rate) {
-      toast.error("All fields are required");
-      return;
-    }
-
-    try {
-      const payload = {
-        date: format(formData.date, 'yyyy-MM-dd HH:mm:ss'),
-        shift: formData.shift.charAt(0).toUpperCase() + formData.shift.slice(1),
-        vlc_id: formData.userId,
-        vlc_name: formData.vlcName,
-        weight: parseFloat(formData.weight),
-        fat: parseFloat(formData.fat),
-        snf: parseFloat(formData.snf),
-        clr: parseFloat(formData.clr),
-        rate: parseFloat(formData.rate),
-        amount: formData.amount,
-        type: formData.type
-      };
-
-      console.log('📤 Submitting VLC entry:', payload);
-
-      const response = editingId
-        ? await putData(payload, `/api/web/collection/vlc-entry/${editingId}`)
-        : await postData(payload);
-
-      if (response?.data?.success) {
-        toast.success(editingId ? "VLC entry updated successfully" : "VLC entry created successfully");
-        // Reset form but keep date and shift
-        const currentDate = formData.date;
-        const currentShift = formData.shift;
-        setEditingId(null);
-        setFormData({
-          date: currentDate,
-          shift: currentShift,
-          userId: "",
-          vlcName: "",
-          milkType: 'Cow',
-          rateChartName: 'Rate Chart 1',
-          weight: "",
-          fat: "",
-          snf: "",
-          clr: "",
-          rate: "",
-          amount: 0,
-          type: 'Both',
-        });
-        fetchLastEntries();
-      }
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || `Failed to ${editingId ? 'update' : 'create'} VLC entry`);
-    }
-  };
-
-  const handleEdit = (entry: any) => {
-    // Scroll to top
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-
-    setEditingId(entry.id);
-    setFormData({
-      date: new Date(entry.date),
-      shift: entry.shift.toLowerCase(),
-      userId: entry.vlc_id,
-      vlcName: entry.vlc_name,
-      milkType: entry.type === 'Buffalo' ? 'Buffalo' : 'Cow',
-      rateChartName: 'Rate Chart 1',
-      weight: entry.weight.toString(),
-      fat: entry.fat.toString(),
-      snf: entry.snf.toString(),
-      clr: entry.clr.toString(),
-      rate: entry.rate ? entry.rate.toString() : "",
-      amount: Number(entry.amount || (entry.weight * entry.rate) || 0),
-      type: (entry.type as 'Cow' | 'Buffalo' | 'Both') || 'Both'
-    });
-  };
-
-  const handleDelete = async (id: number) => {
-    if (window.confirm("Are you sure you want to delete this entry?")) {
-      try {
-        const response = await deleteData(`/api/web/collection/vlc-entry/${id}`);
-        if (response?.data?.success) {
-          fetchLastEntries();
-        }
-      } catch (error) {
-        console.error("Failed to delete entry:", error);
-      }
-    }
-  };
-
   const handleEnterAsTab = (e: React.KeyboardEvent<HTMLElement>) => {
     if (e.key === 'Enter') {
       const target = e.target as HTMLElement;
@@ -455,7 +219,7 @@ const VLCCollectionEntry = () => {
       const fields = Array.from(
         container.querySelectorAll('.enter-field:not([disabled]):not([readonly])')
       ) as HTMLElement[];
-      
+
       const index = fields.indexOf(target);
       if (index > -1 && index < fields.length - 1) {
         fields[index + 1].focus();
@@ -465,288 +229,112 @@ const VLCCollectionEntry = () => {
     }
   };
 
+  const steps: { key: CollectionStep; label: string; hint: string; icon: ReactNode }[] = [
+    { key: 'weight', label: t('weight_collection'), hint: 'Step 1', icon: <Scale className="h-4 w-4" /> },
+    { key: 'analyser', label: t('analyser_collection'), hint: 'Step 2', icon: <FlaskConical className="h-4 w-4" /> },
+  ];
+
   return (
-    <div className="flex flex-col lg:flex-row gap-4 md:gap-6 w-full p-4 md:p-6 max-w-7xl mx-auto min-w-0 overflow-x-hidden" onKeyDown={handleEnterAsTab}>
-      <div className="w-full lg:w-[65%] space-y-4 md:space-y-6 min-w-0">
-        
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex items-center space-x-3">
-            <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
-              <Building className="h-6 w-6" />
-            </div>
-            <h1 className="text-xl md:text-2xl font-bold text-gray-800 font-serif tracking-wide">
-              {t('vlc_collection_entry')}
-            </h1>
+    <div className="flex flex-col gap-4 md:gap-6 w-full p-4 md:p-6 max-w-7xl mx-auto min-w-0 overflow-x-hidden" onKeyDown={handleEnterAsTab}>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+        <div className="flex items-center space-x-3">
+          <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
+            <Building className="h-6 w-6" />
           </div>
-          <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto mt-3 sm:mt-0">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".csv,.xlsx,.xls"
-                  onChange={handleBulkImport}
-                  className="hidden"
-                />
-                <Button
-                  onClick={downloadTemplate}
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 sm:flex-none text-green-700 bg-green-50 border-green-200 hover:bg-green-100 hover:border-green-300 hover:text-green-800 transition-colors shadow-sm rounded-lg px-3"
-                >
-                  <Download className="h-4 w-4 mr-1.5" />
-                  Template
-                </Button>
-                <Button
-                  onClick={() => setIsBulkDialogOpen(true)}
-                  disabled={isBulkLoading}
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 sm:flex-none text-blue-700 bg-blue-50 border-blue-200 hover:bg-blue-100 hover:border-blue-300 hover:text-blue-800 transition-colors shadow-sm rounded-lg px-3"
-                >
-                  <Upload className="h-4 w-4 mr-1.5" />
-                  {isBulkLoading ? 'Importing...' : 'Bulk Import'}
-                </Button>
-              </div>
-            </div>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-800 font-serif tracking-wide">
+            {t('vlc_collection_entry')}
+          </h1>
+        </div>
+        <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto mt-3 sm:mt-0">
+          <Button
+            onClick={downloadTemplate}
+            variant="outline"
+            size="sm"
+            className="flex-1 sm:flex-none text-green-700 bg-green-50 border-green-200 hover:bg-green-100 hover:border-green-300 hover:text-green-800 transition-colors shadow-sm rounded-lg px-3"
+          >
+            <Download className="h-4 w-4 mr-1.5" />
+            Template
+          </Button>
+          <Button
+            onClick={() => setIsBulkDialogOpen(true)}
+            disabled={isBulkLoading}
+            variant="outline"
+            size="sm"
+            className="flex-1 sm:flex-none text-blue-700 bg-blue-50 border-blue-200 hover:bg-blue-100 hover:border-blue-300 hover:text-blue-800 transition-colors shadow-sm rounded-lg px-3"
+          >
+            <Upload className="h-4 w-4 mr-1.5" />
+            {isBulkLoading ? 'Importing...' : 'Bulk Import'}
+          </Button>
+        </div>
+      </div>
 
-
-        <Card className="shadow-sm border border-gray-200/60 bg-white/95 backdrop-blur-sm rounded-2xl overflow-hidden">
-          <CardContent className="p-6 space-y-6 enter-nav-container">
-            {/* Date, Shift, VLC ID in one row */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              <div className="space-y-1.5">
-                <Label htmlFor="date" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  {t('date')}
-                </Label>
-                <Input
-                  type="date"
-                  id="date"
-                  value={formData.date ? format(formData.date, "yyyy-MM-dd") : ""}
-                  onChange={(e) => {
-                    const d = new Date(e.target.value);
-                    if (isValid(d)) handleInputChange("date", d);
-                  }}
-                  className="bg-white border-gray-200 hover:border-blue-300 focus:border-blue-500 focus:ring-blue-500/20 transition-all w-full h-10 rounded-xl shadow-sm text-sm enter-field"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="shift" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  {t('shift')}
-                </Label>
-                <Select value={formData.shift} onValueChange={(value) => handleInputChange("shift", value)}>
-                  <SelectTrigger className="bg-white border-gray-200 hover:border-blue-300 focus:border-blue-500 focus:ring-blue-500/20 transition-all w-full h-10 rounded-xl shadow-sm text-sm enter-field">
-                    <SelectValue placeholder="Select shift" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white rounded-xl shadow-lg border-gray-100">
-                    <SelectItem value="morning" className="cursor-pointer hover:bg-gray-50 rounded-lg">{t('morning')}</SelectItem>
-                    <SelectItem value="evening" className="cursor-pointer hover:bg-gray-50 rounded-lg">{t('evening')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5 overflow-visible">
-                <Label htmlFor="userId" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  {t('vlc_id')}
-                </Label>
-                <VLCDropdown
-                  branches={branches || []}
-                  value={formData.userId}
-                  onChange={handleVLCIdChange}
-                />
-              </div>
-            </div>
-
-            {/* VLC Name and Type in one row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="space-y-1.5">
-                <Label htmlFor="vlcName" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  {t('vlc_name')}
-                </Label>
-                <Input
-                  id="vlcName"
-                  placeholder="VLC Name"
-                  value={formData.vlcName}
-                  readOnly
-                  className="bg-gray-50/70 border-gray-200 text-gray-600 w-full h-10 rounded-xl cursor-not-allowed shadow-none"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="type" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  Type
-                </Label>
-                <Select value={formData.type} onValueChange={(value: 'Cow' | 'Buffalo' | 'Both') => handleInputChange("type", value)}>
-                  <SelectTrigger className="bg-white border-gray-200 hover:border-blue-300 focus:border-blue-500 focus:ring-blue-500/20 transition-all w-full h-10 rounded-xl shadow-sm text-sm enter-field">
-                    <SelectValue placeholder="Select Type" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white rounded-xl shadow-lg border-gray-100">
-                    <SelectItem value="Cow" className="cursor-pointer hover:bg-gray-50 rounded-lg">Cow</SelectItem>
-                    <SelectItem value="Buffalo" className="cursor-pointer hover:bg-gray-50 rounded-lg">Buffalo</SelectItem>
-                    <SelectItem value="Both" className="cursor-pointer hover:bg-gray-50 rounded-lg">Both</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Weight, Fat, SNF in one row */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              <div className="space-y-1.5">
-                <Label htmlFor="weight" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  {t('weight')} <span className="text-gray-400 normal-case font-normal">(kg)</span>
-                </Label>
-                <Input
-                  id="weight"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={formData.weight}
-                  onChange={(e) => handleInputChange("weight", e.target.value)}
-                  className="bg-white border-gray-200 hover:border-blue-300 focus:border-blue-500 focus:ring-blue-500/20 transition-all w-full h-10 rounded-xl shadow-sm font-medium text-gray-900 enter-field"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="fat" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  {t('fat')} <span className="text-gray-400 normal-case font-normal">(%)</span>
-                </Label>
-                <Input
-                  id="fat"
-                  type="number"
-                  step="0.1"
-                  placeholder="0.0"
-                  value={formData.fat}
-                  onChange={(e) => handleInputChange("fat", e.target.value)}
-                  className="bg-white border-gray-200 hover:border-blue-300 focus:border-blue-500 focus:ring-blue-500/20 transition-all w-full h-10 rounded-xl shadow-sm font-medium text-gray-900 enter-field"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="snf" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  {t('snf')} <span className="text-gray-400 normal-case font-normal">(%)</span>
-                </Label>
-                <Input
-                  id="snf"
-                  type="number"
-                  step="0.1"
-                  placeholder="0.0"
-                  value={formData.snf}
-                  onChange={(e) => {
-                    handleInputChange("snf", e.target.value);
-                    if (e.target.value) setFormData(prev => ({ ...prev, clr: '' }));
-                  }}
-                  className="bg-white border-gray-200 hover:border-blue-300 focus:border-blue-500 focus:ring-blue-500/20 transition-all w-full h-10 rounded-xl shadow-sm font-medium text-gray-900 enter-field"
-                />
-              </div>
-            </div>
-
-            {/* CLR, Rate, Amount in one row */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              <div className="space-y-1.5">
-                <Label htmlFor="clr" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  {t('clr')}
-                </Label>
-                <Input
-                  id="clr"
-                  type="number"
-                  step="0.1"
-                  placeholder="0.0"
-
-                  value={formData.clr}
-                  onChange={(e) => {
-                    handleInputChange("clr", e.target.value);
-                    if (e.target.value) setFormData(prev => ({ ...prev, snf: '' }));
-                  }}
-                  className="bg-white border-gray-200 hover:border-blue-300 focus:border-blue-500 focus:ring-blue-500/20 transition-all w-full h-10 rounded-xl shadow-sm font-medium text-gray-900 enter-field"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="rate" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  {t('rate_per_kg')}
-                </Label>
-                <Input
-                  id="rate"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={formData.rate}
-                  readOnly
-                  className="bg-blue-50/30 border-blue-100 text-blue-900 font-semibold w-full h-10 rounded-xl shadow-inner cursor-not-allowed"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="amount" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  {t('total_amount')}
-                </Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">₹</span>
-                  <Input
-                    id="amount"
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={Number(formData.amount || 0).toFixed(2)}
-                    readOnly
-                    className="bg-green-50/30 border-green-200 text-green-900 font-bold w-full h-10 rounded-xl shadow-inner pl-7 cursor-not-allowed"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Submit Button */}
-            <div className="flex justify-end gap-3 pt-6 border-t border-gray-100 mt-2">
-              {editingId && (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    const currentDate = formData.date;
-                    const currentShift = formData.shift;
-                    setEditingId(null);
-                    setFormData({
-                      date: currentDate,
-                      shift: currentShift,
-                      userId: "",
-                      vlcName: "",
-                      milkType: 'Cow',
-                      rateChartName: 'Rate Chart 1',
-                      weight: "",
-                      fat: "",
-                      snf: "",
-                      clr: "",
-                      rate: "",
-                      amount: 0,
-                      type: 'Both',
-                    });
-                  }}
-                  className="w-full sm:w-auto border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl px-6"
-                >
-                  Cancel
-                </Button>
+      {/* Step switch + shared date / shift */}
+      <div className="flex flex-col md:flex-row md:items-end gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+        <div className="flex p-1 bg-gray-100 rounded-xl w-full md:w-auto">
+          {steps.map(({ key, label, hint, icon }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => handleStepChange(key)}
+              className={cn(
+                "flex-1 md:flex-none flex items-center justify-center gap-2 h-11 px-4 rounded-lg text-sm font-semibold transition-all",
+                step === key
+                  ? key === 'weight'
+                    ? "bg-white text-blue-600 shadow-sm"
+                    : "bg-white text-purple-600 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
               )}
-              <Button
-                onClick={handleSubmit}
-                disabled={isLoading || isUpdating}
-                className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-8 h-10 shadow-md shadow-blue-500/20 font-semibold transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:hover:translate-y-0 enter-field"
-              >
-                {isLoading || isUpdating ? t('submitting') : editingId ? "Update Entry" : t('submit_entry')}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            >
+              {icon}
+              <span className="truncate">{label}</span>
+              <span className="hidden sm:inline text-[10px] font-medium uppercase tracking-wider text-gray-400">{hint}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 md:ml-auto md:w-[360px]">
+          <div className="space-y-1.5">
+            <Label htmlFor="date" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              {t('date')}
+            </Label>
+            <Input
+              type="date"
+              id="date"
+              value={dateParam}
+              onChange={(e) => {
+                const d = new Date(e.target.value);
+                if (isValid(d)) setDate(d);
+              }}
+              className="bg-white border-gray-200 hover:border-blue-300 focus:border-blue-500 focus:ring-blue-500/20 transition-all w-full h-10 rounded-xl shadow-sm text-sm"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="shift" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              {t('shift')}
+            </Label>
+            <Select value={shift} onValueChange={setShift}>
+              <SelectTrigger className="bg-white border-gray-200 hover:border-blue-300 focus:border-blue-500 focus:ring-blue-500/20 transition-all w-full h-10 rounded-xl shadow-sm text-sm">
+                <SelectValue placeholder="Select shift" />
+              </SelectTrigger>
+              <SelectContent className="bg-white rounded-xl shadow-lg border-gray-100">
+                <SelectItem value="morning" className="cursor-pointer hover:bg-gray-50 rounded-lg">{t('morning')}</SelectItem>
+                <SelectItem value="evening" className="cursor-pointer hover:bg-gray-50 rounded-lg">{t('evening')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </div>
 
-      <div className="w-full lg:w-[35%] min-w-0">
-        <LastEntryDetails
-          entries={getFilteredEntries()}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-        />
-      </div>
+      {step === 'weight' ? (
+        <VLCWeightEntry date={dateParam} shift={shiftParam} refreshKey={refreshKey} />
+      ) : (
+        <VLCAnalyserEntry date={dateParam} shift={shiftParam} refreshKey={refreshKey} />
+      )}
 
       <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
-        <DialogContent 
+        <DialogContent
           className="sm:max-w-[550px] bg-white border-0 shadow-2xl p-0 overflow-hidden rounded-2xl [&>button]:right-6 [&>button]:top-5 [&>button]:text-white/80 hover:[&>button]:text-white [&>button]:focus:ring-white/20"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
@@ -758,7 +346,7 @@ const VLCCollectionEntry = () => {
               </DialogTitle>
             </DialogHeader>
           </div>
-          
+
           <div className="p-6 space-y-6 bg-slate-50/50 enter-nav-container">
             <div className="grid grid-cols-2 gap-5">
               <div className="space-y-2">
@@ -800,11 +388,11 @@ const VLCCollectionEntry = () => {
 
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-slate-700">VLC Name</Label>
-                <Input 
-                  value={bulkFormData.vlcName} 
-                  readOnly 
-                  className="bg-slate-100/70 border-slate-200 text-slate-600 font-medium h-11 rounded-xl shadow-inner cursor-not-allowed placeholder:text-slate-400" 
-                  placeholder="Auto-filled" 
+                <Input
+                  value={bulkFormData.vlcName}
+                  readOnly
+                  className="bg-slate-100/70 border-slate-200 text-slate-600 font-medium h-11 rounded-xl shadow-inner cursor-not-allowed placeholder:text-slate-400"
+                  placeholder="Auto-filled"
                 />
               </div>
             </div>

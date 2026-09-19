@@ -3,8 +3,9 @@
  */
 
 /* ------------------------------------------------------------------ *
- * Response shape: GET /webreports/profit-loss?dairy_id&vlc&from&to
+ * Response shape: GET /webreports/profit-loss?dairy_id&from&from_shift&to&to_shift
  *
+ *   filters                      echoes the window used, incl. from_shift / to_shift
  *   income.dispatch              base_amount is the milk sale. commission_amount
  *                                is already inside base_amount, so it is NOT
  *                                added on top (the API's own totals do add it)
@@ -18,8 +19,10 @@
  *                                commission twice; figures are derived here
  *   farmers[]                    per-farmer cost with the commission rule applied
  *   period_charges.entries[]     which VLC-wide fixed entries fired, and why
- *   daily[]                      per-day rows (EXCLUDES fixed commission)
+ *   daily[]                      per-day rows (EXCLUDES fixed commission); shifts[]
+ *                                is ["Evening"] etc. on a partial first / last day
  *   notes.collections_without_commission
+ *   notes.dispatches_without_time  dispatches with no time, counted as Morning
  *   warnings[]                   free-text caveats raised by the backend
  *
  * Identity, once dispatch commission is stripped from the day rows — fixed
@@ -44,6 +47,8 @@ export interface PLLine {
 
 export interface PLDailyRow {
   date: string;
+  /** Shifts of this day inside the window — one entry marks a partial end day. */
+  shifts: string[];
   collectionQuantity: number;
   collectionCost: number;
   purchaseCommission: number;
@@ -77,6 +82,13 @@ export interface PLPeriodCharge {
   amount: number;
 }
 
+export interface PLPeriod {
+  from: string;
+  fromShift: string;
+  to: string;
+  toShift: string;
+}
+
 export interface PLStatementData {
   income: PLLine[];
   expenses: PLLine[];
@@ -96,6 +108,9 @@ export interface PLStatementData {
   farmers: PLFarmerRow[];
   daily: PLDailyRow[];
   collectionsWithoutCommission: number;
+  dispatchesWithoutTime: number;
+  /** The window the backend actually used, echoed from `filters`. */
+  period: PLPeriod;
   dailyExcludesFixedCommission: boolean;
   incomeFormula: string;
   expenseFormula: string;
@@ -138,6 +153,7 @@ export const normalisePLResponse = (raw: any): PLStatementData => {
   const expenseRaw = pick(payload, ['expense', 'expenses']) ?? {};
   const periodRaw = pick(payload, ['period_charges', 'periodCharges']) ?? {};
   const notes = pick(payload, ['notes']) ?? {};
+  const filtersRaw = pick(payload, ['filters']) ?? {};
 
   const incomeFormula = String(pick(notes, ['income_formula', 'dispatch_revenue_formula']) ?? '');
   const expenseFormula = String(pick(notes, ['expense_formula']) ?? '');
@@ -272,8 +288,10 @@ export const normalisePLResponse = (raw: any): PLStatementData => {
         // back out so the day rows match the milk-sale totals.
         const dispatchCommission = num(pick(row, ['dispatch_commission']));
         const dayOtherExpenses = num(pick(row, ['other_expenses']));
+        const dayShifts = pick(row, ['shifts']);
         return {
           date: String(pick(row, ['date']) ?? ''),
+          shifts: Array.isArray(dayShifts) ? dayShifts.map(String) : [],
           collectionQuantity: num(pick(row, ['collection_quantity'])),
           collectionCost: num(pick(row, ['collection_cost'])),
           purchaseCommission: num(pick(row, ['purchase_commission', 'per_liter_commission'])),
@@ -318,6 +336,13 @@ export const normalisePLResponse = (raw: any): PLStatementData => {
     farmers,
     daily,
     collectionsWithoutCommission: num(pick(notes, ['collections_without_commission'])),
+    dispatchesWithoutTime: num(pick(notes, ['dispatches_without_time'])),
+    period: {
+      from: String(pick(filtersRaw, ['from']) ?? ''),
+      fromShift: String(pick(filtersRaw, ['from_shift', 'fromShift']) ?? ''),
+      to: String(pick(filtersRaw, ['to']) ?? ''),
+      toShift: String(pick(filtersRaw, ['to_shift', 'toShift']) ?? ''),
+    },
     dailyExcludesFixedCommission:
       pick(notes, ['daily_excludes_fixed_commission', 'daily_excludes_period_charges']) !== false,
     incomeFormula,

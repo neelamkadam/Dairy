@@ -74,12 +74,15 @@ export const reportsApi = {
     return data;
   },
 
-  // No milk_type / shift params by design: dispatch_entry has no shift column and its
-  // milk_type is usually 'Both', so revenue cannot be sliced the way cost can.
+  // from_shift / to_shift are optional; left out, the window is whole days. Only
+  // collections store a shift — the backend places dispatch and other expenses by
+  // time (noon cutoff). No milk_type: dispatch is usually 'Both', so revenue can't be split.
   getProfitLossStatement: async (params: {
     dairy_id: string;
     from: string;
     to: string;
+    from_shift?: 'Morning' | 'Evening';
+    to_shift?: 'Morning' | 'Evening';
   }) => {
     const queryString = new URLSearchParams(params as any).toString();
     console.log('📡 Full API URL:', `${api.defaults.baseURL}/webreports/profit-loss?${queryString}`);

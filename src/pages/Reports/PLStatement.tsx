@@ -4,6 +4,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import { useAppSelector } from "@/redux/store";
 import { reportsApi } from "@/services/reportsApi";
@@ -27,6 +34,8 @@ import {
   type PLStatementData,
 } from "@/utils/plStatement";
 
+type Shift = 'Morning' | 'Evening';
+
 
 const PLStatement = () => {
   const { t } = useTranslation();
@@ -34,7 +43,9 @@ const PLStatement = () => {
 
   const [selectedVLC, setSelectedVLC] = useState<string>('');
   const [fromDate, setFromDate] = useState<string>('');
+  const [fromShift, setFromShift] = useState<Shift>('Morning');
   const [toDate, setToDate] = useState<string>('');
+  const [toShift, setToShift] = useState<Shift>('Evening');
   const [loading, setLoading] = useState(false);
   const [statement, setStatement] = useState<PLStatementData | null>(null);
   const [apiUnavailable, setApiUnavailable] = useState(false);
@@ -42,9 +53,9 @@ const PLStatement = () => {
 
   const selectedVlcObj = branches?.find((b: any) => b.branch_id.toString() === selectedVLC);
 
-  // Same billing-cycle window the other reports use: picking any date snaps the
-  // range to that VLC's cycle (10 / 15 / monthly), and To Date follows From Date.
-  const calculateDateRange = (dateStr: string) => {
+  // The billing cycle (10 / 15 / monthly) containing `dateStr` — used only to pre-fill
+  // the window; after that both ends and their shifts are free to change.
+  const calculateDateRange = (dateStr: string, cycleDays = 10) => {
     if (!dateStr) return { from: '', to: '' };
 
     let year: number, month: number, day: number;
@@ -65,7 +76,6 @@ const PLStatement = () => {
 
     if (isNaN(year) || isNaN(month) || isNaN(day)) return { from: '', to: '' };
 
-    const cycleDays = selectedVlcObj?.days || 10;
     const lastDayOfMonth = new Date(year, month, 0).getDate();
 
     let startDay: number, endDay: number;
@@ -100,32 +110,54 @@ const PLStatement = () => {
     };
   };
 
-  const handleFromDateChange = (newDate: string) => {
-    const dates = calculateDateRange(newDate);
-    setFromDate(dates.from);
-    setToDate(dates.to);
+  // Keep the window the right way round: moving one end past the other drags it along.
+  const handleFromDateChange = (value: string) => {
+    setFromDate(value);
+    if (value && toDate && value > toDate) setToDate(value);
   };
 
+  const handleToDateChange = (value: string) => {
+    setToDate(value);
+    if (value && fromDate && value < fromDate) setFromDate(value);
+  };
+
+  // Pre-fill with the first VLC's current billing cycle, whole days (Morning → Evening).
   useEffect(() => {
     if (branches?.length > 0 && !selectedVLC) {
       setSelectedVLC(branches[0].branch_id.toString());
-      const dates = calculateDateRange(new Date().toISOString().split('T')[0]);
+      const dates = calculateDateRange(new Date().toISOString().split('T')[0], branches[0].days || 10);
       setFromDate(dates.from);
       setToDate(dates.to);
     }
   }, [branches]);
 
-  useEffect(() => {
-    if (selectedVLC) {
-      const dates = calculateDateRange(fromDate || new Date().toISOString().split('T')[0]);
-      setFromDate(dates.from);
-      setToDate(dates.to);
-    }
-  }, [selectedVLC, branches]);
+  const shiftLabel = (shift: string) => {
+    const s = shift.toLowerCase();
+    if (s === 'morning') return t('morning', 'Morning');
+    if (s === 'evening') return t('evening', 'Evening');
+    return shift;
+  };
+
+  const renderShiftSelect = (value: Shift, onChange: (shift: Shift) => void) => (
+    <Select value={value} onValueChange={(next) => onChange(next as Shift)}>
+      <SelectTrigger className="w-full h-10 bg-white">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent className="bg-white">
+        <SelectItem value="Morning">{t('morning', 'Morning')}</SelectItem>
+        <SelectItem value="Evening">{t('evening', 'Evening')}</SelectItem>
+      </SelectContent>
+    </Select>
+  );
 
   const handleShow = async () => {
     if (!selectedVLC || !fromDate || !toDate) {
       toast.error(t('please_select_vlc_center_and_date_range', 'Please select a VLC centre and date range'));
+      return;
+    }
+    // Evening → Morning of the same day is an empty window.
+    if (fromDate > toDate || (fromDate === toDate && fromShift === 'Evening' && toShift === 'Morning')) {
+      toast.error(t('pl_invalid_shift_window', 'The From date and shift must come before the To date and shift'));
       return;
     }
 
@@ -137,8 +169,18 @@ const PLStatement = () => {
         dairy_id: selectedVLC,
         from: fromDate,
         to: toDate,
+        from_shift: fromShift,
+        to_shift: toShift,
       });
-      setStatement(normalisePLResponse(response));
+      const data = normalisePLResponse(response);
+      // Fill any end the backend didn't echo back with what was asked for.
+      data.period = {
+        from: data.period.from || fromDate,
+        fromShift: data.period.fromShift || fromShift,
+        to: data.period.to || toDate,
+        toShift: data.period.toShift || toShift,
+      };
+      setStatement(data);
     } catch (error: any) {
       console.error(error);
       setStatement(null);
@@ -158,12 +200,15 @@ const PLStatement = () => {
       toast.error(t('no_data_to_export', 'No data to export'));
       return;
     }
+    // Print the window the report was built for, not whatever the filters say now.
     generatePLStatementPDF({
       vlcName: selectedVlcObj?.name || selectedVlcObj?.branchName || '',
       dairyName: selectedVlcObj?.username || '',
-      fromDate,
-      toDate,
       ...statement,
+      fromDate: statement.period.from,
+      toDate: statement.period.to,
+      fromShift: statement.period.fromShift,
+      toShift: statement.period.toShift,
     });
     toast.success(t('pdf_exported_successfully', 'PDF exported successfully'));
   };
@@ -175,6 +220,11 @@ const PLStatement = () => {
     })}`;
 
   const isProfit = (statement?.netProfit ?? 0) >= 0;
+
+  // A single-shift end means the backend placed dispatches by time on that day.
+  const partialWindow =
+    !!statement &&
+    (statement.period.fromShift.toLowerCase() === 'evening' || statement.period.toShift.toLowerCase() === 'morning');
 
   const dailyTotals = (statement?.daily ?? []).reduce(
     (acc, row) => ({
@@ -333,9 +383,9 @@ const PLStatement = () => {
         </p>
       </div>
 
-      {/* Filters — same VLC dropdown + billing-cycle date range as the other reports.
-          No milk type / shift filter: revenue cannot be sliced the way cost can. */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 items-end bg-white p-3 sm:p-4 rounded-lg shadow-sm mx-2 mb-4 text-left">
+      {/* Filters — a free From/To window with a shift at each end, like the Total
+          Collection report. No milk type filter: revenue cannot be sliced the way cost can. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 items-end bg-white p-3 sm:p-4 rounded-lg shadow-sm mx-2 mb-4 text-left">
         <div>
           <Label>{t('vlcc_center', 'VLCC Center')}</Label>
           <VLCDropdown
@@ -353,15 +403,31 @@ const PLStatement = () => {
             type="date"
             value={fromDate}
             onChange={(e) => handleFromDateChange(e.target.value)}
+            className="h-10"
           />
         </div>
 
         <div>
-          <Label>{t('to_date', 'To Date')}</Label>
-          <Input type="date" value={toDate} disabled className="bg-gray-100 cursor-not-allowed" />
+          <Label>{t('from_shift', 'From Shift')}</Label>
+          {renderShiftSelect(fromShift, setFromShift)}
         </div>
 
-        <div className="flex flex-wrap gap-2 justify-start lg:justify-end">
+        <div>
+          <Label>{t('to_date', 'To Date')}</Label>
+          <Input
+            type="date"
+            value={toDate}
+            onChange={(e) => handleToDateChange(e.target.value)}
+            className="h-10"
+          />
+        </div>
+
+        <div>
+          <Label>{t('to_shift', 'To Shift')}</Label>
+          {renderShiftSelect(toShift, setToShift)}
+        </div>
+
+        <div className="sm:col-span-2 md:col-span-3 xl:col-span-5 flex flex-wrap gap-2 justify-end">
           <Button className="bg-blue-600 text-white w-[120px]" onClick={handleShow} disabled={loading}>
             {loading ? t('loading', 'Loading...') : t('show', 'Show')}
           </Button>
@@ -427,6 +493,13 @@ const PLStatement = () => {
 
         {!loading && statement && (
           <>
+            <p className="text-xs text-gray-500 text-left px-1">
+              {t('period', 'Period')}:{' '}
+              <span className="font-semibold text-gray-700">
+                {statement.period.from} ({shiftLabel(statement.period.fromShift)}) → {statement.period.to} ({shiftLabel(statement.period.toShift)})
+              </span>
+            </p>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {kpis.map((kpi) => (
                 <Card key={kpi.label} className="py-0 gap-0">
@@ -481,6 +554,27 @@ const PLStatement = () => {
                       {t(
                         'collections_without_commission_desc',
                         'These collections predate every configured effective date, so they earn zero commission. The Tally API falls back to the oldest entry instead — expect small commission differences between the two.'
+                      )}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Dispatches with no time are counted as Morning — that only matters when
+                an end of the window is a single shift. */}
+            {partialWindow && statement.dispatchesWithoutTime > 0 && (
+              <Card className="border-amber-200 bg-amber-50/60 py-0 gap-0">
+                <CardContent className="flex items-start gap-3 py-4 text-left">
+                  <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-amber-900 text-sm">
+                      {t('dispatches_without_time', 'Dispatches without a time')}: {statement.dispatchesWithoutTime}
+                    </p>
+                    <p className="text-xs text-amber-800 mt-1">
+                      {t(
+                        'dispatches_without_time_desc',
+                        'These dispatches have no time saved, so they were counted in the Morning shift. On a partial first or last day that can move their sale into or out of this period.'
                       )}
                     </p>
                   </div>
@@ -742,7 +836,15 @@ const PLStatement = () => {
                       <tbody>
                         {statement.daily.map((row, index) => (
                           <tr key={`${row.date}-${index}`} className="border-b border-gray-100 last:border-b-0">
-                            <td className="px-3 py-2.5 text-left text-gray-800 whitespace-nowrap">{row.date}</td>
+                            <td className="px-3 py-2.5 text-left text-gray-800 whitespace-nowrap">
+                              {row.date}
+                              {/* One shift marks a partial first / last day of the window. */}
+                              {row.shifts.length === 1 && (
+                                <span className="ml-2 inline-flex px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 text-[11px] font-semibold leading-4">
+                                  {shiftLabel(row.shifts[0])}
+                                </span>
+                              )}
+                            </td>
                             <td className="px-3 py-2.5 text-right tabular-nums text-gray-700">{row.collectionQuantity.toFixed(2)}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums text-gray-700">{money(row.collectionCost)}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums text-rose-700">{money(row.purchaseCommission)}</td>

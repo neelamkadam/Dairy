@@ -15,6 +15,7 @@ interface Entry {
   snf: number;
   clr: number;
   type?: string;
+  sample_id?: number | string | null;
 }
 
 interface LastEntryDetailsProps {
@@ -63,6 +64,12 @@ const LastEntryDetails = ({ entries = [], onEdit, onDelete }: LastEntryDetailsPr
                       </div>
                     </div>
                   </div>
+                  {entry.sample_id != null && entry.sample_id !== '' && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">{t('sample_id')}:</span>
+                      <span className="text-sm font-bold text-blue-600">#{entry.sample_id}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between gap-2">
                     <span className="text-sm text-gray-600 flex-shrink-0">{t('vlc_name')}:</span>
                     <span className="text-sm font-medium text-gray-800 text-right break-words">{entry.vlc_name}</span>

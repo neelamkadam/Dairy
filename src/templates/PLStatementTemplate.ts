@@ -7,6 +7,8 @@ export interface PLStatementPdfData {
   dairyName: string;
   fromDate: string;
   toDate: string;
+  fromShift?: string;
+  toShift?: string;
   income: PLLine[];
   expenses: PLLine[];
   otherExpenses: PLLine[];
@@ -81,7 +83,7 @@ const sectionRows = (lines: PLLine[], emptyLabel: string) => {
 
 export const generatePLStatementPDF = (data: PLStatementPdfData) => {
   const {
-    vlcName, dairyName, fromDate, toDate,
+    vlcName, dairyName, fromDate, toDate, fromShift, toShift,
     income, expenses, otherExpenses, otherExpensesTotal, grossProfit, totalIncome, totalExpenses,
     netProfit, status, marginPercent, netPerLiterCollected,
     fixedCommissionTotal, vlcWideFixedTotal, periodCharges, farmers, daily,
@@ -108,7 +110,7 @@ export const generatePLStatementPDF = (data: PLStatementPdfData) => {
     },
     { text: 'Profit & Loss Statement', style: 'header' },
     {
-      text: `Period: ${formatDate(fromDate)} to ${formatDate(toDate)}`,
+      text: `Period: ${formatDate(fromDate)}${fromShift ? ` (${fromShift})` : ''} to ${formatDate(toDate)}${toShift ? ` (${toShift})` : ''}`,
       style: 'subheader',
       margin: [0, 0, 0, 24],
     },
@@ -361,7 +363,7 @@ export const generatePLStatementPDF = (data: PLStatementPdfData) => {
             { text: 'Net', style: 'tableHeader', alignment: 'right' },
           ],
           ...daily.map((row) => ([
-            { text: row.date, style: 'smallValue' },
+            { text: row.shifts.length === 1 ? `${row.date} (${row.shifts[0]})` : row.date, style: 'smallValue' },
             { text: row.collectionQuantity.toFixed(2), style: 'smallValue', alignment: 'right' },
             { text: money(row.collectionCost), style: 'smallValue', alignment: 'right' },
             { text: money(row.purchaseCommission), style: 'smallValue', alignment: 'right' },
