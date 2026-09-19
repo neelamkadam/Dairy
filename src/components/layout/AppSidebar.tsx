@@ -69,6 +69,7 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
       createChildren.push(
         { title: t('create_supervisor', 'Create Supervisor (Sub User)'), icon: <Dot size={24} />, href: ROUTES.SETTINGS.CREATE_USER },
         { title: t('create_dairy', 'Create Dairy'), icon: <Dot size={24} />, href: ROUTES.SETTINGS.CREATE_DAIRY },
+        { title: t('dairy_equipment', 'Dairy Equipment'), icon: <Dot size={24} />, href: ROUTES.MASTER.DAIRY_EQUIPMENT },
       );
     }
 

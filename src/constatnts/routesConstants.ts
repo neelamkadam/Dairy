@@ -28,6 +28,7 @@ export const ROUTES = {
     ADD_RATECHART:`/dashboard/add-rate-chart`,
     BONUS:`/dashboard/bonus`,
     OTHER_EXPENSE:`/dashboard/other-expense`,
+    DAIRY_EQUIPMENT:`/dashboard/dairy-equipment`,
     CREATE_ROUTE:`/dashboard/create-route`,
     CREATE_BMC:`/dashboard/create-bmc`,
     CREATE_CC:`/dashboard/create-cc`,

@@ -38,6 +38,7 @@ import { AddFarmer } from "@/pages/Master/AddFarmer";
 import AddRateChart from "@/pages/Master/AddRateChart";
 import Bonus from "@/pages/Master/Bonus";
 import OtherExpense from "@/pages/Master/OtherExpense";
+import DairyEquipment from "@/pages/Master/DairyEquipment";
 import CreateRoute from "@/pages/Master/CreateRoute";
 import CreateBMC from "@/pages/Master/CreateBMC";
 import CreateCC from "@/pages/Master/CreateCC";
@@ -178,6 +179,10 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "other-expense",
         element: <OtherExpense />,
+      },
+      {
+        path: "dairy-equipment",
+        element: <DairyEquipment />,
       },
       {
         path: "create-route",

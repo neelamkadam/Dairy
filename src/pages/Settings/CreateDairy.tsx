@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "react-toastify";
 import { createDairyApi } from "@/services/createDairyApi";
+import { dairyEquipmentApi, DEFAULT_EQUIPMENT } from "@/services/dairyEquipmentApi";
+import { exportDeliveredEquipmentPdf } from "@/utils/dairyEquipmentPdf";
+import UserDairiesList from "./UserDairiesList";
 import { ccApi, bmcApi, routeApi } from "@/services/routeBmcCcApi";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import FileCopyIcon from "@mui/icons-material/FileCopy";
@@ -28,6 +31,8 @@ import {
   Route as RouteIcon,
   ChevronUp,
   ChevronDown,
+  Download,
+  Loader2,
 } from "lucide-react";
 import {
   Select,
@@ -38,15 +43,6 @@ import {
 } from "@/components/ui/select";
 
 const ROLE = "Dairyadmin";
-
-const DEFAULT_EQUIPMENT = [
-  "Milk Analyzer",
-  "Weighting Scale",
-  "Mobile Application",
-  "Stirer",
-  "Milk Can",
-  "Solar Panel",
-];
 
 type Step = 1 | 2 | 3;
 
@@ -86,9 +82,15 @@ const CreateDairy = () => {
     address: "",
   });
   const [createdUser, setCreatedUser] = useState<any>(null);
+  // Re-reads "My Dairies" once a dairy is created.
+  const [dairiesRefreshKey, setDairiesRefreshKey] = useState(0);
+  // dairy.id of the dairy just created — equipment is saved against it.
+  const [createdDairyId, setCreatedDairyId] = useState<number | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [savingEquipment, setSavingEquipment] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
-  // Equipment checklist (backend pending — local only for now).
+  // Equipment checklist, saved once the dairy exists.
   const [equipment, setEquipment] = useState<{ name: string; checked: boolean; quantity: string; serialNumber: string }[]>(
     DEFAULT_EQUIPMENT.map((name) => ({ name, checked: false, quantity: "", serialNumber: "" }))
   );
@@ -131,10 +133,74 @@ const CreateDairy = () => {
     setNewField("");
   };
 
-  const handleEquipmentSubmit = () => {
-    // Backend not wired up yet — just acknowledge the submission.
-    toast.success(t("equipment_details_submitted", "Equipment details submitted"));
-    setIsSubmitted(true);
+  // Saves the checklist as the dairy's full equipment list, so going back to
+  // "Edit Equipment" and submitting again updates rather than duplicates.
+  const handleEquipmentSubmit = async () => {
+    if (!createdDairyId) {
+      toast.error(t(
+        "equipment_dairy_id_missing",
+        "Could not find the new dairy's ID — add its equipment from the Dairy Equipment page"
+      ));
+      return;
+    }
+
+    const selected = equipment.filter((e) => e.checked);
+    const badQuantity = selected.find((e) => e.quantity && !/^[1-9]\d*$/.test(e.quantity.trim()));
+    if (badQuantity) {
+      toast.error(t("equipment_quantity_invalid", {
+        name: badQuantity.name,
+        defaultValue: "Quantity for {{name}} must be a whole number of at least 1",
+      }));
+      return;
+    }
+
+    setSavingEquipment(true);
+    try {
+      const res = await dairyEquipmentApi.replaceAll(
+        createdDairyId,
+        selected.map((e) => ({
+          equipment_name: e.name,
+          quantity: e.quantity.trim() ? Number(e.quantity) : 1,
+          serial_number: e.serialNumber.trim() || null,
+        })),
+        authState?.userData?.name || authState?.userData?.email || "web"
+      );
+      if (res?.success === false) throw new Error(res?.message);
+      toast.success(t("equipment_details_submitted", "Equipment details submitted"));
+      setIsSubmitted(true);
+    } catch (error: any) {
+      toast.error(
+        error?.response?.data?.message || error?.message || t("failed_to_save_equipment", "Failed to save equipment")
+      );
+    } finally {
+      setSavingEquipment(false);
+    }
+  };
+
+  // Delivery sheet for the equipment just submitted, to print and sign at handover.
+  const handleExportPdf = async () => {
+    const delivered = equipment.filter((e) => e.checked);
+    if (delivered.length === 0) {
+      toast.error(t("no_data_available", "No data available"));
+      return;
+    }
+    setExportingPdf(true);
+    try {
+      await exportDeliveredEquipmentPdf(
+        { username: createdUsername !== "-" ? createdUsername : null, name: form.name, branchName: form.branchname },
+        delivered.map((e) => ({
+          equipment_name: e.name,
+          quantity: e.quantity.trim() || "1",
+          serial_number: e.serialNumber.trim() || null,
+        }))
+      );
+      toast.success(t("pdf_exported_successfully", "PDF exported successfully"));
+    } catch (error) {
+      console.error("Failed to export equipment PDF:", error);
+      toast.error(t("failed_to_export_pdf", "Failed to export PDF"));
+    } finally {
+      setExportingPdf(false);
+    }
   };
 
   const handleCopy = (text: string) => {
@@ -193,6 +259,8 @@ const CreateDairy = () => {
       }
       toast.success(data.message || t("dairy_created_successfully", "Dairy created successfully"));
       setCreatedUser(data.userdata ?? data.data ?? data.user ?? data);
+      setCreatedDairyId(Number(data.dairy_id) || null);
+      setDairiesRefreshKey((key) => key + 1);
       setStep(3);
     } catch (error: any) {
       toast.error(error?.response?.data?.message || t("failed_to_create_dairy", "Failed to create dairy"));
@@ -217,6 +285,7 @@ const CreateDairy = () => {
       address: "",
     });
     setCreatedUser(null);
+    setCreatedDairyId(null);
     setEquipment(DEFAULT_EQUIPMENT.map((name) => ({ name, checked: false, quantity: "", serialNumber: "" })));
     setNewField("");
     setIsSubmitted(false);
@@ -587,10 +656,24 @@ const CreateDairy = () => {
                   {isSubmitted ? (
                     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
                       <div>
-                        <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-                          <CheckCircle2 className="text-blue-600" />
-                          {t("delivered_equipment", "Delivered Equipment")}
-                        </h3>
+                        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                          <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                            <CheckCircle2 className="text-blue-600" />
+                            {t("delivered_equipment", "Delivered Equipment")}
+                          </h3>
+                          {equipment.some((e) => e.checked) && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={handleExportPdf}
+                              disabled={exportingPdf}
+                              className="h-9 gap-1.5 rounded-lg border-blue-200 text-blue-700 hover:bg-blue-50 font-semibold"
+                            >
+                              {exportingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                              {t("export_pdf", "Export PDF")}
+                            </Button>
+                          )}
+                        </div>
                         <div className="bg-muted border border-border rounded-xl p-5">
                           {equipment.filter((e) => e.checked).length > 0 ? (
                             <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -601,7 +684,7 @@ const CreateDairy = () => {
                                     {item.name}
                                   </div>
                                   <div className="mt-1.5 ml-4 flex gap-4 text-xs text-muted-foreground">
-                                    <span>{t("qty", "Qty")}: <span className="font-semibold text-foreground">{item.quantity || "—"}</span></span>
+                                    <span>{t("qty", "Qty")}: <span className="font-semibold text-foreground">{item.quantity || "1"}</span></span>
                                     <span>{t("serial", "Serial")}: <span className="font-semibold text-foreground">{item.serialNumber || "—"}</span></span>
                                   </div>
                                 </li>
@@ -735,9 +818,10 @@ const CreateDairy = () => {
                         <Button
                           type="button"
                           onClick={handleEquipmentSubmit}
+                          disabled={savingEquipment}
                           className="flex-1 h-12 text-base font-semibold rounded-xl order-1 sm:order-2 bg-blue-600 hover:bg-blue-700 text-white"
                         >
-                          {t("confirm_and_submit", "Confirm & Submit")}
+                          {savingEquipment ? t("saving", "Saving...") : t("confirm_and_submit", "Confirm & Submit")}
                         </Button>
                       </div>
                     </div>
@@ -748,6 +832,14 @@ const CreateDairy = () => {
           </CardContent>
         )}
         </Card>
+
+        <UserDairiesList
+          userId={userId}
+          ccList={ccList}
+          bmcList={bmcList}
+          routeList={routeList}
+          refreshKey={dairiesRefreshKey}
+        />
       </div>
     </div>
   );
