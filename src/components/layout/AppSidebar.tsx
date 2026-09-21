@@ -14,7 +14,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import NeoDairyLogo from "@/assets/NeoDairy_Logo.png";
 import { RootState, useAppSelector } from "@/redux/store";
 import { useTranslation } from "react-i18next";
-import { getSidebarAccess } from "@/services/sidebarAccessApi";
+import { getSidebarAccess, getVlcStepAccess, isOnByDefault } from "@/services/sidebarAccessApi";
 
 interface MenuItem {
   title: string;
@@ -35,11 +35,15 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
   }
 
   if (access?.collection_entry) {
+    // VLC Collection Entry needs the Weight or the Analyser step.
+    const vlcSteps = getVlcStepAccess(access);
     items.push({
       title: t('collection_entry'),
       icon: <Droplets size={20} className="stroke-[1.5]" />,
       children: [
-        { title: t('vlc_collection_entry'), icon: <Dot size={24} />, href: ROUTES.COLLECTIONENTRY.VLC_COLLECTION_ENTRY },
+        ...(vlcSteps.weight || vlcSteps.analyser
+          ? [{ title: t('vlc_collection_entry'), icon: <Dot size={24} />, href: ROUTES.COLLECTIONENTRY.VLC_COLLECTION_ENTRY }]
+          : []),
         { title: t('farmer_collection_entry'), icon: <Dot size={24} />, href: ROUTES.COLLECTIONENTRY.FARMER_COLLECTION_ENTRY },
         { title: t('tanker_dispatch'), icon: <Dot size={24} />, href: ROUTES.COLLECTIONENTRY.DISPATCH_ENTRY }
       ]
@@ -120,6 +124,7 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
         { title: t('shift_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.SHIFT_REPORTS },
         { title: t('manual_auto_shift_report', 'Manual/Auto Shift Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.MANUAL_AUTO_SHIFT_REPORT },
         { title: t('dispatch_status_report', 'Dispatch Status Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.DISPATCH_STATUS_REPORT },
+        { title: t('vlc_collection_entry_report', 'VLC Collection Entry Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.VLC_COLLECTION_ENTRY_REPORT },
         { title: t('tanker_dispatch_report', 'Tanker Dispatch Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.TANKER_DISPATCH_REPORT },
         { title: t('farmer_collection'), icon: <Dot size={24} />, href: ROUTES.REPORTS.FARMER_COLLECTION },
         { title: t('total_collection_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.TOTAL_COLLECTION_REPORT },
@@ -183,12 +188,15 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
     });
   }
 
-  if (true) {
+  if (isOnByDefault(access, 'group_stock')) {
     items.push({
       title: t('group_stock', 'Group Stock'),
       icon: <Boxes size={20} className="stroke-[1.5]" />,
       href: ROUTES.GROUP_CATTLE_FEED_STOCK,
     });
+  }
+
+  if (isOnByDefault(access, 'farmer_payment')) {
     items.push({
       title: t('farmer_payment', 'Farmer Payment'),
       icon: <Wallet size={20} className="stroke-[1.5]" />,

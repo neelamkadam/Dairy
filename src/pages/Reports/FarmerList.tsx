@@ -1,13 +1,6 @@
-import { useState, useEffect } from "react";
+import { Fragment, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import {
   Table,
@@ -20,70 +13,139 @@ import {
 import { useAppSelector } from "@/redux/store";
 import { userApi } from "@/services/reportsApi";
 import { toast } from "react-toastify";
-import { generateFarmerListPDF } from "@/templates/FarmerListTemplate";
-import { generateFarmerListExcel } from "@/templates/FarmerListExcelTemplate";
-import { Download } from "lucide-react";
+import { generateFarmerListPDFForDairies } from "@/templates/FarmerListTemplate";
+import { generateFarmerListExcelForDairies } from "@/templates/FarmerListExcelTemplate";
+import { AlertTriangle, Download } from "lucide-react";
 import Pagination from "@/components/Pagination";
+
+// One selected dairy and its farmers.
+interface DairySection {
+  branchId: string;
+  username: string;
+  name: string;
+  branchName: string;
+  farmers: any[];
+}
+
+// Dairies are fetched a few at a time, so "Select All" on a long list does not
+// fire one request per dairy all at once.
+const FETCH_CONCURRENCY = 4;
+
+async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>) {
+  const results: PromiseSettledResult<R>[] = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const index = next++;
+      try {
+        results[index] = { status: "fulfilled", value: await fn(items[index]) };
+      } catch (reason) {
+        results[index] = { status: "rejected", reason };
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
 
 const FarmerList = () => {
   const { t } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
-  const [selectedVlcc, setSelectedVlcc] = useState("");
-  const [farmers, setFarmers] = useState<any[]>([]);
+  const [selectedVlcs, setSelectedVlcs] = useState<string[]>([]);
+  const [sections, setSections] = useState<DairySection[]>([]);
+  const [failedDairies, setFailedDairies] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const handleShow = async () => {
-    if (!selectedVlcc) {
+    if (!selectedVlcs.length) {
       toast.error(t("please_select_vlc_first_report", "Please select a VLC"));
       return;
     }
 
+    // In the order of the dairy list, whatever order they were ticked in.
+    const selected = (branches || []).filter((b) => selectedVlcs.includes(String(b.branch_id)));
+
     setLoading(true);
-    try {
-      const data = await userApi.getFarmers(selectedVlcc);
-      
-      if (data.success && Array.isArray(data.data)) {
-        setFarmers(data.data);
+    setCurrentPage(1);
+    const results = await mapWithConcurrency(selected, FETCH_CONCURRENCY, async (branch) => {
+      const data = await userApi.getFarmers(String(branch.branch_id));
+      if (!data?.success) throw new Error(data?.message);
+      return Array.isArray(data.data) ? data.data : [];
+    });
+
+    const loaded: DairySection[] = [];
+    const failed: string[] = [];
+    results.forEach((result, i) => {
+      const branch = selected[i];
+      if (result.status === "fulfilled") {
+        loaded.push({
+          branchId: String(branch.branch_id),
+          username: branch.username,
+          name: branch.name,
+          branchName: branch.branchName,
+          farmers: result.value,
+        });
       } else {
-        setFarmers([]);
+        failed.push(`${branch.username} - ${branch.name}`);
       }
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || t("failed_to_fetch_farmers", "Failed to fetch farmers"));
-      setFarmers([]);
-    } finally {
-      setLoading(false);
+    });
+
+    setSections(loaded);
+    setFailedDairies(failed);
+    if (failed.length === selected.length) {
+      toast.error(t("failed_to_fetch_farmers", "Failed to fetch farmers"));
     }
+    setLoading(false);
   };
 
+  const totalFarmers = sections.reduce((sum, s) => sum + s.farmers.length, 0);
+
   const handleExportPDF = () => {
-    if (!farmers || farmers.length === 0) {
+    if (!sections.length) {
       toast.error(t("no_data_to_export", "No data to export"));
       return;
     }
-    const selectedBranch = branches?.find(b => b.branch_id.toString() === selectedVlcc);
-    const vlcName = selectedBranch ? selectedBranch.name : "";
-    const dairyName = selectedBranch ? selectedBranch.username : "";
-    generateFarmerListPDF(vlcName, dairyName, farmers);
+    generateFarmerListPDFForDairies(
+      sections.map((s) => ({ vlcName: s.name, dairyName: s.username, farmers: s.farmers }))
+    );
     toast.success(t("pdf_exported_successfully", "PDF exported successfully"));
   };
 
   const handleExportExcel = () => {
-    if (!farmers || farmers.length === 0) {
+    if (!sections.length) {
       toast.error(t("no_data_to_export", "No data to export"));
       return;
     }
-    const selectedBranch = branches?.find(b => b.branch_id.toString() === selectedVlcc);
-    const vlcName = selectedBranch ? `${selectedBranch.username} - ${selectedBranch.name}` : "";
-    generateFarmerListExcel(vlcName, farmers);
+    generateFarmerListExcelForDairies(
+      sections.map((s) => ({ vlcName: `${s.username} - ${s.name}`, farmers: s.farmers }))
+    );
     toast.success(t("excel_exported_successfully", "Excel exported successfully"));
   };
 
-  const totalPages = Math.ceil(farmers.length / itemsPerPage);
+  // Every farmer in dairy order, so pagination runs straight through the dairies.
+  // A dairy with no farmers keeps its place as a single "no farmers" row.
+  const rows = sections.flatMap((section) =>
+    section.farmers.length
+      ? section.farmers.map((farmer) => ({ section, farmer }))
+      : [{ section, farmer: null }]
+  );
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentFarmers = farmers.slice(startIndex, endIndex);
+  const currentRows = rows.slice(startIndex, startIndex + itemsPerPage);
+
+  const sectionHeader = (section: DairySection, continued: boolean) => (
+    <TableRow className="bg-blue-50 hover:bg-blue-50">
+      <TableCell colSpan={9} className="border border-gray-300 font-semibold text-blue-900">
+        {section.username} - {section.name}
+        {section.branchName ? ` · ${section.branchName}` : ""}
+        <span className="ml-2 font-normal text-blue-700">
+          ({section.farmers.length} {t("farmers", "Farmers")})
+        </span>
+        {continued && <span className="ml-2 text-xs font-normal text-slate-500">({t("continued", "continued")})</span>}
+      </TableCell>
+    </TableRow>
+  );
 
   return (
     <div className="p-2 sm:p-4 text-left">
@@ -93,36 +155,38 @@ const FarmerList = () => {
         <p className="text-sm font-medium text-slate-500">{t("manage_view_farmers", "Manage and view all farmers")}</p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-end bg-white p-3 sm:p-4 rounded-lg shadow-sm mb-4 text-left">
-        <div className="space-y-2">
+        <div className="space-y-2 sm:col-span-2 lg:col-span-2">
           <label className="text-sm font-medium text-gray-700">{t("select_vlc_center", "Select VLC")}</label>
           <VLCDropdown
             branches={branches || []}
-            value={selectedVlcc}
-            onChange={(value) => {
-              setSelectedVlcc(value);
-              setFarmers([]);
+            value={selectedVlcs}
+            onChange={(value: string[]) => {
+              setSelectedVlcs(value);
+              setSections([]);
+              setFailedDairies([]);
               setCurrentPage(1);
             }}
             valueKey="branch_id"
+            isMultiSelect
             placeholder={t("select_vlc_center", "Select VLC")}
           />
         </div>
-        <div className="xl:col-span-4 flex flex-wrap gap-2 justify-end">
+        <div className="sm:col-span-2 lg:col-span-2 xl:col-span-3 flex flex-wrap gap-2 justify-end">
           <Button onClick={handleShow} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white w-[120px] h-10">
             {loading ? t("loading", "Loading...") : t("show", "Show")}
           </Button>
-          <Button 
+          <Button
             onClick={handleExportExcel}
-            disabled={!farmers || farmers.length === 0}
+            disabled={!sections.length}
             className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2 h-10"
           >
             <Download className="h-4 w-4" />
             {t("excel_export", "Excel Export")}
           </Button>
-          <Button 
+          <Button
             onClick={handleExportPDF}
-            disabled={!farmers || farmers.length === 0}
-            variant="default" 
+            disabled={!sections.length}
+            variant="default"
             className="bg-red-500 hover:bg-red-600 text-white flex items-center gap-2 h-10"
           >
             <Download className="h-4 w-4" />
@@ -130,6 +194,25 @@ const FarmerList = () => {
           </Button>
         </div>
       </div>
+
+      {failedDairies.length > 0 && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 mb-4 text-sm text-amber-900">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />
+          <span>
+            {t("farmers_not_loaded_for", "Farmers could not be loaded for")}: {failedDairies.join(", ")}
+          </span>
+        </div>
+      )}
+
+      {sections.length > 0 && (
+        <p className="mb-2 text-sm text-slate-600">
+          {t("farmers_across_dairies", {
+            farmers: totalFarmers,
+            dairies: sections.length,
+            defaultValue: "{{farmers}} farmers across {{dairies}} dairies",
+          })}
+        </p>
+      )}
 
       <div className="border border-gray-200 rounded-lg overflow-x-auto">
         <Table className="whitespace-nowrap text-sm [&_th]:h-auto [&_th]:py-2 [&_th]:px-3 [&_td]:py-2 [&_td]:px-3 [&_th]:align-middle">
@@ -147,33 +230,53 @@ const FarmerList = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {currentFarmers.length > 0 ? (
-              currentFarmers.map((farmer) => (
-                <TableRow key={farmer.id || farmer.username} className="hover:bg-gray-50">
-                  <TableCell className="font-medium border border-gray-300">{farmer.username}</TableCell>
-                  <TableCell className="border border-gray-300">{farmer.fullName}</TableCell>
-                  <TableCell className="border border-gray-300">{farmer.mobile_number}</TableCell>
-                  <TableCell className="border border-gray-300">{farmer.milkType}</TableCell>
-                  <TableCell className="border border-gray-300">{farmer.rateChart}</TableCell>
-                  <TableCell className="border border-gray-300">{farmer.bankName || '-'}</TableCell>
-                  <TableCell className="border border-gray-300">{farmer.accountNumber || '-'}</TableCell>
-                  <TableCell className="border border-gray-300">{farmer.ifscCode || '-'}</TableCell>
-                  <TableCell className="border border-gray-300 text-center">
-                    {farmer.bankPassbookPhoto ? (
-                      <a
-                        href={farmer.bankPassbookPhoto}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 underline hover:text-blue-800"
-                      >
-                        {t("view", "View")}
-                      </a>
-                    ) : (
-                      '-'
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))
+            {currentRows.length > 0 ? (
+              currentRows.map(({ section, farmer }, i) => {
+                const newSection = i === 0 || currentRows[i - 1].section !== section;
+                // A dairy that started on an earlier page is marked as continued.
+                const continued = newSection && i === 0 && !!farmer && section.farmers[0] !== farmer;
+                if (!farmer) {
+                  return (
+                    <Fragment key={`empty-${section.branchId}`}>
+                      {sectionHeader(section, false)}
+                      <TableRow>
+                        <TableCell colSpan={9} className="border border-gray-300 text-center py-3 text-gray-500">
+                          {t("no_farmers_registered", "No farmers registered for this dairy")}
+                        </TableCell>
+                      </TableRow>
+                    </Fragment>
+                  );
+                }
+                return (
+                  <Fragment key={`${section.branchId}-${farmer.id || farmer.username}`}>
+                    {newSection && sectionHeader(section, continued)}
+                    <TableRow className="hover:bg-gray-50">
+                      <TableCell className="font-medium border border-gray-300">{farmer.username}</TableCell>
+                      <TableCell className="border border-gray-300">{farmer.fullName}</TableCell>
+                      <TableCell className="border border-gray-300">{farmer.mobile_number}</TableCell>
+                      <TableCell className="border border-gray-300">{farmer.milkType}</TableCell>
+                      <TableCell className="border border-gray-300">{farmer.rateChart}</TableCell>
+                      <TableCell className="border border-gray-300">{farmer.bankName || '-'}</TableCell>
+                      <TableCell className="border border-gray-300">{farmer.accountNumber || '-'}</TableCell>
+                      <TableCell className="border border-gray-300">{farmer.ifscCode || '-'}</TableCell>
+                      <TableCell className="border border-gray-300 text-center">
+                        {farmer.bankPassbookPhoto ? (
+                          <a
+                            href={farmer.bankPassbookPhoto}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 underline hover:text-blue-800"
+                          >
+                            {t("view", "View")}
+                          </a>
+                        ) : (
+                          '-'
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  </Fragment>
+                );
+              })
             ) : (
               <TableRow>
                 <TableCell colSpan={9} className="text-center py-10 text-gray-500">
@@ -185,13 +288,13 @@ const FarmerList = () => {
         </Table>
       </div>
 
-      {farmers.length > 0 && (
+      {rows.length > 0 && (
         <Pagination
           currentPage={currentPage}
           setCurrentPage={setCurrentPage}
           itemsPerPage={itemsPerPage}
           setItemsPerPage={setItemsPerPage}
-          totalItems={farmers.length}
+          totalItems={rows.length}
         />
       )}
     </div>

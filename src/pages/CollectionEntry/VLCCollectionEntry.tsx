@@ -14,16 +14,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { format, isValid } from "date-fns";
-import { Upload, Download, Building, Scale, FlaskConical } from "lucide-react";
+import { Upload, Download, Building, Scale, FlaskConical, Loader2, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
-import { useState, useRef, ReactNode } from "react";
+import { useState, useRef, useCallback, useEffect, ReactNode } from "react";
 import { usePostApi } from "@/services/use-api";
+import { getSidebarAccess, getVlcStepAccess } from "@/services/sidebarAccessApi";
 import { toast } from "react-toastify";
 import { useAppSelector } from "@/redux/store";
 import { useTranslation } from "react-i18next";
 import * as XLSX from 'xlsx';
-import { VLCDropdown } from "@/components/ui/vlc-dropdown";
+import VLCIdPicker from "./VLCIdPicker";
 import VLCWeightEntry from "./VLCWeightEntry";
 import VLCAnalyserEntry from "./VLCAnalyserEntry";
 
@@ -37,6 +38,29 @@ const VLCCollectionEntry = () => {
     path: "/api/web/collection/bulk-vlc-entries"
   });
   const { branches } = useAppSelector((state) => state.branch);
+  const userId = useAppSelector((state) => state.authData?.userData?.id);
+
+  // Which steps this user may open (Sidebar Access). Nothing renders until it is
+  // known, so an analyser-only user never glimpses the weight list.
+  const [stepAccess, setStepAccess] = useState<{ weight: boolean; analyser: boolean } | null>(null);
+  const [accessFailed, setAccessFailed] = useState(false);
+
+  const loadAccess = useCallback(async () => {
+    if (!userId) return;
+    setAccessFailed(false);
+    try {
+      const response = await getSidebarAccess(Number(userId));
+      if (!response?.success) throw new Error(response?.message);
+      setStepAccess(getVlcStepAccess(response.data));
+    } catch (error) {
+      console.error('Failed to load VLC step access:', error);
+      setAccessFailed(true);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    loadAccess();
+  }, [loadAccess]);
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -233,6 +257,11 @@ const VLCCollectionEntry = () => {
     { key: 'weight', label: t('weight_collection'), hint: 'Step 1', icon: <Scale className="h-4 w-4" /> },
     { key: 'analyser', label: t('analyser_collection'), hint: 'Step 2', icon: <FlaskConical className="h-4 w-4" /> },
   ];
+  const allowedSteps = steps.filter((s) => stepAccess?.[s.key]);
+  // The remembered step may no longer be allowed; fall back to one that is.
+  const activeStep = allowedSteps.some((s) => s.key === step) ? step : allowedSteps[0]?.key;
+  // Bulk import writes weight and quality together, so it needs both steps.
+  const canBulkImport = !!stepAccess?.weight && !!stepAccess?.analyser;
 
   return (
     <div className="flex flex-col gap-4 md:gap-6 w-full p-4 md:p-6 max-w-7xl mx-auto min-w-0 overflow-x-hidden" onKeyDown={handleEnterAsTab}>
@@ -246,6 +275,7 @@ const VLCCollectionEntry = () => {
             {t('vlc_collection_entry')}
           </h1>
         </div>
+        {canBulkImport && (
         <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto mt-3 sm:mt-0">
           <Button
             onClick={downloadTemplate}
@@ -267,31 +297,70 @@ const VLCCollectionEntry = () => {
             {isBulkLoading ? 'Importing...' : 'Bulk Import'}
           </Button>
         </div>
+        )}
       </div>
 
+      {!stepAccess ? (
+        <div className="flex flex-col items-center justify-center gap-3 h-48 bg-white rounded-2xl border border-gray-100 shadow-sm">
+          {accessFailed ? (
+            <>
+              <p className="text-sm text-gray-600">{t('failed_to_load_access', 'Could not load your access')}</p>
+              <Button variant="outline" size="sm" onClick={loadAccess} className="rounded-lg">
+                {t('retry', 'Retry')}
+              </Button>
+            </>
+          ) : (
+            <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+          )}
+        </div>
+      ) : !activeStep ? (
+        <div className="flex flex-col items-center justify-center gap-2 h-48 px-4 text-center bg-white rounded-2xl border border-dashed border-gray-200">
+          <Lock className="h-8 w-8 text-gray-300" />
+          <p className="text-sm font-semibold text-gray-700">
+            {t('no_vlc_collection_access', "You don't have access to VLC Collection Entry")}
+          </p>
+          <p className="text-xs text-gray-500 max-w-sm">
+            {t('ask_admin_vlc_access', 'Ask your admin to turn on Weight Collection or Analyser Collection for you in Sidebar Access.')}
+          </p>
+        </div>
+      ) : (
+      <>
       {/* Step switch + shared date / shift */}
       <div className="flex flex-col md:flex-row md:items-end gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-        <div className="flex p-1 bg-gray-100 rounded-xl w-full md:w-auto">
-          {steps.map(({ key, label, hint, icon }) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => handleStepChange(key)}
-              className={cn(
-                "flex-1 md:flex-none flex items-center justify-center gap-2 h-11 px-4 rounded-lg text-sm font-semibold transition-all",
-                step === key
-                  ? key === 'weight'
-                    ? "bg-white text-blue-600 shadow-sm"
-                    : "bg-white text-purple-600 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              )}
-            >
-              {icon}
-              <span className="truncate">{label}</span>
-              <span className="hidden sm:inline text-[10px] font-medium uppercase tracking-wider text-gray-400">{hint}</span>
-            </button>
-          ))}
-        </div>
+        {allowedSteps.length > 1 ? (
+          <div className="flex p-1 bg-gray-100 rounded-xl w-full md:w-auto">
+            {allowedSteps.map(({ key, label, hint, icon }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => handleStepChange(key)}
+                className={cn(
+                  "flex-1 md:flex-none flex items-center justify-center gap-2 h-11 px-4 rounded-lg text-sm font-semibold transition-all",
+                  activeStep === key
+                    ? key === 'weight'
+                      ? "bg-white text-blue-600 shadow-sm"
+                      : "bg-white text-purple-600 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                )}
+              >
+                {icon}
+                <span className="truncate">{label}</span>
+                <span className="hidden sm:inline text-[10px] font-medium uppercase tracking-wider text-gray-400">{hint}</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          // Only one step allowed: name it, nothing to switch to.
+          <div
+            className={cn(
+              "flex items-center gap-2 h-11 px-4 rounded-xl text-sm font-semibold",
+              activeStep === 'weight' ? "bg-blue-50 text-blue-600" : "bg-purple-50 text-purple-600"
+            )}
+          >
+            {allowedSteps[0].icon}
+            {allowedSteps[0].label}
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-3 md:ml-auto md:w-[360px]">
           <div className="space-y-1.5">
@@ -327,10 +396,12 @@ const VLCCollectionEntry = () => {
         </div>
       </div>
 
-      {step === 'weight' ? (
+      {activeStep === 'weight' ? (
         <VLCWeightEntry date={dateParam} shift={shiftParam} refreshKey={refreshKey} />
       ) : (
         <VLCAnalyserEntry date={dateParam} shift={shiftParam} refreshKey={refreshKey} />
+      )}
+      </>
       )}
 
       <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
@@ -379,7 +450,7 @@ const VLCCollectionEntry = () => {
             <div className="grid grid-cols-2 gap-5">
               <div className="space-y-2 overflow-visible">
                 <Label className="text-sm font-semibold text-slate-700">VLC ID</Label>
-                <VLCDropdown
+                <VLCIdPicker
                   branches={branches || []}
                   value={bulkFormData.vlcId}
                   onChange={handleBulkVLCIdChange}

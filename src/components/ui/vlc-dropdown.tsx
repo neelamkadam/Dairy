@@ -20,6 +20,8 @@ interface VLCDropdownProps {
   disabled?: boolean;
   valueKey?: 'username' | 'branch_id';
   isMultiSelect?: boolean;
+  // Prefix each VLC with its position in `branches` (1, 2, 3 …); the number also matches in search.
+  showSerialNumbers?: boolean;
 }
 
 export const VLCDropdown: React.FC<VLCDropdownProps> = ({
@@ -31,6 +33,7 @@ export const VLCDropdown: React.FC<VLCDropdownProps> = ({
   disabled = false,
   valueKey = 'username',
   isMultiSelect = false,
+  showSerialNumbers = false,
 }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -42,10 +45,15 @@ export const VLCDropdown: React.FC<VLCDropdownProps> = ({
 
   const selectedCount = isMultiSelect && Array.isArray(value) ? value.length : 0;
 
+  // Position in the full list, not the filtered one, so numbers stay put while searching.
+  const serialOf = (branch: Branch) => (branches?.indexOf(branch) ?? -1) + 1;
+  const serialPrefix = (branch: Branch) => (showSerialNumbers ? `${serialOf(branch)}. ` : "");
+
   const filteredBranches = branches?.filter((b) => {
     const q = search.toLowerCase();
     return (
       !q ||
+      (showSerialNumbers && String(serialOf(b)) === q.trim()) ||
       String(b.username || "").toLowerCase().includes(q) ||
       String(b.branch_id || "").toLowerCase().includes(q) ||
       String(b.name || "").toLowerCase().includes(q) ||
@@ -118,7 +126,7 @@ export const VLCDropdown: React.FC<VLCDropdownProps> = ({
             ) : (
               selectedBranch ? (
                 <span className="truncate">
-                  {selectedBranch.username} - {selectedBranch.name} {selectedBranch.branchName ? `- ${selectedBranch.branchName}` : ''}
+                  {serialPrefix(selectedBranch)}{selectedBranch.username} - {selectedBranch.name} {selectedBranch.branchName ? `- ${selectedBranch.branchName}` : ''}
                 </span>
               ) : (
                 <span>{placeholder}</span>
@@ -204,6 +212,9 @@ export const VLCDropdown: React.FC<VLCDropdownProps> = ({
                     <Checkbox checked={isSelected} className="pointer-events-none mt-0.5" />
                   )}
                   <span className="break-words flex-1">
+                    {showSerialNumbers && (
+                      <span className="font-bold text-blue-600 tabular-nums">{serialOf(branch)}. </span>
+                    )}
                     {branch.username} - {branch.name} {branch.branchName ? `- ${branch.branchName}` : ''}
                   </span>
                   {!isMultiSelect && isSelected && <Check className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />}

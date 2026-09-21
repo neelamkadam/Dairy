@@ -41,6 +41,12 @@ export const vlcCollectionApi = {
     return response.data;
   },
 
+  // Finalized VLC entries (weight + FAT/SNF) for a date + shift across the given VLCs.
+  getEntries: async (payload: { vlc_ids: string[]; date: string; shift: 'Morning' | 'Evening' }) => {
+    const response = await AxiosClient.post('/api/web/collection/vlc-entries', payload);
+    return response.data;
+  },
+
   deleteWeight: async (id: number) => {
     const response = await AxiosClient.delete(`/api/web/collection/vlc-weight-entry/${id}`);
     return response.data;

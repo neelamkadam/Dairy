@@ -58,6 +58,7 @@ export const ROUTES = {
     SHIFT_REPORTS:`/dashboard/shift-reports`,
     MANUAL_AUTO_SHIFT_REPORT:`/dashboard/manual-auto-shift-report`,
     DISPATCH_STATUS_REPORT:`/dashboard/dispatch-status-report`,
+    VLC_COLLECTION_ENTRY_REPORT:`/dashboard/vlc-collection-entry-report`,
     TANKER_DISPATCH_REPORT:`/dashboard/tanker-dispatch-report`,
     TOTAL_COLLECTION_REPORT:`/dashboard/total-collection-report`,
     VLC_COMMISSION_REPORT:`/dashboard/vlc-commission-report`,

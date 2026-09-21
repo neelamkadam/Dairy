@@ -21,9 +21,20 @@ interface SidebarAccess {
   reports: number;
   settings: number;
   shubham_milk_product: number;
-  payment: number;
   dyn: number;
+  // Added later, on unless switched off:
+  // VLC Collection Entry steps (under collection_entry) …
+  vlc_weight: number;
+  vlc_analyser: number;
+  // … and two items that used to be shown to everyone.
+  group_stock: number;
+  farmer_payment: number;
 }
+
+// Flags whose value, when the server does not send one, is on.
+const DEFAULT_ON_KEYS = ["vlc_weight", "vlc_analyser", "group_stock", "farmer_payment"] as const;
+
+type VlcStepKey = "vlc_weight" | "vlc_analyser";
 
 const SidebarAccessManagement = () => {
   const { t } = useTranslation();
@@ -42,8 +53,11 @@ const SidebarAccessManagement = () => {
     reports: 0,
     settings: 0,
     shubham_milk_product: 0,
-    payment: 0,
     dyn: 0,
+    vlc_weight: 1,
+    vlc_analyser: 1,
+    group_stock: 1,
+    farmer_payment: 1,
   });
   const [loading, setLoading] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -105,8 +119,11 @@ const SidebarAccessManagement = () => {
           reports: response.data.reports || 0,
           settings: response.data.settings || 0,
           shubham_milk_product: response.data.shubham_milk_product || 0,
-          payment: response.data.payment || 0,
           dyn: response.data.dyn || 0,
+          // Absent until the server has the columns — same as the default: on.
+          ...Object.fromEntries(
+            DEFAULT_ON_KEYS.map((key) => [key, Number(response.data[key] ?? 1)])
+          ) as Pick<SidebarAccess, (typeof DEFAULT_ON_KEYS)[number]>,
         });
       }
     } catch (error) {
@@ -198,8 +215,14 @@ const SidebarAccessManagement = () => {
     { key: "reports", label: t("reports", "Reports") },
     { key: "settings", label: t("settings", "Settings") },
     { key: "shubham_milk_product", label: t("shubham_milk_product", "Shubham Milk Product") },
-    { key: "payment", label: t("payment", "Payment") },
     { key: "dyn", label: t("dynamic_milk_cycle", "Dynamic Milk Cycle") },
+    { key: "group_stock", label: t("group_stock", "Group Stock") },
+    { key: "farmer_payment", label: t("farmer_payment", "Farmer Payment") },
+  ];
+
+  const vlcStepItems: { key: VlcStepKey; label: string }[] = [
+    { key: "vlc_weight", label: t("weight_collection", "Weight Collection") },
+    { key: "vlc_analyser", label: t("analyser_collection", "Analyser Collection") },
   ];
 
   return (
@@ -291,6 +314,11 @@ const SidebarAccessManagement = () => {
                             >
                               <span className="font-medium">{user.email}</span>
                               <span className={`text-xs ml-2 ${selectedUserId === user.id ? 'text-blue-500' : 'text-slate-400'}`}>({t("id", "ID:")} {user.id})</span>
+                              {user.created_by ? (
+                                <span className="ml-auto pl-2 text-[10px] font-bold uppercase tracking-wider text-indigo-500">
+                                  {t("sub_user", "Sub-user")}
+                                </span>
+                              ) : null}
                             </div>
                           ))
                         )}
@@ -340,6 +368,79 @@ const SidebarAccessManagement = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
                       {accessItems.map((item) => {
                         const isChecked = access[item.key as keyof SidebarAccess] === 1;
+
+                        // Collection Entry carries the two VLC Collection Entry steps underneath it.
+                        if (item.key === "collection_entry") {
+                          const noVlcStep = access.vlc_weight !== 1 && access.vlc_analyser !== 1;
+                          return (
+                            <div
+                              key={item.key}
+                              className={`sm:col-span-2 rounded-xl border-2 transition-all ${
+                                isChecked ? "border-blue-500 bg-blue-50/30 shadow-sm" : "border-slate-100 bg-white"
+                              }`}
+                            >
+                              <div
+                                onClick={() => handleToggle("collection_entry")}
+                                className={`flex items-center justify-between p-4 cursor-pointer rounded-t-xl ${
+                                  isChecked ? "" : "hover:bg-slate-50"
+                                }`}
+                              >
+                                <Label
+                                  htmlFor={item.key}
+                                  className={`cursor-pointer font-bold ${isChecked ? "text-blue-900" : "text-slate-600"}`}
+                                  onClick={(e) => e.preventDefault()}
+                                >
+                                  {item.label}
+                                </Label>
+                                <Switch
+                                  id={item.key}
+                                  checked={isChecked}
+                                  onCheckedChange={() => handleToggle("collection_entry")}
+                                  className="data-[state=checked]:bg-blue-600 pointer-events-none"
+                                />
+                              </div>
+
+                              <div
+                                className={`border-t px-4 py-3 space-y-2 ${
+                                  isChecked ? "border-blue-100" : "border-slate-100 opacity-50"
+                                }`}
+                              >
+                                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                  {t("vlc_collection_entry_steps", "VLC Collection Entry steps")}
+                                </p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                  {vlcStepItems.map((step) => {
+                                    const stepOn = access[step.key] === 1;
+                                    return (
+                                      <div
+                                        key={step.key}
+                                        onClick={() => { if (isChecked) handleToggle(step.key); }}
+                                        className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 bg-white transition-colors ${
+                                          isChecked ? "cursor-pointer hover:border-blue-300" : "cursor-not-allowed"
+                                        } ${stepOn ? "border-blue-200" : "border-slate-200"}`}
+                                      >
+                                        <span className={`text-sm font-semibold ${stepOn ? "text-blue-900" : "text-slate-600"}`}>
+                                          {step.label}
+                                        </span>
+                                        <Switch
+                                          checked={stepOn}
+                                          disabled={!isChecked}
+                                          className="data-[state=checked]:bg-blue-600 pointer-events-none"
+                                        />
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                                {isChecked && noVlcStep && (
+                                  <p className="text-xs font-medium text-amber-700">
+                                    {t("vlc_steps_none_hint", "With both off, VLC Collection Entry is hidden for this user.")}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        }
+
                         return (
                           <div
                             key={item.key}

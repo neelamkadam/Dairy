@@ -7,8 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import { useAppSelector } from "@/redux/store";
+import VLCIdPicker from "./VLCIdPicker";
+import { useVlcSerialNumbers } from "./vlcSerialNumbers";
 import { cn } from "@/lib/utils";
 import {
   vlcCollectionApi,
@@ -38,6 +39,14 @@ const VLCWeightEntry = ({ date, shift, refreshKey }: VLCWeightEntryProps) => {
   const [lastSaved, setLastSaved] = useState<Omit<VLCWeightRecord, 'id' | 'date' | 'shift'> | null>(null);
 
   const vlcFieldRef = useRef<HTMLDivElement>(null);
+  const weightRef = useRef<HTMLInputElement>(null);
+
+  // For users who know their VLCs as 1, 2, 3 …: show that number next to the id.
+  const serials = useVlcSerialNumbers(branches || []);
+  const vlcLabel = (id: string, name: string) => {
+    const number = serials.numberOf(id);
+    return `${number ? `${number}. ` : ""}${id} - ${name}`;
+  };
 
   const fetchEntries = async () => {
     if (!branches?.length) return;
@@ -111,7 +120,8 @@ const VLCWeightEntry = ({ date, shift, refreshKey }: VLCWeightEntryProps) => {
         setWeight("");
         setType('Both');
         fetchEntries();
-        vlcFieldRef.current?.querySelector('button')?.focus();
+        // The VLC number box when numbering is on, otherwise the dropdown
+        vlcFieldRef.current?.querySelector<HTMLElement>('input, button')?.focus();
       } else {
         toast.error(response?.message || "Failed to record weight");
       }
@@ -149,7 +159,7 @@ const VLCWeightEntry = ({ date, shift, refreshKey }: VLCWeightEntryProps) => {
             <div className="min-w-0">
               <p className="text-sm font-semibold text-green-800">Weight recorded — label the sample bottle with this number.</p>
               <p className="text-sm text-green-700 truncate">
-                {lastSaved.vlc_id} - {lastSaved.vlc_name} • {lastSaved.type} • {lastSaved.weight} kg
+                {vlcLabel(lastSaved.vlc_id, lastSaved.vlc_name)} • {lastSaved.type} • {lastSaved.weight} kg
               </p>
             </div>
           </div>
@@ -162,10 +172,11 @@ const VLCWeightEntry = ({ date, shift, refreshKey }: VLCWeightEntryProps) => {
                 <Label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   {t('vlc_id')}
                 </Label>
-                <VLCDropdown
+                <VLCIdPicker
                   branches={branches || []}
                   value={vlcId}
                   onChange={handleVLCIdChange}
+                  onNumberEnter={() => weightRef.current?.focus()}
                 />
               </div>
 
@@ -219,6 +230,7 @@ const VLCWeightEntry = ({ date, shift, refreshKey }: VLCWeightEntryProps) => {
                   {t('weight')} <span className="text-gray-400 normal-case font-normal">(kg)</span>
                 </Label>
                 <Input
+                  ref={weightRef}
                   id="weight"
                   type="number"
                   step="0.01"
@@ -294,7 +306,7 @@ const VLCWeightEntry = ({ date, shift, refreshKey }: VLCWeightEntryProps) => {
                         <span className="text-lg font-black text-blue-600">#{entry.sample_id}</span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-800 truncate">{entry.vlc_id} - {entry.vlc_name}</p>
+                        <p className="text-sm font-semibold text-gray-800 truncate">{vlcLabel(entry.vlc_id, entry.vlc_name)}</p>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-xs text-gray-500">{entry.type}</span>
                           <Badge
