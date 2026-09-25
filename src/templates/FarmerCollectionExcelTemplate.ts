@@ -13,9 +13,10 @@ export const generateFarmerCollectionExcel = (
     [`VLC: ${vlcName}`],
     [`Period: ${fromDate} to ${toDate} | Shift: ${shift} | Milk Type: ${milkType}`],
     [],
-    ['Date', 'Farmer Id', 'Name', 'Liter', 'Kg', 'Fat', 'Snf', 'Clr', 'Milk Type', 'Shift', 'Rate', 'Amount'],
+    ['Date', 'VLC Id', 'Farmer Id', 'Name', 'Liter', 'Kg', 'Fat', 'Snf', 'Clr', 'Milk Type', 'Shift', 'Rate', 'Amount'],
     ...reportData.map(row => [
       new Date(row.created_at).toLocaleDateString('en-GB'),
+      row.vlc_id ?? '',
       row.farmer_code,
       row.farmer_name,
       row.quantity,

@@ -6,6 +6,7 @@ interface KPICardProps {
   change?: string;
   icon: LucideIcon;
   theme?: "cyan" | "emerald" | "blue" | "violet" | "pink" | "indigo" | "amber" | "teal";
+  onClick?: () => void;
 }
 
 const colorMap = {
@@ -19,12 +20,16 @@ const colorMap = {
   teal: { gradient: "from-teal-100 to-teal-50", border: "border-teal-200", accent: "border-l-teal-500", text: "text-teal-700", bg: "bg-teal-200" },
 };
 
-const KPICard = ({ title, value, change, icon: Icon, theme = "blue" }: KPICardProps) => {
+const KPICard = ({ title, value, change, icon: Icon, theme = "blue", onClick }: KPICardProps) => {
   const isPositive = change?.startsWith("+");
   const colors = colorMap[theme] || colorMap.blue;
   
   return (
-    <div className={`relative overflow-hidden bg-gradient-to-br ${colors.gradient} rounded-xl border ${colors.border} border-l-4 ${colors.accent} p-4 shadow-sm hover:shadow-md transition-all duration-300 group`}>
+    <div
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      className={`relative overflow-hidden bg-gradient-to-br ${colors.gradient} rounded-xl border ${colors.border} border-l-4 ${colors.accent} p-4 shadow-sm hover:shadow-md transition-all duration-300 group ${onClick ? "cursor-pointer" : ""}`}
+    >
       {/* Decorative background element */}
       <div className={`absolute -right-4 -top-4 w-16 h-16 rounded-full opacity-20 transition-transform group-hover:scale-150 duration-700 ${colors.bg}`}></div>
 

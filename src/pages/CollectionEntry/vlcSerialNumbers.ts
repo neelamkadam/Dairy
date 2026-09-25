@@ -4,7 +4,7 @@ import { useAppSelector } from "@/redux/store";
 // Web users whose operators know their VLCs as 1, 2, 3 … rather than by the
 // 500xxx ids. On VLC collection they get a number box beside the VLC picker.
 // The number is only a shortcut: entries are still saved with the real VLC id.
-const VLC_SERIAL_USER_IDS = [44];
+const VLC_SERIAL_USER_IDS = [44, 47];
 
 interface NumberedBranch {
   username: string;

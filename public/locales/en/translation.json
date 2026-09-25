@@ -1261,5 +1261,14 @@
   "settings_multi_hint": "Showing the settings of {{first}}. Saving applies them to all {{count}} selected VLCs.",
   "settings_varies_hint": "{{count}} settings differ between these VLCs (marked Varies). Saving makes them the same.",
   "password_multi_hint": "Sets the same password on all {{count}} selected VLCs ({{withPassword}} already have one).",
-  "set_for_vlcs": "Set for {{count}}"
+  "set_for_vlcs": "Set for {{count}}",
+  "admin_only": "Admin only",
+  "section_items_none_hint": "With every item off, this section is hidden for this user.",
+  "edit_entry": "Edit Entry",
+  "entry_updated_successfully": "Entry updated successfully",
+  "failed_to_update_entry": "Failed to update entry",
+  "rate_not_found": "Rate not found for selected parameters",
+  "enter_valid_weight": "Please enter a valid weight",
+  "fat_snf_clr_required": "FAT, SNF and CLR are required",
+  "pending_edit_hint": "This sample has only been weighed. FAT / SNF, rate and amount are set when it is analysed."
 }

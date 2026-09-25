@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 
 import { AppDatePicker } from "@/components/ui/date-picker";
 import { X, ChevronRight, ChevronLeft, CalendarIcon, Download } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { format, parseISO, isValid } from "date-fns";
 import { useTranslation } from "react-i18next";
 import { generateFarmerCollectionPDF } from "@/templates/FarmerCollectionTemplate";
@@ -77,6 +77,18 @@ const FarmerCollection = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(100);
 
+  const branchByDairyId = useMemo(
+    () => new Map((branches || []).map((b) => [String(b.branch_id), b])),
+    [branches]
+  );
+
+  // Rows come back with the numeric dairy_id; the reports name a VLC by its
+  // login id (500381 ...), the same value the VLC dropdown lists.
+  const resolveVlcId = (row: { dairy_id?: string | number | null }, requestedBranchId: string) => {
+    const branch = branchByDairyId.get(String(row?.dairy_id ?? "")) ?? branchByDairyId.get(String(requestedBranchId));
+    return branch?.username ? String(branch.username) : String(row?.dairy_id ?? requestedBranchId ?? "");
+  };
+
   const filteredBranches = branches.filter(b =>
     (b.name || "").toLowerCase().includes(vlcSearch.toLowerCase()) ||
     (b.username || "").toLowerCase().includes(vlcSearch.toLowerCase())
@@ -103,7 +115,13 @@ const FarmerCollection = () => {
       );
 
       const results = await Promise.all(promises);
-      const allCollections = results.flatMap(res => res.data.success ? (res.data.data || []) : []);
+      // Stamp every row with its VLC, so the table and both exports read one field.
+      const allCollections = results.flatMap((res, index) =>
+        (res.data.success ? (res.data.data || []) : []).map((row) => ({
+          ...row,
+          vlc_id: resolveVlcId(row, selectedVLCs[index]),
+        }))
+      );
       
       setCollectionData(allCollections);
       setSummary(results[0]?.data.summary || null);
@@ -308,6 +326,7 @@ const FarmerCollection = () => {
                 <thead className="bg-gray-200">
                   <tr>
                     <th className="border border-gray-300 px-4 py-2">{t('date')}</th>
+                    <th className="border border-gray-300 px-4 py-2">{t('vlc_id')}</th>
                     <th className="border border-gray-300 px-4 py-2">
                       {t('farmer_id')}
                     </th>
@@ -331,6 +350,9 @@ const FarmerCollection = () => {
                       <tr key={row.id || index}>
                         <td className="border border-gray-300 px-4 py-2">
                           {format(new Date(row.created_at), "dd-MM-yyyy")}
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2">
+                          {row.vlc_id ?? ""}
                         </td>
                         <td className="border border-gray-300 px-4 py-2">
                           {row.farmer_code}

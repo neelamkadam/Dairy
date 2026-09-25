@@ -36,6 +36,9 @@ export interface VlcReportEntry {
 
 export interface VlcReportRow {
   key: string;
+  // What the row is, so it can be edited: a finalized entry or a weighed sample.
+  entryId?: number;
+  weightId?: number;
   status: VlcReportStatus;
   sampleId: number | string | null;
   type: string | null;
@@ -112,6 +115,7 @@ export function buildVlcCollectionReport(
       .filter((e) => String(e.vlc_id) === vlcId)
       .map((e) => ({
         key: `entry-${e.id}`,
+        entryId: e.id,
         status: "completed",
         sampleId: e.sample_id ?? null,
         type: e.type ?? null,
@@ -127,6 +131,7 @@ export function buildVlcCollectionReport(
       .filter((w) => String(w.vlc_id) === vlcId && Number(w.is_completed) !== 1 && !linkedWeightIds.has(Number(w.id)))
       .map((w) => ({
         key: `weight-${w.id}`,
+        weightId: Number(w.id),
         status: "pending",
         sampleId: w.sample_id ?? null,
         type: w.type ?? null,

@@ -7,6 +7,7 @@ import KPICard from "@/components/KPICard";
 import FatSnfCard from "@/components/FatSnfCard";
 import MilkCollectionChart from "@/components/MilkCollectionChart";
 import FarmersChart from "@/components/FarmersCharts";
+import VlcCollectionStatusModal from "@/components/VlcCollectionStatusModal";
 import { useAppSelector, useAppDispatch } from "@/redux/store";
 import { fetchCollectionsSummary, fetchFarmersInfo } from "@/redux/dashboardSlice";
 import { useTranslation } from "react-i18next";
@@ -26,6 +27,7 @@ const Dashboard = () => {
     return `${year}-${month}-${day}`;
   });
   const [selectedShift, setSelectedShift] = useState(getDefaultShift());
+  const [vlcModalOpen, setVlcModalOpen] = useState(false);
   const dispatch = useAppDispatch();
   const { branches = [] } = useAppSelector((state: any) => state.branch);
   const { collections = [], graph = [], farmersInfo = [], loading, farmersInfoLoading } = useAppSelector((state: any) => state.dashboard);
@@ -100,13 +102,14 @@ const Dashboard = () => {
   const activeCenters = (collections || []).filter(c => c.quantity > 0).length;
   const avgPerFarmer = kpis.totalFarmers > 0 ? kpis.totalQuantity / kpis.totalFarmers : 0;
   
-  const kpiData = [
+  const kpiData: Array<{ title: string; value: string; change: string; icon: typeof Users; theme: string; onClick?: () => void }> = [
     {
       title: t('vlcc_center'),
       value: `${activeCenters} (${branches.length})`,
       change: "",
       icon: Users,
-      theme: "cyan"
+      theme: "cyan",
+      onClick: () => setVlcModalOpen(true)
     },
     {
       title: t('total_active_farmers'),
@@ -222,6 +225,7 @@ const Dashboard = () => {
                   change={kpi.change}
                   icon={kpi.icon}
                   theme={kpi.theme as any}
+                  onClick={kpi.onClick}
                 />
               ))}
               <FatSnfCard fat={kpis.avgFat} snf={kpis.avgSnf} />
@@ -288,6 +292,15 @@ const Dashboard = () => {
           </Card>
         </div>
       </main>
+
+      <VlcCollectionStatusModal
+        isOpen={vlcModalOpen}
+        onClose={() => setVlcModalOpen(false)}
+        collections={collections}
+        branches={branches}
+        date={selectedDate}
+        shift={selectedShift === 'morning' ? t('morning') : t('evening')}
+      />
     </div>
   );
 };

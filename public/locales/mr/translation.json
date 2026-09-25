@@ -1242,5 +1242,14 @@
   "settings_multi_hint": "{{first}} ची सेटिंग्ज दाखवली आहेत. जतन केल्यावर ती सर्व {{count}} निवडलेल्या VLC वर लागू होतील.",
   "settings_varies_hint": "या VLC मध्ये {{count}} सेटिंग्ज वेगळी आहेत (\"Varies\" चिन्हांकित). जतन केल्यावर सर्व सारखी होतील.",
   "password_multi_hint": "सर्व {{count}} निवडलेल्या VLC वर एकच पासवर्ड सेट करते ({{withPassword}} कडे आधीच आहे).",
-  "set_for_vlcs": "{{count}} साठी सेट करा"
+  "set_for_vlcs": "{{count}} साठी सेट करा",
+  "admin_only": "फक्त अ‍ॅडमिन",
+  "section_items_none_hint": "सर्व आयटम बंद असल्यास हा विभाग या वापरकर्त्यासाठी लपवला जाईल.",
+  "edit_entry": "नोंद संपादित करा",
+  "entry_updated_successfully": "नोंद यशस्वीरित्या अपडेट थाली",
+  "failed_to_update_entry": "नोंद अपडेट करण्यात अयशस्वी",
+  "rate_not_found": "निवडलेल्या मापदंडांसाठी दर सापडला नाही",
+  "enter_valid_weight": "कृपया वैध वजन प्रविष्ट करा",
+  "fat_snf_clr_required": "FAT, SNF आणि CLR आवश्यक आहेत",
+  "pending_edit_hint": "या नमुन्याचे फक्त वजन घेतले आहे. FAT / SNF, दर आणि रक्कम विश्लेषणाच्या वेळी ठरते."
 }

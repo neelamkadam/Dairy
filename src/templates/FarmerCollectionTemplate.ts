@@ -21,6 +21,7 @@ export const generateFarmerCollectionPDF = (
   const tableBody = [
     [
       { text: "Date", style: "tableHeader", alignment: "center" },
+      { text: "VLC Id", style: "tableHeader", alignment: "center" },
       { text: "Farmer Id", style: "tableHeader", alignment: "center" },
       { text: "Name", style: "tableHeader", alignment: "center" },
       { text: "Liter", style: "tableHeader", alignment: "center" },
@@ -35,6 +36,7 @@ export const generateFarmerCollectionPDF = (
     ],
     ...reportData.map((row) => [
       { text: new Date(row.created_at).toLocaleDateString('en-GB'), alignment: "center", fontSize: 8 },
+      { text: String(row.vlc_id || ''), alignment: "center", fontSize: 8 },
       { text: String(row.farmer_code || ''), alignment: "center", fontSize: 8 },
       { text: String(row.farmer_name || ''), alignment: "center", fontSize: 8 },
       { text: String(row.quantity || ''), alignment: "center", fontSize: 8 },
@@ -77,7 +79,7 @@ export const generateFarmerCollectionPDF = (
       {
         table: {
           headerRows: 1,
-          widths: ["auto", "auto", "*", "auto", "auto", "auto", "auto", "auto", "auto", "auto", "auto", "auto"],
+          widths: ["auto", "auto", "auto", "*", "auto", "auto", "auto", "auto", "auto", "auto", "auto", "auto", "auto"],
           body: tableBody,
         },
         layout: {

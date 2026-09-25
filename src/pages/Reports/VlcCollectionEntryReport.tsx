@@ -9,6 +9,7 @@ import {
   Download,
   FileSpreadsheet,
   Loader2,
+  Pencil,
   RefreshCcw,
   Search,
   X,
@@ -31,6 +32,7 @@ import {
   type VlcReportEntry,
   type VlcReportStatus,
 } from "./vlcCollectionReportData";
+import VlcEntryEditDialog, { type VlcEditTarget } from "./VlcEntryEditDialog";
 
 type Shift = "Morning" | "Evening";
 type StatusFilter = "all" | VlcReportStatus;
@@ -76,6 +78,8 @@ const VlcCollectionEntryReport = () => {
   // report still shows completed and not-collected VLCs.
   const [weightsFailed, setWeightsFailed] = useState(false);
   const [exporting, setExporting] = useState<"pdf" | "excel" | null>(null);
+  // The row being edited, or null when the dialog is closed.
+  const [editTarget, setEditTarget] = useState<VlcEditTarget | null>(null);
   const requestRef = useRef(0);
 
   const statusText: Record<VlcReportStatus, string> = {
@@ -131,7 +135,7 @@ const VlcCollectionEntryReport = () => {
 
   const visibleTotals = totalsOfRows(visibleGroups.flatMap((g) => g.rows));
   const showNumbers = serials.enabled;
-  const columnCount = (showNumbers ? 1 : 0) + 11;
+  const columnCount = (showNumbers ? 1 : 0) + 12;
 
   const handleExport = async (kind: "pdf" | "excel") => {
     if (!visibleGroups.length) {
@@ -333,6 +337,7 @@ const VlcCollectionEntryReport = () => {
                     <TableHead className={`${headClass} text-right`}>{t("clr", "CLR")}</TableHead>
                     <TableHead className={`${headClass} text-right`}>{t("rate", "Rate")}</TableHead>
                     <TableHead className={`${headClass} text-right`}>{t("amount", "Amount")}</TableHead>
+                    <TableHead className={`${headClass} text-center`}>{t("actions", "Actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -404,6 +409,23 @@ const VlcCollectionEntryReport = () => {
                           <TableCell className="text-right tabular-nums">{fixed(row.clr)}</TableCell>
                           <TableCell className="text-right tabular-nums">{fixed(row.rate)}</TableCell>
                           <TableCell className="text-right tabular-nums font-semibold">{row.amount == null ? "—" : money(row.amount)}</TableCell>
+                          <TableCell className="text-center">
+                            {/* Nothing to edit on a VLC that has not been collected at all. */}
+                            {row.entryId || row.weightId ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setEditTarget({ row, vlcId: group.vlcId, vlcName: group.vlcName })}
+                                aria-label={t("edit_entry", "Edit Entry")}
+                                title={t("edit_entry", "Edit Entry")}
+                                className="h-8 w-8 rounded-lg text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            ) : (
+                              <span className="text-slate-300">—</span>
+                            )}
+                          </TableCell>
                         </TableRow>
                       ))
                     )
@@ -417,6 +439,7 @@ const VlcCollectionEntryReport = () => {
                       <TableCell />
                       <TableCell />
                       <TableCell className="text-right tabular-nums">{money(visibleTotals.amount)}</TableCell>
+                      <TableCell />
                     </TableRow>
                   )}
                 </TableBody>
@@ -424,6 +447,14 @@ const VlcCollectionEntryReport = () => {
             </div>
           </CardContent>
         </Card>
+
+        <VlcEntryEditDialog
+          target={editTarget}
+          date={date}
+          shift={shift}
+          onClose={() => setEditTarget(null)}
+          onSaved={load}
+        />
       </div>
     </div>
   );

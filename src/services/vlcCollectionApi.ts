@@ -47,6 +47,18 @@ export const vlcCollectionApi = {
     return response.data;
   },
 
+  // Fix a weighed sample that has not been analysed yet (409 once it has).
+  updateWeight: async (id: number, payload: { type?: VLCMilkType; weight?: number }) => {
+    const response = await AxiosClient.put(`/api/web/collection/vlc-weight-entry/${id}`, payload);
+    return response.data;
+  },
+
+  // Update a finalized VLC entry; only the fields sent are changed.
+  updateEntry: async (id: number, payload: Record<string, unknown>) => {
+    const response = await AxiosClient.put(`/api/web/collection/vlc-entry/${id}`, payload);
+    return response.data;
+  },
+
   deleteWeight: async (id: number) => {
     const response = await AxiosClient.delete(`/api/web/collection/vlc-weight-entry/${id}`);
     return response.data;

@@ -14,7 +14,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import NeoDairyLogo from "@/assets/NeoDairy_Logo.png";
 import { RootState, useAppSelector } from "@/redux/store";
 import { useTranslation } from "react-i18next";
-import { getSidebarAccess, getVlcStepAccess, isOnByDefault } from "@/services/sidebarAccessApi";
+import { getSidebarAccess, getVlcStepAccess, isItemOn, isOnByDefault } from "@/services/sidebarAccessApi";
+import { SECTION_ITEMS, type SidebarItemDef, type SidebarSectionKey } from "@/constatnts/sidebarItems";
 
 interface MenuItem {
   title: string;
@@ -23,8 +24,41 @@ interface MenuItem {
   children?: MenuItem[];
 }
 
+const GROUP_ICONS: Record<string, React.ReactNode> = {
+  create: <PlusCircle size={18} className="stroke-[1.5]" />,
+  commission_entry: <FileText size={18} className="stroke-[1.5]" />,
+};
+
+// A section's items as sidebar entries: switched-off items (Sidebar Access →
+// item_access) and admin-only items for non-admins are left out, and a group
+// with nothing left in it disappears.
+const buildSectionItems = (defs: SidebarItemDef[], t: any, access: any, isAdmin: boolean): MenuItem[] =>
+  defs.flatMap((def): MenuItem[] => {
+    if (def.adminOnly && !isAdmin) return [];
+    if (def.children) {
+      const children = buildSectionItems(def.children, t, access, isAdmin);
+      return children.length
+        ? [{ title: t(def.titleKey, def.titleDefault), icon: GROUP_ICONS[def.key] ?? <Dot size={24} />, children }]
+        : [];
+    }
+    if (!isItemOn(access, def.key)) return [];
+    // VLC Collection Entry also needs the Weight or the Analyser step.
+    if (def.key === "vlc_collection_entry") {
+      const steps = getVlcStepAccess(access);
+      if (!steps.weight && !steps.analyser) return [];
+    }
+    return [{ title: t(def.titleKey, def.titleDefault), icon: <Dot size={24} />, href: def.href }];
+  });
+
 const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
   const items: MenuItem[] = [];
+
+  // A section switched on in Sidebar Access, shown only if it has an item left.
+  const pushSection = (key: SidebarSectionKey, title: string, icon: React.ReactNode) => {
+    if (!access?.[key]) return;
+    const children = buildSectionItems(SECTION_ITEMS[key], t, access, isAdmin);
+    if (children.length) items.push({ title, icon, children });
+  };
 
   if (access?.dashboard) {
     items.push({
@@ -34,87 +68,10 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
     });
   }
 
-  if (access?.collection_entry) {
-    // VLC Collection Entry needs the Weight or the Analyser step.
-    const vlcSteps = getVlcStepAccess(access);
-    items.push({
-      title: t('collection_entry'),
-      icon: <Droplets size={20} className="stroke-[1.5]" />,
-      children: [
-        ...(vlcSteps.weight || vlcSteps.analyser
-          ? [{ title: t('vlc_collection_entry'), icon: <Dot size={24} />, href: ROUTES.COLLECTIONENTRY.VLC_COLLECTION_ENTRY }]
-          : []),
-        { title: t('farmer_collection_entry'), icon: <Dot size={24} />, href: ROUTES.COLLECTIONENTRY.FARMER_COLLECTION_ENTRY },
-        { title: t('tanker_dispatch'), icon: <Dot size={24} />, href: ROUTES.COLLECTIONENTRY.DISPATCH_ENTRY }
-      ]
-    });
-  }
-
-  if (access?.collection) {
-    items.push({
-      title: t('collection'),
-      icon: <FolderOpen size={20} className="stroke-[1.5]" />,
-      children: [
-        { title: t('vlc_collection'), icon: <Dot size={24} />, href: ROUTES.COLLECTION.VLC_COLLECTION },
-        { title: t('bmc_collection', 'BMC Collection'), icon: <Dot size={24} />, href: ROUTES.COLLECTION.BMC_COLLECTION },
-        { title: t('cc_collection', 'CC Collection'), icon: <Dot size={24} />, href: ROUTES.CC_COLLECTION.CHILLING_CENTER },
-      ]
-    });
-  }
-
-  if (access?.master) {
-    const createChildren: MenuItem[] = [
-      { title: t('create_route', 'Create Route'), icon: <Dot size={24} />, href: ROUTES.MASTER.CREATE_ROUTE },
-      { title: t('create_bmc', 'Create BMC'), icon: <Dot size={24} />, href: ROUTES.MASTER.CREATE_BMC },
-      { title: t('create_cc', 'Create CC'), icon: <Dot size={24} />, href: ROUTES.MASTER.CREATE_CC },
-    ];
-
-    if (isAdmin) {
-      createChildren.push(
-        { title: t('create_supervisor', 'Create Supervisor (Sub User)'), icon: <Dot size={24} />, href: ROUTES.SETTINGS.CREATE_USER },
-        { title: t('create_dairy', 'Create Dairy'), icon: <Dot size={24} />, href: ROUTES.SETTINGS.CREATE_DAIRY },
-        { title: t('dairy_equipment', 'Dairy Equipment'), icon: <Dot size={24} />, href: ROUTES.MASTER.DAIRY_EQUIPMENT },
-      );
-    }
-
-    items.push({
-      title: t('master'),
-      icon: <Settings size={20} className="stroke-[1.5]" />,
-      children: [
-        { title: t('add_farmer'), icon: <Dot size={24} />, href: ROUTES.MASTER.ADD_FARMER },
-        { title: t('add_rate_chart'), icon: <Dot size={24} />, href: ROUTES.MASTER.ADD_RATECHART },
-        { title: t('cattle_feed_stock'), icon: <Dot size={24} />, href: ROUTES.SETTINGS.CATTLE_FEED_STOCK },
-        { title: t('bonus'), icon: <Dot size={24} />, href: ROUTES.MASTER.BONUS },
-        { title: t('other_expense', 'Other Expense'), icon: <Dot size={24} />, href: ROUTES.MASTER.OTHER_EXPENSE },
-        {
-          title: t('create', 'Create'),
-          icon: <PlusCircle size={18} className="stroke-[1.5]" />,
-          children: createChildren
-        },
-        {
-          title: t('commission_entry', 'Commission Entry'),
-          icon: <FileText size={18} className="stroke-[1.5]" />,
-          children: [
-            { title: t('vlc_commission_entry'), icon: <Dot size={24} />, href: ROUTES.BILLING.VLC_COMMISSION_ENTRY },
-            { title: t('farmer_commission_entry', 'Farmer Commission Entry'), icon: <Dot size={24} />, href: ROUTES.BILLING.FARMER_COMMISSION_ENTRY }
-          ]
-        }
-      ]
-    });
-  }
-
-  if (access?.billing) {
-    items.push({
-      title: t('billing'),
-      icon: <CreditCard size={20} className="stroke-[1.5]" />,
-      children: [
-        { title: t('payment_receipt'), icon: <Dot size={24} />, href: ROUTES.BILLING.PAYMENTANDRECEIPT },
-        { title: t('farmer_deduction'), icon: <Dot size={24} />, href: ROUTES.BILLING.FARMER_DEDUCTION },
-        { title: t('generate_bill'), icon: <Dot size={24} />, href: ROUTES.BILLING.GENERATE_BILL },
-        { title: t('vlc_ts_entry'), icon: <Dot size={24} />, href: ROUTES.BILLING.VLC_TS_ENTRY }
-      ]
-    });
-  }
+  pushSection('collection_entry', t('collection_entry'), <Droplets size={20} className="stroke-[1.5]" />);
+  pushSection('collection', t('collection'), <FolderOpen size={20} className="stroke-[1.5]" />);
+  pushSection('master', t('master'), <Settings size={20} className="stroke-[1.5]" />);
+  pushSection('billing', t('billing'), <CreditCard size={20} className="stroke-[1.5]" />);
 
   if (access?.reports) {
     items.push({
@@ -159,26 +116,7 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
     });
   }
 
-  if (access?.settings) {
-    const settingsChildren: MenuItem[] = [
-      { title: t('general_settings'), icon: <Dot size={24} />, href: ROUTES.SETTINGS.GENERAL_SETTINGS },
-      { title: t('password_manager'), icon: <Dot size={24} />, href: ROUTES.SETTINGS.PASSWORD_MANAGER },
-    ];
-
-    if (isAdmin) {
-      settingsChildren.push({ title: t('tanker_collector', 'Tanker Collector'), icon: <Dot size={24} />, href: ROUTES.TANKER_COLLECTION });
-      settingsChildren.push({ title: t('sidebar_access', 'Sidebar Access'), icon: <Dot size={24} />, href: ROUTES.SETTINGS.SIDEBAR_ACCESS });
-      settingsChildren.push({ title: t('shift_timings', 'Shift Timings'), icon: <Dot size={24} />, href: ROUTES.SETTINGS.SHIFT_TIMINGS });
-    } else {
-      console.log('❌ Not adding Sidebar Access - user is not admin');
-    }
-
-    items.push({
-      title: t('settings'),
-      icon: <Settings size={20} className="stroke-[1.5]" />,
-      children: settingsChildren
-    });
-  }
+  pushSection('settings', t('settings'), <Settings size={20} className="stroke-[1.5]" />);
 
   if (access?.shubham_milk_product) {
     items.push({

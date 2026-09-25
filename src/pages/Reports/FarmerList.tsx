@@ -125,14 +125,27 @@ const FarmerList = () => {
   };
 
   // Every farmer in dairy order, so pagination runs straight through the dairies.
-  // A dairy with no farmers keeps its place as a single "no farmers" row.
-  const rows = sections.flatMap((section) =>
-    section.farmers.length
-      ? section.farmers.map((farmer) => ({ section, farmer }))
-      : [{ section, farmer: null }]
-  );
-  const startIndex = (currentPage - 1) * itemsPerPage;
+  // Only farmers are paged, so "of N" is the real farmer count.
+  const rows = sections.flatMap((section) => section.farmers.map((farmer) => ({ section, farmer })));
+  const totalPages = Math.max(1, Math.ceil(rows.length / itemsPerPage));
+  const page = Math.min(currentPage, totalPages);
+  const startIndex = (page - 1) * itemsPerPage;
   const currentRows = rows.slice(startIndex, startIndex + itemsPerPage);
+  const isLastPage = page === totalPages;
+
+  // Dairies with no farmers keep their place in the list: each is shown just
+  // before the next dairy that has farmers, or after everything on the last page.
+  const emptiesBefore = new Map<DairySection, DairySection[]>();
+  let pendingEmpty: DairySection[] = [];
+  sections.forEach((section) => {
+    if (section.farmers.length) {
+      emptiesBefore.set(section, pendingEmpty);
+      pendingEmpty = [];
+    } else {
+      pendingEmpty.push(section);
+    }
+  });
+  const trailingEmpties = pendingEmpty;
 
   const sectionHeader = (section: DairySection, continued: boolean) => (
     <TableRow className="bg-blue-50 hover:bg-blue-50">
@@ -145,6 +158,17 @@ const FarmerList = () => {
         {continued && <span className="ml-2 text-xs font-normal text-slate-500">({t("continued", "continued")})</span>}
       </TableCell>
     </TableRow>
+  );
+
+  const emptySection = (section: DairySection) => (
+    <Fragment key={`empty-${section.branchId}`}>
+      {sectionHeader(section, false)}
+      <TableRow>
+        <TableCell colSpan={9} className="border border-gray-300 text-center py-3 text-gray-500">
+          {t("no_farmers_registered", "No farmers registered for this dairy")}
+        </TableCell>
+      </TableRow>
+    </Fragment>
   );
 
   return (
@@ -230,25 +254,16 @@ const FarmerList = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {currentRows.length > 0 ? (
-              currentRows.map(({ section, farmer }, i) => {
+            {currentRows.length > 0 || sections.length > 0 ? (
+              <>
+              {currentRows.map(({ section, farmer }, i) => {
                 const newSection = i === 0 || currentRows[i - 1].section !== section;
+                const startsHere = section.farmers[0] === farmer;
                 // A dairy that started on an earlier page is marked as continued.
-                const continued = newSection && i === 0 && !!farmer && section.farmers[0] !== farmer;
-                if (!farmer) {
-                  return (
-                    <Fragment key={`empty-${section.branchId}`}>
-                      {sectionHeader(section, false)}
-                      <TableRow>
-                        <TableCell colSpan={9} className="border border-gray-300 text-center py-3 text-gray-500">
-                          {t("no_farmers_registered", "No farmers registered for this dairy")}
-                        </TableCell>
-                      </TableRow>
-                    </Fragment>
-                  );
-                }
+                const continued = newSection && !startsHere;
                 return (
                   <Fragment key={`${section.branchId}-${farmer.id || farmer.username}`}>
+                    {newSection && startsHere && emptiesBefore.get(section)?.map(emptySection)}
                     {newSection && sectionHeader(section, continued)}
                     <TableRow className="hover:bg-gray-50">
                       <TableCell className="font-medium border border-gray-300">{farmer.username}</TableCell>
@@ -276,7 +291,9 @@ const FarmerList = () => {
                     </TableRow>
                   </Fragment>
                 );
-              })
+              })}
+              {isLastPage && trailingEmpties.map(emptySection)}
+              </>
             ) : (
               <TableRow>
                 <TableCell colSpan={9} className="text-center py-10 text-gray-500">
@@ -290,7 +307,7 @@ const FarmerList = () => {
 
       {rows.length > 0 && (
         <Pagination
-          currentPage={currentPage}
+          currentPage={page}
           setCurrentPage={setCurrentPage}
           itemsPerPage={itemsPerPage}
           setItemsPerPage={setItemsPerPage}
