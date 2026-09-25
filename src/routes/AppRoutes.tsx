@@ -56,6 +56,8 @@ import DispatchStatusReport from "@/pages/Reports/DispatchStatusReport";
 import VlcCollectionEntryReport from "@/pages/Reports/VlcCollectionEntryReport";
 import TotalCollectionReport from "@/pages/Reports/TotalCollectionReport";
 import VlcCommissionReport from "@/pages/Reports/VlcCommissionReport";
+import FarmerCommissionReport from "@/pages/Reports/FarmerCommissionReport";
+import FarmerNeftStatement from "@/pages/Reports/FarmerNeftStatement";
 import TankerDispatchReport from "@/pages/Reports/TankerDispatchReport";
 import VlcDifferenceReport from "@/pages/Reports/VlcDifferenceReport";
 import VlcDifferenceReport2 from "@/pages/Reports/VlcDifferenceReport2";
@@ -280,6 +282,14 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "vlc-commission-report",
         element: <VlcCommissionReport />,
+      },
+      {
+        path: "farmer-commission-report",
+        element: <FarmerCommissionReport />,
+      },
+      {
+        path: "farmer-neft-statement",
+        element: <FarmerNeftStatement />,
       },
       {
         path: "vlc-diffrerence-report",

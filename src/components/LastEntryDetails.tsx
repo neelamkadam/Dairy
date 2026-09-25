@@ -53,24 +53,30 @@ const LastEntryDetails = ({ entries = [], onEdit, onDelete, hideVlcDetails = fal
                       ) : (
                         <span className="text-sm font-medium text-gray-800 truncate">{entry.vlc_id}</span>
                       )}
-                      <div className="flex gap-1 ml-2 flex-shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                          onClick={() => onEdit?.(entry)}
-                        >
-                          <Edit className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => onDelete?.(entry.id)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
+                      {(onEdit || onDelete) && (
+                        <div className="flex gap-1 ml-2 flex-shrink-0">
+                          {onEdit && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              onClick={() => onEdit(entry)}
+                            >
+                              <Edit className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          {onDelete && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => onDelete(entry.id)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                   {!hideVlcDetails && hasSample(entry) && (

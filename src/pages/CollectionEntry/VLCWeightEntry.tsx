@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useAppSelector } from "@/redux/store";
+import { canModifyCollection } from "@/constatnts/commonConstants";
 import VLCIdPicker from "./VLCIdPicker";
 import { useVlcSerialNumbers } from "./vlcSerialNumbers";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,7 @@ const MILK_TYPES: VLCMilkType[] = ['Cow', 'Buffalo', 'Both'];
 const VLCWeightEntry = ({ date, shift, refreshKey }: VLCWeightEntryProps) => {
   const { t } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
+  const canModify = canModifyCollection(useAppSelector((state) => state.authData.userData?.id));
 
   const [vlcId, setVlcId] = useState("");
   const [vlcName, setVlcName] = useState("");
@@ -133,6 +135,7 @@ const VLCWeightEntry = ({ date, shift, refreshKey }: VLCWeightEntryProps) => {
   };
 
   const handleDelete = async (entry: VLCWeightRecord) => {
+    if (!canModify) return;
     if (!window.confirm(`Delete weight entry for Sample #${entry.sample_id}?`)) return;
     try {
       const response = await vlcCollectionApi.deleteWeight(entry.id);
@@ -323,6 +326,7 @@ const VLCWeightEntry = ({ date, shift, refreshKey }: VLCWeightEntryProps) => {
                       <span className="text-sm font-bold text-gray-900 whitespace-nowrap">
                         {Number(entry.weight).toFixed(2)} <small className="text-xs font-normal text-gray-400">kg</small>
                       </span>
+                      {canModify && (
                       <Button
                         variant="ghost"
                         size="icon"
@@ -333,6 +337,7 @@ const VLCWeightEntry = ({ date, shift, refreshKey }: VLCWeightEntryProps) => {
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
+                      )}
                     </div>
                   );
                 })}

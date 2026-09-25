@@ -1003,6 +1003,8 @@
   "vlc_commission_configuration": "VLC Commission Configuration",
   "vlc_commission_entry": "VLC Commission Entry",
   "vlc_commission_report": "VLC Commission Report",
+  "farmer_commission_report": "Farmer Commission Report",
+  "farmer_neft_statement": "Farmer Bank NEFT Statement",
   "vlc_difference_report": "VLC Difference Report",
   "vlc_id": "VLC ID",
   "vlc_list": "VLC List",

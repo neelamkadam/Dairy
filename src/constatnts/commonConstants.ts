@@ -47,3 +47,9 @@ export const useBreakpoint = (breakpoint: BreakpointKey): boolean => {
 
   return matches;
 };
+
+// Users who may record VLC weight / analyser collections but not edit or delete them.
+export const COLLECTION_EDIT_BLOCKED_USER_IDS = ["46", "47"];
+
+export const canModifyCollection = (userId?: string | number | null) =>
+  !COLLECTION_EDIT_BLOCKED_USER_IDS.includes(String(userId ?? ""));

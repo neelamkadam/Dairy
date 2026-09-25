@@ -100,6 +100,8 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
         { title: t('remaining_balance_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.REMAINING_BALANCE },
         { title: t('farmer_passbook'), icon: <Dot size={24} />, href: ROUTES.REPORTS.FARMER_PASSBOOK },
         { title: t('vlc_commission_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.VLC_COMMISSION_REPORT },
+        { title: t('farmer_commission_report', 'Farmer Commission Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.FARMER_COMMISSION_REPORT },
+        { title: t('farmer_neft_statement', 'Farmer Bank NEFT Statement'), icon: <Dot size={24} />, href: ROUTES.REPORTS.FARMER_NEFT_STATEMENT },
         { title: t('pl_statement'), icon: <Dot size={24} />, href: ROUTES.REPORTS.PL_STATEMENT },
         {
           title: t('cattle_feed_report', 'Cattle Feed Report'),

@@ -28,10 +28,19 @@ import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/redux/store";
 import { toast } from "react-toastify";
 import { api } from "@/services/config";
+import { generateFarmerCollectionSummaryPDF } from "@/templates/FarmerCollectionSummaryTemplate";
+import { generateFarmerCollectionSummaryExcel } from "@/templates/FarmerCollectionSummaryExcelTemplate";
+import FarmerCollectionSummaryTable from "@/components/FarmerCollectionSummaryTable";
+import {
+  CommissionRecord,
+  buildFarmerCollectionSummary,
+  fetchFarmerCommissions,
+} from "@/utils/farmerCollectionSummary";
 
 const FarmerCollection = () => {
   const { t } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
+  const dairyName = useAppSelector((state) => state.authData.userData?.name) || "";
   const [selectedVLCs, setSelectedVLCs] = useState<string[]>([]);
   const [vlcSearch, setVlcSearch] = useState("");
   const [milkType, setMilkType] = useState("All");
@@ -40,6 +49,9 @@ const FarmerCollection = () => {
   const [loading, setLoading] = useState(false);
   const [collectionData, setCollectionData] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
+  const [viewMode, setViewMode] = useState<"detailed" | "summary">("detailed");
+  // branch_id → farmer code → farmer commission records (used for Pay Amount)
+  const [commissions, setCommissions] = useState<Map<string, Map<string, CommissionRecord[]>>>(new Map());
 
   const getDefaultShift = () => {
     const hour = new Date().getHours();
@@ -89,6 +101,19 @@ const FarmerCollection = () => {
     return branch?.username ? String(branch.username) : String(row?.dairy_id ?? requestedBranchId ?? "");
   };
 
+  const collectionSummary = useMemo(
+    () =>
+      buildFarmerCollectionSummary(
+        collectionData,
+        selectedVLCs.map((id) => {
+          const b = branchByDairyId.get(id);
+          return { dairyId: id, name: [b?.username, b?.name || id, b?.branchName].filter(Boolean).join(" - ") };
+        }),
+        commissions
+      ),
+    [collectionData, selectedVLCs, branchByDairyId, commissions]
+  );
+
   const filteredBranches = branches.filter(b =>
     (b.name || "").toLowerCase().includes(vlcSearch.toLowerCase()) ||
     (b.username || "").toLowerCase().includes(vlcSearch.toLowerCase())
@@ -114,16 +139,21 @@ const FarmerCollection = () => {
         })
       );
 
-      const results = await Promise.all(promises);
+      const [results, commissionMaps] = await Promise.all([
+        Promise.all(promises),
+        Promise.all(selectedVLCs.map((id) => fetchFarmerCommissions(id, branchByDairyId.get(id)?.username))),
+      ]);
       // Stamp every row with its VLC, so the table and both exports read one field.
       const allCollections = results.flatMap((res, index) =>
         (res.data.success ? (res.data.data || []) : []).map((row) => ({
           ...row,
           vlc_id: resolveVlcId(row, selectedVLCs[index]),
+          branch_id: selectedVLCs[index],
         }))
       );
       
       setCollectionData(allCollections);
+      setCommissions(new Map(selectedVLCs.map((id, i) => [id, commissionMaps[i]])));
       setSummary(results[0]?.data.summary || null);
       setCurrentPage(1);
       toast.success("Data fetched successfully");
@@ -141,19 +171,29 @@ const FarmerCollection = () => {
       toast.error("No data to export");
       return;
     }
+    if (viewMode === "summary") {
+      generateFarmerCollectionSummaryPDF(collectionSummary, dairyName, format(fromDate, "dd/MM/yy"), format(toDate, "dd/MM/yy"));
+      toast.success("PDF exported successfully");
+      return;
+    }
     const firstBranchId = selectedVLCs[0];
     const selectedBranch = branches?.find(b => b.branch_id.toString() === firstBranchId);
     const branchName = selectedVLCs.length > 1 ? "Multiple Centers" : (selectedBranch ? selectedBranch.name : "");
-    const dairyName = selectedVLCs.length > 1 ? "Combined Report" : (selectedBranch ? selectedBranch.username : "");
+    const vlcDairyName = selectedVLCs.length > 1 ? "Combined Report" : (selectedBranch ? selectedBranch.username : "");
     const fromDateStr = format(fromDate, "dd-MM-yyyy");
     const toDateStr = format(toDate, "dd-MM-yyyy");
-    generateFarmerCollectionPDF(collectionData, branchName, dairyName, fromDateStr, toDateStr, shift, milkType);
+    generateFarmerCollectionPDF(collectionData, branchName, vlcDairyName, fromDateStr, toDateStr, shift, milkType);
     toast.success("PDF exported successfully");
   };
 
   const handleExportExcel = () => {
     if (!collectionData || collectionData.length === 0) {
       toast.error("No data to export");
+      return;
+    }
+    if (viewMode === "summary") {
+      generateFarmerCollectionSummaryExcel(collectionSummary, dairyName, format(fromDate, "dd/MM/yy"), format(toDate, "dd/MM/yy"));
+      toast.success("Excel exported successfully");
       return;
     }
     const firstBranchId = selectedVLCs[0];
@@ -294,7 +334,22 @@ const FarmerCollection = () => {
                 </Button>
               </div>
             </div>
-            <div className="flex justify-end flex-wrap gap-3 mx-2 mb-4">
+            <div className="flex justify-between items-center flex-wrap gap-3 mx-2 mb-4">
+              <div className="inline-flex rounded-md border border-gray-300 overflow-hidden">
+                {(["detailed", "summary"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setViewMode(mode)}
+                    className={cn(
+                      "px-4 h-11 text-sm font-medium",
+                      viewMode === mode ? "bg-blue-600 text-white" : "bg-white text-gray-700 hover:bg-gray-50"
+                    )}
+                  >
+                    {mode === "detailed" ? t("detailed", "Detailed") : t("summary", "Summary")}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-3">
               <Button 
                 onClick={exportToText}
                 disabled={!collectionData || collectionData.length === 0}
@@ -320,7 +375,18 @@ const FarmerCollection = () => {
                 <Download className="h-4 w-4" />
                 {t('pdf_export')}
               </Button>
+              </div>
             </div>
+            {viewMode === "summary" ? (
+              <FarmerCollectionSummaryTable
+                summary={collectionSummary}
+                dairyName={dairyName}
+                fromDate={format(fromDate, "dd/MM/yy")}
+                toDate={format(toDate, "dd/MM/yy")}
+                emptyText={loading ? "Loading..." : "No data available. Please submit the form to fetch data."}
+              />
+            ) : (
+            <>
             <div className="overflow-x-auto mt-6 md:mt-10 px-4 md:px-5">
               <table className="table-auto border-collapse border border-gray-300 w-full">
                 <thead className="bg-gray-200">
@@ -444,6 +510,8 @@ const FarmerCollection = () => {
               </div>
 
             </div>
+            </>
+            )}
           </TabsContent>
         </Tabs>
       </div>

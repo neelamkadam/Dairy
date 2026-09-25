@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import LastEntryDetails, { Entry } from "@/components/LastEntryDetails";
 import { usePostApi, usePutApi, useDeleteApi } from "@/services/use-api";
 import { useAppSelector } from "@/redux/store";
+import { canModifyCollection } from "@/constatnts/commonConstants";
 import { cn } from "@/lib/utils";
 import { rateChartApi } from "@/services/rateChartApi";
 import {
@@ -64,6 +65,7 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
     path: "/api/web/collection/vlc-entry"
   });
   const { branches } = useAppSelector((state) => state.branch);
+  const canModify = canModifyCollection(useAppSelector((state) => state.authData.userData?.id));
 
   const [weightEntries, setWeightEntries] = useState<VLCWeightRecord[]>([]);
   const [finalEntries, setFinalEntries] = useState<FinalEntry[]>([]);
@@ -386,6 +388,7 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
   };
 
   const handleEdit = (entry: FinalEntry) => {
+    if (!canModify) return;
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
     const entryDate = new Date(entry.date);
@@ -407,6 +410,7 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
   };
 
   const handleDelete = async (id: number) => {
+    if (!canModify) return;
     if (!window.confirm("Are you sure you want to delete this entry?")) return;
     try {
       const response = await deleteData(`/api/web/collection/vlc-entry/${id}`);
@@ -668,8 +672,8 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
       <div className="w-full lg:w-[35%] min-w-0">
         <LastEntryDetails
           entries={finalEntries}
-          onEdit={(entry) => handleEdit(entry as FinalEntry)}
-          onDelete={handleDelete}
+          onEdit={canModify ? (entry) => handleEdit(entry as FinalEntry) : undefined}
+          onDelete={canModify ? handleDelete : undefined}
           hideVlcDetails
         />
       </div>
