@@ -15,8 +15,11 @@ import { userApi } from "@/services/reportsApi";
 import { toast } from "react-toastify";
 import { generateFarmerListPDFForDairies } from "@/templates/FarmerListTemplate";
 import { generateFarmerListExcelForDairies } from "@/templates/FarmerListExcelTemplate";
-import { AlertTriangle, Download } from "lucide-react";
+import { AlertTriangle, BadgeCheck, Download, Loader2, Pencil, ShieldOff } from "lucide-react";
+import { farmerBankApi, farmerUserId, isBankVerified } from "@/services/farmerBankApi";
+import FarmerEditModal from "@/components/FarmerEditModal";
 import Pagination from "@/components/Pagination";
+import { useVlcSectionLabel } from "@/utils/vlcSectionLabel";
 
 // One selected dairy and its farmers.
 interface DairySection {
@@ -57,6 +60,55 @@ const FarmerList = () => {
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const userData = useAppSelector((state) => state.authData.userData);
+  // Dairies are listed in branch-list order, the order the VLC numbers run in.
+  const { showSerials, label: sectionLabel } = useVlcSectionLabel();
+  const [editing, setEditing] = useState<{ dairyId: string; farmerCode: string; fullName?: string } | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  // Re-read one dairy's farmers after an edit, keeping the page where it is.
+  const reloadSection = async (branchId: string) => {
+    try {
+      const data = await userApi.getFarmers(branchId);
+      if (!data?.success) return;
+      const farmers = Array.isArray(data.data) ? data.data : [];
+      setSections((prev) => prev.map((s) => (s.branchId === branchId ? { ...s, farmers } : s)));
+    } catch {
+      toast.error(t("failed_to_fetch_farmers", "Failed to fetch farmers"));
+    }
+  };
+
+  const toggleVerification = async (branchId: string, farmer: any, verified: boolean) => {
+    const id = farmerUserId(farmer);
+    if (id == null) return;
+    setBusyId(String(id));
+    try {
+      const res = await farmerBankApi.setVerification(id, verified, userData?.name || userData?.email || "web");
+      if (!res.success) {
+        toast.error(res.message);
+        return;
+      }
+      setSections((prev) =>
+        prev.map((s) =>
+          s.branchId !== branchId
+            ? s
+            : {
+                ...s,
+                farmers: s.farmers.map((f) =>
+                  String(farmerUserId(f)) === String(id)
+                    ? { ...f, bank_verified: res.data.bank_verified, bank_verified_by: res.data.bank_verified_by, bank_verified_at: res.data.bank_verified_at }
+                    : f
+                ),
+              }
+        )
+      );
+      toast.success(res.message);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to update verification");
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   const handleShow = async () => {
     if (!selectedVlcs.length) {
@@ -100,6 +152,7 @@ const FarmerList = () => {
     setLoading(false);
   };
 
+
   const totalFarmers = sections.reduce((sum, s) => sum + s.farmers.length, 0);
 
   const handleExportPDF = () => {
@@ -108,7 +161,7 @@ const FarmerList = () => {
       return;
     }
     generateFarmerListPDFForDairies(
-      sections.map((s) => ({ vlcName: s.name, dairyName: s.username, farmers: s.farmers }))
+      sections.map((s) => ({ vlcName: sectionLabel(s), farmers: s.farmers }))
     );
     toast.success(t("pdf_exported_successfully", "PDF exported successfully"));
   };
@@ -119,7 +172,7 @@ const FarmerList = () => {
       return;
     }
     generateFarmerListExcelForDairies(
-      sections.map((s) => ({ vlcName: `${s.username} - ${s.name}`, farmers: s.farmers }))
+      sections.map((s) => ({ vlcName: sectionLabel(s), farmers: s.farmers }))
     );
     toast.success(t("excel_exported_successfully", "Excel exported successfully"));
   };
@@ -149,9 +202,8 @@ const FarmerList = () => {
 
   const sectionHeader = (section: DairySection, continued: boolean) => (
     <TableRow className="bg-blue-50 hover:bg-blue-50">
-      <TableCell colSpan={9} className="border border-gray-300 font-semibold text-blue-900">
-        {section.username} - {section.name}
-        {section.branchName ? ` · ${section.branchName}` : ""}
+      <TableCell colSpan={10} className="border border-gray-300 font-semibold text-blue-900">
+        {sectionLabel(section)}
         <span className="ml-2 font-normal text-blue-700">
           ({section.farmers.length} {t("farmers", "Farmers")})
         </span>
@@ -164,7 +216,7 @@ const FarmerList = () => {
     <Fragment key={`empty-${section.branchId}`}>
       {sectionHeader(section, false)}
       <TableRow>
-        <TableCell colSpan={9} className="border border-gray-300 text-center py-3 text-gray-500">
+        <TableCell colSpan={10} className="border border-gray-300 text-center py-3 text-gray-500">
           {t("no_farmers_registered", "No farmers registered for this dairy")}
         </TableCell>
       </TableRow>
@@ -192,6 +244,7 @@ const FarmerList = () => {
             }}
             valueKey="branch_id"
             isMultiSelect
+            showSerialNumbers={showSerials}
             placeholder={t("select_vlc_center", "Select VLC")}
           />
         </div>
@@ -251,6 +304,7 @@ const FarmerList = () => {
               <TableHead className="border border-gray-300">{t("account_number", "Account Number")}</TableHead>
               <TableHead className="border border-gray-300">{t("ifsc_code", "IFSC Code")}</TableHead>
               <TableHead className="border border-gray-300 text-center">{t("passbook", "Passbook")}</TableHead>
+              <TableHead className="border border-gray-300 text-center">{t("actions", "Actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -262,7 +316,9 @@ const FarmerList = () => {
                 // A dairy that started on an earlier page is marked as continued.
                 const continued = newSection && !startsHere;
                 return (
-                  <Fragment key={`${section.branchId}-${farmer.id || farmer.username}`}>
+                  // /users joins the dairy row over `id`, so every farmer of a dairy
+                  // shares it; `userid` is the farmer's own id.
+                  <Fragment key={`${section.branchId}-${farmerUserId(farmer) ?? farmer.username}`}>
                     {newSection && startsHere && emptiesBefore.get(section)?.map(emptySection)}
                     {newSection && sectionHeader(section, continued)}
                     <TableRow className="hover:bg-gray-50">
@@ -272,7 +328,19 @@ const FarmerList = () => {
                       <TableCell className="border border-gray-300">{farmer.milkType}</TableCell>
                       <TableCell className="border border-gray-300">{farmer.rateChart}</TableCell>
                       <TableCell className="border border-gray-300">{farmer.bankName || '-'}</TableCell>
-                      <TableCell className="border border-gray-300">{farmer.accountNumber || '-'}</TableCell>
+                      <TableCell className="border border-gray-300">
+                        <span className="inline-flex items-center gap-1.5">
+                          {farmer.accountNumber || '-'}
+                          {isBankVerified(farmer) && (
+                            <BadgeCheck
+                              className="w-4 h-4 text-emerald-600 shrink-0"
+                              aria-label={t("verified", "Verified")}
+                            >
+                              <title>{[t("verified", "Verified"), farmer.bank_verified_by].filter(Boolean).join(" · ")}</title>
+                            </BadgeCheck>
+                          )}
+                        </span>
+                      </TableCell>
                       <TableCell className="border border-gray-300">{farmer.ifscCode || '-'}</TableCell>
                       <TableCell className="border border-gray-300 text-center">
                         {farmer.bankPassbookPhoto ? (
@@ -288,6 +356,50 @@ const FarmerList = () => {
                           '-'
                         )}
                       </TableCell>
+                      <TableCell className="border border-gray-300">
+                        {(() => {
+                          const id = String(farmerUserId(farmer));
+                          const verified = isBankVerified(farmer);
+                          const hasBank = !!String(farmer.accountNumber || '').trim() && !!String(farmer.ifscCode || '').trim();
+                          const busy = busyId === id;
+                          return (
+                            <div className="flex items-center justify-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setEditing({ dairyId: section.branchId, farmerCode: String(farmer.username), fullName: farmer.fullName })}
+                                className="h-8 px-2 text-blue-600 border-blue-200 hover:bg-blue-50"
+                                title={t("edit_farmer", "Edit Farmer")}
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </Button>
+                              {verified ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={busy}
+                                  onClick={() => toggleVerification(section.branchId, farmer, false)}
+                                  className="h-8 px-3 text-red-600 border-red-200 hover:bg-red-50 gap-1"
+                                >
+                                  {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldOff className="w-3.5 h-3.5" />}
+                                  {t("unverify", "Unverify")}
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  disabled={busy || !hasBank}
+                                  title={hasBank ? t("verify", "Verify") : t("bank_details_missing", "Bank details missing")}
+                                  onClick={() => toggleVerification(section.branchId, farmer, true)}
+                                  className="h-8 px-3 bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                                >
+                                  {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BadgeCheck className="w-3.5 h-3.5" />}
+                                  {t("verify", "Verify")}
+                                </Button>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </TableCell>
                     </TableRow>
                   </Fragment>
                 );
@@ -296,7 +408,7 @@ const FarmerList = () => {
               </>
             ) : (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-10 text-gray-500">
+                <TableCell colSpan={10} className="text-center py-10 text-gray-500">
                   {loading ? t("loading", "Loading...") : t("select_vlc_show_farmers", "Select VLC and click Show to view farmers")}
                 </TableCell>
               </TableRow>
@@ -314,6 +426,12 @@ const FarmerList = () => {
           totalItems={rows.length}
         />
       )}
+
+      <FarmerEditModal
+        farmer={editing}
+        onClose={() => setEditing(null)}
+        onSaved={() => editing && reloadSection(editing.dairyId)}
+      />
     </div>
   );
 };

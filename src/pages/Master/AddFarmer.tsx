@@ -27,16 +27,28 @@ import {
 } from '@/components/ui/dialog';
 import { deleteFarmerApi } from '@/services/deleteFarmerApi';
 import { adminApi } from '@/services/adminApi';
+import FarmerBankDetailsFields from '@/components/FarmerBankDetailsFields';
 import * as XLSX from 'xlsx';
 
-export const AddFarmer: React.FC = () => {
+interface AddFarmerProps {
+  // Renders the edit form for one farmer inside a modal (Farmer List report):
+  // no page header / bulk upload / delete, VLC and Farmer ID locked.
+  embedded?: {
+    dairyId: string;
+    farmerCode: string;
+    onSaved: () => void;
+  };
+}
+
+export const AddFarmer: React.FC<AddFarmerProps> = ({ embedded }) => {
   const { t } = useTranslation();
   const branches = useAppSelector((state) => state.branch.branches);
   const navigate = useNavigate();
-  const { farmerId: routeFarmerId } = useParams<{ farmerId?: string }>();
+  const params = useParams<{ farmerId?: string }>();
+  const routeFarmerId = embedded?.farmerCode ?? params.farmerId;
   
   const [formData, setFormData] = useState({
-    VLC: '',
+    VLC: embedded?.dairyId ?? '',
     farmerId: '',
     fullName: '',
     phoneNumber: '',
@@ -49,6 +61,7 @@ export const AddFarmer: React.FC = () => {
     panCard: '',
     aadhaarCard: '',
     bankName: '',
+    bname: '',
     accountNumber: '',
     ifscCode: '',
     bankPassbookPhoto: '',
@@ -77,6 +90,7 @@ export const AddFarmer: React.FC = () => {
         "PAN Card": "ABCDE1234F",
         "Aadhaar Card": "123456789012",
         "Bank Name": "State Bank",
+        "Account Holder Name": "John Doe",
         "Account Number": "1234567890",
         "IFSC Code": "SBIN0001234",
         "VLC ID": branches?.[0]?.username || "500001"
@@ -92,6 +106,7 @@ export const AddFarmer: React.FC = () => {
         "PAN Card": "XYZAB5678C",
         "Aadhaar Card": "987654321098",
         "Bank Name": "HDFC Bank",
+        "Account Holder Name": "Jane Smith",
         "Account Number": "9876543210",
         "IFSC Code": "HDFC0001234",
         "VLC ID": branches?.[0]?.username || "500001"
@@ -140,6 +155,7 @@ export const AddFarmer: React.FC = () => {
           panCard: row["PAN Card"] || row["panCard"] || "",
           aadhaarCard: String(row["Aadhaar Card"] || row["aadhaarCard"] || ""),
           bankName: row["Bank Name"] || row["bankName"] || "",
+          bname: row["Account Holder Name"] || row["bname"] || "",
           accountNumber: String(row["Account Number"] || row["accountNumber"] || ""),
           ifscCode: row["IFSC Code"] || row["ifscCode"] || "",
           role: "farmer",
@@ -227,6 +243,8 @@ export const AddFarmer: React.FC = () => {
     }
   }, [routeFarmerId, formData.VLC]);
   useEffect(() => {
+    // Embedded edit is locked to one farmer, loaded above.
+    if (embedded) return;
     if (formData.VLC && formData.farmerId && formData.farmerId.length >= 1) {
       // If we're in edit mode and the farmer ID has changed from the existing one,
       // reset edit mode and check for the new farmer
@@ -288,6 +306,7 @@ export const AddFarmer: React.FC = () => {
           panCard: farmer.panCard || '',
           aadhaarCard: farmer.aadhaarCard || '',
           bankName: farmer.bankName || '',
+          bname: (farmer as any).bname || '',
           accountNumber: farmer.accountNumber || '',
           ifscCode: farmer.ifscCode || '',
           bankPassbookPhoto: farmer.bankPassbookPhoto || '',
@@ -343,6 +362,7 @@ export const AddFarmer: React.FC = () => {
           panCard: farmer.panCard || '',
           aadhaarCard: farmer.aadhaarCard || '',
           bankName: farmer.bankName || '',
+          bname: (farmer as any).bname || '',
           accountNumber: farmer.accountNumber || '',
           ifscCode: farmer.ifscCode || '',
           bankPassbookPhoto: farmer.bankPassbookPhoto || '',
@@ -508,6 +528,7 @@ export const AddFarmer: React.FC = () => {
           panCard: '',
           aadhaarCard: '',
           bankName: '',
+          bname: '',
           accountNumber: '',
           ifscCode: '',
           bankPassbookPhoto: '',
@@ -573,6 +594,7 @@ export const AddFarmer: React.FC = () => {
           email: formData.email,
           organization: existingFarmerData.organization || '',
           bankName: formData.bankName,
+          bname: formData.bname,
           accountNumber: formData.accountNumber,
           aadhaarCard: formData.aadhaarCard,
           panCard: formData.panCard,
@@ -594,6 +616,10 @@ export const AddFarmer: React.FC = () => {
         
         if (response.success) {
           toast.success('Farmer updated successfully');
+          if (embedded) {
+            embedded.onSaved();
+            return;
+          }
           // Reset form and reload
           setIsEditMode(false);
           setExistingFarmerData(null);
@@ -611,6 +637,7 @@ export const AddFarmer: React.FC = () => {
             panCard: '',
             aadhaarCard: '',
             bankName: '',
+            bname: '',
             accountNumber: '',
             ifscCode: '',
             bankPassbookPhoto: '',
@@ -632,6 +659,7 @@ export const AddFarmer: React.FC = () => {
           panCard: formData.panCard,
           aadhaarCard: formData.aadhaarCard,
           bankName: formData.bankName,
+          bname: formData.bname,
           accountNumber: formData.accountNumber,
           ifscCode: formData.ifscCode,
           bankPassbookPhoto: bankPassbookUrl,
@@ -657,6 +685,7 @@ export const AddFarmer: React.FC = () => {
             panCard: '',
             aadhaarCard: '',
             bankName: '',
+            bname: '',
             accountNumber: '',
             ifscCode: '',
             bankPassbookPhoto: '',
@@ -676,7 +705,8 @@ export const AddFarmer: React.FC = () => {
   };
 
   return (
-    <div className="w-full px-4 md:max-w-7xl mx-auto space-y-4 md:space-y-6 py-6">
+    <div className={embedded ? "w-full space-y-4" : "w-full px-4 md:max-w-7xl mx-auto space-y-4 md:space-y-6 py-6"}>
+      {!embedded && (
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-2">
         <div className="flex items-center space-x-3">
           <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
@@ -717,6 +747,8 @@ export const AddFarmer: React.FC = () => {
         </div>
       </div>
 
+      )}
+
       <Card className="bg-white border border-gray-100 shadow-sm rounded-2xl overflow-hidden">
         <CardContent className="p-6 md:p-8">
           <form onSubmit={handleSubmit} className="text-left">
@@ -736,6 +768,7 @@ export const AddFarmer: React.FC = () => {
                     placeholder={t('select_vlc')}
                     className="h-11 rounded-xl shadow-sm"
                     valueKey="branch_id"
+                    disabled={!!embedded}
                   />
                 </div>
 
@@ -746,6 +779,7 @@ export const AddFarmer: React.FC = () => {
                     id="farmerId"
                     value={formData.farmerId}
                     placeholder={t('enter_farmer_id')}
+                    disabled={!!embedded}
                     onChange={(e) => {
                       const value = e.target.value.replace(/\D/g, '');
                       setFormData({...formData, farmerId: value});
@@ -944,110 +978,15 @@ export const AddFarmer: React.FC = () => {
             {/* Bank Details */}
             <div>
               <h3 className="text-lg font-bold text-gray-900 font-serif mb-5">{t('bank_details_optional')}</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
-                <div>
-                  <Label htmlFor="bankName" className="text-sm font-medium text-gray-700 mb-1.5 block">{t('bank_name')}</Label>
-                  <Input
-                    id="bankName"
-                    placeholder={t('enter_bank_name')}
-                    value={formData.bankName}
-                    onChange={(e) => setFormData({...formData, bankName: e.target.value})}
-                    className="h-11 bg-white border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 shadow-sm"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="accountNumber" className="text-sm font-medium text-gray-700 mb-1.5 block">{t('account_number')}</Label>
-                  <Input
-                    id="accountNumber"
-                    placeholder={t('enter_account_number')}
-                    value={formData.accountNumber}
-                    onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, '');
-                      setFormData({...formData, accountNumber: value});
-                    }}
-                    className="h-11 bg-white border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 shadow-sm"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="ifscCode" className="text-sm font-medium text-gray-700 mb-1.5 block">{t('ifsc_code')}</Label>
-                  <Input
-                    id="ifscCode"
-                    placeholder={t('enter_ifsc_code')}
-                    value={formData.ifscCode}
-                    onChange={(e) => setFormData({...formData, ifscCode: e.target.value.toUpperCase()})}
-                    className="h-11 bg-white border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 shadow-sm uppercase"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="bankPassbook" className="text-sm font-medium text-gray-700 mb-1.5 block">{t('bank_passbook_cheque')}</Label>
-                  <input
-                    type="file"
-                    accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
-                    onChange={handleBankPassbookUpload}
-                    style={{ display: 'none' }}
-                    id="bankPassbook"
-                  />
-                  {bankPassbookFile || formData.bankPassbookPhoto ? (
-                    <div className="flex items-center justify-between gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 shadow-sm">
-                      {formData.bankPassbookPhoto && !bankPassbookFile ? (
-                        <a
-                          href={formData.bankPassbookPhoto}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm font-medium text-blue-600 hover:text-blue-700 underline truncate"
-                        >
-                          {bankPassbookName || 'View uploaded document'}
-                        </a>
-                      ) : (
-                        <span className="text-sm font-medium text-gray-700 truncate">{bankPassbookName || 'Uploaded document'}</span>
-                      )}
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={previewBankPassbook}
-                          className="text-blue-600 border-blue-200 hover:bg-blue-50 h-8 px-3 rounded-lg"
-                        >
-                          {t('preview')}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => document.getElementById('bankPassbook')?.click()}
-                          className="h-8 px-3 rounded-lg border-gray-200"
-                        >
-                          {t('replace')}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={removeBankPassbook}
-                          className="text-red-600 border-red-200 hover:bg-red-50 h-8 px-3 rounded-lg"
-                        >
-                          {t('remove')}
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => document.getElementById('bankPassbook')?.click()}
-                      className="w-full flex items-center justify-center gap-2 border-gray-200 h-11 rounded-xl bg-gray-50/50 hover:bg-gray-50 text-gray-700"
-                    >
-                      <Upload className="h-4 w-4" />
-                      {t('upload_bank_passbook_cheque')}
-                    </Button>
-                  )}
-                  <p className="text-xs text-gray-500 mt-2">{t('accepted_formats_passbook')}</p>
-                </div>
-              </div>
+              <FarmerBankDetailsFields
+                values={formData}
+                onChange={(patch) => setFormData((prev) => ({ ...prev, ...patch }))}
+                passbookFile={bankPassbookFile}
+                passbookName={bankPassbookName}
+                onPassbookUpload={handleBankPassbookUpload}
+                onPassbookRemove={removeBankPassbook}
+                onPassbookPreview={previewBankPassbook}
+              />
             </div>
 
                 <div className="pt-2 space-y-4">
@@ -1059,7 +998,7 @@ export const AddFarmer: React.FC = () => {
               {loading ? t('saving') : (isEditMode ? t('update_farmer') : t('create_farmer'))}
             </Button>
             
-            {isEditMode && (
+            {isEditMode && !embedded && (
               <Button 
                 type="button"
                 onClick={handleDeleteFarmer}

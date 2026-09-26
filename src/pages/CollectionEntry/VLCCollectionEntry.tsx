@@ -27,6 +27,7 @@ import * as XLSX from 'xlsx';
 import VLCIdPicker from "./VLCIdPicker";
 import VLCWeightEntry from "./VLCWeightEntry";
 import VLCAnalyserEntry from "./VLCAnalyserEntry";
+import { VLCMilkType } from "@/services/vlcCollectionApi";
 
 type CollectionStep = 'weight' | 'analyser';
 
@@ -63,6 +64,8 @@ const VLCCollectionEntry = () => {
   }, [loadAccess]);
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  // Weight-entry milk type: defaults to Cow and sticks while the user stays on this page
+  const [weightMilkType, setWeightMilkType] = useState<VLCMilkType>('Cow');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const getDefaultShift = () => {
@@ -397,7 +400,13 @@ const VLCCollectionEntry = () => {
       </div>
 
       {activeStep === 'weight' ? (
-        <VLCWeightEntry date={dateParam} shift={shiftParam} refreshKey={refreshKey} />
+        <VLCWeightEntry
+          date={dateParam}
+          shift={shiftParam}
+          refreshKey={refreshKey}
+          type={weightMilkType}
+          onTypeChange={setWeightMilkType}
+        />
       ) : (
         <VLCAnalyserEntry date={dateParam} shift={shiftParam} refreshKey={refreshKey} />
       )}

@@ -6,12 +6,18 @@ import { NEFT_COLUMNS, NeftRow, formatAmount, neftTotals } from "@/utils/farmerN
 const fileName = (ext: string, fromDate: string, toDate: string) =>
   `Farmer_NEFT_Statement_${fromDate}_${toDate}.${ext}`.replace(/\//g, "-");
 
-// Bank-upload sheet: header row + one row per farmer, nothing else.
+// Header row, one row per farmer, then the total row (as in the PDF).
 // Account numbers stay text so Excel does not turn them into 1.23E+13.
 export const generateFarmerNeftExcel = (rows: NeftRow[], fromDate: string, toDate: string) => {
+  const totals = neftTotals(rows);
   const aoa = [
     NEFT_COLUMNS.map((c) => c.label),
     ...rows.map((r) => NEFT_COLUMNS.map((c) => (c.amount ? Number((r[c.key] as number).toFixed(2)) : String(r[c.key] || "")))),
+    NEFT_COLUMNS.map((c, i) =>
+      c.amount
+        ? Number(totals[c.key as keyof typeof totals].toFixed(2))
+        : i === 0 ? `Total (${rows.length})` : ""
+    ),
   ];
   const ws = XLSX.utils.aoa_to_sheet(aoa);
 

@@ -5,67 +5,66 @@ export interface FarmerListExcelSection {
   farmers: any[];
 }
 
-const farmerRows = (vlcName: string, farmers: any[]) => [
-  ['Farmer List'],
-  [`VLC: ${vlcName}`],
-  [`Total Farmers: ${farmers.length}`],
-  [],
-  ['Farmer ID', 'Name', 'Contact', 'Milk Type', 'Rate Chart', 'Bank Name', 'Account Number', 'IFSC Code'],
-  ...farmers.map(farmer => [
-    farmer.username || '',
-    farmer.fullName || '',
-    farmer.mobile_number || '',
-    farmer.milkType || '',
-    farmer.rateChart || '',
-    farmer.bankName || '-',
-    farmer.accountNumber || '-',
-    farmer.ifscCode || '-'
-  ])
-];
+const HEADER = ['Farmer ID', 'Name', 'Contact', 'Milk Type', 'Rate Chart', 'Bank Name', 'Account Number', 'IFSC Code'];
 
-// Excel sheet names: at most 31 characters, none of []:*?/\ , unique in the workbook.
-const sheetName = (label: string, used: Set<string>) => {
-  const base = (label.replace(/[[\]:*?/\\]/g, ' ').replace(/\s+/g, ' ').trim() || 'Dairy').slice(0, 31);
-  let name = base;
-  for (let n = 2; used.has(name.toLowerCase()); n++) {
-    const suffix = ` (${n})`;
-    name = base.slice(0, 31 - suffix.length) + suffix;
-  }
-  used.add(name.toLowerCase());
-  return name;
-};
+const formatDate = (date: Date) =>
+  date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
 /**
- * Farmer list for one or more dairies. One dairy: the single 'Farmer List'
- * sheet as before. Several: a Summary sheet, then one sheet per dairy in order.
+ * Farmer list for one or more dairies on a single sheet, laid out like the
+ * on-screen table: one header row, then each dairy's heading row followed by
+ * its farmers, one dairy after another, and the total at the end.
  */
 export const generateFarmerListExcelForDairies = (sections: FarmerListExcelSection[]) => {
-  const workbook = XLSX.utils.book_new();
-
-  if (sections.length === 1) {
-    const [{ vlcName, farmers }] = sections;
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(farmerRows(vlcName, farmers)), 'Farmer List');
-    XLSX.writeFile(workbook, `Farmer_List_${vlcName}.xlsx`);
-    return;
-  }
-
   const total = sections.reduce((sum, s) => sum + s.farmers.length, 0);
-  const used = new Set<string>(['summary']);
-  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+  const lastCol = HEADER.length - 1;
+
+  const rows: (string | number)[][] = [
     ['Farmer List'],
-    [`Dairies: ${sections.length}`],
-    [`Total Farmers: ${total}`],
+    [`Date: ${formatDate(new Date())}`],
+    [sections.length > 1 ? `${sections.length} dairies · Total Farmers: ${total}` : `Total Farmers: ${total}`],
     [],
-    ['#', 'VLC', 'Farmers'],
-    ...sections.map((s, i) => [i + 1, s.vlcName, s.farmers.length]),
-    ['', 'Total', total],
-  ]), 'Summary');
+    HEADER,
+  ];
+  const merges: XLSX.Range[] = [0, 1, 2].map((r) => ({ s: { r, c: 0 }, e: { r, c: lastCol } }));
 
   sections.forEach(({ vlcName, farmers }) => {
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(farmerRows(vlcName, farmers)), sheetName(vlcName, used));
+    merges.push({ s: { r: rows.length, c: 0 }, e: { r: rows.length, c: lastCol } });
+    rows.push([`${vlcName}  (${farmers.length} Farmers)`]);
+
+    if (!farmers.length) {
+      merges.push({ s: { r: rows.length, c: 0 }, e: { r: rows.length, c: lastCol } });
+      rows.push(['No farmers registered for this dairy']);
+      return;
+    }
+    farmers.forEach((farmer) =>
+      rows.push([
+        String(farmer.username || ''),
+        farmer.fullName || '',
+        String(farmer.mobile_number || ''),
+        farmer.milkType || '',
+        farmer.rateChart || '',
+        farmer.bankName || '-',
+        // Text, so Excel does not turn long account numbers into 1.23E+13.
+        String(farmer.accountNumber || '-'),
+        farmer.ifscCode || '-',
+      ])
+    );
   });
 
-  XLSX.writeFile(workbook, `Farmer_List_${sections.length}_Dairies.xlsx`);
+  rows.push([]);
+  rows.push(['Total Farmers', total]);
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!merges'] = merges;
+  ws['!cols'] = [{ wch: 11 }, { wch: 30 }, { wch: 14 }, { wch: 11 }, { wch: 34 }, { wch: 24 }, { wch: 22 }, { wch: 14 }];
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, ws, 'Farmer List');
+  const fileName = sections.length === 1
+    ? `Farmer_List_${sections[0].vlcName}.xlsx`
+    : `Farmer_List_${sections.length}_Dairies.xlsx`;
+  XLSX.writeFile(workbook, fileName.replace(/[\\/:*?"<>|]/g, '-'));
 };
 
 export const generateFarmerListExcel = (vlcName: string, farmers: any[]) =>

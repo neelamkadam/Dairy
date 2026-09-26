@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { AppDatePicker } from "@/components/ui/date-picker";
 import { VLCDropdown } from "@/components/ui/vlc-dropdown";
-import { AlertTriangle, Download } from "lucide-react";
+import { AlertTriangle, BadgeCheck, Download } from "lucide-react";
 import { useMemo, useState } from "react";
 import { format, parseISO, isValid } from "date-fns";
 import { useTranslation } from "react-i18next";
@@ -37,9 +37,11 @@ const FarmerNeftStatement = () => {
   const [toDate, setToDate] = useState<Date>(defaultRange.to);
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<NeftRow[]>([]);
-
   const totals = useMemo(() => neftTotals(rows), [rows]);
   const missingBankCount = rows.filter((r) => r.missingBank).length;
+  // Only bank-verified farmers go into the Excel / PDF (the payout files).
+  const verifiedRows = useMemo(() => rows.filter((r) => r.bankVerified), [rows]);
+  const unverifiedCount = rows.length - verifiedRows.length;
   const title = t("farmer_neft_statement", "Farmer Bank NEFT Statement");
 
   const handleSubmit = async () => {
@@ -66,15 +68,18 @@ const FarmerNeftStatement = () => {
   };
 
   const handleExport = (kind: "pdf" | "excel") => {
-    if (rows.length === 0) {
-      toast.error("No data to export");
+    if (verifiedRows.length === 0) {
+      toast.error(t("no_verified_farmers_to_export", "No verified farmers to export"));
       return;
     }
     const from = format(fromDate, "dd/MM/yy");
     const to = format(toDate, "dd/MM/yy");
-    if (kind === "pdf") generateFarmerNeftPDF(rows, dairyName, title, from, to);
-    else generateFarmerNeftExcel(rows, from, to);
-    toast.success(kind === "pdf" ? "PDF exported successfully" : "Excel exported successfully");
+    if (kind === "pdf") generateFarmerNeftPDF(verifiedRows, dairyName, title, from, to);
+    else generateFarmerNeftExcel(verifiedRows, from, to);
+    toast.success(
+      `${kind === "pdf" ? "PDF" : "Excel"} exported with ${verifiedRows.length} verified farmer(s)` +
+        (unverifiedCount ? `; ${unverifiedCount} unverified left out` : "")
+    );
   };
 
   const cell = "border border-gray-300 px-2 py-1";
@@ -128,18 +133,24 @@ const FarmerNeftStatement = () => {
       </div>
 
       <div className="flex justify-between items-center flex-wrap gap-3 mx-2 mb-4">
-        <div className="text-sm text-amber-700 flex items-center gap-2">
+        <div className="text-sm text-amber-700 flex flex-col gap-1">
           {missingBankCount > 0 && (
-            <>
+            <span className="flex items-center gap-2">
               <AlertTriangle className="w-4 h-4" />
               {missingBankCount} farmer(s) missing A/C Number or IFSC (highlighted)
-            </>
+            </span>
+          )}
+          {unverifiedCount > 0 && (
+            <span className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" />
+              {unverifiedCount} unverified farmer(s) will not be exported — verify them in Farmer List
+            </span>
           )}
         </div>
         <div className="flex flex-wrap gap-3">
           <Button
             onClick={() => handleExport("excel")}
-            disabled={rows.length === 0}
+            disabled={verifiedRows.length === 0}
             className="bg-green-600 hover:bg-green-700 text-white h-11 flex items-center justify-center gap-2"
           >
             <Download className="h-4 w-4" />
@@ -147,7 +158,7 @@ const FarmerNeftStatement = () => {
           </Button>
           <Button
             onClick={() => handleExport("pdf")}
-            disabled={rows.length === 0}
+            disabled={verifiedRows.length === 0}
             variant="outline"
             className="bg-red-500 text-white h-11 flex items-center justify-center gap-2 border-none"
           >
@@ -183,7 +194,18 @@ const FarmerNeftStatement = () => {
                   >
                     {NEFT_COLUMNS.map((c) => (
                       <td key={c.key} className={`${cell} ${c.amount ? "text-right" : ""}`}>
-                        {c.amount ? formatAmount(r[c.key] as number) : String(r[c.key] || "")}
+                        {c.key === "accountNumber" ? (
+                          <div className="flex items-center gap-2">
+                            <span>{r.accountNumber}</span>
+                            {r.bankVerified ? (
+                              <BadgeCheck className="w-4 h-4 text-emerald-600 shrink-0" aria-label="Bank details verified" />
+                            ) : (
+                              <span className="text-[10px] font-medium text-amber-700 bg-amber-100 rounded px-1.5 py-0.5">
+                                {t("unverified", "Unverified")}
+                              </span>
+                            )}
+                          </div>
+                        ) : c.amount ? formatAmount(r[c.key] as number) : String(r[c.key] || "")}
                       </td>
                     ))}
                   </tr>

@@ -1,6 +1,7 @@
 import { format } from "date-fns";
 import { api } from "@/services/config";
-import { bankSummaryApi } from "@/services/bankSummaryApi";
+import { userApi } from "@/services/reportsApi";
+import { farmerUserId, isBankVerified } from "@/services/farmerBankApi";
 import { bonusApi } from "@/services/bonusApi";
 import {
   buildFarmerCollectionSummary,
@@ -17,11 +18,16 @@ import {
 
 export interface NeftRow {
   vlcId: string;
+  branchId: string;
+  userId: number | string | null; // farmer's users.id, for editing bank details
   farmerCode: string;
   farmerName: string;
   accountNumber: string;
   accountHolder: string;
   ifscCode: string;
+  bankName: string;
+  bankPassbookPhoto: string;
+  bankVerified: boolean;
   purchaseAmount: number;
   commission: number;
   payableAmount: number;
@@ -49,7 +55,8 @@ export const fetchNeftRowsForVlc = async (
 
   const [billRes, bankRes, bonusRes, collectionRes, commissions] = await Promise.all([
     api.get("/payments/getdairybillsummary", { params: { dairyid: branchId, datefrom: from, dateto: to } }),
-    bankSummaryApi.getBankSummary({ dairy_id: branchId, start_date: from, end_date: to }).catch(() => ({ data: [] })),
+    // Bank details come from the farmer list: the bank summary API only knows farmers with a generated bill.
+    userApi.getFarmers(branchId).catch(() => ({ data: [] })),
     bonusApi.getBonusDeductions({ dairy_id: Number(branchId), start_date: from, end_date: to }).catch(() => ({ data: { data: [] } })),
     api.get("/webreports/collections", { params: { dairy_id: branchId, milk_type: "All", shift: "All", from, to } }),
     fetchFarmerCommissions(branchId, vlcUsername),
@@ -65,7 +72,9 @@ export const fetchNeftRowsForVlc = async (
   ).groups.forEach((g) => g.farmers.forEach((f) => commissionByFarmer.set(f.farmerCode, f.commission)));
 
   const bankByFarmer = new Map<string, any>();
-  (bankRes.data || []).forEach((b: any) => bankByFarmer.set(normalizeFarmerCode(b.farmer_id), b));
+  (Array.isArray(bankRes?.data) ? bankRes.data : []).forEach((u: any) => {
+    if (u.username) bankByFarmer.set(normalizeFarmerCode(u.username), u);
+  });
 
   // Latest bonus/fixed deduction entry per farmer (highest id), applied when the
   // period ends after its effective date — same rule as the Payment Summary report.
@@ -119,11 +128,16 @@ export const fetchNeftRowsForVlc = async (
     const ifscCode = String(bank?.ifscCode || "").trim();
     rows.push({
       vlcId: vlcUsername || branchId,
+      branchId,
+      userId: bank ? farmerUserId(bank) ?? null : null,
       farmerCode: code,
       farmerName: bank?.fullName || f.name,
       accountNumber,
-      accountHolder: bank?.fullName || f.name,
+      accountHolder: bank?.bname || bank?.fullName || f.name,
       ifscCode,
+      bankName: String(bank?.bankName || ""),
+      bankPassbookPhoto: String(bank?.bankPassbookPhoto || ""),
+      bankVerified: !!bank && isBankVerified(bank),
       purchaseAmount,
       commission,
       payableAmount,

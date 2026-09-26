@@ -23,18 +23,20 @@ interface VLCWeightEntryProps {
   date: string;
   shift: 'Morning' | 'Evening';
   refreshKey: number;
+  // Owned by the page so the chosen type survives saves and tab switches
+  type: VLCMilkType;
+  onTypeChange: (type: VLCMilkType) => void;
 }
 
 const MILK_TYPES: VLCMilkType[] = ['Cow', 'Buffalo', 'Both'];
 
-const VLCWeightEntry = ({ date, shift, refreshKey }: VLCWeightEntryProps) => {
+const VLCWeightEntry = ({ date, shift, refreshKey, type, onTypeChange: setType }: VLCWeightEntryProps) => {
   const { t } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
   const canModify = canModifyCollection(useAppSelector((state) => state.authData.userData?.id));
 
   const [vlcId, setVlcId] = useState("");
   const [vlcName, setVlcName] = useState("");
-  const [type, setType] = useState<VLCMilkType>('Both');
   const [weight, setWeight] = useState("");
   const [entries, setEntries] = useState<VLCWeightRecord[]>([]);
   const [saving, setSaving] = useState(false);
@@ -120,7 +122,6 @@ const VLCWeightEntry = ({ date, shift, refreshKey }: VLCWeightEntryProps) => {
         setVlcId("");
         setVlcName("");
         setWeight("");
-        setType('Both');
         fetchEntries();
         // The VLC number box when numbering is on, otherwise the dropdown
         vlcFieldRef.current?.querySelector<HTMLElement>('input, button')?.focus();
