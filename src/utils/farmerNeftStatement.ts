@@ -152,6 +152,7 @@ export const fetchNeftRowsForVlc = async (
 };
 
 export const NEFT_COLUMNS: Array<{ key: keyof NeftRow; label: string; amount?: boolean }> = [
+  { key: "farmerCode", label: "Farmer ID" },
   { key: "accountNumber", label: "A/C Number" },
   { key: "accountHolder", label: "Account Holder" },
   { key: "payableAmount", label: "Payable Amount", amount: true },
@@ -176,3 +177,22 @@ export const neftTotals = (rows: NeftRow[]) =>
 
 export const formatAmount = (n: number) =>
   n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+export interface NeftGroup {
+  label: string; // VLC heading, as on the Farmer List
+  rows: NeftRow[];
+}
+
+// Rows are fetched one VLC after another; split them back into per-VLC groups, keeping that order.
+export const groupNeftRows = (rows: NeftRow[], labelOf: (branchId: string) => string): NeftGroup[] => {
+  const groups: NeftGroup[] = [];
+  let currentBranch: string | null = null;
+  rows.forEach((r) => {
+    if (r.branchId !== currentBranch) {
+      currentBranch = r.branchId;
+      groups.push({ label: labelOf(r.branchId), rows: [] });
+    }
+    groups[groups.length - 1].rows.push(r);
+  });
+  return groups;
+};

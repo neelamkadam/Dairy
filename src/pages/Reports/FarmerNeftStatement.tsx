@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { AppDatePicker } from "@/components/ui/date-picker";
 import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import { AlertTriangle, BadgeCheck, Download } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { format, parseISO, isValid } from "date-fns";
 import { useTranslation } from "react-i18next";
 import { useAppSelector } from "@/redux/store";
@@ -12,9 +12,11 @@ import {
   NeftRow,
   fetchNeftRowsForVlc,
   formatAmount,
+  groupNeftRows,
   neftTotals,
 } from "@/utils/farmerNeftStatement";
 import { generateFarmerNeftExcel, generateFarmerNeftPDF } from "@/templates/FarmerNeftStatementTemplate";
+import { useVlcSectionLabel } from "@/utils/vlcSectionLabel";
 
 // Current 10-day bill period: 1–10, 11–20, 21–end of month.
 const getDateRange = (date: Date = new Date()) => {
@@ -44,6 +46,14 @@ const FarmerNeftStatement = () => {
   const unverifiedCount = rows.length - verifiedRows.length;
   const title = t("farmer_neft_statement", "Farmer Bank NEFT Statement");
 
+  // Rows grouped under a VLC heading, same heading (and 1, 2, 3 numbering) as the Farmer List.
+  const { showSerials, label: vlcLabel } = useVlcSectionLabel();
+  const labelOf = (branchId: string) => {
+    const b = branches.find((x) => String(x.branch_id) === branchId);
+    return b ? vlcLabel(b) : branchId;
+  };
+  const groups = groupNeftRows(rows, labelOf);
+
   const handleSubmit = async () => {
     if (selectedVLCs.length === 0 || !fromDate || !toDate) {
       toast.error("Please fill all required fields");
@@ -51,8 +61,10 @@ const FarmerNeftStatement = () => {
     }
     setLoading(true);
     try {
+      // Branch-list order, the order the VLC numbers run in, whatever order they were ticked in.
+      const ordered = branches.map((b) => String(b.branch_id)).filter((id) => selectedVLCs.includes(id));
       const perVlc = await Promise.all(
-        selectedVLCs.map((id) => {
+        ordered.map((id) => {
           const branch = branches.find((b) => String(b.branch_id) === id);
           return fetchNeftRowsForVlc(id, branch?.username ? String(branch.username) : undefined, fromDate, toDate);
         })
@@ -74,8 +86,9 @@ const FarmerNeftStatement = () => {
     }
     const from = format(fromDate, "dd/MM/yy");
     const to = format(toDate, "dd/MM/yy");
-    if (kind === "pdf") generateFarmerNeftPDF(verifiedRows, dairyName, title, from, to);
-    else generateFarmerNeftExcel(verifiedRows, from, to);
+    const verifiedGroups = groupNeftRows(verifiedRows, labelOf);
+    if (kind === "pdf") generateFarmerNeftPDF(verifiedGroups, dairyName, title, from, to);
+    else generateFarmerNeftExcel(verifiedGroups, from, to);
     toast.success(
       `${kind === "pdf" ? "PDF" : "Excel"} exported with ${verifiedRows.length} verified farmer(s)` +
         (unverifiedCount ? `; ${unverifiedCount} unverified left out` : "")
@@ -101,6 +114,7 @@ const FarmerNeftStatement = () => {
             valueKey="branch_id"
             placeholder="Select VLC Centers"
             isMultiSelect={true}
+            showSerialNumbers={showSerials}
           />
         </div>
         <div className="flex flex-col gap-2">
@@ -186,7 +200,15 @@ const FarmerNeftStatement = () => {
               </tr>
             ) : (
               <>
-                {rows.map((r) => (
+                {groups.map((g) => (
+                  <Fragment key={g.label}>
+                  <tr className="bg-blue-50 font-semibold text-blue-900">
+                    <td colSpan={NEFT_COLUMNS.length} className={cell}>
+                      {g.label}
+                      <span className="ml-2 font-normal text-blue-700">({g.rows.length} {t("farmers", "Farmers")})</span>
+                    </td>
+                  </tr>
+                {g.rows.map((r) => (
                   <tr
                     key={`${r.vlcId}_${r.farmerCode}`}
                     className={r.missingBank ? "bg-amber-50" : "hover:bg-gray-50"}
@@ -209,6 +231,8 @@ const FarmerNeftStatement = () => {
                       </td>
                     ))}
                   </tr>
+                ))}
+                  </Fragment>
                 ))}
                 <tr className="bg-gray-200 font-bold">
                   {NEFT_COLUMNS.map((c, i) => (
