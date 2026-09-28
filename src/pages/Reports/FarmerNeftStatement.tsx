@@ -47,10 +47,10 @@ const FarmerNeftStatement = () => {
   const title = t("farmer_neft_statement", "Farmer Bank NEFT Statement");
 
   // Rows grouped under a VLC heading, same heading (and 1, 2, 3 numbering) as the Farmer List.
-  const { showSerials, label: vlcLabel } = useVlcSectionLabel();
+  const { showSerials, label: vlcLabel, columnLabel: vlcColumnLabel } = useVlcSectionLabel();
   const labelOf = (branchId: string) => {
     const b = branches.find((x) => String(x.branch_id) === branchId);
-    return b ? vlcLabel(b) : branchId;
+    return b ? { label: vlcLabel(b), vlcColumn: vlcColumnLabel(b) } : { label: branchId, vlcColumn: branchId };
   };
   const groups = groupNeftRows(rows, labelOf);
 

@@ -7,6 +7,7 @@ interface Branch {
   name: string;
   branchName: string;
   days: number;
+  mobile_number?: string | null; // the VLC login user's mobile
 }
 
 export interface BranchState {

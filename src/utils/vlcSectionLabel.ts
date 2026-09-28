@@ -31,5 +31,12 @@ export const useVlcSectionLabel = () => {
     return `${serial ? `${serial}. ` : ""}${v.username} - ${v.name || ""}${v.branchName ? ` · ${v.branchName}` : ""}`;
   };
 
-  return { showSerials, label };
+  // Compact form for a table column: "1 - VLC name - branch" (the VLC id in place of
+  // the number for everyone who does not use the numbering).
+  const columnLabel = (v: VlcLike) => {
+    const serial = showSerials ? positionByUsername.get(String(v.username)) : undefined;
+    return [serial ?? v.username, v.name, v.branchName].filter(Boolean).join(" - ");
+  };
+
+  return { showSerials, label, columnLabel };
 };

@@ -180,17 +180,21 @@ export const formatAmount = (n: number) =>
 
 export interface NeftGroup {
   label: string; // VLC heading, as on the Farmer List
+  vlcColumn: string; // same VLC, compact, for the Excel "VLC" column
   rows: NeftRow[];
 }
 
 // Rows are fetched one VLC after another; split them back into per-VLC groups, keeping that order.
-export const groupNeftRows = (rows: NeftRow[], labelOf: (branchId: string) => string): NeftGroup[] => {
+export const groupNeftRows = (
+  rows: NeftRow[],
+  labelOf: (branchId: string) => { label: string; vlcColumn: string }
+): NeftGroup[] => {
   const groups: NeftGroup[] = [];
   let currentBranch: string | null = null;
   rows.forEach((r) => {
     if (r.branchId !== currentBranch) {
       currentBranch = r.branchId;
-      groups.push({ label: labelOf(r.branchId), rows: [] });
+      groups.push({ ...labelOf(r.branchId), rows: [] });
     }
     groups[groups.length - 1].rows.push(r);
   });

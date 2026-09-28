@@ -1,13 +1,15 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { X, CheckCircle2, XCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CollectionData } from "@/redux/dashboardSlice";
+import { useAppSelector } from "@/redux/store";
+import { createDairyApi } from "@/services/createDairyApi";
 
 interface VlcCollectionStatusModalProps {
   isOpen: boolean;
   onClose: () => void;
   collections: CollectionData[];
-  branches: Array<{ branch_id: number; name: string; username?: string; branchName?: string }>;
+  branches: Array<{ branch_id: number; name: string; username?: string; branchName?: string; mobile_number?: string | null }>;
   date: string;
   shift: string;
 }
@@ -18,6 +20,29 @@ const VlcCollectionStatusModal = ({ isOpen, onClose, collections, branches, date
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>("collected");
   const [search, setSearch] = useState("");
+  const userId = useAppSelector((state) => state.authData.userData?.id);
+  // dairy id → mobile number of its Dairyadmin (dairy.createdby), from the
+  // user's dairy list — the same data Create Dairy shows.
+  const [mobileByDairy, setMobileByDairy] = useState<Map<number, string>>(new Map());
+
+  useEffect(() => {
+    if (!isOpen || !userId || mobileByDairy.size) return;
+    createDairyApi
+      .listUserDairies(Number(userId))
+      .then((res) => {
+        const map = new Map<number, string>();
+        (res?.data || []).forEach((d) => {
+          if (d.mobile_number) map.set(Number(d.dairy_id), String(d.mobile_number));
+        });
+        setMobileByDairy(map);
+      })
+      .catch(() => {
+        /* numbers are optional; the column shows "-" */
+      });
+  }, [isOpen, userId, mobileByDairy.size]);
+
+  const mobileOf = (b: { branch_id: number; mobile_number?: string | null }) =>
+    mobileByDairy.get(Number(b.branch_id)) || b.mobile_number || null;
 
   const { collected, notCollected } = useMemo(() => {
     const byDairy = new Map(collections.map(c => [c.dairy_id, c]));
@@ -33,8 +58,14 @@ const VlcCollectionStatusModal = ({ isOpen, onClose, collections, branches, date
   if (!isOpen) return null;
 
   const term = search.trim().toLowerCase();
-  const matches = (b: { name: string; username?: string; branchName?: string }) =>
-    !term || [b.name, b.username, b.branchName].some(v => String(v || "").toLowerCase().includes(term));
+  const matches = (b: { branch_id: number; name: string; username?: string; branchName?: string; mobile_number?: string | null }) =>
+    !term || [b.name, b.username, b.branchName, mobileOf(b)].some(v => String(v || "").toLowerCase().includes(term));
+
+  const mobileCell = (mobile?: string | null) => (
+    <td className="border px-3 py-2 whitespace-nowrap">
+      {mobile ? <a href={`tel:${mobile}`} className="text-blue-600 hover:underline">{mobile}</a> : "-"}
+    </td>
+  );
 
   const vlcLabel = (b: { name: string; username?: string; branchName?: string }) =>
     [b.username, b.name, b.branchName].filter(Boolean).join(" - ");
@@ -88,6 +119,7 @@ const VlcCollectionStatusModal = ({ isOpen, onClose, collections, branches, date
                 <tr>
                   <th className="border px-3 py-2 text-left">#</th>
                   <th className="border px-3 py-2 text-left">{t("vlcc_center", "VLCC Center")}</th>
+                  <th className="border px-3 py-2 text-left">{t("mobile_number", "Mobile Number")}</th>
                   <th className="border px-3 py-2 text-right">{t("quantity", "Quantity")} (L)</th>
                   <th className="border px-3 py-2 text-right">{t("fat", "FAT")}</th>
                   <th className="border px-3 py-2 text-right">{t("snf", "SNF")}</th>
@@ -100,6 +132,7 @@ const VlcCollectionStatusModal = ({ isOpen, onClose, collections, branches, date
                   <tr key={branch.branch_id} className="hover:bg-gray-50">
                     <td className="border px-3 py-2">{i + 1}</td>
                     <td className="border px-3 py-2">{vlcLabel(branch)}</td>
+                    {mobileCell(mobileOf(branch))}
                     <td className="border px-3 py-2 text-right">{data!.quantity.toFixed(2)}</td>
                     <td className="border px-3 py-2 text-right">{data!.fat.toFixed(2)}</td>
                     <td className="border px-3 py-2 text-right">{data!.snf.toFixed(2)}</td>
@@ -115,6 +148,7 @@ const VlcCollectionStatusModal = ({ isOpen, onClose, collections, branches, date
                 <tr>
                   <th className="border px-3 py-2 text-left">#</th>
                   <th className="border px-3 py-2 text-left">{t("vlcc_center", "VLCC Center")}</th>
+                  <th className="border px-3 py-2 text-left">{t("mobile_number", "Mobile Number")}</th>
                   <th className="border px-3 py-2 text-right">{t("registered_farmers", "Registered Farmers")}</th>
                 </tr>
               </thead>
@@ -123,6 +157,7 @@ const VlcCollectionStatusModal = ({ isOpen, onClose, collections, branches, date
                   <tr key={branch.branch_id} className="hover:bg-gray-50">
                     <td className="border px-3 py-2">{i + 1}</td>
                     <td className="border px-3 py-2">{vlcLabel(branch)}</td>
+                    {mobileCell(mobileOf(branch))}
                     <td className="border px-3 py-2 text-right">{data?.registered_farmers ?? 0}</td>
                   </tr>
                 ))}

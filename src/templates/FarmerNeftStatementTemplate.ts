@@ -8,46 +8,39 @@ const fileName = (ext: string, fromDate: string, toDate: string) =>
 
 const groupHeading = (g: NeftGroup) => `${g.label}  (${g.rows.length} Farmers)`;
 
-// Header row, then each VLC's heading row and its farmers, then the total row (as in the PDF).
+// Flat sheet: a "VLC" column (1 - VLC name - branch) in front of the statement
+// columns on every row, no VLC heading rows, then the total row.
 // Farmer IDs and account numbers stay text so Excel keeps leading zeros and does not
 // turn long account numbers into 1.23E+13.
 export const generateFarmerNeftExcel = (groups: NeftGroup[], fromDate: string, toDate: string) => {
   const rows = groups.flatMap((g) => g.rows);
   const totals = neftTotals(rows);
-  const lastCol = NEFT_COLUMNS.length - 1;
 
-  const aoa: (string | number)[][] = [NEFT_COLUMNS.map((c) => c.label)];
-  const merges: XLSX.Range[] = [];
-  const headingRows = new Set<number>();
-  groups.forEach((g) => {
-    headingRows.add(aoa.length);
-    merges.push({ s: { r: aoa.length, c: 0 }, e: { r: aoa.length, c: lastCol } });
-    aoa.push([groupHeading(g)]);
+  const aoa: (string | number)[][] = [["VLC", ...NEFT_COLUMNS.map((c) => c.label)]];
+  groups.forEach((g) =>
     g.rows.forEach((r) =>
-      aoa.push(NEFT_COLUMNS.map((c) => (c.amount ? Number((r[c.key] as number).toFixed(2)) : String(r[c.key] || ""))))
-    );
-  });
-  aoa.push(
-    NEFT_COLUMNS.map((c, i) =>
-      c.amount
-        ? Number(totals[c.key as keyof typeof totals].toFixed(2))
-        : i === 0 ? `Total (${rows.length})` : ""
+      aoa.push([
+        g.vlcColumn,
+        ...NEFT_COLUMNS.map((c) => (c.amount ? Number((r[c.key] as number).toFixed(2)) : String(r[c.key] || ""))),
+      ])
     )
   );
+  aoa.push([
+    `Total (${rows.length})`,
+    ...NEFT_COLUMNS.map((c) => (c.amount ? Number(totals[c.key as keyof typeof totals].toFixed(2)) : "")),
+  ]);
 
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   const range = XLSX.utils.decode_range(ws["!ref"] as string);
   for (let r = 1; r <= range.e.r; r++) {
-    if (headingRows.has(r)) continue;
     NEFT_COLUMNS.forEach((c, i) => {
-      const cell = ws[XLSX.utils.encode_cell({ r, c: i })];
+      const cell = ws[XLSX.utils.encode_cell({ r, c: i + 1 })];
       if (!cell) return;
       if (c.amount) cell.z = "0.00";
       else cell.t = "s";
     });
   }
-  ws["!merges"] = merges;
-  ws["!cols"] = [{ wch: 11 }, { wch: 22 }, { wch: 32 }, { wch: 16 }, { wch: 14 }, { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 20 }];
+  ws["!cols"] = [{ wch: 34 }, { wch: 11 }, { wch: 22 }, { wch: 32 }, { wch: 16 }, { wch: 14 }, { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 20 }];
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "NEFT");
