@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createDairyApi, type UpdateDairyPayload, type UserDairy } from "@/services/createDairyApi";
+import DairyBankFields, { validateDairyBank, type DairyBankValues } from "@/components/DairyBankFields";
 import { fetchUserBranches } from "@/redux/branchSlice";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
 
@@ -48,6 +49,7 @@ interface EditForm {
   cc: string;
   bmc: string;
   route: string;
+  bank: DairyBankValues;
 }
 
 const NONE = "none";
@@ -132,6 +134,12 @@ const UserDairiesList = ({ userId, ccList, bmcList, routeList, refreshKey }: Use
       cc: toSel(dairy.cc_id),
       bmc: toSel(dairy.bmc_id),
       route: toSel(dairy.route_id),
+      bank: {
+        bank_name: dairy.bank_name ?? "",
+        account_holder: dairy.account_holder ?? "",
+        account_number: dairy.account_number ?? "",
+        ifsc_code: dairy.ifsc_code ?? "",
+      },
     });
   };
 
@@ -168,6 +176,15 @@ const UserDairiesList = ({ userId, ccList, bmcList, routeList, refreshKey }: Use
     if (form.cc !== toSel(editing.cc_id)) payload.cc_id = fromSel(form.cc);
     if (form.bmc !== toSel(editing.bmc_id)) payload.bmc_id = fromSel(form.bmc);
     if (form.route !== toSel(editing.route_id)) payload.route_id = fromSel(form.route);
+    const bankError = validateDairyBank(form.bank);
+    if (bankError) {
+      toast.error(bankError);
+      return;
+    }
+    (Object.keys(form.bank) as (keyof DairyBankValues)[]).forEach((key) => {
+      const value = form.bank[key].trim();
+      if (value !== (editing[key] ?? "")) payload[key] = value || null;
+    });
 
     if (!Object.keys(payload).length) {
       toast.info(t("other_expense_no_changes", "No changes to save"));
@@ -465,6 +482,12 @@ const UserDairiesList = ({ userId, ccList, bmcList, routeList, refreshKey }: Use
                   )}
                 </p>
               </div>
+
+              <DairyBankFields
+                idPrefix="edit_dairy_"
+                values={form.bank}
+                onChange={(patch) => setForm((f) => f && { ...f, bank: { ...f.bank, ...patch } })}
+              />
 
               <DialogFooter className="gap-2 pt-2">
                 <Button type="button" variant="outline" onClick={closeEdit} disabled={saving}>

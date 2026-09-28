@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { collectionTotals } from '@/utils/farmerCollectionTotals';
 
 export const generateFarmerCollectionExcel = (
   reportData: any[],
@@ -8,6 +9,26 @@ export const generateFarmerCollectionExcel = (
   shift: string,
   milkType: string
 ) => {
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+
+  // Same totals as the cards on the report screen.
+  const totals = collectionTotals(reportData);
+  const totalRow = [
+    'Total',
+    '',
+    `${totals.entries} entries`,
+    '',
+    round2(totals.liters),
+    round2(totals.kg),
+    round2(totals.fat),
+    round2(totals.snf),
+    round2(totals.clr),
+    '',
+    '',
+    round2(totals.rate),
+    round2(totals.amount),
+  ];
+
   const worksheetData = [
     ['Farmer Collection Report'],
     [`VLC: ${vlcName}`],
@@ -28,7 +49,8 @@ export const generateFarmerCollectionExcel = (
       row.shift,
       row.rate,
       row.amount
-    ])
+    ]),
+    totalRow,
   ];
 
   const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);

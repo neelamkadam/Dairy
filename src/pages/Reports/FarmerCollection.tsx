@@ -12,7 +12,9 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 
 import { AppDatePicker } from "@/components/ui/date-picker";
-import { X, ChevronRight, ChevronLeft, CalendarIcon, Download } from "lucide-react";
+import { X, ChevronRight, ChevronLeft, CalendarIcon, Download, Users, Droplets, Weight, Percent, Gauge, IndianRupee, TrendingUp, FlaskConical } from "lucide-react";
+import KPICard from "@/components/KPICard";
+import { collectionTotals } from "@/utils/farmerCollectionTotals";
 import { useMemo, useState } from "react";
 import { format, parseISO, isValid } from "date-fns";
 import { useTranslation } from "react-i18next";
@@ -100,6 +102,21 @@ const FarmerCollection = () => {
     const branch = branchByDairyId.get(String(row?.dairy_id ?? "")) ?? branchByDairyId.get(String(requestedBranchId));
     return branch?.username ? String(branch.username) : String(row?.dairy_id ?? requestedBranchId ?? "");
   };
+
+  // Totals / averages for the cards at the top — every fetched row, not just the page.
+  const totals = useMemo(() => collectionTotals(collectionData), [collectionData]);
+  const fmt = (n: number, digits = 2) =>
+    n.toLocaleString("en-IN", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  const totalCards = [
+    { title: `${t("farmers", "Farmers")} / ${t("entries", "Entries")}`, value: `${totals.farmers} / ${totals.entries}`, icon: Users, theme: "cyan" },
+    { title: t("total_liter", "Total Liter"), value: `${fmt(totals.liters)} L`, icon: Droplets, theme: "blue" },
+    { title: t("total_kg", "Total Kg"), value: `${fmt(totals.kg)} Kg`, icon: Weight, theme: "indigo" },
+    { title: t("average_fat", "Avg FAT"), value: fmt(totals.fat), icon: Percent, theme: "violet" },
+    { title: t("average_snf", "Avg SNF"), value: fmt(totals.snf), icon: TrendingUp, theme: "amber" },
+    { title: t("average_clr", "Avg CLR"), value: fmt(totals.clr), icon: FlaskConical, theme: "pink" },
+    { title: t("average_rate", "Avg Rate"), value: `₹${fmt(totals.rate)}`, icon: Gauge, theme: "teal" },
+    { title: t("total_amount", "Total Amount"), value: `₹${fmt(totals.amount)}`, icon: IndianRupee, theme: "emerald" },
+  ] as const;
 
   const collectionSummary = useMemo(
     () =>
@@ -266,6 +283,12 @@ const FarmerCollection = () => {
           <h1 className="text-left text-lg md:text-xl font-semibold">{t('farmer_collection')}</h1>
         </div>
         <hr className="text-gray-300" />
+        {/* Two rows of four at most, so every card keeps room for its figure. */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5 mx-2 md:mx-4 mt-5 mb-6 text-left">
+          {totalCards.map((card) => (
+            <KPICard key={card.title} title={card.title} value={card.value} icon={card.icon} theme={card.theme} />
+          ))}
+        </div>
         <Tabs defaultValue="collection" className="w-full border-none">
           <TabsContent value="collection" className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-end bg-white p-3 sm:p-4 rounded-lg shadow-sm mx-2 mb-4 text-left">

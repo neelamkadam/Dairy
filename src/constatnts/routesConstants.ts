@@ -65,6 +65,7 @@ export const ROUTES = {
     VLC_COMMISSION_REPORT:`/dashboard/vlc-commission-report`,
     FARMER_COMMISSION_REPORT:`/dashboard/farmer-commission-report`,
     FARMER_NEFT_STATEMENT:`/dashboard/farmer-neft-statement`,
+    VLC_COMMISSION_NEFT:`/dashboard/vlc-commission-neft`,
     VLC_DIFFERENCE_REPORT: `/dashboard/vlc-diffrerence-report`,
     VLC_DIFFERENCE_REPORT_2: `/dashboard/vlc-diffrerence-report-2`,
     BANK_SUMMARY:`/dashboard/bank-summary`,

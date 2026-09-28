@@ -1,46 +1,65 @@
 import * as XLSX from "xlsx";
 import pdfMake from "pdfmake/build/pdfmake";
 import { PDF_FONT } from "@/utils/pdfMakeFonts";
-import { NEFT_COLUMNS, NeftGroup, formatAmount, neftTotals } from "@/utils/farmerNeftStatement";
+import { NEFT_COLUMNS, NeftGroup, NeftRow, formatAmount, neftTotals } from "@/utils/farmerNeftStatement";
 
 const fileName = (ext: string, fromDate: string, toDate: string) =>
   `Farmer_NEFT_Statement_${fromDate}_${toDate}.${ext}`.replace(/\//g, "-");
 
 const groupHeading = (g: NeftGroup) => `${g.label}  (${g.rows.length} Farmers)`;
 
-// Flat sheet: a "VLC" column (1 - VLC name - branch) in front of the statement
-// columns on every row, no VLC heading rows, then the total row.
-// Farmer IDs and account numbers stay text so Excel keeps leading zeros and does not
-// turn long account numbers into 1.23E+13.
+// Excel column order (bank-upload sheet). Differs from the screen / PDF: no
+// Farmer ID, and the VLC (1 - VLC name - branch) sits after IFSCode.
+type ExcelColumn = { key: keyof NeftRow | "vlc"; label: string; amount?: boolean; width: number };
+const EXCEL_COLUMNS: ExcelColumn[] = [
+  { key: "accountNumber", label: "A/C Number", width: 22 },
+  { key: "accountHolder", label: "Account Holder", width: 32 },
+  { key: "payableAmount", label: "Payable Amount", amount: true, width: 16 },
+  { key: "ifscCode", label: "IFSCode", width: 14 },
+  { key: "vlc", label: "VLC", width: 34 },
+  { key: "purchaseAmount", label: "Purchase Amount", amount: true, width: 16 },
+  { key: "advance", label: "Advance", amount: true, width: 12 },
+  { key: "deduction", label: "Deduction", amount: true, width: 12 },
+  { key: "netPayable", label: "Net Payable Amount", amount: true, width: 20 },
+];
+
+// Header row, one row per farmer, then the total row. No VLC heading rows.
+// Account numbers stay text so Excel does not turn them into 1.23E+13.
 export const generateFarmerNeftExcel = (groups: NeftGroup[], fromDate: string, toDate: string) => {
   const rows = groups.flatMap((g) => g.rows);
   const totals = neftTotals(rows);
 
-  const aoa: (string | number)[][] = [["VLC", ...NEFT_COLUMNS.map((c) => c.label)]];
+  const aoa: (string | number)[][] = [EXCEL_COLUMNS.map((c) => c.label)];
   groups.forEach((g) =>
     g.rows.forEach((r) =>
-      aoa.push([
-        g.vlcColumn,
-        ...NEFT_COLUMNS.map((c) => (c.amount ? Number((r[c.key] as number).toFixed(2)) : String(r[c.key] || ""))),
-      ])
+      aoa.push(
+        EXCEL_COLUMNS.map((c) =>
+          c.key === "vlc"
+            ? g.vlcColumn
+            : c.amount
+              ? Number((r[c.key] as number).toFixed(2))
+              : String(r[c.key] || "")
+        )
+      )
     )
   );
-  aoa.push([
-    `Total (${rows.length})`,
-    ...NEFT_COLUMNS.map((c) => (c.amount ? Number(totals[c.key as keyof typeof totals].toFixed(2)) : "")),
-  ]);
+  aoa.push(
+    EXCEL_COLUMNS.map((c, i) =>
+      c.amount ? Number(totals[c.key as keyof typeof totals].toFixed(2)) : i === 0 ? `Total (${rows.length})` : ""
+    )
+  );
 
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   const range = XLSX.utils.decode_range(ws["!ref"] as string);
   for (let r = 1; r <= range.e.r; r++) {
-    NEFT_COLUMNS.forEach((c, i) => {
-      const cell = ws[XLSX.utils.encode_cell({ r, c: i + 1 })];
+    EXCEL_COLUMNS.forEach((c, i) => {
+      const cell = ws[XLSX.utils.encode_cell({ r, c: i })];
       if (!cell) return;
       if (c.amount) cell.z = "0.00";
       else cell.t = "s";
     });
   }
-  ws["!cols"] = [{ wch: 34 }, { wch: 11 }, { wch: 22 }, { wch: 32 }, { wch: 16 }, { wch: 14 }, { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 20 }];
+  ws["!cols"] = EXCEL_COLUMNS.map((c) => ({ wch: c.width }));
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "NEFT");

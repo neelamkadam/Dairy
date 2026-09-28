@@ -77,32 +77,53 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
     items.push({
       title: t('reports'),
       icon: <LineChart size={20} className="stroke-[1.5]" />,
+      // Grouped so the list stays short; each group opens to its reports.
       children: [
-        { title: t('shift_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.SHIFT_REPORTS },
-        { title: t('manual_auto_shift_report', 'Manual/Auto Shift Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.MANUAL_AUTO_SHIFT_REPORT },
-        { title: t('dispatch_status_report', 'Dispatch Status Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.DISPATCH_STATUS_REPORT },
-        { title: t('vlc_collection_entry_report', 'VLC Collection Entry Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.VLC_COLLECTION_ENTRY_REPORT },
-        { title: t('tanker_dispatch_report', 'Tanker Dispatch Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.TANKER_DISPATCH_REPORT },
-        { title: t('farmer_collection'), icon: <Dot size={24} />, href: ROUTES.REPORTS.FARMER_COLLECTION },
-        { title: t('total_collection_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.TOTAL_COLLECTION_REPORT },
-        { title: t('payment_summary_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.PAYMENT_SUMMARY },
-        { title: t('rate_chart_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.RATECHART_REPORT },
-        { title: t('farmer_bill_invoice_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.FARMER_BILL_INVOICE_REPORT },
-        { title: t('farmer_list'), icon: <Dot size={24} />, href: ROUTES.REPORTS.FARMER_LIST },
         {
-          title: t('vlc_difference_report'),
+          title: t('collection_reports', 'Collection Reports'),
           icon: <Dot size={24} />,
           children: [
+            { title: t('shift_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.SHIFT_REPORTS },
+            { title: t('manual_auto_shift_report', 'Manual/Auto Shift Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.MANUAL_AUTO_SHIFT_REPORT },
+            { title: t('dispatch_status_report', 'Dispatch Status Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.DISPATCH_STATUS_REPORT },
+            { title: t('vlc_collection_entry_report', 'VLC Collection Entry Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.VLC_COLLECTION_ENTRY_REPORT },
+            { title: t('tanker_dispatch_report', 'Tanker Dispatch Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.TANKER_DISPATCH_REPORT },
+            { title: t('farmer_collection'), icon: <Dot size={24} />, href: ROUTES.REPORTS.FARMER_COLLECTION },
+            { title: t('total_collection_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.TOTAL_COLLECTION_REPORT },
             { title: t('vlc_difference_report') + " 1", icon: <Dot size={24} />, href: ROUTES.REPORTS.VLC_DIFFERENCE_REPORT },
             { title: t('vlc_difference_report') + " 2", icon: <Dot size={24} />, href: ROUTES.REPORTS.VLC_DIFFERENCE_REPORT_2 },
           ]
         },
-        { title: t('remaining_balance_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.REMAINING_BALANCE },
-        { title: t('farmer_passbook'), icon: <Dot size={24} />, href: ROUTES.REPORTS.FARMER_PASSBOOK },
-        { title: t('vlc_commission_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.VLC_COMMISSION_REPORT },
-        { title: t('farmer_commission_report', 'Farmer Commission Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.FARMER_COMMISSION_REPORT },
-        { title: t('farmer_neft_statement', 'Farmer Bank NEFT Statement'), icon: <Dot size={24} />, href: ROUTES.REPORTS.FARMER_NEFT_STATEMENT },
-        { title: t('pl_statement'), icon: <Dot size={24} />, href: ROUTES.REPORTS.PL_STATEMENT },
+        {
+          title: t('farmer_reports', 'Farmer Reports'),
+          icon: <Dot size={24} />,
+          children: [
+            { title: t('farmer_list'), icon: <Dot size={24} />, href: ROUTES.REPORTS.FARMER_LIST },
+            { title: t('farmer_passbook'), icon: <Dot size={24} />, href: ROUTES.REPORTS.FARMER_PASSBOOK },
+            { title: t('rate_chart_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.RATECHART_REPORT },
+            { title: t('bonus_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.BONUS_REPORT },
+          ]
+        },
+        {
+          title: t('billing_payment_reports', 'Billing & Payment'),
+          icon: <Dot size={24} />,
+          children: [
+            { title: t('payment_summary_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.PAYMENT_SUMMARY },
+            { title: t('farmer_bill_invoice_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.FARMER_BILL_INVOICE_REPORT },
+            { title: t('remaining_balance_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.REMAINING_BALANCE },
+            { title: t('pl_statement'), icon: <Dot size={24} />, href: ROUTES.REPORTS.PL_STATEMENT },
+          ]
+        },
+        {
+          title: t('commission_neft_reports', 'Commission & NEFT'),
+          icon: <Dot size={24} />,
+          children: [
+            { title: t('vlc_commission_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.VLC_COMMISSION_REPORT },
+            { title: t('farmer_commission_report', 'Farmer Commission Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.FARMER_COMMISSION_REPORT },
+            { title: t('farmer_neft_statement', 'Farmer Bank NEFT Statement'), icon: <Dot size={24} />, href: ROUTES.REPORTS.FARMER_NEFT_STATEMENT },
+            { title: t('vlc_commission_neft', 'VLC Commission NEFT'), icon: <Dot size={24} />, href: ROUTES.REPORTS.VLC_COMMISSION_NEFT },
+          ]
+        },
         {
           title: t('cattle_feed_report', 'Cattle Feed Report'),
           icon: <Dot size={24} />,
@@ -113,7 +134,6 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
             { title: t('cattle_feed_purchases_report', 'Cattle Feed Purchases Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.CATTLE_FEED_PURCHASE_REPORT },
           ]
         },
-        { title: t('bonus_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.BONUS_REPORT },
       ]
     });
   }

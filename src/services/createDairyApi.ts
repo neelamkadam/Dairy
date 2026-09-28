@@ -14,6 +14,11 @@ export interface CreateBranchPayload {
   cc_id?: number | null;
   bmc_id?: number | null;
   route_id?: number | null;
+  // Optional VLC bank details (commission NEFT).
+  bank_name?: string;
+  account_holder?: string;
+  account_number?: string;
+  ifsc_code?: string;
 }
 
 // A dairy assigned to the web user, with everything the edit form needs.
@@ -34,6 +39,11 @@ export interface UserDairy {
   route_id: number | null;
   route_name: string | null;
   active: number | null;
+  // VLC bank details; absent until the server has the dairy bank columns.
+  bank_name?: string | null;
+  account_holder?: string | null;
+  account_number?: string | null;
+  ifsc_code?: string | null;
 }
 
 // Partial update. villagename / address: null clears them.
@@ -49,6 +59,11 @@ export interface UpdateDairyPayload {
   cc_id?: number | null;
   bmc_id?: number | null;
   route_id?: number | null;
+  // Bank details: value sets, null clears, omitted keeps.
+  bank_name?: string | null;
+  account_holder?: string | null;
+  account_number?: string | null;
+  ifsc_code?: string | null;
 }
 
 export const createDairyApi = {

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import DairyBankFields, { EMPTY_DAIRY_BANK, validateDairyBank, type DairyBankValues } from "@/components/DairyBankFields";
 import { useTranslation } from "react-i18next";
 import { useAppSelector } from "@/redux/store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -81,6 +82,7 @@ const CreateDairy = () => {
     villagename: "",
     address: "",
   });
+  const [bank, setBank] = useState<DairyBankValues>(EMPTY_DAIRY_BANK);
   const [createdUser, setCreatedUser] = useState<any>(null);
   // Re-reads "My Dairies" once a dairy is created.
   const [dairiesRefreshKey, setDairiesRefreshKey] = useState(0);
@@ -231,6 +233,11 @@ const CreateDairy = () => {
       toast.error(t("password_must_be_at_least_6_characters", "Password must be at least 6 characters"));
       return;
     }
+    const bankError = validateDairyBank(bank);
+    if (bankError) {
+      toast.error(bankError);
+      return;
+    }
     const ccId = ccSel !== NONE ? Number(ccSel) : null;
     const bmcId = bmcSel !== NONE ? Number(bmcSel) : null;
     const routeId = routeSel !== NONE ? Number(routeSel) : null;
@@ -251,6 +258,9 @@ const CreateDairy = () => {
           ...(ccId ? { cc_id: ccId } : {}),
           ...(bmcId ? { bmc_id: bmcId } : {}),
           ...(routeId ? { route_id: routeId } : {}),
+          ...Object.fromEntries(
+            Object.entries(bank).map(([k, v]) => [k, v.trim()]).filter(([, v]) => v)
+          ),
         }
       );
       if (data.success === false) {
@@ -284,6 +294,7 @@ const CreateDairy = () => {
       villagename: "",
       address: "",
     });
+    setBank(EMPTY_DAIRY_BANK);
     setCreatedUser(null);
     setCreatedDairyId(null);
     setEquipment(DEFAULT_EQUIPMENT.map((name) => ({ name, checked: false, quantity: "", serialNumber: "" })));
@@ -532,6 +543,8 @@ const CreateDairy = () => {
                         </div>
                       </div>
                     </div>
+
+                    <DairyBankFields values={bank} onChange={(patch) => setBank((b) => ({ ...b, ...patch }))} />
 
                     {/* Hierarchy assignment — optional CC / BMC / Route dropdowns */}
                     <div className="pt-3 border-t border-slate-100/50">
