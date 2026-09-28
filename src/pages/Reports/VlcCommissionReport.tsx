@@ -18,6 +18,7 @@ import {
 import { AppDatePicker } from "@/components/ui/date-picker";
 import { format, parseISO, isValid } from "date-fns";
 import { useAppSelector } from "@/redux/store";
+import { useVlcNumbering } from "@/utils/vlcSectionLabel";
 import { reportsApi } from "@/services/reportsApi";
 import { toast } from "react-toastify";
 import { generateVlcCommissionReportPDF } from "@/templates/VlcCommissionReportTemplate";
@@ -31,6 +32,12 @@ import { cn } from "@/lib/utils";
 const VlcCommissionReport = () => {
   const { i18n } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
+  // VLC numbers (1, 2, 3 …) for the web user who uses them; "" for everyone else.
+  const vlcNo = useVlcNumbering();
+  // Exports print branch.username as the VLC ID; numbered users get "3. 500381".
+  const numberedBranches = vlcNo.enabled
+    ? branches.map((b) => ({ ...b, username: `${vlcNo.prefix(b.username)}${b.username}` }))
+    : branches;
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [vlcId, setVlcId] = useState("");
@@ -114,7 +121,7 @@ const VlcCommissionReport = () => {
       toast.error("No data to export");
       return;
     }
-    generateVlcCommissionReportPDF(reportData, branches, format(fromDate!, 'yyyy-MM-dd'), format(toDate!, 'yyyy-MM-dd'));
+    generateVlcCommissionReportPDF(reportData, numberedBranches, format(fromDate!, 'yyyy-MM-dd'), format(toDate!, 'yyyy-MM-dd'));
     toast.success("PDF exported successfully");
   };
 
@@ -123,7 +130,7 @@ const VlcCommissionReport = () => {
       toast.error("No data to export");
       return;
     }
-    generateVlcCommissionReportExcel(reportData, branches, format(fromDate!, 'yyyy-MM-dd'), format(toDate!, 'yyyy-MM-dd'));
+    generateVlcCommissionReportExcel(reportData, numberedBranches, format(fromDate!, 'yyyy-MM-dd'), format(toDate!, 'yyyy-MM-dd'));
     toast.success("Excel exported successfully");
   };
   return (

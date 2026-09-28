@@ -19,6 +19,7 @@ import { useState } from "react";
 import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import { Label } from "@/components/ui/label";
 import { useAppSelector } from "@/redux/store";
+import { useVlcNumbering } from "@/utils/vlcSectionLabel";
 import { reportsApi } from "@/services/reportsApi";
 import { toast } from "react-toastify";
 import { format } from "date-fns";
@@ -33,6 +34,7 @@ import PdfLoader from "@/components/PdfLoader";
 type Metrics = Record<string, string>;
 type ConsolidatedRow = {
   isVlcHeader?: boolean;
+  isGrandTotal?: boolean;
   vlcLabel?: string;
   vlcId?: string;
   vlcName?: string;
@@ -110,6 +112,8 @@ const consolidateRows = (rows: any[]) => {
 const VlcDifferenceReport2 = () => {
   const { i18n } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
+  // VLC numbers (1, 2, 3 …) for the web user who uses them; "" for everyone else.
+  const vlcNo = useVlcNumbering();
   const [vlcIds, setVlcIds] = useState<string[]>([]);
   const [fromDate, setFromDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [toDate, setToDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -370,7 +374,11 @@ const VlcDifferenceReport2 = () => {
       const allRows: any[] = [];
       const multiple = vlcIds.length > 1;
 
-      for (const id of vlcIds) {
+      // Numbered users get their VLCs in number order.
+      const orderedIds = vlcNo.enabled
+        ? [...vlcIds].sort((a, b) => (vlcNo.numberOf(a) ?? Infinity) - (vlcNo.numberOf(b) ?? Infinity))
+        : vlcIds;
+      for (const id of orderedIds) {
         const selectedBranch = branches?.find((b) => b.username === id);
         if (!selectedBranch) continue;
 
@@ -395,7 +403,7 @@ const VlcDifferenceReport2 = () => {
             if (multiple) {
               allRows.push({
                 isVlcHeader: true,
-                vlcLabel: `${selectedBranch.username} - ${selectedBranch.name}${selectedBranch.branchName ? ' - ' + selectedBranch.branchName : ''}`,
+                vlcLabel: `${vlcNo.prefix(selectedBranch.username)}${selectedBranch.username} - ${selectedBranch.name}${selectedBranch.branchName ? ' - ' + selectedBranch.branchName : ''}`,
               });
             }
             allRows.push(...processed);
@@ -417,7 +425,7 @@ const VlcDifferenceReport2 = () => {
 
   const branchLabel = (id: string) => {
     const b = branches?.find((x) => x.username === id);
-    return b ? `${id} - ${b.name}${b.branchName ? ' - ' + b.branchName : ''}` : id;
+    return b ? `${vlcNo.prefix(id)}${id} - ${b.name}${b.branchName ? ' - ' + b.branchName : ''}` : id;
   };
 
   const branchNameOf = (id: string) => branches?.find((x) => x.username === id)?.name ?? '';
@@ -453,6 +461,7 @@ const VlcDifferenceReport2 = () => {
     const types: Array<'Cow' | 'Buffalo' | 'Both'> = ['Cow', 'Buffalo', 'Both'];
     const multiple = vlcOrder.length > 1;
     const out: ConsolidatedRow[] = [];
+    const shownVlcs: string[] = [];
     vlcOrder.forEach((key) => {
       const label = branchLabel(key);
       const name = branchNameOf(key);
@@ -470,7 +479,31 @@ const VlcDifferenceReport2 = () => {
       if (typeRows.length === 0) return;
       if (multiple) out.push({ isVlcHeader: true, vlcLabel: label });
       out.push(...typeRows);
+      shownVlcs.push(key);
     });
+
+    // Grand total of every selected VLC shown above, one row per milk type
+    // (types are not added together: "Both" already covers all collections).
+    if (shownVlcs.length > 1) {
+      const shownRows = dataRows.filter((r) =>
+        shownVlcs.includes(r.vlcId ?? (vlcIds.length === 1 ? vlcIds[0] : ''))
+      );
+      const totalRows: ConsolidatedRow[] = types
+        .filter((type) => shownRows.some((r) => r.type === type))
+        .map((type) => ({
+          type,
+          vlcLabel: 'All selected VLCs',
+          vlcId: 'Total',
+          vlcName: 'All selected VLCs',
+          isGrandTotal: true,
+          ...consolidateRows(shownRows.filter((r) => r.type === type)),
+        }))
+        .filter((row) => !isAllZero(row));
+      if (totalRows.length > 0) {
+        out.push({ isVlcHeader: true, vlcLabel: `Grand Total — all ${shownVlcs.length} selected VLCs` });
+        out.push(...totalRows);
+      }
+    }
     return out;
   };
 
@@ -575,7 +608,7 @@ const VlcDifferenceReport2 = () => {
     const exportData = buildConsolidatedRows()
       .filter((row) => !row.isVlcHeader)
       .map((row) => ({
-        'VLC ID': row.vlcId,
+        'VLC ID': row.isGrandTotal ? row.vlcId : `${vlcNo.prefix(row.vlcId)}${row.vlcId}`,
         'VLC Name': row.vlcName,
         'Type': row.type,
         'From Date': fromDate,
@@ -872,8 +905,8 @@ const VlcDifferenceReport2 = () => {
                 }
 
                 return (
-                  <TableRow key={index} className="hover:bg-gray-50">
-                    <TableCell className="border border-gray-200 text-left font-medium bg-gray-50">{row.type}</TableCell>
+                  <TableRow key={index} className={row.isGrandTotal ? "font-bold bg-amber-50 hover:bg-amber-100" : "hover:bg-gray-50"}>
+                    <TableCell className={`border border-gray-200 text-left font-medium ${row.isGrandTotal ? "bg-amber-100" : "bg-gray-50"}`}>{row.type}</TableCell>
                     <TableCell className="border border-gray-200 text-right bg-green-50/30">{row.dairy!.total_weight}</TableCell>
                     <TableCell className="border border-gray-200 text-right bg-green-50/30">{row.dairy!.avg_fat}</TableCell>
                     <TableCell className="border border-gray-200 text-right bg-green-50/30">{row.dairy!.avg_snf}</TableCell>

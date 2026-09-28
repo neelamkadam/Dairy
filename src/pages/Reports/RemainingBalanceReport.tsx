@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import { Search, FileDown, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { useAppSelector } from "@/redux/store";
+import { useVlcNumbering } from "@/utils/vlcSectionLabel";
 import { reportsApi } from "@/services/reportsApi";
 import { toast } from "react-toastify";
 import { format } from "date-fns";
@@ -32,6 +33,8 @@ import { useTranslation } from 'react-i18next';
 const RemainingBalanceReport = () => {
   const { i18n } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
+  // VLC numbers (1, 2, 3 …) for the web user who uses them; "" for everyone else.
+  const vlcNo = useVlcNumbering();
   const [searchTerm, setSearchTerm] = useState("");
   const [vlcId, setVlcId] = useState("");
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -105,7 +108,7 @@ const RemainingBalanceReport = () => {
       return;
     }
     const selectedBranch = branches?.find(b => b.branch_id.toString() === vlcId);
-    const vlcName = selectedBranch ? `${selectedBranch.username} - ${selectedBranch.name}` : vlcId;
+    const vlcName = selectedBranch ? `${vlcNo.prefix(selectedBranch.username)}${selectedBranch.username} - ${selectedBranch.name}` : vlcId;
     generateRemainingBalanceReportPDF(filteredFarmers, vlcName, date, totalBalance);
     toast.success("PDF exported successfully");
   };
@@ -116,7 +119,7 @@ const RemainingBalanceReport = () => {
       return;
     }
     const selectedBranch = branches?.find(b => b.branch_id.toString() === vlcId);
-    const vlcName = selectedBranch ? `${selectedBranch.username} - ${selectedBranch.name}` : vlcId;
+    const vlcName = selectedBranch ? `${vlcNo.prefix(selectedBranch.username)}${selectedBranch.username} - ${selectedBranch.name}` : vlcId;
     generateRemainingBalanceReportExcel(filteredFarmers, vlcName, date, totalBalance);
     toast.success("Excel exported successfully");
   };

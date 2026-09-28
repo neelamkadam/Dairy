@@ -20,6 +20,7 @@ import { createDairyApi, type UpdateDairyPayload, type UserDairy } from "@/servi
 import DairyBankFields, { validateDairyBank, type DairyBankValues } from "@/components/DairyBankFields";
 import { fetchUserBranches } from "@/redux/branchSlice";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
+import { useVlcNumbering } from "@/utils/vlcSectionLabel";
 
 interface HierarchyOption {
   id: number;
@@ -82,6 +83,8 @@ const UserDairiesList = ({ userId, ccList, bmcList, routeList, refreshKey }: Use
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const email = useAppSelector((state) => state.authData?.userData?.email);
+  // VLC numbers (1, 2, 3 …) for the web user who uses them; "" for everyone else.
+  const vlcNo = useVlcNumbering();
 
   const [dairies, setDairies] = useState<UserDairy[]>([]);
   const [loading, setLoading] = useState(false);
@@ -319,7 +322,7 @@ const UserDairiesList = ({ userId, ccList, bmcList, routeList, refreshKey }: Use
                 filtered.map((d) => (
                   <TableRow key={d.dairy_id} className="border-b border-slate-50 hover:bg-blue-50/40 transition-colors">
                     <TableCell className="text-left whitespace-nowrap">
-                      <span className="font-mono font-bold text-slate-800">{d.username || "—"}</span>
+                      <span className="font-mono font-bold text-slate-800">{d.username ? `${vlcNo.prefix(d.username)}${d.username}` : "—"}</span>
                       {Number(d.active) === 0 && (
                         <span className="ml-2 px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 text-[10px] font-bold uppercase">
                           {t("inactive", "Inactive")}

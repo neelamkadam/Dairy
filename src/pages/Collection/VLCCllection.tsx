@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppSelector } from "@/redux/store";
+import { useVlcNumbering } from "@/utils/vlcSectionLabel";
 import { usePostApi } from "@/services/use-api";
 import { toast } from "react-toastify";
 
@@ -53,6 +54,8 @@ const VLCCllection = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { branches } = useAppSelector((state) => state.branch);
+  // VLC numbers (1, 2, 3 …) for the web user who uses them; "" for everyone else.
+  const vlcNo = useVlcNumbering();
   const { postData, isLoading } = usePostApi({
     path: "/web/dashboard/farmer-collections"
   });
@@ -107,6 +110,10 @@ const VLCCllection = () => {
 
   // Filter vlcData by search query
   const filteredVlcData = useMemo(() => {
+    if (vlcNo.enabled) {
+      const pos = (id: number) => vlcNo.numberOf(branches.find((b) => b.branch_id === id)?.username) ?? Infinity;
+      vlcData.sort((a: any, b: any) => pos(a.dairy_id) - pos(b.dairy_id));
+    }
     if (!searchQuery.trim()) return vlcData;
     const q = searchQuery.toLowerCase();
     return vlcData.filter((vlc: any) => {
@@ -232,7 +239,7 @@ const VLCCllection = () => {
       const avgRate = vlc.totalMilkLtr > 0 ? (totalAmount / vlc.totalMilkLtr).toFixed(2) : '0.00';
       
       return {
-        'VLC ID': branch?.username || vlc.dairy_id,
+        'VLC ID': `${vlcNo.prefix(branch?.username)}${branch?.username || vlc.dairy_id}`,
         'VLC Name': branch?.name || 'N/A',
         'Total Milk (Ltr)': vlc.totalMilkLtr.toFixed(2),
         'Total Milk (Kg)': (vlc.totalMilkLtr * 1.03).toFixed(2),
@@ -474,7 +481,7 @@ const VLCCllection = () => {
                             onClick={(e) => e.stopPropagation()}
                             className="h-4 w-4"
                           />
-                          <span className="text-sm">{branch.username} - {branch.name} - {branch.branchName}</span>
+                          <span className="text-sm">{vlcNo.prefix(branch.username)}{branch.username} - {branch.name} - {branch.branchName}</span>
                         </div>
                       ))}
                     </div>
@@ -671,7 +678,7 @@ const VLCCllection = () => {
                         onClick={() => navigate('/dashboard/farmer-management', { state: { dairyId: vlc.dairy_id, fromDate, toDate, selectedType, selectedShift } })}
                       >
                         <TableCell className="font-semibold text-blue-600 px-4 py-3 text-sm group-hover:text-blue-700">
-                          {branch?.username || vlc.dairy_id}
+                          {vlcNo.prefix(branch?.username)}{branch?.username || vlc.dairy_id}
                         </TableCell>
                         <TableCell className="px-4 py-3 text-sm text-slate-700 font-medium">
                           {branch?.name || 'N/A'}

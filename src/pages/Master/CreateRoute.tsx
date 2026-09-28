@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAppSelector } from "@/redux/store";
+import { useVlcNumbering } from "@/utils/vlcSectionLabel";
 import { toast } from "react-toastify";
 import { bmcApi, ccApi, routeApi } from "@/services/routeBmcCcApi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,6 +43,8 @@ const CreateRoute = () => {
   const authState = useAppSelector((state) => state.authData);
   const userId = authState?.userData?.id ? Number(authState.userData.id) : null;
   const { branches } = useAppSelector((state) => state.branch);
+  // VLC numbers (1, 2, 3 …) for the web user who uses them; "" for everyone else.
+  const vlcNo = useVlcNumbering();
 
   const [isFormOpen, setIsFormOpen] = useState(true);
   const [name, setName] = useState("");
@@ -553,7 +556,7 @@ const CreateRoute = () => {
                             className="h-4 w-4"
                           />
                           <span className="text-sm">
-                            {branch.username} - {branch.name} - {branch.branchName}
+                            {vlcNo.prefix(branch.username)}{branch.username} - {branch.name} - {branch.branchName}
                           </span>
                         </div>
                       ))

@@ -20,6 +20,7 @@ import {
   Truck,
 } from "lucide-react";
 import { useAppSelector } from "@/redux/store";
+import { useVlcNumbering } from "@/utils/vlcSectionLabel";
 import { usePostApi } from "@/services/use-api";
 import { routeApi } from "@/services/routeBmcCcApi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -91,6 +92,8 @@ const RouteCollection = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { branches } = useAppSelector((state) => state.branch);
+  // VLC numbers (1, 2, 3 …) for the web user who uses them; "" for everyone else.
+  const vlcNo = useVlcNumbering();
   const userId = useAppSelector((state) => state.authData.userData?.id);
   const { postData, isLoading } = usePostApi({ path: "/web/dashboard/farmer-collections" });
 
@@ -184,7 +187,7 @@ const RouteCollection = () => {
           const branch = branchById.get(Number(v.dairy_id));
           return {
             dairyId: Number(v.dairy_id),
-            vlcId: branch?.username || String(v.dairy_id),
+            vlcId: `${vlcNo.prefix(branch?.username)}${branch?.username || String(v.dairy_id)}`,
             name: branch?.name || v.name,
             branchName: branch?.branchName || v.branchname || "",
             totals: totalsOf(vlcEntries),

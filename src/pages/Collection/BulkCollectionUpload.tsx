@@ -26,6 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAppSelector } from "@/redux/store";
+import { useVlcNumbering } from "@/utils/vlcSectionLabel";
 import { collectionApi, BulkCollectionItem } from "@/services/collectionApi";
 import { toast } from "react-toastify";
 import {
@@ -81,6 +82,8 @@ const downloadTemplate = () => {
 
 const BulkCollectionUpload = () => {
   const { branches } = useAppSelector((state) => state.branch);
+  // VLC numbers (1, 2, 3 …) for the web user who uses them; "" for everyone else.
+  const vlcNo = useVlcNumbering();
   const [open, setOpen] = useState(false);
   const [selectedDairy, setSelectedDairy] = useState("");
   const [parsedRows, setParsedRows] = useState<BulkCollectionItem[]>([]);
@@ -265,7 +268,7 @@ const BulkCollectionUpload = () => {
                       >
                         <span className={selectedBranchObj ? "text-gray-900 truncate" : "text-gray-500"}>
                           {selectedBranchObj
-                            ? `${selectedBranchObj.username} - ${selectedBranchObj.name} ${selectedBranchObj.branchName ? `- ${selectedBranchObj.branchName}` : ''}`
+                            ? `${vlcNo.prefix(selectedBranchObj.username)}${selectedBranchObj.username} - ${selectedBranchObj.name} ${selectedBranchObj.branchName ? `- ${selectedBranchObj.branchName}` : ''}`
                             : 'Select VLC / Dairy'}
                         </span>
                         <ChevronDown
@@ -322,7 +325,7 @@ const BulkCollectionUpload = () => {
                                     )}
                                   >
                                     <span className="truncate">
-                                      {branch.username} - {branch.name} {branch.branchName ? `- ${branch.branchName}` : ''}
+                                      {vlcNo.prefix(branch.username)}{branch.username} - {branch.name} {branch.branchName ? `- ${branch.branchName}` : ''}
                                     </span>
                                     {isSelected && <span className="text-emerald-600 text-xs">✓</span>}
                                   </button>

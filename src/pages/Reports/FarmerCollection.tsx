@@ -31,6 +31,7 @@ import {
 import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/redux/store";
+import { useVlcNumbering } from "@/utils/vlcSectionLabel";
 import { toast } from "react-toastify";
 import { api } from "@/services/config";
 import { generateFarmerCollectionSummaryPDF } from "@/templates/FarmerCollectionSummaryTemplate";
@@ -45,6 +46,8 @@ import {
 const FarmerCollection = () => {
   const { t } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
+  // VLC numbers (1, 2, 3 …) for the web user who uses them; "" for everyone else.
+  const vlcNo = useVlcNumbering();
   const dairyName = useAppSelector((state) => state.authData.userData?.name) || "";
   const [selectedVLCs, setSelectedVLCs] = useState<string[]>([]);
   const [vlcSearch, setVlcSearch] = useState("");
@@ -110,7 +113,9 @@ const FarmerCollection = () => {
   // login id (500381 ...), the same value the VLC dropdown lists.
   const resolveVlcId = (row: { dairy_id?: string | number | null }, requestedBranchId: string) => {
     const branch = branchByDairyId.get(String(row?.dairy_id ?? "")) ?? branchByDairyId.get(String(requestedBranchId));
-    return branch?.username ? String(branch.username) : String(row?.dairy_id ?? requestedBranchId ?? "");
+    return branch?.username
+      ? `${vlcNo.prefix(branch.username)}${branch.username}`
+      : String(row?.dairy_id ?? requestedBranchId ?? "");
   };
 
   // Totals / averages for the cards at the top — every fetched row, not just the page.
@@ -134,7 +139,7 @@ const FarmerCollection = () => {
         collectionData,
         selectedVLCs.map((id) => {
           const b = branchByDairyId.get(id);
-          return { dairyId: id, name: [b?.username, b?.name || id, b?.branchName].filter(Boolean).join(" - ") };
+          return { dairyId: id, name: vlcNo.prefix(b?.username) + [b?.username, b?.name || id, b?.branchName].filter(Boolean).join(" - ") };
         }),
         commissions
       ),
@@ -147,7 +152,7 @@ const FarmerCollection = () => {
       compareRows,
       submitted.vlcs.map((id) => {
         const b = branchByDairyId.get(id);
-        return { dairyId: id, name: [b?.username, b?.name || id, b?.branchName].filter(Boolean).join(" - ") };
+        return { dairyId: id, name: vlcNo.prefix(b?.username) + [b?.username, b?.name || id, b?.branchName].filter(Boolean).join(" - ") };
       }),
       compareDates.today,
       compareDates.yesterday
@@ -279,7 +284,7 @@ const FarmerCollection = () => {
     const firstBranchId = selectedVLCs[0];
     const selectedBranch = branches?.find(b => b.branch_id.toString() === firstBranchId);
     const branchName = selectedVLCs.length > 1 ? "Multiple Centers" : (selectedBranch ? selectedBranch.name : "");
-    const vlcDairyName = selectedVLCs.length > 1 ? "Combined Report" : (selectedBranch ? selectedBranch.username : "");
+    const vlcDairyName = selectedVLCs.length > 1 ? "Combined Report" : (selectedBranch ? `${vlcNo.prefix(selectedBranch.username)}${selectedBranch.username}` : "");
     const fromDateStr = format(fromDate, "dd-MM-yyyy");
     const toDateStr = format(toDate, "dd-MM-yyyy");
     generateFarmerCollectionPDF(collectionData, branchName, vlcDairyName, fromDateStr, toDateStr, shift, milkType);

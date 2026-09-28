@@ -13,6 +13,7 @@ import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import { Download } from "lucide-react";
 import { useState } from "react";
 import { useAppSelector } from "@/redux/store";
+import { useVlcNumbering } from "@/utils/vlcSectionLabel";
 import { reportsApi } from "@/services/reportsApi";
 import { toast } from "react-toastify";
 import { format } from "date-fns";
@@ -23,6 +24,8 @@ import { useTranslation } from 'react-i18next';
 const TotalCollectionReport = () => {
   const { i18n } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
+  // VLC numbers (1, 2, 3 …) for the web user who uses them; "" for everyone else.
+  const vlcNo = useVlcNumbering();
   const [dairyId, setDairyId] = useState("");
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [startShift, setStartShift] = useState("Morning");
@@ -72,7 +75,7 @@ const TotalCollectionReport = () => {
     }
     const selectedBranch = branches?.find(b => b.branch_id.toString() === dairyId);
     const vlcName = selectedBranch ? selectedBranch.name : "";
-    const dairyName = selectedBranch ? selectedBranch.username : "";
+    const dairyName = selectedBranch ? `${vlcNo.prefix(selectedBranch.username)}${selectedBranch.username}` : "";
     generateTotalCollectionReportPDF(vlcName, dairyName, startDate, startShift, endDate, endShift, milkType, summary);
     toast.success("PDF exported successfully");
   };

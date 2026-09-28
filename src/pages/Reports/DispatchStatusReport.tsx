@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAppSelector } from "@/redux/store";
+import { useVlcNumbering } from "@/utils/vlcSectionLabel";
 import { toast } from "react-toastify";
 import {
   Table,
@@ -42,6 +43,8 @@ const getDummyDispatched = (id: number, index: number): boolean =>
   (isNaN(id) ? index : id) % 3 !== 0;
 
 const DispatchStatusReport: React.FC = () => {
+  // VLC numbers (1, 2, 3 …) for the web user who uses them; "" for everyone else.
+  const vlcNo = useVlcNumbering();
   const { t } = useTranslation();
   const authState = useAppSelector((state) => state.authData);
   const userId = authState?.userData?.id ? Number(authState.userData.id) : null;
@@ -337,7 +340,7 @@ const DispatchStatusReport: React.FC = () => {
                     key={`${row.id}-${index}`}
                     className="hover:bg-gray-50 bg-white border-gray-100"
                   >
-                    <TableCell className="font-medium border border-gray-100">{row.username}</TableCell>
+                    <TableCell className="font-medium border border-gray-100">{vlcNo.prefix(row.username)}{row.username}</TableCell>
                     <TableCell className="font-medium border border-gray-100 text-left">{row.name}</TableCell>
                     <TableCell className="font-medium border border-gray-100">{row.villagename}</TableCell>
                     <TableCell className="font-medium border border-gray-100">{row.ownername}</TableCell>

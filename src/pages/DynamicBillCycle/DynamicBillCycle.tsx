@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar as CalendarIcon, Loader2, Search, ChevronLeft, ChevronRight, Save, FileDown, RefreshCcw } from "lucide-react";
 import { useAppSelector } from "@/redux/store";
+import { useVlcNumbering } from "@/utils/vlcSectionLabel";
 import { format, startOfMonth, endOfMonth, isWithinInterval, addDays, startOfDay, endOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "react-toastify";
@@ -38,6 +39,8 @@ import { Label } from "@/components/ui/label";
 const DynamicBillCycle = () => {
   const { t } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
+  // VLC numbers (1, 2, 3 …) for the web user who uses them; "" for everyone else.
+  const vlcNo = useVlcNumbering();
   const userId = useAppSelector((state) => state.authData?.userData?.id);
   const userPhone = useAppSelector((state) => state.authData?.userData?.phone);
   const hideRateAmount = userId === '7';
@@ -1212,7 +1215,7 @@ const DynamicBillCycle = () => {
     try {
       const selectedBranch = branches.find(b => b.branch_id.toString() === vlcId);
       const dairyName = selectedBranch?.name || 'Dairy';
-      const dairyCode = selectedBranch?.username || '';
+      const dairyCode = selectedBranch?.username ? `${vlcNo.prefix(selectedBranch.username)}${selectedBranch.username}` : '';
       const branchName = selectedBranch?.branchName || '';
       const dairyId = parseInt(vlcId);
       const fromDateApi = format(startDate, 'yyyy-MM-dd');
@@ -1334,7 +1337,7 @@ const DynamicBillCycle = () => {
     try {
       const selectedBranch = branches.find(b => b.branch_id.toString() === vlcId);
       const dairyName = selectedBranch?.name || 'Dairy';
-      const dairyCode = selectedBranch?.username || '';
+      const dairyCode = selectedBranch?.username ? `${vlcNo.prefix(selectedBranch.username)}${selectedBranch.username}` : '';
       const branchName = selectedBranch?.branchName || '';
       const dairyId = parseInt(vlcId);
       const fromDateApi = format(startDate, 'yyyy-MM-dd');
@@ -1489,7 +1492,7 @@ const DynamicBillCycle = () => {
     try {
       const selectedBranch = branches.find(b => b.branch_id.toString() === vlcId);
       const dairyName = selectedBranch?.name || 'Dairy';
-      const dairyCode = selectedBranch?.username || '';
+      const dairyCode = selectedBranch?.username ? `${vlcNo.prefix(selectedBranch.username)}${selectedBranch.username}` : '';
       const branchName = selectedBranch?.branchName || '';
       const dairyId = parseInt(vlcId);
       const fromDateApi = format(currentFarmer.periodStart, 'yyyy-MM-dd');

@@ -3,6 +3,7 @@ import { X, CheckCircle2, XCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CollectionData } from "@/redux/dashboardSlice";
 import { useAppSelector } from "@/redux/store";
+import { useVlcNumbering } from "@/utils/vlcSectionLabel";
 import { createDairyApi } from "@/services/createDairyApi";
 
 interface VlcCollectionStatusModalProps {
@@ -20,6 +21,8 @@ const VlcCollectionStatusModal = ({ isOpen, onClose, collections, branches, date
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>("collected");
   const [search, setSearch] = useState("");
+  // VLC numbers (1, 2, 3 …) for the web user who uses them; "" for everyone else.
+  const vlcNo = useVlcNumbering();
   const userId = useAppSelector((state) => state.authData.userData?.id);
   // dairy id → mobile number of its Dairyadmin (dairy.createdby), from the
   // user's dairy list — the same data Create Dairy shows.
@@ -68,7 +71,7 @@ const VlcCollectionStatusModal = ({ isOpen, onClose, collections, branches, date
   );
 
   const vlcLabel = (b: { name: string; username?: string; branchName?: string }) =>
-    [b.username, b.name, b.branchName].filter(Boolean).join(" - ");
+    vlcNo.prefix(b.username) + [b.username, b.name, b.branchName].filter(Boolean).join(" - ");
 
   const rows = (tab === "collected" ? collected : notCollected).filter(r => matches(r.branch));
 

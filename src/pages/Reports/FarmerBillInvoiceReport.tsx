@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { api } from '@/services/config';
 import { useAppSelector } from '@/redux/store';
+import { useVlcNumbering } from "@/utils/vlcSectionLabel";
 import { toast } from 'react-toastify';
 import { generateTemplate2, generateTemplate4, generateTemplate5MilkBill, generateTemplateDetailedHorizontal, FarmerBillData, BankDetails } from '@/templates/FarmerBillInvoiceTemplate';
 import { generateFarmer2PerPage } from '@/templates/FarmerBill2PerPageTemplate';
@@ -80,6 +81,8 @@ interface FarmerPayment {
 const FarmerBillInvoiceReport = () => {
   const { t, i18n } = useTranslation();
   const branches = useAppSelector((state) => (state as any).branch.branches);
+  // VLC numbers (1, 2, 3 …) for the web user who uses them; "" for everyone else.
+  const vlcNo = useVlcNumbering();
   const userId = useAppSelector((state) => (state as any).authData?.userData?.id);
   const hideRateAmount = userId === '7';
   const [selectedVLC, setSelectedVLC] = useState<string>('');
@@ -775,7 +778,7 @@ const FarmerBillInvoiceReport = () => {
     try {
       const selectedBranch = branches.find(v => v.branch_id.toString() === selectedVLC);
       const dairyName = selectedBranch?.name || 'Dairy';
-      const dairyCode = selectedBranch?.username || '';
+      const dairyCode = selectedBranch?.username ? `${vlcNo.prefix(selectedBranch.username)}${selectedBranch.username}` : '';
       const branchName = selectedBranch?.branchName || '';
       // @ts-ignore
       const dairyId = selectedBranch?.branch_id || selectedBranch?.id;

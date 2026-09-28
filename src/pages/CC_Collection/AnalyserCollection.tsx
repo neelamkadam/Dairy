@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { FlaskConical, Search, Save, Loader2, Calculator, CheckCircle2, AlertCircle, TrendingUp, Droplets, Gauge, Calendar as CalendarIcon, MapPin, RefreshCcw, ChevronDown, ArrowLeft } from "lucide-react";
 import { useAppSelector } from "@/redux/store";
+import { useVlcNumbering } from "@/utils/vlcSectionLabel";
 import { ccCollectionApi } from "@/services/ccCollectionApi";
 import { userApi as reportsUserApi } from "@/services/reportsApi";
 import { collectionApi } from "@/services/collectionApi";
@@ -23,6 +24,8 @@ const AnalyserCollection = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const branches = useAppSelector((state) => state.branch.branches);
+  // VLC numbers (1, 2, 3 …) for the web user who uses them; "" for everyone else.
+  const vlcNo = useVlcNumbering();
   const [selectedBranch, setSelectedBranch] = useState<number | null>(() => {
     const saved = localStorage.getItem('cc_selected_vlc');
     return saved ? Number(saved) : null;
@@ -404,7 +407,7 @@ const AnalyserCollection = () => {
                    >
                      <span className="truncate pr-2">
                        {selectedBranchObj
-                         ? `${selectedBranchObj.username} - ${selectedBranchObj.name} ${selectedBranchObj.branchName ? `- ${selectedBranchObj.branchName}` : ''}`
+                         ? `${vlcNo.prefix(selectedBranchObj.username)}${selectedBranchObj.username} - ${selectedBranchObj.name} ${selectedBranchObj.branchName ? `- ${selectedBranchObj.branchName}` : ''}`
                          : t('select_vlc')}
                      </span>
                      <ChevronDown
@@ -460,7 +463,7 @@ const AnalyserCollection = () => {
                                  )}
                                >
                                  <span className="truncate">
-                                   {branch.username} - {branch.name} {branch.branchName ? `- ${branch.branchName}` : ''}
+                                   {vlcNo.prefix(branch.username)}{branch.username} - {branch.name} {branch.branchName ? `- ${branch.branchName}` : ''}
                                  </span>
                                  {isSelected && <CheckCircle2 className="h-4 w-4 text-purple-600 flex-shrink-0 ml-2" />}
                                </button>

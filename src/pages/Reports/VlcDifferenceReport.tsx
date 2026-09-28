@@ -19,6 +19,7 @@ import { useState } from "react";
 import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import { Label } from "@/components/ui/label";
 import { useAppSelector } from "@/redux/store";
+import { useVlcNumbering } from "@/utils/vlcSectionLabel";
 import { reportsApi } from "@/services/reportsApi";
 import { toast } from "react-toastify";
 import { format } from "date-fns";
@@ -30,9 +31,84 @@ import html2canvas from "html2canvas";
 import { generateVLCDifferenceReportHtml } from "@/templates/VLCDifferenceReportTemplateHtml";
 import PdfLoader from "@/components/PdfLoader";
 
+// A row is "empty" when both VLC and Dairy have zero weight and zero amount;
+// such rows are hidden, as in VLC Difference Report 2.
+const isAllZero = (row: any) =>
+  [row?.vlc?.total_weight, row?.vlc?.total_amount, row?.dairy?.total_weight, row?.dairy?.total_amount]
+    .every((v) => parseFloat(v || '0') === 0);
+
+// Calculate weighted averages for a specific milk type
+const calculateWeightedAverages = (data: any[], summaryType: 'Cow' | 'Buffalo' | 'Both') => {
+  let vlcTotalWeight = 0;
+  let vlcWeightedFat = 0;
+  let vlcWeightedSnf = 0;
+  let vlcTotalAmount = 0;
+  
+  let dairyTotalWeight = 0;
+  let dairyWeightedFat = 0;
+  let dairyWeightedSnf = 0;
+  let dairyTotalAmount = 0;
+
+  data.forEach((item: any) => {
+    const vlcWeight = parseFloat(item.vlc.total_weight || 0);
+    const vlcFat = parseFloat(item.vlc.avg_fat || 0);
+    const vlcSnf = parseFloat(item.vlc.avg_snf || 0);
+    
+    const dairyWeight = parseFloat(item.dairy.total_weight || 0);
+    const dairyFat = parseFloat(item.dairy.avg_fat || 0);
+    const dairySnf = parseFloat(item.dairy.avg_snf || 0);
+
+    vlcTotalWeight += vlcWeight;
+    vlcWeightedFat += vlcFat * vlcWeight;
+    vlcWeightedSnf += vlcSnf * vlcWeight;
+    vlcTotalAmount += parseFloat(item.vlc.total_amount || 0);
+
+    dairyTotalWeight += dairyWeight;
+    dairyWeightedFat += dairyFat * dairyWeight;
+    dairyWeightedSnf += dairySnf * dairyWeight;
+    dairyTotalAmount += parseFloat(item.dairy.total_amount || 0);
+  });
+
+  const vlcAvgFat = vlcTotalWeight > 0 ? (vlcWeightedFat / vlcTotalWeight).toFixed(2) : '0.00';
+  const vlcAvgSnf = vlcTotalWeight > 0 ? (vlcWeightedSnf / vlcTotalWeight).toFixed(2) : '0.00';
+  
+  const dairyAvgFat = dairyTotalWeight > 0 ? (dairyWeightedFat / dairyTotalWeight).toFixed(2) : '0.00';
+  const dairyAvgSnf = dairyTotalWeight > 0 ? (dairyWeightedSnf / dairyTotalWeight).toFixed(2) : '0.00';
+
+  return {
+    period: 'SUMMARY',
+    shift: 'Average',
+    type: summaryType,
+    vlc: {
+      total_weight: vlcTotalWeight.toFixed(2),
+      avg_fat: vlcAvgFat,
+      avg_snf: vlcAvgSnf,
+      avg_rate: '0.00',
+      total_amount: vlcTotalAmount.toFixed(2),
+    },
+    dairy: {
+      total_weight: dairyTotalWeight.toFixed(2),
+      avg_fat: dairyAvgFat,
+      avg_snf: dairyAvgSnf,
+      avg_rate: '0.00',
+      total_amount: dairyTotalAmount.toFixed(2),
+    },
+    difference: {
+      weight: (vlcTotalWeight - dairyTotalWeight).toFixed(2),
+      fat: (parseFloat(vlcAvgFat) - parseFloat(dairyAvgFat)).toFixed(2),
+      snf: (parseFloat(vlcAvgSnf) - parseFloat(dairyAvgSnf)).toFixed(2),
+      rate: '0.00',
+      amount: (vlcTotalAmount - dairyTotalAmount).toFixed(2),
+    },
+    isSummary: true
+  };
+};
+
 const VlcDifferenceReport = () => {
   const { i18n } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
+  // VLC numbers (1, 2, 3 …) for the web user who uses them; "" for everyone else.
+  const vlcNo = useVlcNumbering();
   const [vlcIds, setVlcIds] = useState<string[]>([]);
   const [fromDate, setFromDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [toDate, setToDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -152,75 +228,13 @@ const VlcDifferenceReport = () => {
           }
         });
 
-        // Calculate weighted averages for a specific milk type
-        const calculateWeightedAverages = (data: any[], summaryType: 'Cow' | 'Buffalo' | 'Both') => {
-          let vlcTotalWeight = 0;
-          let vlcWeightedFat = 0;
-          let vlcWeightedSnf = 0;
-          let vlcTotalAmount = 0;
-          
-          let dairyTotalWeight = 0;
-          let dairyWeightedFat = 0;
-          let dairyWeightedSnf = 0;
-          let dairyTotalAmount = 0;
+        // Hide rows with no data at all (every figure 0.00).
+        const visibleRows = processedData.filter((row: any) => !isAllZero(row));
+        processedData.length = 0;
+        processedData.push(...visibleRows);
 
-          data.forEach((item: any) => {
-            const vlcWeight = parseFloat(item.vlc.total_weight || 0);
-            const vlcFat = parseFloat(item.vlc.avg_fat || 0);
-            const vlcSnf = parseFloat(item.vlc.avg_snf || 0);
-            
-            const dairyWeight = parseFloat(item.dairy.total_weight || 0);
-            const dairyFat = parseFloat(item.dairy.avg_fat || 0);
-            const dairySnf = parseFloat(item.dairy.avg_snf || 0);
-
-            vlcTotalWeight += vlcWeight;
-            vlcWeightedFat += vlcFat * vlcWeight;
-            vlcWeightedSnf += vlcSnf * vlcWeight;
-            vlcTotalAmount += parseFloat(item.vlc.total_amount || 0);
-
-            dairyTotalWeight += dairyWeight;
-            dairyWeightedFat += dairyFat * dairyWeight;
-            dairyWeightedSnf += dairySnf * dairyWeight;
-            dairyTotalAmount += parseFloat(item.dairy.total_amount || 0);
-          });
-
-          const vlcAvgFat = vlcTotalWeight > 0 ? (vlcWeightedFat / vlcTotalWeight).toFixed(2) : '0.00';
-          const vlcAvgSnf = vlcTotalWeight > 0 ? (vlcWeightedSnf / vlcTotalWeight).toFixed(2) : '0.00';
-          
-          const dairyAvgFat = dairyTotalWeight > 0 ? (dairyWeightedFat / dairyTotalWeight).toFixed(2) : '0.00';
-          const dairyAvgSnf = dairyTotalWeight > 0 ? (dairyWeightedSnf / dairyTotalWeight).toFixed(2) : '0.00';
-
-          return {
-            period: 'SUMMARY',
-            shift: 'Average',
-            type: summaryType,
-            vlc: {
-              total_weight: vlcTotalWeight.toFixed(2),
-              avg_fat: vlcAvgFat,
-              avg_snf: vlcAvgSnf,
-              avg_rate: '0.00',
-              total_amount: vlcTotalAmount.toFixed(2),
-            },
-            dairy: {
-              total_weight: dairyTotalWeight.toFixed(2),
-              avg_fat: dairyAvgFat,
-              avg_snf: dairyAvgSnf,
-              avg_rate: '0.00',
-              total_amount: dairyTotalAmount.toFixed(2),
-            },
-            difference: {
-              weight: (vlcTotalWeight - dairyTotalWeight).toFixed(2),
-              fat: (parseFloat(vlcAvgFat) - parseFloat(dairyAvgFat)).toFixed(2),
-              snf: (parseFloat(vlcAvgSnf) - parseFloat(dairyAvgSnf)).toFixed(2),
-              rate: '0.00',
-              amount: (vlcTotalAmount - dairyTotalAmount).toFixed(2),
-            },
-            isSummary: true
-          };
-        };
-
-        // Show summaries only when more than one date+shift group exists.
-        const groupCount = Object.keys(groups).length;
+        // Show summaries only when more than one date+shift group still has data.
+        const groupCount = new Set(processedData.map((row: any) => `${row.period}_${row.shift}`)).size;
         if (groupCount > 1) {
           const summaryTypes: Array<'Cow' | 'Buffalo' | 'Both'> = ['Cow', 'Buffalo', 'Both'];
           summaryTypes.forEach((summaryType) => {
@@ -246,7 +260,11 @@ const VlcDifferenceReport = () => {
       const allRows: any[] = [];
       const multiple = vlcIds.length > 1;
 
-      for (const id of vlcIds) {
+      // Numbered users get their VLCs in number order.
+      const orderedIds = vlcNo.enabled
+        ? [...vlcIds].sort((a, b) => (vlcNo.numberOf(a) ?? Infinity) - (vlcNo.numberOf(b) ?? Infinity))
+        : vlcIds;
+      for (const id of orderedIds) {
         const selectedBranch = branches?.find((b) => b.username === id);
         if (!selectedBranch) continue;
 
@@ -271,11 +289,32 @@ const VlcDifferenceReport = () => {
             if (multiple) {
               allRows.push({
                 isVlcHeader: true,
-                vlcLabel: `${selectedBranch.username} - ${selectedBranch.name}${selectedBranch.branchName ? ' - ' + selectedBranch.branchName : ''}`,
+                vlcLabel: `${vlcNo.prefix(selectedBranch.username)}${selectedBranch.username} - ${selectedBranch.name}${selectedBranch.branchName ? ' - ' + selectedBranch.branchName : ''}`,
               });
             }
             allRows.push(...processed);
           }
+        }
+      }
+
+      // Grand total of every selected VLC with data, one row per milk type
+      // (types are not added together: "Both" already covers all collections).
+      const dataRows = allRows.filter((r: any) => !r.isVlcHeader && !r.isSummary);
+      const vlcsWithData = new Set(dataRows.map((r: any) => r.vlcId)).size;
+      if (vlcsWithData > 1) {
+        const totalRows = (['Cow', 'Buffalo', 'Both'] as const)
+          .map((t) => dataRows.filter((r: any) => r.type === t))
+          .filter((rows) => rows.length > 0)
+          .map((rows) => ({
+            ...calculateWeightedAverages(rows, rows[0].type),
+            period: 'GRAND TOTAL',
+            shift: shift,
+            isGrandTotal: true,
+          }))
+          .filter((row) => !isAllZero(row));
+        if (totalRows.length > 0) {
+          allRows.push({ isVlcHeader: true, vlcLabel: `Grand Total — all ${vlcsWithData} selected VLCs` });
+          allRows.push(...totalRows);
         }
       }
 
@@ -390,12 +429,12 @@ const VlcDifferenceReport = () => {
     }
     const branchLabel = (id: string) => {
       const b = branches?.find((x) => x.username === id);
-      return b ? `${id} - ${b.name}${b.branchName ? ' - ' + b.branchName : ''}` : id;
+      return b ? `${vlcNo.prefix(id)}${id} - ${b.name}${b.branchName ? ' - ' + b.branchName : ''}` : id;
     };
     const exportData = reportData
       .filter((period: any) => !period.isVlcHeader)
       .map((period: any) => ({
-      'VLC Name': branchLabel(period.vlcId ?? (vlcIds.length === 1 ? vlcIds[0] : '')),
+      'VLC Name': period.isGrandTotal ? 'All selected VLCs' : branchLabel(period.vlcId ?? (vlcIds.length === 1 ? vlcIds[0] : '')),
       'Period': period.period,
       'Shift': period.shift,
       'Type': period.type,

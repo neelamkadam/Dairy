@@ -12,6 +12,7 @@ import { useState } from "react";
 import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import { Label } from "@/components/ui/label";
 import { useAppSelector } from "@/redux/store";
+import { useVlcNumbering } from "@/utils/vlcSectionLabel";
 import AxiosClient from "@/services/interceptor";
 import { toast } from "react-toastify";
 import { format } from "date-fns";
@@ -26,6 +27,8 @@ import PdfLoader from "@/components/PdfLoader";
 
 const TankerDispatchReport = () => {
   const { branches } = useAppSelector((state) => state.branch);
+  // VLC numbers (1, 2, 3 …) for the web user who uses them; "" for everyone else.
+  const vlcNo = useVlcNumbering();
   const [vlcId, setVlcId] = useState<string>("");
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [reportData, setReportData] = useState<TankerDispatchReportRow[] | null>(null);
@@ -205,7 +208,7 @@ const TankerDispatchReport = () => {
         ? `${selectedBranch.name}${selectedBranch.branchName ? " - " + selectedBranch.branchName : ""}`
         : vlcId;
 
-      const htmlContent = generateTankerDispatchReportHtml(reportData, vlcId, branchLabel, date);
+      const htmlContent = generateTankerDispatchReportHtml(reportData, `${vlcNo.prefix(vlcId)}${vlcId}`, branchLabel, date);
       const { imgData, imgWidth, imgHeight } = await generatePage(htmlContent);
       const pdf = new jsPDF("l", "mm", "a4");
       pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, imgHeight);

@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import { useAppSelector } from "@/redux/store";
+import { useVlcNumbering } from "@/utils/vlcSectionLabel";
 import { reportsApi } from "@/services/reportsApi";
 import { generatePLStatementPDF } from "@/templates/PLStatementTemplate";
 import { toast } from "react-toastify";
@@ -40,6 +41,8 @@ type Shift = 'Morning' | 'Evening';
 const PLStatement = () => {
   const { t } = useTranslation();
   const branches = useAppSelector((state) => (state as any).branch.branches);
+  // VLC numbers (1, 2, 3 …) for the web user who uses them; "" for everyone else.
+  const vlcNo = useVlcNumbering();
 
   const [selectedVLC, setSelectedVLC] = useState<string>('');
   const [fromDate, setFromDate] = useState<string>('');
@@ -203,7 +206,7 @@ const PLStatement = () => {
     // Print the window the report was built for, not whatever the filters say now.
     generatePLStatementPDF({
       vlcName: selectedVlcObj?.name || selectedVlcObj?.branchName || '',
-      dairyName: selectedVlcObj?.username || '',
+      dairyName: selectedVlcObj?.username ? `${vlcNo.prefix(selectedVlcObj.username)}${selectedVlcObj.username}` : '',
       ...statement,
       fromDate: statement.period.from,
       toDate: statement.period.to,
