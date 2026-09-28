@@ -29,6 +29,7 @@ import WeightCollection from "@/pages/CC_Collection/WeightCollection";
 import AnalyserCollection from "@/pages/CC_Collection/AnalyserCollection";
 import FarmerManagement from "@/pages/Collection/FarmerManagement";
 import VLCCllection from "@/pages/Collection/VLCCllection";
+import RouteCollection from "@/pages/Collection/RouteCollection";
 import DispatchEntry from "@/pages/CollectionEntry/DispatchEntry";
 import FarmerCollectionEntry from "@/pages/CollectionEntry/FarmerCollectionEntry";
 import VLCCollectionEntry from "@/pages/CollectionEntry/VLCCollectionEntry";
@@ -142,6 +143,10 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "vlc-collection",
         element: <VLCCllection />,
+      },
+      {
+        path: "route-collection",
+        element: <RouteCollection />,
       },
       {
         path: "bmc-collection",

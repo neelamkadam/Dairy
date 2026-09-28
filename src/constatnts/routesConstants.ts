@@ -14,6 +14,7 @@ export const ROUTES = {
   },
   COLLECTION:{
     VLC_COLLECTION:`/dashboard/vlc-collection`,
+    ROUTE_COLLECTION:`/dashboard/route-collection`,
     BMC_COLLECTION:`/dashboard/bmc-collection`,
     FARMER_MANAGEMENT:`/dashboard/farmer-management`,
   },

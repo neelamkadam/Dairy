@@ -30,6 +30,7 @@ export const SECTION_ITEMS: Record<SidebarSectionKey, SidebarItemDef[]> = {
   ],
   collection: [
     { key: "vlc_collection", titleKey: "vlc_collection", titleDefault: "VLC Collection", href: ROUTES.COLLECTION.VLC_COLLECTION },
+    { key: "route_collection", titleKey: "route_collection", titleDefault: "Route Collection", href: ROUTES.COLLECTION.ROUTE_COLLECTION },
     { key: "bmc_collection", titleKey: "bmc_collection", titleDefault: "BMC Collection", href: ROUTES.COLLECTION.BMC_COLLECTION },
     { key: "cc_collection", titleKey: "cc_collection", titleDefault: "CC Collection", href: ROUTES.CC_COLLECTION.CHILLING_CENTER },
   ],
