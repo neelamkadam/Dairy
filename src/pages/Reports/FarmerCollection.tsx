@@ -15,8 +15,11 @@ import { AppDatePicker } from "@/components/ui/date-picker";
 import { X, ChevronRight, ChevronLeft, CalendarIcon, Download, Users, Droplets, Weight, Percent, Gauge, IndianRupee, TrendingUp, FlaskConical } from "lucide-react";
 import KPICard from "@/components/KPICard";
 import { collectionTotals } from "@/utils/farmerCollectionTotals";
-import { useMemo, useState } from "react";
-import { format, parseISO, isValid } from "date-fns";
+import { useEffect, useMemo, useState } from "react";
+import { format, parseISO, isValid, subDays } from "date-fns";
+import FarmerDayComparisonTable from "@/components/FarmerDayComparisonTable";
+import { buildDayComparison } from "@/utils/farmerDayComparison";
+import { generateFarmerDayComparisonExcel, generateFarmerDayComparisonPDF } from "@/templates/FarmerDayComparisonTemplate";
 import { useTranslation } from "react-i18next";
 import { generateFarmerCollectionPDF } from "@/templates/FarmerCollectionTemplate";
 import { generateFarmerCollectionExcel } from "@/templates/FarmerCollectionExcelTemplate";
@@ -51,7 +54,14 @@ const FarmerCollection = () => {
   const [loading, setLoading] = useState(false);
   const [collectionData, setCollectionData] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
-  const [viewMode, setViewMode] = useState<"detailed" | "summary">("detailed");
+  const [viewMode, setViewMode] = useState<"detailed" | "summary" | "difference">("detailed");
+  // Difference view: rows covering the To Date and the day before, and those two dates (as of the last Submit).
+  const [compareRows, setCompareRows] = useState<any[]>([]);
+  const [compareDates, setCompareDates] = useState<{ today: string; yesterday: string } | null>(null);
+  // Filters as of the last Submit, and which of them the loaded comparison belongs to.
+  const [submitted, setSubmitted] = useState<{ vlcs: string[]; milkType: string; shift: string; toDate: Date } | null>(null);
+  const [compareKey, setCompareKey] = useState("");
+  const [compareLoading, setCompareLoading] = useState(false);
   // branch_id → farmer code → farmer commission records (used for Pay Amount)
   const [commissions, setCommissions] = useState<Map<string, Map<string, CommissionRecord[]>>>(new Map());
 
@@ -131,6 +141,64 @@ const FarmerCollection = () => {
     [collectionData, selectedVLCs, branchByDairyId, commissions]
   );
 
+  const dayComparison = useMemo(() => {
+    if (!compareDates || !submitted) return null;
+    return buildDayComparison(
+      compareRows,
+      submitted.vlcs.map((id) => {
+        const b = branchByDairyId.get(id);
+        return { dairyId: id, name: [b?.username, b?.name || id, b?.branchName].filter(Boolean).join(" - ") };
+      }),
+      compareDates.today,
+      compareDates.yesterday
+    );
+  }, [compareRows, compareDates, submitted, branchByDairyId]);
+
+  // "Today" is the To Date, or the real today when the To Date is still ahead
+  // (the default To Date is the end of the bill period); "Yesterday" the day before.
+  // Each day is fetched on its own so rows land on the database's date.
+  useEffect(() => {
+    if (viewMode !== "difference" || !submitted) return;
+    const now = new Date();
+    const todayDate = submitted.toDate > now ? now : submitted.toDate;
+    const days = { today: format(todayDate, "yyyy-MM-dd"), yesterday: format(subDays(todayDate, 1), "yyyy-MM-dd") };
+    const key = JSON.stringify([submitted.vlcs, submitted.milkType, submitted.shift, days.today]);
+    if (key === compareKey) return;
+
+    let cancelled = false;
+    setCompareLoading(true);
+    (async () => {
+      try {
+        const perVlcDay = await Promise.all(
+          submitted.vlcs.flatMap((vlcId) =>
+            [days.yesterday, days.today].map(async (day) => {
+              const res = await api.get("/webreports/collections", {
+                params: { dairy_id: vlcId, milk_type: submitted.milkType, shift: submitted.shift, from: day, to: day },
+              });
+              return (res.data.success ? res.data.data || [] : []).map((row: any) => ({
+                ...row,
+                vlc_id: resolveVlcId(row, vlcId),
+                branch_id: vlcId,
+                compare_day: day,
+              }));
+            })
+          )
+        );
+        if (cancelled) return;
+        setCompareRows(perVlcDay.flat());
+        setCompareDates(days);
+        setCompareKey(key);
+      } catch (error: any) {
+        if (!cancelled) toast.error(error?.response?.data?.message || "Failed to fetch difference data");
+      } finally {
+        if (!cancelled) setCompareLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [viewMode, submitted, compareKey]);
+
   const filteredBranches = branches.filter(b =>
     (b.name || "").toLowerCase().includes(vlcSearch.toLowerCase()) ||
     (b.username || "").toLowerCase().includes(vlcSearch.toLowerCase())
@@ -169,6 +237,10 @@ const FarmerCollection = () => {
         }))
       );
       
+      // The Difference view loads its two days from these filters when it is opened.
+      setSubmitted({ vlcs: [...selectedVLCs], milkType, shift, toDate });
+      setCompareKey("");
+
       setCollectionData(allCollections);
       setCommissions(new Map(selectedVLCs.map((id, i) => [id, commissionMaps[i]])));
       setSummary(results[0]?.data.summary || null);
@@ -177,6 +249,8 @@ const FarmerCollection = () => {
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to fetch data");
       setCollectionData([]);
+      setCompareRows([]);
+      setCompareDates(null);
       setSummary(null);
     } finally {
       setLoading(false);
@@ -184,6 +258,15 @@ const FarmerCollection = () => {
   };
 
   const handleExportPDF = () => {
+    if (viewMode === "difference") {
+      if (!dayComparison?.groups.length) {
+        toast.error("No data to export");
+        return;
+      }
+      generateFarmerDayComparisonPDF(dayComparison, dairyName, `Shift: ${shift} | Milk Type: ${milkType}`);
+      toast.success("PDF exported successfully");
+      return;
+    }
     if (!collectionData || collectionData.length === 0) {
       toast.error("No data to export");
       return;
@@ -204,6 +287,15 @@ const FarmerCollection = () => {
   };
 
   const handleExportExcel = () => {
+    if (viewMode === "difference") {
+      if (!dayComparison?.groups.length) {
+        toast.error("No data to export");
+        return;
+      }
+      generateFarmerDayComparisonExcel(dayComparison, dairyName, `Shift: ${shift} | Milk Type: ${milkType}`);
+      toast.success("Excel exported successfully");
+      return;
+    }
     if (!collectionData || collectionData.length === 0) {
       toast.error("No data to export");
       return;
@@ -359,7 +451,7 @@ const FarmerCollection = () => {
             </div>
             <div className="flex justify-between items-center flex-wrap gap-3 mx-2 mb-4">
               <div className="inline-flex rounded-md border border-gray-300 overflow-hidden">
-                {(["detailed", "summary"] as const).map((mode) => (
+                {(["detailed", "summary", "difference"] as const).map((mode) => (
                   <button
                     key={mode}
                     onClick={() => setViewMode(mode)}
@@ -368,7 +460,11 @@ const FarmerCollection = () => {
                       viewMode === mode ? "bg-blue-600 text-white" : "bg-white text-gray-700 hover:bg-gray-50"
                     )}
                   >
-                    {mode === "detailed" ? t("detailed", "Detailed") : t("summary", "Summary")}
+                    {mode === "detailed"
+                      ? t("detailed", "Detailed")
+                      : mode === "summary"
+                        ? t("summary", "Summary")
+                        : t("difference", "Difference")}
                   </button>
                 ))}
               </div>
@@ -383,7 +479,7 @@ const FarmerCollection = () => {
               </Button>
               <Button 
                 onClick={handleExportExcel}
-                disabled={!collectionData || collectionData.length === 0}
+                disabled={viewMode === "difference" ? !dayComparison?.groups.length : !collectionData || collectionData.length === 0}
                 className="bg-green-600 hover:bg-green-700 text-white h-11 flex items-center justify-center gap-2"
               >
                 <Download className="h-4 w-4" />
@@ -391,7 +487,7 @@ const FarmerCollection = () => {
               </Button>
               <Button 
                 onClick={handleExportPDF}
-                disabled={!collectionData || collectionData.length === 0}
+                disabled={viewMode === "difference" ? !dayComparison?.groups.length : !collectionData || collectionData.length === 0}
                 variant="outline" 
                 className="bg-red-500 text-white h-11 flex items-center justify-center gap-2 border-none"
               >
@@ -407,6 +503,18 @@ const FarmerCollection = () => {
                 fromDate={format(fromDate, "dd/MM/yy")}
                 toDate={format(toDate, "dd/MM/yy")}
                 emptyText={loading ? "Loading..." : "No data available. Please submit the form to fetch data."}
+              />
+            ) : viewMode === "difference" ? (
+              <FarmerDayComparisonTable
+                comparison={dayComparison}
+                dairyName={dairyName}
+                emptyText={
+                  loading || compareLoading
+                    ? "Loading..."
+                    : compareDates
+                      ? "No collection on either day for the selected VLCs."
+                      : "No data available. Please submit the form to fetch data."
+                }
               />
             ) : (
             <>
