@@ -340,6 +340,7 @@
   "export_option_detailed_horizontal": "Format 3",
   "export_option_format_4": "Format 4 (1 Farmer per Page)",
   "export_option_format_5": "Format 5 (Milk Bill)",
+  "export_option_format_6": "Format 6 (Morning / Evening Side by Side)",
   "export_pdf": "Export PDF",
   "failed_to_add_stock": "Failed to add stock",
   "failed_to_create_dairy": "Failed to create dairy",

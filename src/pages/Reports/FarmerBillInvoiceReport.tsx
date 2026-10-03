@@ -9,7 +9,7 @@ import { api } from '@/services/config';
 import { useAppSelector } from '@/redux/store';
 import { useVlcNumbering } from "@/utils/vlcSectionLabel";
 import { toast } from 'react-toastify';
-import { generateTemplate2, generateTemplate4, generateTemplate5MilkBill, generateTemplateDetailedHorizontal, FarmerBillData, BankDetails } from '@/templates/FarmerBillInvoiceTemplate';
+import { generateTemplate2, generateTemplate4, generateTemplate5MilkBill, generateTemplate6, generateTemplateDetailedHorizontal, FarmerBillData, BankDetails } from '@/templates/FarmerBillInvoiceTemplate';
 import { generateFarmer2PerPage } from '@/templates/FarmerBill2PerPageTemplate';
 import { bankSummaryApi } from '@/services/bankSummaryApi';
 import { format } from 'date-fns';
@@ -77,6 +77,20 @@ interface FarmerPayment {
   received: string;
   date: string;
 }
+
+// PDF file name: "<Dairy or Farmer>_<Branch>_<from>_to_<to>[_suffix].pdf". Only characters
+// that are invalid in file names are stripped, so Marathi/Hindi names are kept.
+const buildPdfFileName = (name: string, branchName: string, fromDate: string, toDate: string, suffix = '') => {
+  const clean = (s: string) => (s || '').replace(/[\\/:*?"<>|\x00-\x1f]+/g, '').trim().replace(/\s+/g, '_');
+  const parts = [clean(name), clean(branchName), `${fromDate}_to_${toDate}`, suffix].filter(Boolean);
+  return `${parts.join('_')}.pdf`;
+};
+
+// A PDF holding only one farmer's bill is named after that farmer instead of the dairy
+const pdfNameFor = (dairyName: string, farmers: { farmer_id: string; farmer_details?: { fullName?: string } }[]) => {
+  const single = new Set(farmers.map(f => f.farmer_id)).size === 1;
+  return single ? (farmers[0].farmer_details?.fullName || farmers[0].farmer_id) : dairyName;
+};
 
 const FarmerBillInvoiceReport = () => {
   const { t, i18n } = useTranslation();
@@ -184,7 +198,7 @@ const FarmerBillInvoiceReport = () => {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [exportFormat, setExportFormat] = useState<'1-per-page' | '2-per-page' | '3-per-page' | 'detailed-horizontal' | 'format-4' | 'format-5'>('1-per-page');
+  const [exportFormat, setExportFormat] = useState<'1-per-page' | '2-per-page' | '3-per-page' | 'detailed-horizontal' | 'format-4' | 'format-5' | 'format-6'>('1-per-page');
 
   // Edit Collection State
   const [editSheetOpen, setEditSheetOpen] = useState(false);
@@ -903,10 +917,10 @@ const FarmerBillInvoiceReport = () => {
         };
 
         // Check for mixed types (only relevant when milkTypeFilter is 'All').
-        // Format 5 (Milk Bill) keeps both types on one page, so it never splits.
+        // Format 5 (Milk Bill) and Format 6 keep both types on one page, so they never split.
         const hasCow = templateDataItems.some(item => item.type === 'Cow');
         const hasBuffalo = templateDataItems.some(item => item.type === 'Buffalo');
-        const isMixed = milkTypeFilter === 'All' && hasCow && hasBuffalo && templateFn !== generateTemplate5MilkBill;
+        const isMixed = milkTypeFilter === 'All' && hasCow && hasBuffalo && templateFn !== generateTemplate5MilkBill && templateFn !== generateTemplate6;
 
         if (isMixed) {
           const cowItems = templateDataItems.filter(i => i.type === 'Cow');
@@ -981,12 +995,12 @@ const FarmerBillInvoiceReport = () => {
 
         // Save in batches to avoid memory issues
         if ((i + 1) % BATCH_SIZE === 0 && i < filteredFarmerIds.length - 1) {
-          pdf.save(`Farmer_Bill_${fromDate}_to_${toDate}_Part${Math.floor(i / BATCH_SIZE) + 1}.pdf`);
+          pdf.save(buildPdfFileName(dairyName, branchName, fromDate, toDate, `Part${Math.floor(i / BATCH_SIZE) + 1}`));
           pdf = new jsPDF('p', 'mm', 'a4');
         }
       }
 
-      pdf.save(`Farmer_Bill_${fromDate}_to_${toDate}.pdf`);
+      pdf.save(buildPdfFileName(pdfNameFor(dairyName, filteredFarmerIds.map(id => farmerDataMap.get(id))), branchName, fromDate, toDate));
       toast.success(t('pdf_downloaded_successfully'));
     } catch (error) {
       console.error('PDF Generation Error:', error);
@@ -1134,7 +1148,7 @@ const FarmerBillInvoiceReport = () => {
         pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
       }
 
-      pdf.save(`Farmer_Bill_Report_${chunkSize}perPage_${fromDate}_to_${toDate}.pdf`);
+      pdf.save(buildPdfFileName(pdfNameFor(dairyName, filteredData), branchName, fromDate, toDate));
       toast.success(t('pdf_downloaded_successfully'));
 
     } catch (error: any) {
@@ -1313,7 +1327,7 @@ const FarmerBillInvoiceReport = () => {
           pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
         }
       }
-      pdf.save(`Detailed_Horizontal_Bills_${fromDate}_${toDate}.pdf`);
+      pdf.save(buildPdfFileName(pdfNameFor(dairyName, sortedFarmers), branchName, fromDate, toDate));
       toast.success(t('detailed_pdf_downloaded_successfully'));
     } catch (error) {
       console.error('Export error:', error);
@@ -1324,7 +1338,7 @@ const FarmerBillInvoiceReport = () => {
   };
 
   const handleExport = () => {
-    if ((exportFormat === '1-per-page' || exportFormat === 'format-4' || exportFormat === 'format-5') && collectionData.length === 0) {
+    if ((exportFormat === '1-per-page' || exportFormat === 'format-4' || exportFormat === 'format-5' || exportFormat === 'format-6') && collectionData.length === 0) {
       toast.error(t('please_click_show_first_for_detailed_report'));
       return;
     }
@@ -1337,6 +1351,8 @@ const FarmerBillInvoiceReport = () => {
       exportToPDF(generateTemplate4);
     } else if (exportFormat === 'format-5') {
       exportToPDF(generateTemplate5MilkBill);
+    } else if (exportFormat === 'format-6') {
+      exportToPDF(generateTemplate6);
     } else if (exportFormat === '2-per-page') {
       exportMultiPerPagePDF(1);
     } else {
@@ -1937,6 +1953,10 @@ const FarmerBillInvoiceReport = () => {
               <div className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExportFormat('format-5')}>
                 <RadioGroupItem value="format-5" id="format-5" />
                 <Label htmlFor="format-5" className="flex-1 font-semibold cursor-pointer">{t('export_option_format_5')}</Label>
+              </div>
+              <div className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExportFormat('format-6')}>
+                <RadioGroupItem value="format-6" id="format-6" />
+                <Label htmlFor="format-6" className="flex-1 font-semibold cursor-pointer">{t('export_option_format_6')}</Label>
               </div>
             </RadioGroup>
           </div>

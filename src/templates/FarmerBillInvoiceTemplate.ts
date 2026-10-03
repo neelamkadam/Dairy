@@ -278,7 +278,9 @@ const getLabels = (language: string = 'mr') => {
       transportDeduction: 'Transport Deduction',
       travelCommission: 'Travel Commission',
       details: 'Details',
-      noDetails: 'No details available'
+      noDetails: 'No details available',
+      dt: 'Dt',
+      fixedDeduction: 'Fixed Deduction'
     },
     hi: {
       date: 'दिनांक',
@@ -336,7 +338,9 @@ const getLabels = (language: string = 'mr') => {
       transportDeduction: 'परिवहन कटौती',
       travelCommission: 'यात्रा कमीशन',
       details: 'विवरण',
-      noDetails: 'कोई विवरण उपलब्ध नहीं है'
+      noDetails: 'कोई विवरण उपलब्ध नहीं है',
+      dt: 'दि.',
+      fixedDeduction: 'निश्चित कटौती'
     },
     mr: {
       date: 'दिनांक',
@@ -395,7 +399,9 @@ const getLabels = (language: string = 'mr') => {
       transportDeduction: 'वाह कपात',
       travelCommission: 'वहातुक कमिशन',
       details: 'तपशील',
-      noDetails: 'तपशील उपलब्ध नाही'
+      noDetails: 'तपशील उपलब्ध नाही',
+      dt: 'दि.',
+      fixedDeduction: 'निश्चित कपात'
     }
   };
   const selected = { ... (translations[lang] || translations.mr || translations.en) };
@@ -406,6 +412,229 @@ const getLabels = (language: string = 'mr') => {
     }
   });
   return selected;
+};
+
+// Format 1's deduction / net-payable section. The numbers are shared with Format 6
+// (computeFormat1Summary) so both bills always show the same deductions and totals.
+const FORMAT1_SUMMARY_CSS = `
+    .summary-section { margin-top: 2px; }
+    .summary-table { width: 100%; border-collapse: collapse; }
+    .summary-table td { border: none; padding: 15px 5px; font-size: 16px; vertical-align: top; }
+    .summary-left { width: 55%; }
+    .summary-right { width: 45%; }
+    .deduction-table { width: 100%; border-collapse: collapse; border: 1px solid black; }
+    .deduction-table tr.header-row { font-weight: bold; background: #f0f0f0; border-bottom: 1px solid black; }
+    .deduction-table td { padding: 12px 4px; text-align: center; font-size: 14px; border: none; }
+    .deduction-table tr.total-row-ded { font-weight: bold; background: #f0f0f0; border-top: 1px solid black; border-bottom: 1px solid black; }
+    .payment-details { text-align: left; padding: 2px; line-height: 1.4; }`;
+
+const computeFormat1Summary = (templateData: Template2Data, labels: any, toDate: Date) => {
+  // Milk totals from COMPLETE data (both milk types), not the per-page filtered rows
+  let cowLiters = 0, buffaloLiters = 0, summaryTotalAmount = 0;
+  templateData.data.forEach((item) => {
+    const milkType = (item.type || '').toString().toLowerCase().trim();
+    if (milkType === "cow") cowLiters += item.liters;
+    else if (milkType === "buffalo") buffaloLiters += item.liters;
+    summaryTotalAmount += item.amount;
+  });
+
+  // --- DEDUCTION LOGIC ---
+  const getSumOfPayments = (type: string) => {
+    const searchType = type.toLowerCase().trim().replace(/\s/g, '');
+    const isCattleFeed = searchType === 'cattlefeed' || searchType === 'pashukhady' || searchType === 'पशुखाद्य';
+
+    return (templateData.payments || [])
+      .filter(p => {
+        const pType = p.payment_type.toLowerCase().trim().replace(/\s/g, '');
+        if (isCattleFeed) return pType === 'cattlefeed' || pType === 'pashukhady' || pType === 'पशुखाद्य';
+        return pType === searchType;
+      })
+      .reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0);
+  };
+
+  const deductionInfo = [
+    {
+      label: labels.other1, // Kirana - always show
+      prev: parseFloat(templateData.previous_bill?.other1_remaining || '0'),
+      payment: getSumOfPayments('other1') + getSumOfPayments('other 1'),
+      deduction: parseFloat(templateData.current_bill?.other1_total || '0')
+    },
+    {
+      label: labels.feed,
+      prev: parseFloat(templateData.previous_bill?.cattlefeed_remaining || '0'),
+      payment: getSumOfPayments('cattle feed'),
+      deduction: parseFloat(templateData.current_bill?.cattlefeed_total || '0')
+    },
+    {
+      label: labels.advance,
+      prev: parseFloat(templateData.previous_bill?.advance_remaining || '0'),
+      payment: getSumOfPayments('advance'),
+      deduction: parseFloat(templateData.current_bill?.advance_total || '0')
+    }
+  ];
+
+  // Add Other2 only if it has values
+  const other2Prev = parseFloat(templateData.previous_bill?.other2_remaining || '0');
+  const other2Payment = getSumOfPayments('other2') + getSumOfPayments('other 2');
+  const other2Deduction = parseFloat(templateData.current_bill?.other2_total || '0');
+
+  if (other2Prev > 0 || other2Payment > 0 || other2Deduction > 0) {
+    deductionInfo.push({
+      label: labels.other2,
+      prev: other2Prev,
+      payment: other2Payment,
+      deduction: other2Deduction
+    });
+  }
+
+  // Calculate balances
+  const processedDeductionInfo = deductionInfo.map(d => ({
+    ...d,
+    balance: d.prev + d.payment - d.deduction
+  }));
+
+  const totalPrev = processedDeductionInfo.reduce((sum, d) => sum + d.prev, 0);
+  const totalPay = processedDeductionInfo.reduce((sum, d) => sum + d.payment, 0);
+  const totalDed = processedDeductionInfo.reduce((sum, d) => sum + d.deduction, 0);
+  const totalBal = processedDeductionInfo.reduce((sum, d) => sum + d.balance, 0);
+
+  const summaryTotalLiters = cowLiters + buffaloLiters;
+  const bonusRate = templateData.bonus_deduction_info?.bonus_amount || 0;
+  const bonusAmount = bonusRate * summaryTotalLiters;
+  const fixedAmount = templateData.bonus_deduction_info?.fixed_amount || 0;
+  const bonusFixedTotal = bonusAmount + fixedAmount;
+
+  // Map total bonus from logs summary
+  let totalBonusTillDate = templateData.bonus_deduction_info?.total_bonus_till_date || 0;
+  if (templateData.bonus_deduction_logs_summary?.farmers) {
+    const farmerBonus = templateData.bonus_deduction_logs_summary.farmers.find(
+      (f) => String(f.farmer_id).padStart(4, "0") === String(templateData.farmerCode).padStart(4, "0") ||
+             String(f.farmer_id) === String(templateData.farmerCode)
+    );
+    if (farmerBonus) {
+      totalBonusTillDate = farmerBonus.total_bonus_deduction;
+    }
+  }
+
+  let netPayable = parseFloat(templateData.current_bill?.net_payable || '0');
+  const travelComm = templateData.travel_commission;
+  const isTravelValid = travelComm && travelComm.effective_from && (new Date(toDate) >= new Date(travelComm.effective_from));
+  const travelAmount = isTravelValid ? travelComm.amount : 0;
+
+  if (isTravelValid) {
+    netPayable += travelAmount;
+  }
+
+  return {
+    cowLiters, buffaloLiters, summaryTotalAmount,
+    processedDeductionInfo, totalPrev, totalPay, totalDed, totalBal,
+    bonusRate, bonusAmount, fixedAmount, bonusFixedTotal, totalBonusTillDate,
+    netPayable, travelComm, isTravelValid, travelAmount
+  };
+};
+
+const renderFormat1Summary = (templateData: Template2Data, labels: any, toDate: Date): string => {
+  const {
+    cowLiters, buffaloLiters, summaryTotalAmount,
+    processedDeductionInfo, totalPrev, totalPay, totalDed, totalBal,
+    bonusRate, bonusAmount, fixedAmount, bonusFixedTotal, totalBonusTillDate,
+    netPayable, travelComm, isTravelValid, travelAmount
+  } = computeFormat1Summary(templateData, labels, toDate);
+
+  return `
+  <div class="summary-section">
+    <table class="summary-table">
+      <tr>
+        <td class="summary-left">
+          <table class="deduction-table">
+            <tr class="header-row">
+              <td>${labels.name}</td>
+              <td>${labels.prevRemaining}</td>
+              <td>${labels.payment}</td>
+              <td>${labels.deduction}</td>
+              <td>${labels.balance}</td>
+            </tr>
+            ${processedDeductionInfo.map(d => `
+              <tr>
+                <td>${d.label}</td>
+                <td>${d.prev.toFixed(2)}</td>
+                <td>${d.payment.toFixed(2)}</td>
+                <td>${d.deduction.toFixed(2)}</td>
+                <td>${d.balance.toFixed(2)}</td>
+              </tr>
+            `).join('')}
+            <tr class="total-row-ded">
+              <td>${labels.total}</td>
+              <td>${totalPrev.toFixed(2)}</td>
+              <td>${totalPay.toFixed(2)}</td>
+              <td>${totalDed.toFixed(2)}</td>
+              <td>${totalBal.toFixed(2)}</td>
+            </tr>
+          </table>
+          ${(templateData.bonus_deduction_info || parseFloat(String(totalBonusTillDate)) > 0 || isTravelValid) ? `
+          <div style="margin-top: 10px; padding: 8px; background-color: #f9f9f9; border: 1px solid #ddd; border-radius: 4px; line-height: 1.4;">
+            <div style="font-weight: bold; margin-bottom: 4px;">${labels.additionalDeductions}:</div>
+            ${bonusAmount > 0 ? `
+            <div style="display: flex; justify-content: space-between;">
+              <span>${labels.bonusDeduction} (${bonusRate} x ${(cowLiters + buffaloLiters).toFixed(1)}):</span>
+              <span>₹${bonusAmount.toFixed(2)}</span>
+            </div>` : ''}
+            ${fixedAmount > 0 ? `
+            <div style="display: flex; justify-content: space-between;">
+              <span>${templateData.bonus_deduction_info?.remark || 'इमारत निधी'}:</span>
+              <span>₹${fixedAmount.toFixed(2)}</span>
+            </div>` : ''}
+            <div style="display: flex; justify-content: space-between; margin-top: 4px; border-top: 1px solid #ddd; padding-top: 4px; font-weight: bold;">
+              <span>${labels.totalBonusTillDate}:</span>
+              <span>₹${parseFloat(String(totalBonusTillDate)).toFixed(2)}</span>
+            </div>
+            ${isTravelValid ? (travelComm!.cow_amount !== undefined && travelComm!.buffalo_amount !== undefined) ? `
+            <div style="display: flex; justify-content: space-between; margin-top: 4px; border-top: 1px solid #ddd; padding-top: 4px;">
+              <span>${labels.cow} ${labels.travelCommission} :</span>
+              <span>₹${travelComm!.cow_amount.toFixed(2)}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span>${labels.buffalo} ${labels.travelCommission} :</span>
+              <span>₹${travelComm!.buffalo_amount.toFixed(2)}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-weight: bold; border-top: 1px solid #ddd; padding-top: 2px; margin-top: 2px;">
+              <span>${labels.travelCommission} :</span>
+              <span>₹${travelAmount.toFixed(2)}</span>
+            </div>` : `
+            <div style="display: flex; justify-content: space-between; margin-top: 4px; border-top: 1px solid #ddd; padding-top: 4px; font-weight: bold;">
+              <span>${labels.travelCommission} :</span>
+              <span>₹${travelAmount.toFixed(2)}</span>
+            </div>` : ''}
+          </div>
+          ` : ''}
+          <div style="margin-top: 15px; font-size: 20px; font-weight: bold; padding: 12px; background-color: #2563eb; color: white; border-radius: 4px; display: flex; justify-content: space-between;">
+            <span>${labels.netPayable}:</span>
+            <span>₹${netPayable.toFixed(2)}</span>
+          </div>
+        </td>
+        <td class="summary-right">
+          <div class="payment-details">
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 2px;"><strong>एकूण रक्कम:</strong> <span>${summaryTotalAmount.toFixed(2)}</span></div>
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 2px;"><strong>गाय दूध:</strong> <span>${cowLiters.toFixed(2)}</span></div>
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 2px;"><strong>म्हैस दूध:</strong> <span>${buffaloLiters.toFixed(2)}</span></div>
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 2px;"><strong>एकूण दूध:</strong> <span>${(cowLiters + buffaloLiters).toFixed(2)}</span></div>
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 2px;"><strong>एकूण Deduction:</strong> <span>${totalDed.toFixed(2)}</span></div>
+            ${bonusFixedTotal > 0 ? `<div style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 2px;"><strong>Bonus + Fixed Deduction:</strong> <span>${bonusFixedTotal.toFixed(2)}</span></div>` : ''}
+            <div style="display: flex; justify-content: space-between; font-size: 16px; border-top: 1px solid black; margin-top: 4px; padding-top: 4px; font-weight: bold;">
+              <strong>${labels.netPayable}:</strong> <span>${netPayable.toFixed(2)}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-top: 4px; border-bottom: 1px dashed #ccc; padding-bottom: 2px;"><strong>Remaining रक्कम:</strong> <span>${totalBal.toFixed(2)}</span></div>
+            <div style="margin-top: 10px; font-size: 11px; border-top: 1px dashed #ccc; padding-top: 4px;">
+              <strong>${labels.bankDetail}:</strong><br>
+              ${labels.accountNumber}: ${templateData.bankDetails?.accountNumber || templateData.farmer_details?.accountNumber || "N/A"}<br>
+              ${labels.ifsc}: ${templateData.bankDetails?.ifscCode || templateData.farmer_details?.ifscCode || "N/A"}<br>
+              ${labels.bank}: ${templateData.bankDetails?.bankName || templateData.farmer_details?.bankName || "N/A"}
+            </div>
+          </div>
+        </td>
+      </tr>
+    </table>
+  </div>`;
 };
 
 export const generateTemplate2 = (templateData: Template2Data, language: string = 'mr'): string => {
@@ -545,10 +774,9 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
     recordCount++;
   });
 
-  // Calculate summary totals from COMPLETE data (for summary section)
+  // Milk-type totals from COMPLETE data (decides which table rows to show)
   let cowLiters = 0, cowAmount = 0;
   let buffaloLiters = 0, buffaloAmount = 0;
-  let summaryTotalAmount = 0;
 
   templateData.data.forEach((item) => {
     const milkType = (item.type || '').toString().toLowerCase().trim();
@@ -559,7 +787,6 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
       buffaloLiters += item.liters;
       buffaloAmount += item.amount;
     }
-    summaryTotalAmount += item.amount;
   });
 
   const avgFat = recordCount > 0 ? (totalFat / recordCount).toFixed(1) : "0.0";
@@ -609,93 +836,6 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
 
   const tableRows = hasBothTypes ? generateTableForType(cowData) : generateTableForType(hasCowData ? cowData : (hasBuffaloData ? buffaloData : groupedData));
 
-  // --- DEDUCTION LOGIC ---
-  const getSumOfPayments = (type: string) => {
-    const searchType = type.toLowerCase().trim().replace(/\s/g, '');
-    const isCattleFeed = searchType === 'cattlefeed' || searchType === 'pashukhady' || searchType === 'पशुखाद्य';
-    
-    return (templateData.payments || [])
-      .filter(p => {
-        const pType = p.payment_type.toLowerCase().trim().replace(/\s/g, '');
-        if (isCattleFeed) return pType === 'cattlefeed' || pType === 'pashukhady' || pType === 'पशुखाद्य';
-        return pType === searchType;
-      })
-      .reduce((sum, p) => sum + parseFloat(p.amount_taken || '0'), 0);
-  };
-
-  const deductionInfo = [
-    {
-      label: labels.other1, // Kirana - always show
-      prev: parseFloat(templateData.previous_bill?.other1_remaining || '0'),
-      payment: getSumOfPayments('other1') + getSumOfPayments('other 1'),
-      deduction: parseFloat(templateData.current_bill?.other1_total || '0')
-    },
-    {
-      label: labels.feed,
-      prev: parseFloat(templateData.previous_bill?.cattlefeed_remaining || '0'),
-      payment: getSumOfPayments('cattle feed'),
-      deduction: parseFloat(templateData.current_bill?.cattlefeed_total || '0')
-    },
-    {
-      label: labels.advance,
-      prev: parseFloat(templateData.previous_bill?.advance_remaining || '0'),
-      payment: getSumOfPayments('advance'),
-      deduction: parseFloat(templateData.current_bill?.advance_total || '0')
-    }
-  ];
-
-  // Add Other2 only if it has values
-  const other2Prev = parseFloat(templateData.previous_bill?.other2_remaining || '0');
-  const other2Payment = getSumOfPayments('other2') + getSumOfPayments('other 2');
-  const other2Deduction = parseFloat(templateData.current_bill?.other2_total || '0');
-  
-  if (other2Prev > 0 || other2Payment > 0 || other2Deduction > 0) {
-    deductionInfo.push({
-      label: labels.other2,
-      prev: other2Prev,
-      payment: other2Payment,
-      deduction: other2Deduction
-    });
-  }
-
-  // Calculate balances
-  const processedDeductionInfo = deductionInfo.map(d => ({
-    ...d,
-    balance: d.prev + d.payment - d.deduction
-  }));
-
-  const totalPrev = processedDeductionInfo.reduce((sum, d) => sum + d.prev, 0);
-  const totalPay = processedDeductionInfo.reduce((sum, d) => sum + d.payment, 0);
-  const totalDed = processedDeductionInfo.reduce((sum, d) => sum + d.deduction, 0);
-  const totalBal = processedDeductionInfo.reduce((sum, d) => sum + d.balance, 0);
-
-  const summaryTotalLiters = cowLiters + buffaloLiters;
-  const bonusRate = templateData.bonus_deduction_info?.bonus_amount || 0;
-  const bonusAmount = bonusRate * summaryTotalLiters;
-  const fixedAmount = templateData.bonus_deduction_info?.fixed_amount || 0;
-  const bonusFixedTotal = bonusAmount + fixedAmount;
-
-  // Map total bonus from logs summary
-  let totalBonusTillDate = templateData.bonus_deduction_info?.total_bonus_till_date || 0;
-  if (templateData.bonus_deduction_logs_summary?.farmers) {
-    const farmerBonus = templateData.bonus_deduction_logs_summary.farmers.find(
-      (f) => String(f.farmer_id).padStart(4, "0") === String(templateData.farmerCode).padStart(4, "0") ||
-             String(f.farmer_id) === String(templateData.farmerCode)
-    );
-    if (farmerBonus) {
-      totalBonusTillDate = farmerBonus.total_bonus_deduction;
-    }
-  }
-
-  let netPayable = parseFloat(templateData.current_bill?.net_payable || '0');
-  const travelComm = templateData.travel_commission;
-  const isTravelValid = travelComm && travelComm.effective_from && (new Date(toDate) >= new Date(travelComm.effective_from));
-  const travelAmount = isTravelValid ? travelComm.amount : 0;
-  
-  if (isTravelValid) {
-    netPayable += travelAmount;
-  }
-
   const totalWater = processedData.reduce((sum, item) => sum + (item.water || 0), 0);
   const avgWater = recordCount > 0 ? (totalWater / recordCount).toFixed(1) : "0.0";
 
@@ -731,16 +871,7 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
     .main-table td { padding: 10px 6px; text-align: center; font-size: 14px; border-right: 1px solid #eee; }
     .main-table th:last-child, .main-table td:last-child { border-right: none; }
     .total-row { font-weight: bold; background-color: #f0f0f0; border-top: 1px solid black; border-bottom: 1px solid black; }
-    .summary-section { margin-top: 2px; }
-    .summary-table { width: 100%; border-collapse: collapse; }
-    .summary-table td { border: none; padding: 15px 5px; font-size: 16px; vertical-align: top; }
-    .summary-left { width: 55%; }
-    .summary-right { width: 45%; }
-    .deduction-table { width: 100%; border-collapse: collapse; border: 1px solid black; }
-    .deduction-table tr.header-row { font-weight: bold; background: #f0f0f0; border-bottom: 1px solid black; }
-    .deduction-table td { padding: 12px 4px; text-align: center; font-size: 14px; border: none; }
-    .deduction-table tr.total-row-ded { font-weight: bold; background: #f0f0f0; border-top: 1px solid black; border-bottom: 1px solid black; }
-    .payment-details { text-align: left; padding: 2px; line-height: 1.4; }
+    ${FORMAT1_SUMMARY_CSS}
   </style>
 </head>
 <body style="margin: 0; padding: 0;">
@@ -788,100 +919,7 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
     </tbody>
   </table>
 
-  ${!templateData.hideSummary ? `
-  <div class="summary-section">
-    <table class="summary-table">
-      <tr>
-        <td class="summary-left">
-          <table class="deduction-table">
-            <tr class="header-row">
-              <td>${labels.name}</td>
-              <td>${labels.prevRemaining}</td>
-              <td>${labels.payment}</td>
-              <td>${labels.deduction}</td>
-              <td>${labels.balance}</td>
-            </tr>
-            ${processedDeductionInfo.map(d => `
-              <tr>
-                <td>${d.label}</td>
-                <td>${d.prev.toFixed(2)}</td>
-                <td>${d.payment.toFixed(2)}</td>
-                <td>${d.deduction.toFixed(2)}</td>
-                <td>${d.balance.toFixed(2)}</td>
-              </tr>
-            `).join('')}
-            <tr class="total-row-ded">
-              <td>${labels.total}</td>
-              <td>${totalPrev.toFixed(2)}</td>
-              <td>${totalPay.toFixed(2)}</td>
-              <td>${totalDed.toFixed(2)}</td>
-              <td>${totalBal.toFixed(2)}</td>
-            </tr>
-          </table>
-          ${(templateData.bonus_deduction_info || parseFloat(String(totalBonusTillDate)) > 0 || isTravelValid) ? `
-          <div style="margin-top: 10px; padding: 8px; background-color: #f9f9f9; border: 1px solid #ddd; border-radius: 4px; line-height: 1.4;">
-            <div style="font-weight: bold; margin-bottom: 4px;">${labels.additionalDeductions}:</div>
-            ${bonusAmount > 0 ? `
-            <div style="display: flex; justify-content: space-between;">
-              <span>${labels.bonusDeduction} (${bonusRate} x ${(cowLiters + buffaloLiters).toFixed(1)}):</span>
-              <span>₹${bonusAmount.toFixed(2)}</span>
-            </div>` : ''}
-            ${fixedAmount > 0 ? `
-            <div style="display: flex; justify-content: space-between;">
-              <span>${templateData.bonus_deduction_info?.remark || 'इमारत निधी'}:</span>
-              <span>₹${fixedAmount.toFixed(2)}</span>
-            </div>` : ''}
-            <div style="display: flex; justify-content: space-between; margin-top: 4px; border-top: 1px solid #ddd; padding-top: 4px; font-weight: bold;">
-              <span>${labels.totalBonusTillDate}:</span>
-              <span>₹${parseFloat(String(totalBonusTillDate)).toFixed(2)}</span>
-            </div>
-            ${isTravelValid ? (travelComm!.cow_amount !== undefined && travelComm!.buffalo_amount !== undefined) ? `
-            <div style="display: flex; justify-content: space-between; margin-top: 4px; border-top: 1px solid #ddd; padding-top: 4px;">
-              <span>${labels.cow} ${labels.travelCommission} :</span>
-              <span>₹${travelComm!.cow_amount.toFixed(2)}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between;">
-              <span>${labels.buffalo} ${labels.travelCommission} :</span>
-              <span>₹${travelComm!.buffalo_amount.toFixed(2)}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-weight: bold; border-top: 1px solid #ddd; padding-top: 2px; margin-top: 2px;">
-              <span>${labels.travelCommission} :</span>
-              <span>₹${travelAmount.toFixed(2)}</span>
-            </div>` : `
-            <div style="display: flex; justify-content: space-between; margin-top: 4px; border-top: 1px solid #ddd; padding-top: 4px; font-weight: bold;">
-              <span>${labels.travelCommission} :</span>
-              <span>₹${travelAmount.toFixed(2)}</span>
-            </div>` : ''}
-          </div>
-          ` : ''}
-          <div style="margin-top: 15px; font-size: 20px; font-weight: bold; padding: 12px; background-color: #2563eb; color: white; border-radius: 4px; display: flex; justify-content: space-between;">
-            <span>${labels.netPayable}:</span>
-            <span>₹${netPayable.toFixed(2)}</span>
-          </div>
-        </td>
-        <td class="summary-right">
-          <div class="payment-details">
-            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 2px;"><strong>एकूण रक्कम:</strong> <span>${summaryTotalAmount.toFixed(2)}</span></div>
-            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 2px;"><strong>गाय दूध:</strong> <span>${cowLiters.toFixed(2)}</span></div>
-            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 2px;"><strong>म्हैस दूध:</strong> <span>${buffaloLiters.toFixed(2)}</span></div>
-            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 2px;"><strong>एकूण दूध:</strong> <span>${(cowLiters + buffaloLiters).toFixed(2)}</span></div>
-            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 2px;"><strong>एकूण Deduction:</strong> <span>${totalDed.toFixed(2)}</span></div>
-            ${bonusFixedTotal > 0 ? `<div style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 2px;"><strong>Bonus + Fixed Deduction:</strong> <span>${bonusFixedTotal.toFixed(2)}</span></div>` : ''}
-            <div style="display: flex; justify-content: space-between; font-size: 16px; border-top: 1px solid black; margin-top: 4px; padding-top: 4px; font-weight: bold;">
-              <strong>${labels.netPayable}:</strong> <span>${netPayable.toFixed(2)}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-top: 4px; border-bottom: 1px dashed #ccc; padding-bottom: 2px;"><strong>Remaining रक्कम:</strong> <span>${totalBal.toFixed(2)}</span></div>
-            <div style="margin-top: 10px; font-size: 11px; border-top: 1px dashed #ccc; padding-top: 4px;">
-              <strong>${labels.bankDetail}:</strong><br>
-              ${labels.accountNumber}: ${templateData.bankDetails?.accountNumber || templateData.farmer_details?.accountNumber || "N/A"}<br>
-              ${labels.ifsc}: ${templateData.bankDetails?.ifscCode || templateData.farmer_details?.ifscCode || "N/A"}<br>
-              ${labels.bank}: ${templateData.bankDetails?.bankName || templateData.farmer_details?.bankName || "N/A"}
-            </div>
-          </div>
-        </td>
-      </tr>
-    </table>
-  </div>` : ''}
+  ${!templateData.hideSummary ? renderFormat1Summary(templateData, labels, toDate) : ''}
   </div>
 </body>
 </html>`;
@@ -2197,6 +2235,236 @@ export const generateTemplate5MilkBill = (templateData: Template2Data, _language
 
     <div class="note">Note: Overhead and Transport is including in rate</div>
   </div>
+  </div>
+</body>
+</html>`;
+};
+
+// Format 6: Morning and Evening collections side by side (one row per date + milk type),
+// followed by Format 1's deduction table. Both milk types stay on one page.
+export const generateTemplate6 = (templateData: Template2Data, language: string = 'mr'): string => {
+  const labels = getLabels(language);
+
+  const parseDate = (dateStr: string) => {
+    if (!dateStr) return new Date();
+    if (dateStr.includes("/")) {
+      const parts = dateStr.split("/");
+      return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+    }
+    if (dateStr.includes("-")) {
+      const parts = dateStr.split("-");
+      if (parts[0].length === 4) return new Date(dateStr); // YYYY-MM-DD
+      return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0])); // DD-MM-YYYY
+    }
+    return new Date(dateStr);
+  };
+
+  const fromDate = parseDate(templateData.fromDate);
+  const toDate = parseDate(templateData.toDate);
+
+  const pad2 = (n: number) => String(n).padStart(2, '0');
+  const fmtDMY = (d: Date) => `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`;
+
+  const isBuffalo = (type: string) => (type || '').toString().toLowerCase().trim().startsWith('b');
+  let items = templateData.data;
+  if (templateData.milkType === 'Cow') items = items.filter(i => !isBuffalo(i.type));
+  else if (templateData.milkType === 'Buffalo') items = items.filter(i => isBuffalo(i.type));
+
+  // One row per date + milk type in each shift; multiple entries in the same slot are aggregated
+  interface Slot { date: Date; buffalo: boolean; liters: number; amount: number; clrW: number; fatW: number; snfW: number; rateW: number; }
+  const morning = new Map<string, Slot>();
+  const evening = new Map<string, Slot>();
+  for (const item of items) {
+    const d = new Date(item.date);
+    const buffalo = isBuffalo(item.type);
+    // Sortable key: date first, then Buffalo before Cow
+    const key = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}_${buffalo ? 0 : 1}`;
+    const slots = (item.shift || '').toLowerCase().startsWith('e') ? evening : morning;
+    if (!slots.has(key)) {
+      slots.set(key, { date: d, buffalo, liters: 0, amount: 0, clrW: 0, fatW: 0, snfW: 0, rateW: 0 });
+    }
+    const s = slots.get(key)!;
+    const liters = item.liters || 0;
+    s.liters += liters;
+    s.amount += item.amount || 0;
+    s.clrW += (item.clr || 0) * liters;
+    s.fatW += (item.fat || 0) * liters;
+    s.snfW += (item.snf || 0) * liters;
+    s.rateW += (item.rate || 0) * liters;
+  }
+
+  // CLR/FAT/SNF are litre-weighted averages; the total rate is total amount / total litres
+  const renderShiftTable = (slots: Map<string, Slot>) => {
+    const rows = Array.from(slots.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([, s]) => s);
+    let liters = 0, amount = 0, clrW = 0, fatW = 0, snfW = 0;
+    const bodyRows = rows.map(r => {
+      const avg = (w: number) => (r.liters > 0 ? w / r.liters : 0);
+      liters += r.liters;
+      amount += r.amount;
+      clrW += r.clrW;
+      fatW += r.fatW;
+      snfW += r.snfW;
+      return `<tr>
+        <td>${pad2(r.date.getDate())}</td>
+        <td class="milk">${r.buffalo ? labels.buffalo : labels.cow}</td>
+        <td>${avg(r.clrW).toFixed(1)}</td>
+        <td>${avg(r.fatW).toFixed(1)}</td>
+        <td>${avg(r.snfW).toFixed(1)}</td>
+        <td class="num">${r.liters.toFixed(1)}</td>
+        <td class="num">${avg(r.rateW).toFixed(2)}</td>
+        <td class="num">${r.amount.toFixed(2)}</td>
+      </tr>`;
+    }).join('');
+    const totalAvg = (w: number) => (liters > 0 ? w / liters : 0);
+
+    return `<table class="shift-table">
+      <thead>
+        <tr>
+          <th>${labels.dt}</th>
+          <th>${labels.milk}</th>
+          <th>${labels.clr}</th>
+          <th>${labels.fat}</th>
+          <th>${labels.snf}</th>
+          <th>${labels.quantity}</th>
+          <th>${labels.rate}</th>
+          <th>${labels.amount}</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${bodyRows}
+        <tr class="total-row">
+          <td colspan="2" class="milk">${labels.total}</td>
+          <td>${totalAvg(clrW).toFixed(1)}</td>
+          <td>${totalAvg(fatW).toFixed(1)}</td>
+          <td>${totalAvg(snfW).toFixed(1)}</td>
+          <td class="num">${liters.toFixed(1)}</td>
+          <td class="num">${totalAvg(amount).toFixed(2)}</td>
+          <td class="num">${amount.toFixed(2)}</td>
+        </tr>
+      </tbody>
+    </table>`;
+  };
+
+  // Format 1's deduction figures, drawn in the same compact style as the collection tables
+  const sm = computeFormat1Summary(templateData, labels, toDate);
+  const travel = sm.travelComm;
+  const showBonusTillDate = !!templateData.bonus_deduction_info || parseFloat(String(sm.totalBonusTillDate)) > 0 || sm.isTravelValid;
+  const summaryRow = (label: string, value: number) => `<tr><td class="lbl">${label}</td><td class="num">${value.toFixed(2)}</td></tr>`;
+
+  const deductionTable = `<table class="shift-table">
+      <thead>
+        <tr>
+          <th>${labels.name}</th>
+          <th>${labels.prevRemaining}</th>
+          <th>${labels.payment}</th>
+          <th>${labels.deduction}</th>
+          <th>${labels.balance}</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${sm.processedDeductionInfo.map(d => `<tr>
+          <td class="lbl">${d.label}</td>
+          <td class="num">${d.prev.toFixed(2)}</td>
+          <td class="num">${d.payment.toFixed(2)}</td>
+          <td class="num">${d.deduction.toFixed(2)}</td>
+          <td class="num">${d.balance.toFixed(2)}</td>
+        </tr>`).join('')}
+        <tr class="total-row">
+          <td class="lbl">${labels.total}</td>
+          <td class="num">${sm.totalPrev.toFixed(2)}</td>
+          <td class="num">${sm.totalPay.toFixed(2)}</td>
+          <td class="num">${sm.totalDed.toFixed(2)}</td>
+          <td class="num">${sm.totalBal.toFixed(2)}</td>
+        </tr>
+      </tbody>
+    </table>`;
+
+  const summaryTable = `<table class="shift-table">
+      <thead>
+        <tr>
+          <th>${labels.details}</th>
+          <th>${labels.amount}</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${summaryRow(labels.gross, sm.summaryTotalAmount)}
+        ${summaryRow(`${labels.cow} ${labels.milk}`, sm.cowLiters)}
+        ${summaryRow(`${labels.buffalo} ${labels.milk}`, sm.buffaloLiters)}
+        ${summaryRow(`${labels.total} ${labels.milk}`, sm.cowLiters + sm.buffaloLiters)}
+        ${summaryRow(labels.ekunKapat, sm.totalDed)}
+        ${sm.bonusAmount > 0 ? summaryRow(`${labels.bonusDeduction} (${sm.bonusRate} x ${(sm.cowLiters + sm.buffaloLiters).toFixed(1)})`, sm.bonusAmount) : ''}
+        ${sm.fixedAmount > 0 ? summaryRow(labels.fixedDeduction, sm.fixedAmount) : ''}
+        ${showBonusTillDate ? summaryRow(labels.totalBonusTillDate, parseFloat(String(sm.totalBonusTillDate))) : ''}
+        ${sm.isTravelValid && travel!.cow_amount !== undefined && travel!.buffalo_amount !== undefined
+          ? summaryRow(`${labels.cow} ${labels.travelCommission}`, travel!.cow_amount) + summaryRow(`${labels.buffalo} ${labels.travelCommission}`, travel!.buffalo_amount)
+          : ''}
+        ${sm.isTravelValid ? summaryRow(labels.travelCommission, sm.travelAmount) : ''}
+        ${summaryRow(labels.yeneBaaki, sm.totalBal)}
+        <tr class="total-row net-row">
+          <td class="lbl">${labels.netPayable}</td>
+          <td class="num">₹${sm.netPayable.toFixed(2)}</td>
+        </tr>
+      </tbody>
+    </table>`;
+
+  const bank = templateData.bankDetails;
+  const bankLine = `<b>${labels.bankDetail}:</b> ${labels.accountNumber}: ${bank?.accountNumber || templateData.farmer_details?.accountNumber || "N/A"}
+    &nbsp;|&nbsp; ${labels.ifsc}: ${bank?.ifscCode || templateData.farmer_details?.ifscCode || "N/A"}
+    &nbsp;|&nbsp; ${labels.bank}: ${bank?.bankName || templateData.farmer_details?.bankName || "N/A"}`;
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; font-size: 12px; line-height: 1.2; margin: 0; padding: 0; color: black; }
+    .header { text-align: center; font-size: 22px; font-weight: bold; padding-bottom: 8px; border-bottom: 2px solid black; }
+    .info-row { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0 14px 0; font-size: 12px; font-weight: bold; }
+    .info-row .shift { width: 70px; }
+    .info-row .farmer { flex: 1.2; }
+    .info-row .farmer .code { font-size: 11px; }
+    .info-row .branch { flex: 1; }
+    .info-row .period { white-space: nowrap; font-size: 14px; }
+    .info-row .shift.right { text-align: right; }
+    .tables { display: flex; gap: 8px; align-items: flex-start; }
+    .shift-table { width: 50%; border-collapse: collapse; border: 1px solid black; }
+    .shift-table th { padding: 4px 3px; font-size: 12px; font-weight: bold; text-align: center; border-bottom: 1px solid black; }
+    .shift-table td { padding: 3px 3px; font-size: 12px; text-align: center; border-right: 1px solid #ccc; }
+    .shift-table td:last-child { border-right: none; }
+    .shift-table td.milk, .shift-table td.lbl { text-align: left; }
+    .shift-table td.num { text-align: right; }
+    .shift-table .total-row td { font-weight: bold; border-top: 1px solid black; }
+    .shift-table .net-row td { font-size: 14px; padding: 5px 3px; }
+    .bottom { margin-top: 12px; }
+    .bottom .half { width: 50%; }
+    .bottom .half .shift-table { width: 100%; }
+    .bank { margin-top: 6px; font-size: 11px; line-height: 1.4; }
+  </style>
+</head>
+<body style="margin: 0; padding: 0;">
+  <div style="padding: 30px 30px 20px 30px; box-sizing: border-box; background-color: white;">
+    <div class="header">${templateData.dairyName}</div>
+    <div class="info-row">
+      <div class="shift">${labels.morning}</div>
+      <div class="farmer">${templateData.farmerName}<div class="code">${templateData.farmerCode}</div></div>
+      <div class="branch">${templateData.branchName}</div>
+      <div class="period">${fmtDMY(fromDate)} - ${fmtDMY(toDate)}</div>
+      <div class="shift right">${labels.evening}</div>
+    </div>
+
+    <div class="tables">
+      ${renderShiftTable(morning)}
+      ${renderShiftTable(evening)}
+    </div>
+
+    <div class="tables bottom">
+      <div class="half">
+        ${deductionTable}
+        <div class="bank">${bankLine}</div>
+      </div>
+      ${summaryTable}
+    </div>
   </div>
 </body>
 </html>`;
