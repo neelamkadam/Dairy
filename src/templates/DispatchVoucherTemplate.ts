@@ -28,6 +28,14 @@ export interface DispatchVoucherData {
    *  All of them are printed, so a clean load carries proof it was tested. */
   adulterants?: Record<string, boolean>;
   seals?: string[];          // Optional seal numbers
+  // The tanker purchase / sale vouchers reuse this layout. Left out, each one
+  // falls back to the dispatch voucher's wording.
+  title?: string;            // default "TANKER DISPATCH VOUCHER"
+  subtitle?: string;         // line under the dairy name; default the VLC line
+  partyLabel?: string;       // label for destinationName; default "Destination"
+  refLabel?: string;         // default "VLC ID"
+  refValue?: string;         // default vlc
+  fileName?: string;         // default Dispatch_Voucher_<vlc>_<date>[_<voucherNo>].pdf
 }
 
 const formatDate = (dateStr: string) => {
@@ -172,7 +180,7 @@ const buildVoucher = (data: DispatchVoucherData, copyLabel: string) => {
                     stack: [
                       { text: data.dairyName || "Dairy", style: "dairyName" },
                       {
-                        text: data.vlcName ? `${data.vlcName} (${data.vlc})` : `VLC: ${data.vlc}`,
+                        text: data.subtitle ?? (data.vlcName ? `${data.vlcName} (${data.vlc})` : `VLC: ${data.vlc}`),
                         style: "vlcLine",
                       },
                     ],
@@ -180,7 +188,7 @@ const buildVoucher = (data: DispatchVoucherData, copyLabel: string) => {
                   {
                     width: "auto",
                     stack: [
-                      { text: "TANKER DISPATCH VOUCHER", style: "voucherTitle" },
+                      { text: data.title || "TANKER DISPATCH VOUCHER", style: "voucherTitle" },
                       { text: copyLabel, style: "copyLabel" },
                     ],
                   },
@@ -221,8 +229,8 @@ const buildVoucher = (data: DispatchVoucherData, copyLabel: string) => {
                     labelCell("Vehicle No"), valueCell(data.vehicleNumber)],
                     [labelCell("Compartment"), valueCell(data.compartment),
                     labelCell("Milk Type"), valueCell(data.milkType)],
-                    [labelCell("Destination"), valueCell(data.destinationName),
-                    labelCell("VLC ID"), valueCell(data.vlc)],
+                    [labelCell(data.partyLabel || "Destination"), valueCell(data.destinationName),
+                    labelCell(data.refLabel || "VLC ID"), valueCell(data.refValue ?? data.vlc)],
                     ...(data.seals && data.seals.length > 0
                       ? [[
                           labelCell("Seal Nos"),
@@ -391,7 +399,7 @@ export const buildDispatchVoucherDoc = (data: DispatchVoucherData): any => {
 export const generateDispatchVoucherPDF = (data: DispatchVoucherData) => {
   const docDefinition = buildDispatchVoucherDoc(data);
 
-  const fileName = `Dispatch_Voucher_${data.vlc}_${data.date}${
+  const fileName = data.fileName || `Dispatch_Voucher_${data.vlc}_${data.date}${
     data.voucherNo ? `_${data.voucherNo}` : ""
   }.pdf`;
 

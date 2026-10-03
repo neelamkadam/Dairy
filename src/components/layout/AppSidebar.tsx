@@ -88,6 +88,7 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
             { title: t('dispatch_status_report', 'Dispatch Status Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.DISPATCH_STATUS_REPORT },
             { title: t('vlc_collection_entry_report', 'VLC Collection Entry Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.VLC_COLLECTION_ENTRY_REPORT },
             { title: t('tanker_dispatch_report', 'Tanker Dispatch Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.TANKER_DISPATCH_REPORT },
+            { title: t('tanker_purchase_sale_report', 'Tanker Purchase & Sale Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.TANKER_PURCHASE_SALE_REPORT },
             { title: t('farmer_collection'), icon: <Dot size={24} />, href: ROUTES.REPORTS.FARMER_COLLECTION },
             { title: t('total_collection_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.TOTAL_COLLECTION_REPORT },
             { title: t('vlc_difference_report') + " 1", icon: <Dot size={24} />, href: ROUTES.REPORTS.VLC_DIFFERENCE_REPORT },

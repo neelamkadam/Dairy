@@ -27,6 +27,8 @@ export const SECTION_ITEMS: Record<SidebarSectionKey, SidebarItemDef[]> = {
     { key: "vlc_collection_entry", titleKey: "vlc_collection_entry", titleDefault: "VLC Collection Entry", href: ROUTES.COLLECTIONENTRY.VLC_COLLECTION_ENTRY },
     { key: "farmer_collection_entry", titleKey: "farmer_collection_entry", titleDefault: "Farmer Collection Entry", href: ROUTES.COLLECTIONENTRY.FARMER_COLLECTION_ENTRY },
     { key: "tanker_dispatch", titleKey: "tanker_dispatch", titleDefault: "Tanker Dispatch", href: ROUTES.COLLECTIONENTRY.DISPATCH_ENTRY },
+    { key: "tanker_purchase", titleKey: "tanker_purchase", titleDefault: "Tanker Purchase", href: ROUTES.COLLECTIONENTRY.TANKER_PURCHASE },
+    { key: "tanker_sale", titleKey: "tanker_sale", titleDefault: "Tanker Sale", href: ROUTES.COLLECTIONENTRY.TANKER_SALE },
   ],
   collection: [
     { key: "vlc_collection", titleKey: "vlc_collection", titleDefault: "VLC Collection", href: ROUTES.COLLECTION.VLC_COLLECTION },

@@ -10,7 +10,9 @@ export const ROUTES = {
   COLLECTIONENTRY: {
     VLC_COLLECTION_ENTRY: `/dashboard/collectionentry/vlc-collection-entry`,
     FARMER_COLLECTION_ENTRY: `/dashboard/collectionentry/farmer-collection-entry`,
-    DISPATCH_ENTRY:`/dashboard/collectionentry/dispatch-entry`
+    DISPATCH_ENTRY:`/dashboard/collectionentry/dispatch-entry`,
+    TANKER_PURCHASE:`/dashboard/collectionentry/tanker-purchase`,
+    TANKER_SALE:`/dashboard/collectionentry/tanker-sale`
   },
   COLLECTION:{
     VLC_COLLECTION:`/dashboard/vlc-collection`,
@@ -61,6 +63,7 @@ export const ROUTES = {
     DISPATCH_STATUS_REPORT:`/dashboard/dispatch-status-report`,
     VLC_COLLECTION_ENTRY_REPORT:`/dashboard/vlc-collection-entry-report`,
     TANKER_DISPATCH_REPORT:`/dashboard/tanker-dispatch-report`,
+    TANKER_PURCHASE_SALE_REPORT:`/dashboard/tanker-purchase-sale-report`,
     TOTAL_COLLECTION_REPORT:`/dashboard/total-collection-report`,
     VLC_COMMISSION_REPORT:`/dashboard/vlc-commission-report`,
     FARMER_COMMISSION_REPORT:`/dashboard/farmer-commission-report`,

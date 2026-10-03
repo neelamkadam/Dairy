@@ -31,6 +31,7 @@ import FarmerManagement from "@/pages/Collection/FarmerManagement";
 import VLCCllection from "@/pages/Collection/VLCCllection";
 import RouteCollection from "@/pages/Collection/RouteCollection";
 import DispatchEntry from "@/pages/CollectionEntry/DispatchEntry";
+import TankerTradeEntry from "@/pages/CollectionEntry/TankerTradeEntry";
 import FarmerCollectionEntry from "@/pages/CollectionEntry/FarmerCollectionEntry";
 import VLCCollectionEntry from "@/pages/CollectionEntry/VLCCollectionEntry";
 import AdminDashboard from "@/pages/Dashboard/AdminDashboard";
@@ -61,6 +62,7 @@ import FarmerCommissionReport from "@/pages/Reports/FarmerCommissionReport";
 import FarmerNeftStatement from "@/pages/Reports/FarmerNeftStatement";
 import VlcCommissionNeft from "@/pages/Reports/VlcCommissionNeft";
 import TankerDispatchReport from "@/pages/Reports/TankerDispatchReport";
+import TankerPurchaseSaleReport from "@/pages/Reports/TankerPurchaseSaleReport";
 import VlcDifferenceReport from "@/pages/Reports/VlcDifferenceReport";
 import VlcDifferenceReport2 from "@/pages/Reports/VlcDifferenceReport2";
 import BankSummary from "@/pages/Reports/BankSummary";
@@ -140,6 +142,15 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "collectionentry/dispatch-entry",
         element: <DispatchEntry />,
+      },
+      {
+        path: "collectionentry/tanker-purchase",
+        // key: the two modes are one component; remount so state never carries over
+        element: <TankerTradeEntry key="purchase" mode="purchase" />,
+      },
+      {
+        path: "collectionentry/tanker-sale",
+        element: <TankerTradeEntry key="sale" mode="sale" />,
       },
       {
         path: "vlc-collection",
@@ -280,6 +291,10 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "tanker-dispatch-report",
         element: <TankerDispatchReport />,
+      },
+      {
+        path: "tanker-purchase-sale-report",
+        element: <TankerPurchaseSaleReport />,
       },
       {
         path: "total-collection-report",
