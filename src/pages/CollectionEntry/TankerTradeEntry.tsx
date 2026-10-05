@@ -87,7 +87,7 @@ const emptyForm = () => ({
   driverName: "",
   vehicleNumber: "",
   compartment: "",
-  milkType: "Both",
+  milkType: "",
   time: format(new Date(), "HH:mm"),
   sealsInput: "",
 });
@@ -231,7 +231,7 @@ const TankerTradeEntry = ({ mode }: { mode: TradeMode }) => {
       driverName: purchase.driver_name || "",
       vehicleNumber: purchase.vehicle_number || "",
       compartment: purchase.compartment || "",
-      milkType: purchase.milk_type || "Both",
+      milkType: purchase.milk_type || "",
       liter,
       weight: calculateWeightFromLiter(liter),
       avgFat: purchase.avg_fat != null ? String(num(purchase.avg_fat)) : "",

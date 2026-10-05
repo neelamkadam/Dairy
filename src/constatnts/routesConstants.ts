@@ -63,7 +63,8 @@ export const ROUTES = {
     DISPATCH_STATUS_REPORT:`/dashboard/dispatch-status-report`,
     VLC_COLLECTION_ENTRY_REPORT:`/dashboard/vlc-collection-entry-report`,
     TANKER_DISPATCH_REPORT:`/dashboard/tanker-dispatch-report`,
-    TANKER_PURCHASE_SALE_REPORT:`/dashboard/tanker-purchase-sale-report`,
+    TANKER_PROFIT_LOSS_REPORT:`/dashboard/tanker-profit-loss-report`,
+    TANKER_DAYWISE_REPORT:`/dashboard/tanker-daywise-report`,
     TOTAL_COLLECTION_REPORT:`/dashboard/total-collection-report`,
     VLC_COMMISSION_REPORT:`/dashboard/vlc-commission-report`,
     FARMER_COMMISSION_REPORT:`/dashboard/farmer-commission-report`,
@@ -108,6 +109,7 @@ export const ROUTES = {
   ACTIVATION:{
     ACTIVATION:`/admin/activation`,
     WEB_APPLICATION_ACTIVATION:`/admin/web-application-activation`,
+    PC_APPLICATION_ACTIVATION:`/admin/pc-application-activation`,
   },
   QUOTATION: `/admin/quotation-maker`,
   BLOCKED_NUMBERS: `/admin/blocked-numbers`,

@@ -49,7 +49,8 @@ const getMenuItems = (t: any): MenuItem[] => [
     icon: <Monitor size={20} className="stroke-[1.5]" />,
     children: [
       { title: t('activation_title', 'Activation'), icon: <Dot size={24} />, href: ROUTES.ACTIVATION.ACTIVATION },
-      { title: t('web_application_activation', 'Web Application Activation'), icon: <Dot size={24} />, href: ROUTES.ACTIVATION.WEB_APPLICATION_ACTIVATION }
+      { title: t('web_application_activation', 'Web Application Activation'), icon: <Dot size={24} />, href: ROUTES.ACTIVATION.WEB_APPLICATION_ACTIVATION },
+      { title: t('pc_application_activation', 'PC Application Activation'), icon: <Dot size={24} />, href: ROUTES.ACTIVATION.PC_APPLICATION_ACTIVATION }
     ]
   },
   {

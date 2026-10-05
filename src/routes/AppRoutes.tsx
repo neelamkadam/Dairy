@@ -4,6 +4,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import { ROUTES } from "@/constatnts/routesConstants";
 import { Activation } from "@/pages/Activation/Activation";
 import { WebApplicationActivation } from "@/pages/Activation/WebApplicationActivation";
+import { PcApplicationActivation } from "@/pages/Activation/PcApplicationActivation";
 import { FarmerApplication } from "@/pages/AdminMaster/FarmerApplication";
 import { MobileApplication } from "@/pages/AdminMaster/MobileApplication";
 import { WebApplication } from "@/pages/AdminMaster/WebApplication";
@@ -62,7 +63,8 @@ import FarmerCommissionReport from "@/pages/Reports/FarmerCommissionReport";
 import FarmerNeftStatement from "@/pages/Reports/FarmerNeftStatement";
 import VlcCommissionNeft from "@/pages/Reports/VlcCommissionNeft";
 import TankerDispatchReport from "@/pages/Reports/TankerDispatchReport";
-import TankerPurchaseSaleReport from "@/pages/Reports/TankerPurchaseSaleReport";
+import TankerProfitLossReport from "@/pages/Reports/TankerProfitLossReport";
+import TankerDaywiseReport from "@/pages/Reports/TankerDaywiseReport";
 import VlcDifferenceReport from "@/pages/Reports/VlcDifferenceReport";
 import VlcDifferenceReport2 from "@/pages/Reports/VlcDifferenceReport2";
 import BankSummary from "@/pages/Reports/BankSummary";
@@ -293,8 +295,12 @@ export const AppRoutes = createBrowserRouter([
         element: <TankerDispatchReport />,
       },
       {
-        path: "tanker-purchase-sale-report",
-        element: <TankerPurchaseSaleReport />,
+        path: "tanker-profit-loss-report",
+        element: <TankerProfitLossReport />,
+      },
+      {
+        path: "tanker-daywise-report",
+        element: <TankerDaywiseReport />,
       },
       {
         path: "total-collection-report",
@@ -462,6 +468,10 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "web-application-activation",
         element: <WebApplicationActivation />,
+      },
+      {
+        path: "pc-application-activation",
+        element: <PcApplicationActivation />,
       },
       {
         path: "attendance",

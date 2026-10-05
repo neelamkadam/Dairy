@@ -88,8 +88,66 @@ export interface TankerSaleRow extends TankerVoucherRow {
   purchase_liter?: string;
 }
 
-export interface TankerReportPurchase extends TankerVoucherRow {
-  sales: TankerSaleRow[];
+// Profit & loss — every figure is computed by the server; the page only shows it.
+export interface TankerPLSale {
+  sale_id: number;
+  voucher_no: string;
+  date: string;
+  time?: string | null;
+  buyer_name: string;
+  vehicle_number?: string | null;
+  driver_name?: string | null;
+  milk_type?: string | null;
+  liter: number;
+  rate_per_liter: number;
+  commission_per_liter: number;
+  total_amount: number;
+}
+
+export interface TankerPLTanker {
+  purchase_id: number;
+  voucher_no: string;
+  date: string;
+  time?: string | null;
+  supplier_name: string;
+  vehicle_number?: string | null;
+  driver_name?: string | null;
+  milk_type?: string | null;
+  purchase_liter: number;
+  purchase_rate: number;
+  commission_per_liter: number;
+  purchase_amount: number;
+  sale_count: number;
+  sold_liter: number;
+  sale_amount: number;
+  cost_of_sold: number;   // purchase cost of the litres sold
+  profit: number;         // sale_amount - cost_of_sold
+  unsold_liter: number;
+  unsold_value: number;   // unsold milk at purchase cost
+  status: "Sold" | "Partly sold" | "Unsold";
+  result: "Profit" | "Loss" | "Break-even";
+  sales: TankerPLSale[];
+}
+
+export interface TankerPLSummary {
+  purchase_count: number;
+  purchase_liter: number;
+  purchase_amount: number;
+  sale_count: number;
+  sold_liter: number;
+  sale_amount: number;
+  cost_of_sold: number;
+  gross_profit: number;
+  margin_percent: number;
+  unsold_liter: number;
+  unsold_value: number;
+  status: "Profit" | "Loss" | "Break-even";
+}
+
+export interface TankerPLReport {
+  period: { from: string; to: string };
+  summary: TankerPLSummary;
+  tankers: TankerPLTanker[];
 }
 
 export const tankerApi = {
@@ -124,7 +182,12 @@ export const tankerApi = {
   deleteSale: (id: number, userId: number | string) =>
     AxiosClient.delete(`/web/tanker/sale/${id}`, { params: { user_id: userId } }),
 
-  // Purchases dated in the range, each with all of its sales nested
-  report: (userId: number | string, from: string, to: string) =>
-    AxiosClient.get("/web/tanker/report", { params: { user_id: userId, from, to } }),
+  // { period, summary, tankers[] } for the tankers purchased in the range
+  profitLoss: (userId: number | string, from: string, to: string) =>
+    AxiosClient.get("/web/tanker/profit-loss", { params: { user_id: userId, from, to } }),
+
+  // { purchases, sales } — every voucher dated in the range, by its own date.
+  // Sale rows carry purchase_date and supplier_name.
+  daywise: (userId: number | string, from: string, to: string) =>
+    AxiosClient.get("/web/tanker/daywise", { params: { user_id: userId, from, to } }),
 };
