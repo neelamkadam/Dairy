@@ -107,6 +107,10 @@ export interface TransportNeftRow {
   avg_cost_per_liter: number;
   payment_amount: number;
   advance: number;
+  // Deduction from DCA report = Composite − Dispatch amount of the route's VLCs
+  // (as in VLC Difference Report 2), never below 0
+  composite_amount: number;
+  dispatch_amount: number;
   dca_deduction: number;
   net_payable: number;
 }
@@ -117,8 +121,20 @@ export interface TransportNeftTotals {
   milk: number;
   payment_amount: number;
   advance: number;
+  composite_amount: number;
+  dispatch_amount: number;
   dca_deduction: number;
   net_payable: number;
+}
+
+// Auto bill number NN/Mon/YYYY. issued: false = the number this bill will get on
+// export (nothing is reserved by a preview); true = already issued and kept.
+export interface TransportBillNo {
+  bill_no: string;
+  bill_date: string;
+  issued: boolean;
+  // set by issueBill: true when this export issued it, false when it was already issued
+  created?: boolean;
 }
 
 export interface InvoiceDay {
@@ -133,6 +149,8 @@ export interface InvoiceDay {
 
 export interface TransportInvoice {
   period: { from: string; to: string };
+  // null until migrations/2026-10-09-create-transport-bill.sql has run
+  bill: TransportBillNo | null;
   transport: Transport;
   routes: { route_id: number; route_name: string; bmc_name: string | null; cc_name: string | null }[];
   rates: number[];
@@ -167,10 +185,15 @@ export const transportApi = {
   neft: (userId: UserId, from: string, to: string) =>
     AxiosClient.get("/web/transport/neft", { params: { user_id: userId, from, to } }),
 
-  // Advance and DCA-report deduction for exactly this bill period
-  saveDeduction: (p: { user_id: UserId; transport_id: number; period_from: string; period_to: string; advance: number; dca_deduction: number }) =>
+  // Advance for exactly this bill period (the DCA deduction is derived, not entered)
+  saveAdvance: (p: { user_id: UserId; transport_id: number; period_from: string; period_to: string; advance: number }) =>
     AxiosClient.put("/web/transport/deduction", p),
 
   invoice: (userId: UserId, transportId: number, from: string, to: string) =>
     AxiosClient.get("/web/transport/invoice", { params: { user_id: userId, transport_id: transportId, from, to } }),
+
+  // Issues the bill number on export — or returns the one already issued for this
+  // transport + period — and records the bill date
+  issueBill: (p: { user_id: UserId; transport_id: number; from: string; to: string; bill_date: string }) =>
+    AxiosClient.post("/web/transport/invoice/bill", p),
 };

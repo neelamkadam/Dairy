@@ -11,9 +11,10 @@ import { Label } from "@/components/ui/label";
 import { FileDown, FileSpreadsheet, Loader2, Save } from "lucide-react";
 import PdfLoader from "@/components/PdfLoader";
 
-// Reports → Transport Collection → Transport NEFT Statement. Advance and the DCA
-// report deduction are entered here for the selected bill period; the server
-// works out every figure, including Net Payable.
+// Reports → Transport Collection → Transport NEFT Statement. The advance is
+// entered here for the selected bill period; the server works out every other
+// figure — the DCA deduction is Composite − Dispatch of the route's VLCs (as in
+// VLC Difference Report 2), never below 0 — and Net Payable.
 
 const n2 = (v: number) => v.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -26,7 +27,7 @@ const currentPeriod = () => {
   return { from: format(start, "yyyy-MM-dd"), to: format(end, "yyyy-MM-dd") };
 };
 
-type Edit = { advance: string; dca_deduction: string };
+
 
 const TransportNeftStatement = () => {
   const { t } = useTranslation();
@@ -37,7 +38,8 @@ const TransportNeftStatement = () => {
   const [rows, setRows] = useState<TransportNeftRow[] | null>(null);
   const [totals, setTotals] = useState<TransportNeftTotals | null>(null);
   const [period, setPeriod] = useState({ from: "", to: "" });
-  const [edits, setEdits] = useState<Record<number, Edit>>({});
+  // Advance typed but not saved yet, per transport
+  const [edits, setEdits] = useState<Record<number, string>>({});
   const [savingId, setSavingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -65,35 +67,26 @@ const TransportNeftStatement = () => {
     }
   };
 
-  const editOf = (r: TransportNeftRow): Edit =>
-    edits[r.transport_id] ?? { advance: String(r.advance), dca_deduction: String(r.dca_deduction) };
-  const isDirty = (r: TransportNeftRow) => {
-    const e = edits[r.transport_id];
-    return !!e && (Number(e.advance || 0) !== r.advance || Number(e.dca_deduction || 0) !== r.dca_deduction);
-  };
+  const advanceOf = (r: TransportNeftRow) => edits[r.transport_id] ?? String(r.advance);
+  const isDirty = (r: TransportNeftRow) =>
+    edits[r.transport_id] !== undefined && Number(edits[r.transport_id] || 0) !== r.advance;
   const anyDirty = (rows || []).some(isDirty);
-
-  const setEdit = (r: TransportNeftRow, key: keyof Edit, value: string) =>
-    setEdits((prev) => ({ ...prev, [r.transport_id]: { ...editOf(r), [key]: value } }));
 
   const saveRow = async (r: TransportNeftRow) => {
     if (!userId) return;
-    const e = editOf(r);
-    const advance = Number(e.advance || 0);
-    const dca = Number(e.dca_deduction || 0);
-    if (!(advance >= 0) || !(dca >= 0)) {
-      toast.error(t("advance_deduction_non_negative", "Advance and deduction must be 0 or more"));
+    const advance = Number(advanceOf(r) || 0);
+    if (!(advance >= 0)) {
+      toast.error(t("advance_non_negative", "Advance must be 0 or more"));
       return;
     }
     setSavingId(r.transport_id);
     try {
-      const { data } = await transportApi.saveDeduction({
+      const { data } = await transportApi.saveAdvance({
         user_id: userId,
         transport_id: r.transport_id,
         period_from: period.from,
         period_to: period.to,
         advance,
-        dca_deduction: dca,
       });
       if (data?.success) {
         toast.success(t("saved", "Saved"));
@@ -112,7 +105,7 @@ const TransportNeftStatement = () => {
       return;
     }
     if (anyDirty) {
-      toast.error(t("save_changes_first", "Save the advance / deduction changes first"));
+      toast.error(t("save_advance_first", "Save the advance changes first"));
       return;
     }
     if (kind === "excel") {
@@ -138,7 +131,7 @@ const TransportNeftStatement = () => {
           {t("transport_neft_statement", "Transport NEFT Statement")}
         </h1>
         <p className="text-sm text-gray-600">
-          {t("transport_neft_subtitle", "Enter the advance and DCA deduction for this bill period, save, then export")}
+          {t("transport_neft_subtitle", "Enter the advance for this bill period, save, then export")}
         </p>
       </div>
 
@@ -182,7 +175,10 @@ const TransportNeftStatement = () => {
                 <th className={`${th} text-right`}>{t("milk_collection_on_route", "Milk Collection on Route")}</th>
                 <th className={`${th} text-right`}>{t("payment_amount", "Payment Amount")}</th>
                 <th className={`${th} text-right bg-amber-50`}>{t("advance", "Advance")}</th>
-                <th className={`${th} text-right bg-amber-50`}>{t("deduction_from_dca", "Deduction from DCA Report")}</th>
+                <th className={`${th} text-right`}>
+                  {t("deduction_from_dca", "Deduction from DCA Report")}
+                  <span className="block text-[10px] font-normal text-gray-500">{t("composite_minus_dispatch", "Composite − Dispatch")}</span>
+                </th>
                 <th className={`${th} text-right`}>{t("net_payable_amount", "Net Payable Amount")}</th>
                 <th className={th} />
               </tr>
@@ -192,7 +188,6 @@ const TransportNeftStatement = () => {
                 <tr><td colSpan={16} className="px-4 py-8 text-center text-gray-500">{t("no_transport_payments", "No transport trips in this period")}</td></tr>
               )}
               {rows.map((r) => {
-                const e = editOf(r);
                 return (
                   <tr key={r.transport_id} className="hover:bg-gray-50">
                     <td className={`${td} font-medium`}>{r.account_number}</td>
@@ -211,12 +206,18 @@ const TransportNeftStatement = () => {
                     <td className={`${td} text-right`}>{n2(r.milk)}</td>
                     <td className={`${td} text-right`}>{n2(r.payment_amount)}</td>
                     <td className={`${td} bg-amber-50/40`}>
-                      <Input type="number" step="0.01" min="0" value={e.advance} onChange={(ev) => setEdit(r, "advance", ev.target.value)}
+                      <Input type="number" step="0.01" min="0" value={advanceOf(r)}
+                        onChange={(ev) => setEdits((prev) => ({ ...prev, [r.transport_id]: ev.target.value }))}
                         className="h-7 w-24 text-right ml-auto text-xs" />
                     </td>
-                    <td className={`${td} bg-amber-50/40`}>
-                      <Input type="number" step="0.01" min="0" value={e.dca_deduction} onChange={(ev) => setEdit(r, "dca_deduction", ev.target.value)}
-                        className="h-7 w-24 text-right ml-auto text-xs" />
+                    <td
+                      className={`${td} text-right`}
+                      title={`${t("composite", "Composite")} ₹${n2(r.composite_amount)} − ${t("dispatch", "Dispatch")} ₹${n2(r.dispatch_amount)}`}
+                    >
+                      <span className="font-semibold">{n2(r.dca_deduction)}</span>
+                      <span className="block text-[10px] text-gray-500 whitespace-nowrap">
+                        {n2(r.composite_amount)} − {n2(r.dispatch_amount)}
+                      </span>
                     </td>
                     <td className={`${td} text-right font-bold`}>{n2(r.net_payable)}</td>
                     <td className={td}>
@@ -252,7 +253,7 @@ const TransportNeftStatement = () => {
       )}
       {rows && rows.length > 0 && (
         <p className="text-xs text-gray-500 mt-2 mx-2">
-          {t("transport_neft_note", "Shift = trips run. KMS and Rate are per trip / per KM; several values mean the route changed in the period. Payment = Total Kms × Rate; Net Payable = Payment − Advance − DCA deduction. Advance and deduction are saved for exactly this From–To period.")}
+          {t("transport_neft_note", "Shift = trips run. KMS and Rate are per trip / per KM; several values mean the route changed in the period. Payment = Total Kms × Rate. Deduction from DCA Report = Composite − Dispatch amount of the route's VLCs over the days the transport ran it (as in VLC Difference Report 2), never below 0. Net Payable = Payment − Advance − DCA deduction. The advance is saved for exactly this From–To period.")}
         </p>
       )}
     </div>
