@@ -9,7 +9,7 @@ import { api } from '@/services/config';
 import { useAppSelector } from '@/redux/store';
 import { useVlcNumbering } from "@/utils/vlcSectionLabel";
 import { toast } from 'react-toastify';
-import { generateTemplate2, generateTemplate4, generateTemplate5MilkBill, generateTemplate6, generateTemplateDetailedHorizontal, FarmerBillData, BankDetails } from '@/templates/FarmerBillInvoiceTemplate';
+import { generateTemplate2, generateTemplate4, generateTemplate5MilkBill, generateTemplate6, generateTemplate7, generateTemplateDetailedHorizontal, FarmerBillData, BankDetails, BillTravelCommission, DailyCommission } from '@/templates/FarmerBillInvoiceTemplate';
 import { generateFarmer2PerPage } from '@/templates/FarmerBill2PerPageTemplate';
 import { bankSummaryApi } from '@/services/bankSummaryApi';
 import { format } from 'date-fns';
@@ -20,8 +20,8 @@ import { useTranslation } from 'react-i18next';
 import { billApi } from '@/services/billApi';
 import { bonusApi } from '@/services/bonusApi';
 import { settingsApi } from '@/services/settingsApi';
-import { reportsApi } from '@/services/reportsApi';
 import { vlcCommissionApi } from '@/services/vlcCommissionApi';
+import { buildCommissionLookup, computeTravelCommission, perLiterRate, CommissionLookup } from '@/utils/travelCommission';
 import { generateTemplate3Farmers, FarmerReportData } from '@/templates/FarmerBillInvoiceTemplate';
 import {
   Dialog,
@@ -192,13 +192,13 @@ const FarmerBillInvoiceReport = () => {
   const [collectionData, setCollectionData] = useState<CollectionRecord[]>([]);
   const [farmerBills, setFarmerBills] = useState<any[]>([]);
   const [farmerPayments, setFarmerPayments] = useState<any[]>([]);
-  const [vlcCommission, setVlcCommission] = useState<any>(null);
+  const [commissionLookup, setCommissionLookup] = useState<CommissionLookup>(new Map());
   const [bankDetailsMap, setBankDetailsMap] = useState<Map<string, BankDetails>>(new Map());
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [exportFormat, setExportFormat] = useState<'1-per-page' | '2-per-page' | '3-per-page' | 'detailed-horizontal' | 'format-4' | 'format-5' | 'format-6'>('1-per-page');
+  const [exportFormat, setExportFormat] = useState<'1-per-page' | '2-per-page' | '3-per-page' | 'detailed-horizontal' | 'format-4' | 'format-5' | 'format-6' | 'format-7'>('1-per-page');
 
   // Edit Collection State
   const [editSheetOpen, setEditSheetOpen] = useState(false);
@@ -438,7 +438,7 @@ const FarmerBillInvoiceReport = () => {
       const [collectionResponse, billsRes, commSettings, bankResponse] = await Promise.all([
         api.get(apiUrl, { params }),
         billApi.getFarmerReport({ dairy_id: dairyId, start_date: fromDate, end_date: toDate }),
-        fetchVlcCommissionSettings(selectedVLC),
+        fetchCommissionLookup(selectedVLC),
         bankSummaryApi.getBankSummary({
           dairy_id: selectedVLC,
           start_date: format(new Date(fromDate), 'yyyy-MM-dd'),
@@ -474,7 +474,7 @@ const FarmerBillInvoiceReport = () => {
 
       setFarmerBills(filteredBills as any);
       setFarmerPayments(billsRes.data.farmer_payments || []);
-      setVlcCommission(commSettings);
+      setCommissionLookup(commSettings);
 
       const bankMap = new Map<string, BankDetails>();
       (bankResponse.data || []).forEach((farmer: any) => {
@@ -691,93 +691,57 @@ const FarmerBillInvoiceReport = () => {
     });
   };
 
-  const fetchVlcCommissionSettings = async (vlcId: string) => {
-    if (!vlcId || !fromDate || !toDate) return null;
-    try {
-      const response = await reportsApi.getVlcCommissionReport({
-        vlc_id: vlcId,
-        start_date: fromDate,
-        end_date: toDate
-      });
-      if (response.success && response.data && response.data.length > 0) {
-        const vlc = response.data[0];
-        const travelComm = vlc.commissions.find((c: any) => c.type === 'Commission' || c.type === 'Fixed' || c.type === 'Travel');
-        if (travelComm) {
-          return { ...travelComm, effective_from: travelComm.effective_from };
-        }
-        return null;
-      }
-    } catch (error) {
-      console.error('Error fetching VLC commission:', error);
-    }
-    return null;
-  };
-
-  // ── Fetch all farmer-specific commissions for a VLC and return a map keyed by farmer_id ──
-  const fetchFarmerCommissionMap = async (vlcId: string): Promise<Map<string, any>> => {
+  // ── Travel commission — the rule Generate Bill uses (utils/travelCommission) ──
+  const fetchCommissionLookup = async (vlcId: string): Promise<CommissionLookup> => {
     try {
       const res = await vlcCommissionApi.getByVlcc(vlcId);
-      const records: any[] = res.data?.data ?? [];
-      const map = new Map<string, any>();
-      // API returns DESC order → first occurrence is the latest (active) for each farmer
-      records.forEach((r) => {
-        if (!r.farmer_id) return;
-        // Store milk-type-specific record when milk_type is present (e.g. "F001_Cow")
-        const typedKey = r.milk_type ? `${r.farmer_id}_${r.milk_type}` : r.farmer_id;
-        if (!map.has(typedKey)) map.set(typedKey, r);
-        // Also keep a generic fallback keyed by farmer_id alone (first = latest, API DESC)
-        if (!map.has(r.farmer_id)) map.set(r.farmer_id, r);
-      });
-      return map;
+      return buildCommissionLookup(res.data?.data ?? []);
     } catch {
       return new Map();
     }
   };
 
-  // ── Resolve the commission to use for a farmer:
-  //    1. farmer-specific record (farmer_id match)  → preferred
-  //    2. VLC-level commission (vlcComm)             → fallback
-  // Returns a normalised object { type, amount, effective_from } or null.
-  const resolveFarmerCommission = (
-    farmerId: string,
-    milkType: string,
-    farmerCommMap: Map<string, any>,
-    vlcComm: any | null
-  ): { type: string; amount: string; effective_from: string } | null => {
-    // Prefer milk-type-specific record (e.g. "F001_Cow"), fall back to generic farmer record
-    const farmerRecord = farmerCommMap.get(`${farmerId}_${milkType}`) ?? farmerCommMap.get(farmerId);
-    if (farmerRecord) {
-      return {
-        type: farmerRecord.type,          // 'Commission' | 'Fixed'
-        amount: farmerRecord.amount,
-        effective_from: farmerRecord.effective_from
-      };
-    }
-    if (vlcComm) {
-      return {
-        type: vlcComm.type,
-        amount: vlcComm.amount,
-        effective_from: vlcComm.effective_from
-      };
-    }
-    return null;
+  // Bill end date as a local date — what Generate Bill compares effective_from with
+  const billEndDate = () => {
+    const [y, m, d] = toDate.split('-').map(Number);
+    return new Date(y, m - 1, d);
   };
 
-  // ── Build the travel_commission payload for a template from a resolved commission + liters ──
-  const buildTravelCommission = (
-    comm: { type: string; amount: string; effective_from: string } | null,
-    totalLiters: number
-  ) => {
-    if (!comm) return undefined;
-    return {
-      type: comm.type,
-      rate: parseFloat(comm.amount),
-      amount: comm.type === 'Commission'
-        ? totalLiters * parseFloat(comm.amount)
-        : parseFloat(comm.amount),
-      effective_from: comm.effective_from
-    };
+  const litresOf = (collections: any[], milkType: string) =>
+    collections.filter((c) => c.type === milkType).reduce((sum, c) => sum + (parseFloat(c.quantity) || 0), 0);
+
+  // The travel commission printed on a farmer's bill. The saved bill holds the
+  // amount Generate Bill / Farmer Deduction put into its net payable; a bill saved
+  // before that was stored falls back to the shared rule. Templates only print it
+  // (never add it again). The cow/buffalo split is shown only when it adds up.
+  const billTravelCommission = (farmerId: string, collections: any[], currentBill: any, lookup: CommissionLookup) => {
+    const cow = litresOf(collections, 'Cow');
+    const buffalo = litresOf(collections, 'Buffalo');
+    const computed = computeTravelCommission(lookup, farmerId, { cow, buffalo }, billEndDate());
+    const stored = currentBill?.travel_commission;
+    const amount = stored !== undefined && stored !== null && stored !== '' ? Number(stored) : computed.total;
+    const matchesBill = Math.abs(computed.total - amount) < 0.01;
+    const travel: BillTravelCommission | undefined = amount > 0
+      ? {
+          amount,
+          ...(matchesBill && computed.fixed === 0 && cow > 0 && buffalo > 0
+            ? { cow_amount: computed.cow, buffalo_amount: computed.buffalo }
+            : {})
+        }
+      : undefined;
+    return { travel, computed, amount, matchesBill };
   };
+
+  // Format 7: the per-day commission column for the milk type on one page. The
+  // flat (Fixed) part and the bill check go on the page that carries the summary.
+  const dailyCommissionFor = (
+    bill: ReturnType<typeof billTravelCommission>,
+    milkType: 'Cow' | 'Buffalo',
+    withSummary: boolean
+  ): DailyCommission => ({
+    rate: perLiterRate(bill.computed, milkType),
+    ...(withSummary ? { fixed: bill.computed.fixed, matches_bill: bill.matchesBill, billed_amount: bill.amount } : {})
+  });
 
   const exportToPDF = async (templateFn: typeof generateTemplate2 = generateTemplate2) => {
     setPdfLoading(true);
@@ -798,12 +762,11 @@ const FarmerBillInvoiceReport = () => {
       const dairyId = selectedBranch?.branch_id || selectedBranch?.id;
 
       // Fetch farmer data, bonus data, report language, and commissions in parallel
-      const [response, bonusMap, reportLang, vlcComm, farmerCommMap] = await Promise.all([
+      const [response, bonusMap, reportLang, commissionLookup] = await Promise.all([
         billApi.getFarmerReport({ dairy_id: dairyId, start_date: fromDate, end_date: toDate }),
         fetchBonusMap(dairyId),
         fetchReportLanguage(selectedVLC),
-        fetchVlcCommissionSettings(selectedVLC),
-        fetchFarmerCommissionMap(selectedVLC)
+        fetchCommissionLookup(selectedVLC)
       ]);
 
       if (!response.data.success) {
@@ -916,6 +879,9 @@ const FarmerBillInvoiceReport = () => {
           hideRateAmount: hideRateAmount
         };
 
+        const bill = billTravelCommission(farmerId, farmerInfo.collections, farmerInfo.current_bill, commissionLookup);
+        const isFormat7 = templateFn === generateTemplate7;
+
         // Check for mixed types (only relevant when milkTypeFilter is 'All').
         // Format 5 (Milk Bill) and Format 6 keep both types on one page, so they never split.
         const hasCow = templateDataItems.some(item => item.type === 'Cow');
@@ -923,36 +889,14 @@ const FarmerBillInvoiceReport = () => {
         const isMixed = milkTypeFilter === 'All' && hasCow && hasBuffalo && templateFn !== generateTemplate5MilkBill && templateFn !== generateTemplate6;
 
         if (isMixed) {
-          const cowItems = templateDataItems.filter(i => i.type === 'Cow');
-          const buffaloItems = templateDataItems.filter(i => i.type === 'Buffalo');
-
-          const cowComm = resolveFarmerCommission(farmerId, 'Cow', farmerCommMap, vlcComm);
-          const buffComm = resolveFarmerCommission(farmerId, 'Buffalo', farmerCommMap, vlcComm);
-          const cowLiters = cowItems.reduce((s, i) => s + i.liters, 0);
-          const buffLiters = buffaloItems.reduce((s, i) => s + i.liters, 0);
-
-          const cowTravelAmt = cowComm
-            ? (cowComm.type === 'Commission' ? cowLiters * parseFloat(cowComm.amount) : parseFloat(cowComm.amount))
-            : 0;
-          const buffTravelAmt = buffComm
-            ? (buffComm.type === 'Commission' ? buffLiters * parseFloat(buffComm.amount) : parseFloat(buffComm.amount))
-            : 0;
-          const combinedTravelComm = (cowComm || buffComm) ? {
-            type: 'Commission',
-            rate: 0,
-            amount: cowTravelAmt + buffTravelAmt,
-            effective_from: (buffComm ?? cowComm)!.effective_from,
-            cow_amount: cowTravelAmt,
-            buffalo_amount: buffTravelAmt
-          } : undefined;
-
           // 1. Cow Page (Header YES, Summary NO)
           const cowHtml = templateFn({
             ...baseParams,
             milkType: 'Cow',
             hideHeader: false,
             hideSummary: true,
-            travel_commission: buildTravelCommission(cowComm, cowLiters)
+            travel_commission: bill.travel,
+            ...(isFormat7 ? { daily_commission: dailyCommissionFor(bill, 'Cow', false) } : {})
           }, reportLang);
           const cowPage = await generatePage(cowHtml);
           if (i > 0) pdf.addPage();
@@ -960,13 +904,14 @@ const FarmerBillInvoiceReport = () => {
 
           pdf.addImage(cowPage.imgData, 'JPEG', 0, 0, cowPage.imgWidth, cowPage.imgHeight);
 
-          // 2. Buffalo Page (Header NO, Summary YES — combined cow+buffalo travel commission)
+          // 2. Buffalo Page (Header NO, Summary YES — the whole bill's travel commission)
           const buffaloHtml = templateFn({
             ...baseParams,
             milkType: 'Buffalo',
             hideHeader: true,
             hideSummary: false,
-            travel_commission: combinedTravelComm
+            travel_commission: bill.travel,
+            ...(isFormat7 ? { daily_commission: dailyCommissionFor(bill, 'Buffalo', true) } : {})
           }, reportLang);
           const buffaloPage = await generatePage(buffaloHtml);
           pdf.addPage();
@@ -978,10 +923,8 @@ const FarmerBillInvoiceReport = () => {
           const htmlContent = templateFn({
             ...baseParams,
             milkType: milkTypeFilter,
-            travel_commission: buildTravelCommission(
-              resolveFarmerCommission(farmerId, actualMilkType, farmerCommMap, vlcComm),
-              templateDataItems.reduce((s, i) => s + i.liters, 0)
-            )
+            travel_commission: bill.travel,
+            ...(isFormat7 ? { daily_commission: dailyCommissionFor(bill, actualMilkType === 'Buffalo' ? 'Buffalo' : 'Cow', true) } : {})
           }, reportLang);
           const page = await generatePage(htmlContent);
 
@@ -1026,12 +969,11 @@ const FarmerBillInvoiceReport = () => {
       const dairyId = selectedBranch?.branch_id || selectedBranch?.id;
 
       // Fetch farmer data, bonus data, report language, and commissions in parallel
-      const [response, bonusMap, reportLang, vlcComm, farmerCommMap] = await Promise.all([
+      const [response, bonusMap, reportLang, commissionLookup] = await Promise.all([
         billApi.getFarmerReport({ dairy_id: dairyId, start_date: fromDate, end_date: toDate }),
         fetchBonusMap(dairyId),
         fetchReportLanguage(selectedVLC),
-        fetchVlcCommissionSettings(selectedVLC),
-        fetchFarmerCommissionMap(selectedVLC)
+        fetchCommissionLookup(selectedVLC)
       ]);
 
       if (!response.data.success) {
@@ -1107,15 +1049,24 @@ const FarmerBillInvoiceReport = () => {
         return;
       }
 
+      // A mixed farmer arrives as a cow entry and a buffalo entry; the commission
+      // belongs to the whole bill, so it is worked out from both
+      const collectionsByFarmer = new Map<string, any[]>();
+      [...cowData, ...buffaloData].forEach((f) => {
+        collectionsByFarmer.set(f.farmer_id, [...(collectionsByFarmer.get(f.farmer_id) || []), ...f.collections]);
+      });
+
       for (let i = 0; i < filteredData.length; i += chunkSize) {
         const chunk = filteredData.slice(i, i + chunkSize);
 
         const farmersWithComm = chunk.map(farmer => ({
           ...farmer,
-          travel_commission: buildTravelCommission(
-            resolveFarmerCommission(farmer.farmer_id, farmer._displayMilkType || milkTypeFilter, farmerCommMap, vlcComm),
-            farmer.collections_summary?.total_quantity || 0
-          )
+          travel_commission: billTravelCommission(
+            farmer.farmer_id,
+            collectionsByFarmer.get(farmer.farmer_id) || farmer.collections,
+            farmer.current_bill,
+            commissionLookup
+          ).travel
         }));
 
         let htmlContent = "";
@@ -1170,12 +1121,11 @@ const FarmerBillInvoiceReport = () => {
       const dairyId = selectedBranch?.branch_id || selectedBranch?.id;
 
       // Fetch farmer data, bonus data, report language, and commissions in parallel
-      const [response, bonusMap, reportLang, vlcComm, farmerCommMap] = await Promise.all([
+      const [response, bonusMap, reportLang, commissionLookup] = await Promise.all([
         billApi.getFarmerReport({ dairy_id: dairyId, start_date: fromDate, end_date: toDate }),
         fetchBonusMap(dairyId),
         fetchReportLanguage(selectedVLC),
-        fetchVlcCommissionSettings(selectedVLC),
-        fetchFarmerCommissionMap(selectedVLC)
+        fetchCommissionLookup(selectedVLC)
       ]);
 
       if (!response.data.success) {
@@ -1260,61 +1210,28 @@ const FarmerBillInvoiceReport = () => {
           payments: getNormalizedPayments(farmer),
           bonus_deduction_info: attachBonus(farmer, bonusMap, farmer.collections_summary?.total_quantity || 0).bonus_deduction_info,
           bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary || null,
-          travel_commission: buildTravelCommission(
-            resolveFarmerCommission(
-              farmer.farmer_id,
-              milkTypeFilter !== 'All' ? milkTypeFilter : (farmerBillData[0]?.type || 'Cow'),
-              farmerCommMap,
-              vlcComm
-            ),
-            farmerBillData.reduce((s, i) => s + i.liters, 0)
-          )
+          travel_commission: billTravelCommission(farmer.farmer_id, farmer.collections, farmer.current_bill, commissionLookup).travel
         };
 
         const hasCow = farmerBillData.some(d => d.type === 'Cow');
         const hasBuffalo = farmerBillData.some(d => d.type === 'Buffalo' || d.type === 'Buffaloes');
 
         if (hasCow && hasBuffalo) {
-          const cowBillData = farmerBillData.filter(d => d.type === 'Cow');
-          const buffaloBillData = farmerBillData.filter(d => d.type === 'Buffalo' || (d.type as string) === 'Buffaloes');
-
-          const cowComm = resolveFarmerCommission(farmer.farmer_id, 'Cow', farmerCommMap, vlcComm);
-          const buffComm = resolveFarmerCommission(farmer.farmer_id, 'Buffalo', farmerCommMap, vlcComm);
-          const cowLiters = cowBillData.reduce((s, i) => s + i.liters, 0);
-          const buffLiters = buffaloBillData.reduce((s, i) => s + i.liters, 0);
-
-          const cowTravelAmt = cowComm
-            ? (cowComm.type === 'Commission' ? cowLiters * parseFloat(cowComm.amount) : parseFloat(cowComm.amount))
-            : 0;
-          const buffTravelAmt = buffComm
-            ? (buffComm.type === 'Commission' ? buffLiters * parseFloat(buffComm.amount) : parseFloat(buffComm.amount))
-            : 0;
-          const combinedTravelComm = (cowComm || buffComm) ? {
-            type: 'Commission',
-            rate: 0,
-            amount: cowTravelAmt + buffTravelAmt,
-            effective_from: (buffComm ?? cowComm)!.effective_from,
-            cow_amount: cowTravelAmt,
-            buffalo_amount: buffTravelAmt
-          } : undefined;
-
           // Page 1: Cow only, hide summary
           const cowHtml = generateTemplateDetailedHorizontal({
             ...templateData,
             renderOnly: 'Cow',
-            hideSummary: true,
-            travel_commission: buildTravelCommission(cowComm, cowLiters)
+            hideSummary: true
           } as any, reportLang);
           const cowPage = await generatePage(cowHtml);
           if (i > 0) pdf.addPage();
           pdf.addImage(cowPage.imgData, 'JPEG', 0, 0, cowPage.imgWidth, cowPage.imgHeight);
 
-          // Page 2: Buffalo only, show summary — combined cow+buffalo travel commission
+          // Page 2: Buffalo only, show summary — the whole bill's travel commission
           const buffHtml = generateTemplateDetailedHorizontal({
             ...templateData,
             renderOnly: 'Buffalo',
-            hideSummary: false,
-            travel_commission: combinedTravelComm
+            hideSummary: false
           } as any, reportLang);
           const buffPage = await generatePage(buffHtml);
           pdf.addPage();
@@ -1338,7 +1255,7 @@ const FarmerBillInvoiceReport = () => {
   };
 
   const handleExport = () => {
-    if ((exportFormat === '1-per-page' || exportFormat === 'format-4' || exportFormat === 'format-5' || exportFormat === 'format-6') && collectionData.length === 0) {
+    if ((exportFormat === '1-per-page' || exportFormat === 'format-4' || exportFormat === 'format-5' || exportFormat === 'format-6' || exportFormat === 'format-7') && collectionData.length === 0) {
       toast.error(t('please_click_show_first_for_detailed_report'));
       return;
     }
@@ -1353,6 +1270,8 @@ const FarmerBillInvoiceReport = () => {
       exportToPDF(generateTemplate5MilkBill);
     } else if (exportFormat === 'format-6') {
       exportToPDF(generateTemplate6);
+    } else if (exportFormat === 'format-7') {
+      exportToPDF(generateTemplate7);
     } else if (exportFormat === '2-per-page') {
       exportMultiPerPagePDF(1);
     } else {
@@ -1453,6 +1372,13 @@ const FarmerBillInvoiceReport = () => {
 
         const bill = searchBills.find((b: any) => b.farmer_id === farmerId);
         const payments = farmerPayments.filter(p => p.farmer_id === farmerId);
+        // The bill's travel commission is already inside its saved net payable
+        const travel = bill ? billTravelCommission(
+          farmerId,
+          searchBills.filter((b: any) => b.farmer_id === farmerId).flatMap((b: any) => b.collections || []),
+          bill.current_bill,
+          commissionLookup
+        ).travel : undefined;
 
         type ShiftAgg = {
           liters: number;
@@ -1714,23 +1640,16 @@ const FarmerBillInvoiceReport = () => {
                         <p className="text-sm text-gray-600">{t('advance')}</p>
                         <p className="text-xl font-bold">₹{parseFloat(bill.current_bill.advance_total || '0').toFixed(2)}</p>
                       </div>
-                      {vlcCommission && (new Date(toDate) >= new Date(vlcCommission.effective_from)) && (
+                      {travel && (
                         <div className="p-4 bg-gray-50 rounded">
                           <p className="text-sm text-gray-600">{t('travel_commission')}</p>
-                          <p className="text-xl font-bold">
-                            ₹{(vlcCommission.type === 'Commission'
-                              ? (farmerData.reduce((acc, curr) => acc + parseFloat(curr.liters || '0'), 0) * parseFloat(vlcCommission.amount))
-                              : parseFloat(vlcCommission.amount)
-                            ).toFixed(2)}
-                          </p>
+                          <p className="text-xl font-bold">₹{travel.amount.toFixed(2)}</p>
                         </div>
                       )}
                       <div className="p-4 bg-blue-50 border border-blue-200 rounded">
                         <p className="text-sm text-blue-600 font-semibold">{t('net_payable')}</p>
                         <p className="text-2xl font-bold text-blue-700">
-                          ₹{(parseFloat(bill.current_bill.net_payable || '0') + (vlcCommission && (new Date(toDate) >= new Date(vlcCommission.effective_from)) ? (vlcCommission.type === 'Commission'
-                            ? (farmerData.reduce((acc, curr) => acc + parseFloat(curr.liters || '0'), 0) * parseFloat(vlcCommission.amount))
-                            : parseFloat(vlcCommission.amount)) : 0)).toFixed(2)}
+                          ₹{parseFloat(bill.current_bill.net_payable || '0').toFixed(2)}
                         </p>
                       </div>
                       <div className="p-4 bg-gray-50 rounded">
@@ -1957,6 +1876,10 @@ const FarmerBillInvoiceReport = () => {
               <div className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExportFormat('format-6')}>
                 <RadioGroupItem value="format-6" id="format-6" />
                 <Label htmlFor="format-6" className="flex-1 font-semibold cursor-pointer">{t('export_option_format_6')}</Label>
+              </div>
+              <div className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExportFormat('format-7')}>
+                <RadioGroupItem value="format-7" id="format-7" />
+                <Label htmlFor="format-7" className="flex-1 font-semibold cursor-pointer">{t('export_option_format_7')}</Label>
               </div>
             </RadioGroup>
           </div>

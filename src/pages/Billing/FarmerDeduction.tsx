@@ -36,6 +36,7 @@ import { deductionApi } from "@/services/deductionApi";
 import { bonusApi } from "@/services/bonusApi";
 import { webUserApi } from "@/services/webUserApi";
 import { vlcCommissionApi } from "@/services/vlcCommissionApi";
+import { buildCommissionLookup, computeTravelCommission } from "@/utils/travelCommission";
 import { useAppSelector } from "@/redux/store";
 import { toast } from "react-toastify";
 
@@ -349,58 +350,15 @@ const FarmerDeduction = () => {
       if (processedData.length > 0) {
         try {
           const commResponse = await vlcCommissionApi.getByVlcc(vlcName);
-          const commRecords = (commResponse.data?.data ?? []) as Record<string, string>[];
-
-          // Key: `${farmer_id}_${milk_type}` — farmer_id='' for VLC-level, milk_type='null' when absent
-          const commMap = new Map<string, Record<string, string>>();
-          commRecords.forEach((r) => {
-            const key = `${r.farmer_id || ''}_${r.milk_type || 'null'}`;
-            if (!commMap.has(key)) commMap.set(key, r);
-          });
-
-          const isActive = (comm: Record<string, string>) => {
-            const effectiveDate = comm.effective_from ? new Date(comm.effective_from) : null;
-            return !(effectiveDate && endDate && endDate <= effectiveDate);
-          };
-
-          // Resolve by: farmer+type → VLC+type → farmer+generic → VLC+generic
-          const getComm = (farmerId: string, milkType: string) =>
-            commMap.get(`${farmerId}_${milkType}`) ??
-            commMap.get(`_${milkType}`) ??
-            null;
-
-          const getGeneric = (farmerId: string) =>
-            commMap.get(`${farmerId}_null`) ??
-            commMap.get(`_null`) ??
-            null;
-
-          const calcPart = (comm: Record<string, string> | null, qty: number): number => {
-            if (!comm || qty === 0 || !isActive(comm)) return 0;
-            const rate = parseFloat(comm.amount || '0');
-            return comm.type === 'Commission' ? qty * rate : rate;
-          };
+          const lookup = buildCommissionLookup(commResponse.data?.data ?? []);
 
           processedData.forEach(farmer => {
-            const fid = farmer.farmer_id;
-            const cowComm = getComm(fid, 'Cow');
-            const buffaloComm = getComm(fid, 'Buffalo');
-            const genericComm = getGeneric(fid);
-
-            if (cowComm || buffaloComm) {
-              // Type-specific rates — calculate cow and buffalo separately
-              const cowPart = cowComm
-                ? calcPart(cowComm, farmer.cowQuantity)
-                : calcPart(genericComm, farmer.cowQuantity);
-              const bufPart = buffaloComm
-                ? calcPart(buffaloComm, farmer.buffaloQuantity)
-                : calcPart(genericComm, farmer.buffaloQuantity);
-              farmer.travelCommissionAmount = cowPart + bufPart;
-            } else if (genericComm) {
-              // Null milk_type record → apply once to total quantity
-              farmer.travelCommissionAmount = calcPart(genericComm, farmer.quantity);
-            } else {
-              farmer.travelCommissionAmount = 0;
-            }
+            farmer.travelCommissionAmount = computeTravelCommission(
+              lookup,
+              farmer.farmer_id,
+              { cow: farmer.cowQuantity, buffalo: farmer.buffaloQuantity, total: farmer.quantity },
+              endDate
+            ).total;
           });
         } catch (error) {
           console.error('❌ [COMMISSION API ERROR]:', error);
@@ -587,6 +545,8 @@ const FarmerDeduction = () => {
             other2_total: farmer.other2Deduction,
             received_total: farmer.receivedAmount,
             net_payable: netPayable,
+            // Already inside net_payable — stored so the bill PDF prints it without adding it again
+            travel_commission: travelCommissionAmount,
             advance_remaining: farmer.advance - farmer.advanceDeduction,
             cattlefeed_remaining: farmer.cattleFeedAmount - farmer.cattleFeedDeduction,
             other1_remaining: farmer.other1Amount - farmer.other1Deduction,

@@ -18,6 +18,7 @@ export const ROUTES = {
     VLC_COLLECTION:`/dashboard/vlc-collection`,
     ROUTE_COLLECTION:`/dashboard/route-collection`,
     BMC_COLLECTION:`/dashboard/bmc-collection`,
+    TANKER:`/dashboard/tanker`,
     FARMER_MANAGEMENT:`/dashboard/farmer-management`,
   },
   CC_COLLECTION:{
@@ -35,6 +36,7 @@ export const ROUTES = {
     CREATE_ROUTE:`/dashboard/create-route`,
     CREATE_BMC:`/dashboard/create-bmc`,
     CREATE_CC:`/dashboard/create-cc`,
+    CREATE_TRANSPORT:`/dashboard/create-transport`,
   },
   BILLING:{
     FARMER_DEDUCTION:`/dashboard/farmer-deduction`,
@@ -70,6 +72,8 @@ export const ROUTES = {
     FARMER_COMMISSION_REPORT:`/dashboard/farmer-commission-report`,
     FARMER_NEFT_STATEMENT:`/dashboard/farmer-neft-statement`,
     VLC_COMMISSION_NEFT:`/dashboard/vlc-commission-neft`,
+    TRANSPORT_NEFT_STATEMENT:`/dashboard/transport-neft-statement`,
+    TRANSPORT_BILL_INVOICE:`/dashboard/transport-bill-invoice`,
     VLC_DIFFERENCE_REPORT: `/dashboard/vlc-diffrerence-report`,
     VLC_DIFFERENCE_REPORT_2: `/dashboard/vlc-diffrerence-report-2`,
     BANK_SUMMARY:`/dashboard/bank-summary`,

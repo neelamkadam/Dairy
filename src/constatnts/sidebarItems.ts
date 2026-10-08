@@ -34,6 +34,7 @@ export const SECTION_ITEMS: Record<SidebarSectionKey, SidebarItemDef[]> = {
     { key: "vlc_collection", titleKey: "vlc_collection", titleDefault: "VLC Collection", href: ROUTES.COLLECTION.VLC_COLLECTION },
     { key: "route_collection", titleKey: "route_collection", titleDefault: "Route Collection", href: ROUTES.COLLECTION.ROUTE_COLLECTION },
     { key: "bmc_collection", titleKey: "bmc_collection", titleDefault: "BMC Collection", href: ROUTES.COLLECTION.BMC_COLLECTION },
+    { key: "tanker_collection", titleKey: "tanker", titleDefault: "Tanker", href: ROUTES.COLLECTION.TANKER },
     { key: "cc_collection", titleKey: "cc_collection", titleDefault: "CC Collection", href: ROUTES.CC_COLLECTION.CHILLING_CENTER },
   ],
   master: [
@@ -50,6 +51,7 @@ export const SECTION_ITEMS: Record<SidebarSectionKey, SidebarItemDef[]> = {
         { key: "create_route", titleKey: "create_route", titleDefault: "Create Route", href: ROUTES.MASTER.CREATE_ROUTE },
         { key: "create_bmc", titleKey: "create_bmc", titleDefault: "Create BMC", href: ROUTES.MASTER.CREATE_BMC },
         { key: "create_cc", titleKey: "create_cc", titleDefault: "Create CC", href: ROUTES.MASTER.CREATE_CC },
+        { key: "create_transport", titleKey: "create_transport", titleDefault: "Create Transport", href: ROUTES.MASTER.CREATE_TRANSPORT },
         { key: "create_supervisor", titleKey: "create_supervisor", titleDefault: "Create Supervisor (Sub User)", href: ROUTES.SETTINGS.CREATE_USER, adminOnly: true },
         { key: "create_dairy", titleKey: "create_dairy", titleDefault: "Create Dairy", href: ROUTES.SETTINGS.CREATE_DAIRY, adminOnly: true },
         { key: "dairy_equipment", titleKey: "dairy_equipment", titleDefault: "Dairy Equipment", href: ROUTES.MASTER.DAIRY_EQUIPMENT, adminOnly: true },

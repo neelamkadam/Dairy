@@ -91,7 +91,7 @@ const numberToWords = (n: number): string => {
   return parts.join(" ");
 };
 
-const amountInWords = (value: number) => {
+export const amountInWords = (value: number) => {
   const amount = Math.abs(Number(value) || 0);
   const rupees = Math.floor(amount);
   const paise = Math.round((amount - rupees) * 100);

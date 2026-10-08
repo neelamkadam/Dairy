@@ -75,11 +75,11 @@ export interface FarmerReportData {
     remark?: string;
     total_bonus_till_date?: number | string;
   } | null;
+  // Already inside the saved net_payable: printed, never added again
   travel_commission?: {
-    type: string;
-    rate: number;
     amount: number;
-    effective_from?: string;
+    cow_amount?: number;
+    buffalo_amount?: number;
   };
 }
 
@@ -446,18 +446,15 @@ export const generateFarmer2PerPage = (templateData: Template2PerPageData): stri
     const displayTotalLiters = combinedTotalQty > summaryTotalLiters ? combinedTotalQty : summaryTotalLiters;
     const combinedTotalAmount = Number((farmer as any)._combinedTotalAmount || 0);
     const displayTotalAmount = combinedTotalAmount > 0 ? combinedTotalAmount : summaryTotalAmount;
-    // Use server-computed net_payable (already accounts for bonus/fixed deductions)
-    let netPayable = farmer.current_bill?.net_payable != null
+    // Use server-computed net_payable (already accounts for bonus/fixed deductions
+    // and the travel commission, which is printed below but not added again)
+    const netPayable = farmer.current_bill?.net_payable != null
       ? Number(farmer.current_bill.net_payable)
       : Number(summaryTotalAmount - totalDeductions);
 
     const travelComm = farmer.travel_commission;
-    const isTravelValid = travelComm && travelComm.effective_from && (new Date(templateData.toDate) >= new Date(travelComm.effective_from));
+    const isTravelValid = !!travelComm && travelComm.amount > 0;
     const travelAmount = isTravelValid ? travelComm.amount : 0;
-
-    if (isTravelValid) {
-      netPayable += travelAmount;
-    }
 
     // Generate HTML with new unified table format matching the image
     return `

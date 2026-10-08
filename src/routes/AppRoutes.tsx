@@ -31,6 +31,7 @@ import AnalyserCollection from "@/pages/CC_Collection/AnalyserCollection";
 import FarmerManagement from "@/pages/Collection/FarmerManagement";
 import VLCCllection from "@/pages/Collection/VLCCllection";
 import RouteCollection from "@/pages/Collection/RouteCollection";
+import TankerTrips from "@/pages/Collection/TankerTrips";
 import DispatchEntry from "@/pages/CollectionEntry/DispatchEntry";
 import TankerTradeEntry from "@/pages/CollectionEntry/TankerTradeEntry";
 import FarmerCollectionEntry from "@/pages/CollectionEntry/FarmerCollectionEntry";
@@ -43,6 +44,7 @@ import Bonus from "@/pages/Master/Bonus";
 import OtherExpense from "@/pages/Master/OtherExpense";
 import DairyEquipment from "@/pages/Master/DairyEquipment";
 import CreateRoute from "@/pages/Master/CreateRoute";
+import CreateTransport from "@/pages/Master/CreateTransport";
 import CreateBMC from "@/pages/Master/CreateBMC";
 import CreateCC from "@/pages/Master/CreateCC";
 import FarmerBillInvoiceReport from "@/pages/Reports/FarmerBillInvoiceReport";
@@ -62,6 +64,8 @@ import VlcCommissionReport from "@/pages/Reports/VlcCommissionReport";
 import FarmerCommissionReport from "@/pages/Reports/FarmerCommissionReport";
 import FarmerNeftStatement from "@/pages/Reports/FarmerNeftStatement";
 import VlcCommissionNeft from "@/pages/Reports/VlcCommissionNeft";
+import TransportNeftStatement from "@/pages/Reports/TransportNeftStatement";
+import TransportBillInvoice from "@/pages/Reports/TransportBillInvoice";
 import TankerDispatchReport from "@/pages/Reports/TankerDispatchReport";
 import TankerProfitLossReport from "@/pages/Reports/TankerProfitLossReport";
 import TankerDaywiseReport from "@/pages/Reports/TankerDaywiseReport";
@@ -163,6 +167,10 @@ export const AppRoutes = createBrowserRouter([
         element: <RouteCollection />,
       },
       {
+        path: "tanker",
+        element: <TankerTrips />,
+      },
+      {
         path: "bmc-collection",
         element: <BMCCollection />,
       },
@@ -209,6 +217,10 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "create-route",
         element: <CreateRoute />,
+      },
+      {
+        path: "create-transport",
+        element: <CreateTransport />,
       },
       {
         path: "create-bmc",
@@ -321,6 +333,14 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "vlc-commission-neft",
         element: <VlcCommissionNeft />,
+      },
+      {
+        path: "transport-neft-statement",
+        element: <TransportNeftStatement />,
+      },
+      {
+        path: "transport-bill-invoice",
+        element: <TransportBillInvoice />,
       },
       {
         path: "vlc-diffrerence-report",

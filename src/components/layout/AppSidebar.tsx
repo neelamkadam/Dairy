@@ -127,6 +127,14 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
           ]
         },
         {
+          title: t('transport_collection', 'Transport Collection'),
+          icon: <Dot size={24} />,
+          children: [
+            { title: t('transport_neft_statement', 'Transport NEFT Statement'), icon: <Dot size={24} />, href: ROUTES.REPORTS.TRANSPORT_NEFT_STATEMENT },
+            { title: t('transport_bill_invoice', 'Transport Bill Invoice'), icon: <Dot size={24} />, href: ROUTES.REPORTS.TRANSPORT_BILL_INVOICE },
+          ]
+        },
+        {
           title: t('cattle_feed_report', 'Cattle Feed Report'),
           icon: <Dot size={24} />,
           children: [

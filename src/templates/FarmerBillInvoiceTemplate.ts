@@ -102,14 +102,28 @@ export interface Template2Data {
       total_bonus_deduction: string;
     }[];
   } | null;
-  travel_commission?: {
-    type: string;
-    rate: number;
-    amount: number;
-    effective_from?: string;
-    cow_amount?: number;
-    buffalo_amount?: number;
-  };
+  // Travel commission on this bill, already decided by the caller: the amount the
+  // saved bill holds (it is already inside net_payable), so templates only print
+  // it and never add it again. cow/buffalo_amount: a split that adds up to amount.
+  travel_commission?: BillTravelCommission;
+  // Format 7: per-day travel commission column for the milk type on this page.
+  daily_commission?: DailyCommission;
+}
+
+export interface BillTravelCommission {
+  amount: number;
+  cow_amount?: number;
+  buffalo_amount?: number;
+}
+
+export interface DailyCommission {
+  /** per-litre rate paid on the milk type shown on this page (0: none, or Fixed) */
+  rate: number;
+  /** flat (Fixed) amount, printed in the total row only; on the summary page only */
+  fixed?: number;
+  /** false when today's commission settings no longer give the amount on the bill */
+  matches_bill?: boolean;
+  billed_amount?: number;
 }
 
 export interface BillCollection {
@@ -191,10 +205,7 @@ export interface FarmerReportData {
     total_bonus_till_date: number | string;
   } | null;
   travel_commission?: {
-    type: string;
-    rate: number;
     amount: number;
-    effective_from?: string;
     cow_amount?: number;
     buffalo_amount?: number;
   };
@@ -280,7 +291,10 @@ const getLabels = (language: string = 'mr') => {
       details: 'Details',
       noDetails: 'No details available',
       dt: 'Dt',
-      fixedDeduction: 'Fixed Deduction'
+      fixedDeduction: 'Fixed Deduction',
+      commission: 'Commission',
+      inclFixed: 'incl. fixed',
+      dailyCommissionNote: 'Per-day commission uses the current commission settings; this bill holds ₹{amount}.'
     },
     hi: {
       date: 'दिनांक',
@@ -340,7 +354,10 @@ const getLabels = (language: string = 'mr') => {
       details: 'विवरण',
       noDetails: 'कोई विवरण उपलब्ध नहीं है',
       dt: 'दि.',
-      fixedDeduction: 'निश्चित कटौती'
+      fixedDeduction: 'निश्चित कटौती',
+      commission: 'कमीशन',
+      inclFixed: 'निश्चित सहित',
+      dailyCommissionNote: 'दैनिक कमीशन वर्तमान कमीशन सेटिंग से है; इस बिल में ₹{amount} है।'
     },
     mr: {
       date: 'दिनांक',
@@ -401,7 +418,10 @@ const getLabels = (language: string = 'mr') => {
       details: 'तपशील',
       noDetails: 'तपशील उपलब्ध नाही',
       dt: 'दि.',
-      fixedDeduction: 'निश्चित कपात'
+      fixedDeduction: 'निश्चित कपात',
+      commission: 'कमिशन',
+      inclFixed: 'निश्चित सह',
+      dailyCommissionNote: 'दैनिक कमिशन सध्याच्या कमिशन सेटिंगनुसार आहे; या बिलात ₹{amount} आहे.'
     }
   };
   const selected = { ... (translations[lang] || translations.mr || translations.en) };
@@ -516,14 +536,12 @@ const computeFormat1Summary = (templateData: Template2Data, labels: any, toDate:
     }
   }
 
-  let netPayable = parseFloat(templateData.current_bill?.net_payable || '0');
+  // net_payable is the saved bill's. Generate Bill and Farmer Deduction already
+  // put the travel commission into it, so it is printed here, never added again.
+  const netPayable = parseFloat(templateData.current_bill?.net_payable || '0');
   const travelComm = templateData.travel_commission;
-  const isTravelValid = travelComm && travelComm.effective_from && (new Date(toDate) >= new Date(travelComm.effective_from));
+  const isTravelValid = !!travelComm && travelComm.amount > 0;
   const travelAmount = isTravelValid ? travelComm.amount : 0;
-
-  if (isTravelValid) {
-    netPayable += travelAmount;
-  }
 
   return {
     cowLiters, buffaloLiters, summaryTotalAmount,
@@ -807,16 +825,27 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
 
   const hasBothTypes = hasCowData && hasBuffaloData;
   
+  // Format 7: one travel commission figure per day (Morning + Evening litres x
+  // the rate paid on this page's milk type), in a cell spanning both shift rows
+  const daily = templateData.daily_commission;
+  let dailyCommissionTotal = 0;
+
   const generateTableForType = (dataMap: Map<string, FarmerBillData>) => {
     let rows = "";
     const currentDate = new Date(fromDate);
     while (currentDate <= toDate) {
       const displayDate = `${currentDate.getDate().toString().padStart(2, "0")}/${(currentDate.getMonth() + 1).toString().padStart(2, "0")}/${currentDate.getFullYear()}`;
-      
+      const dayLiters = ['Morning', 'Evening'].reduce((sum, shift) => sum + (dataMap.get(`${displayDate}_${shift}`)?.liters || 0), 0);
+      const dayCommission = daily ? dayLiters * daily.rate : 0;
+      dailyCommissionTotal += dayCommission;
+
       ['Morning', 'Evening'].forEach(shift => {
         const key = `${displayDate}_${shift}`;
         const item = dataMap.get(key);
         const shiftLabel = shift === 'Morning' ? labels.morning : labels.evening;
+        const commissionCell = daily && shift === 'Morning'
+          ? `<td rowspan="2" style="padding: 2px 4px; border-left: 1px solid #eee; font-weight: bold;">${dayCommission > 0 ? dayCommission.toFixed(2) : ''}</td>`
+          : '';
         rows += `<tr>
           <td style="padding: 2px 4px;">${shift === 'Morning' ? displayDate : ''}</td>
           <td style="padding: 2px 4px;">${shiftLabel}</td>
@@ -827,6 +856,7 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
           <td style="padding: 2px 4px;">${item ? (item.water || 0).toFixed(1) : ''}</td>
           <td style="padding: 2px 4px;">${item ? item.rate.toFixed(1) : ''}</td>
           <td style="padding: 2px 4px;">${item ? item.amount.toFixed(1) : ''}</td>
+          ${commissionCell}
         </tr>`;
       });
       currentDate.setDate(currentDate.getDate() + 1);
@@ -902,6 +932,7 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
         <th>Water</th>
         <th>${labels.rate}</th>
         <th>${labels.amount}</th>
+        ${daily ? `<th style="border-left: 1px solid #ccc;">${labels.commission}</th>` : ''}
       </tr>
     </thead>
     <tbody>
@@ -915,15 +946,26 @@ export const generateTemplate2 = (templateData: Template2Data, language: string 
         <td>${avgWater}</td>
         <td>${totalLiters > 0 ? (totalAmount / totalLiters).toFixed(1) : "0.0"}</td>
         <td>${totalAmount.toFixed(1)}</td>
+        ${daily ? `<td style="border-left: 1px solid #eee;">${(dailyCommissionTotal + (daily.fixed || 0)).toFixed(2)}${
+          daily.fixed ? `<div style="font-size: 10px; font-weight: normal; margin-top: 3px;">${labels.inclFixed} ${daily.fixed.toFixed(2)}</div>` : ''
+        }</td>` : ''}
       </tr>
     </tbody>
   </table>
+  ${daily && daily.matches_bill === false ? `<div style="font-size: 12px; color: #92400e; margin: -15px 0 15px 0;">${
+    labels.dailyCommissionNote.replace('{amount}', (daily.billed_amount || 0).toFixed(2))
+  }</div>` : ''}
 
   ${!templateData.hideSummary ? renderFormat1Summary(templateData, labels, toDate) : ''}
   </div>
 </body>
 </html>`;
 };
+
+// Format 7: Format 1 with a per-day travel commission column. The caller passes
+// templateData.daily_commission; everything else is Format 1.
+export const generateTemplate7 = (templateData: Template2Data, language: string = 'mr'): string =>
+  generateTemplate2(templateData, language);
 
 export const generateTemplateDetailedHorizontal = (templateData: Template2Data, language: string = 'mr'): string => {
   const labels = getLabels(language);
@@ -1170,7 +1212,7 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
   }
 
   const travelComm = templateData.travel_commission;
-  const isTravelValid = travelComm && travelComm.effective_from && (new Date(endDate) >= new Date(travelComm.effective_from));
+  const isTravelValid = !!travelComm && travelComm.amount > 0;
   const travelAmount = isTravelValid ? travelComm.amount : 0;
 
   const summary = {
@@ -1188,8 +1230,6 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
     totalDeductions: parseFloat(templateData.current_bill?.advance_total || '0') + parseFloat(templateData.current_bill?.cattlefeed_total || '0') + parseFloat(templateData.current_bill?.other1_total || '0') + parseFloat(templateData.current_bill?.other2_total || '0') + bonusFixedTotal,
     receivedAmount: (totalMAmt + totalEAmt) - (parseFloat(templateData.current_bill?.advance_total || '0') + parseFloat(templateData.current_bill?.cattlefeed_total || '0') + parseFloat(templateData.current_bill?.other1_total || '0') + parseFloat(templateData.current_bill?.other2_total || '0') + bonusFixedTotal),
   };
-
-  const netPayable = summary.receivedAmount - travelAmount;
 
   // Check if we need to show Other2 row (Kirana always shows)
   const showOther2 = (parseFloat(templateData.previous_bill?.other2_remaining || '0') > 0 || 
@@ -1287,7 +1327,7 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
           <table style="width: 100%; border: none; height: 100%;" class="no-border">
             ${bonusAmount > 0 ? `<tr><td style="padding-left: 8px; font-size: 9px;">${labels.bonusDeduction} : </td><td class="text-right bold" style="padding-right: 8px; font-size: 9px;">${bonusAmount.toFixed(2)}</td></tr>` : ''}
             ${fixedAmount > 0 ? `<tr><td style="padding-left: 8px; font-size: 9px;">${templateData.bonus_deduction_info?.remark || 'इमारत निधी'} : </td><td class="text-right bold" style="padding-right: 8px; font-size: 9px;">${fixedAmount.toFixed(2)}</td></tr>` : ''}
-            ${(templateData.travel_commission && templateData.travel_commission.effective_from && new Date(templateData.toDate) >= new Date(templateData.travel_commission.effective_from)) ?
+            ${isTravelValid ?
               (templateData.travel_commission.cow_amount !== undefined && templateData.travel_commission.buffalo_amount !== undefined) ?
                 `<tr><td style="padding-left: 8px; font-size: 9px;">${labels.cow} ${labels.travelCommission} : </td><td class="text-right bold" style="padding-right: 8px; font-size: 9px;">${templateData.travel_commission.cow_amount.toFixed(2)}</td></tr>
                  <tr><td style="padding-left: 8px; font-size: 9px;">${labels.buffalo} ${labels.travelCommission} : </td><td class="text-right bold" style="padding-right: 8px; font-size: 9px;">${templateData.travel_commission.buffalo_amount.toFixed(2)}</td></tr>
@@ -1296,7 +1336,7 @@ export const generateTemplateDetailedHorizontal = (templateData: Template2Data, 
               : ''}
             <tr class="bold"><td style="padding-left: 8px; font-size: 10px;">बिल रक्कम : </td><td class="text-right" style="padding-right: 8px; font-size: 10px;">${summary.totalAmount.toFixed(2)}</td></tr>
             <tr class="bold"><td style="padding-left: 8px; font-size: 10px;">${labels.ekunKapat} : </td><td class="text-right" style="padding-right: 8px; font-size: 10px;">${(summary.totalDeductions).toFixed(2)}</td></tr>
-            <tr class="bold" style="font-size: 11px; border-top: 1px solid black; background: #eee;"><td style="padding-left: 8px; padding-top: 4px; padding-bottom: 4px;">${labels.adaRakkam} : </td><td class="text-right" style="padding-right: 8px;">${(summary.receivedAmount + ((templateData.travel_commission && templateData.travel_commission.effective_from && new Date(templateData.toDate) >= new Date(templateData.travel_commission.effective_from)) ? templateData.travel_commission.amount : 0)).toFixed(2)}</td></tr>
+            <tr class="bold" style="font-size: 11px; border-top: 1px solid black; background: #eee;"><td style="padding-left: 8px; padding-top: 4px; padding-bottom: 4px;">${labels.adaRakkam} : </td><td class="text-right" style="padding-right: 8px;">${(summary.receivedAmount + travelAmount).toFixed(2)}</td></tr>
           </table>
         </td>
       </tr>
@@ -1436,9 +1476,10 @@ export const generateTemplate3Farmers = (templateData: Template3Data, language: 
     const currentDeductions = (feedTotal + advanceTotal + other1Total + other2Total + bonusFixedTotal);
     
     const travelComm = farmer.travel_commission;
-    const isTravelValid = travelComm && travelComm.effective_from && (new Date(templateData.toDate) >= new Date(travelComm.effective_from));
+    const isTravelValid = !!travelComm && travelComm.amount > 0;
     const travelAmount = isTravelValid ? travelComm.amount : 0;
-    const netPayable = (Number(currentBill?.net_payable || summary.total_amount) - (currentDeductions - bonusFixedTotal)) + travelAmount;
+    // The saved net_payable already holds the travel commission -- not added again
+    const netPayable = Number(currentBill?.net_payable || summary.total_amount) - (currentDeductions - bonusFixedTotal);
 
     const bonusRemark = farmer.bonus_deduction_info?.remark || 'इमारत निधी';
 
