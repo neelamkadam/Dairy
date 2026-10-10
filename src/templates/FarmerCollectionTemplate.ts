@@ -8,7 +8,9 @@ export const generateFarmerCollectionPDF = (
   fromDate: string,
   toDate: string,
   shift: string,
-  milkType: string
+  milkType: string,
+  // File name without extension; defaults to Farmer_Collection_<vlc>_<from>_<to>
+  fileName?: string
 ) => {
   const formatDate = (date: Date) => {
     const day = date.getDate();
@@ -118,5 +120,5 @@ export const generateFarmerCollectionPDF = (
     },
   };
 
-  pdfMake.createPdf(docDefinition).download(`Farmer_Collection_${vlcName}_${fromDate}_${toDate}.pdf`);
+  pdfMake.createPdf(docDefinition).download(`${fileName || `Farmer_Collection_${vlcName}_${fromDate}_${toDate}`}.pdf`);
 };

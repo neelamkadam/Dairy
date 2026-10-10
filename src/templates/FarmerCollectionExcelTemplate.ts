@@ -7,7 +7,9 @@ export const generateFarmerCollectionExcel = (
   fromDate: string,
   toDate: string,
   shift: string,
-  milkType: string
+  milkType: string,
+  // File name without extension; defaults to Farmer_Collection_<vlc>_<from>_<to>
+  fileName?: string
 ) => {
   const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -57,5 +59,5 @@ export const generateFarmerCollectionExcel = (
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Farmer Collection');
 
-  XLSX.writeFile(workbook, `Farmer_Collection_${vlcName}_${fromDate}_${toDate}.xlsx`);
+  XLSX.writeFile(workbook, `${fileName || `Farmer_Collection_${vlcName}_${fromDate}_${toDate}`}.xlsx`);
 };

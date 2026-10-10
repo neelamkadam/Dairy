@@ -16,7 +16,7 @@ import { X, ChevronRight, ChevronLeft, CalendarIcon, Download, Users, Droplets, 
 import KPICard from "@/components/KPICard";
 import { collectionTotals } from "@/utils/farmerCollectionTotals";
 import { useEffect, useMemo, useState } from "react";
-import { format, parseISO, isValid, subDays } from "date-fns";
+import { format, parseISO, isValid, subDays, isSameDay } from "date-fns";
 import FarmerDayComparisonTable from "@/components/FarmerDayComparisonTable";
 import { buildDayComparison } from "@/utils/farmerDayComparison";
 import { generateFarmerDayComparisonExcel, generateFarmerDayComparisonPDF } from "@/templates/FarmerDayComparisonTemplate";
@@ -262,6 +262,13 @@ const FarmerCollection = () => {
     }
   };
 
+  // Several VLCs on a single day download as "<date> <shift>", e.g. "10.10.2026 Evening"
+  // (just the date when the shift is All). Otherwise each export keeps its own name.
+  const multiVlcDayFileName = () => {
+    if (selectedVLCs.length < 2 || !isSameDay(fromDate, toDate)) return undefined;
+    return [format(fromDate, "dd.MM.yyyy"), shift !== "All" ? shift : ""].filter(Boolean).join(" ");
+  };
+
   const handleExportPDF = () => {
     if (viewMode === "difference") {
       if (!dayComparison?.groups.length) {
@@ -287,7 +294,7 @@ const FarmerCollection = () => {
     const vlcDairyName = selectedVLCs.length > 1 ? "Combined Report" : (selectedBranch ? `${vlcNo.prefix(selectedBranch.username)}${selectedBranch.username}` : "");
     const fromDateStr = format(fromDate, "dd-MM-yyyy");
     const toDateStr = format(toDate, "dd-MM-yyyy");
-    generateFarmerCollectionPDF(collectionData, branchName, vlcDairyName, fromDateStr, toDateStr, shift, milkType);
+    generateFarmerCollectionPDF(collectionData, branchName, vlcDairyName, fromDateStr, toDateStr, shift, milkType, multiVlcDayFileName());
     toast.success("PDF exported successfully");
   };
 
@@ -315,7 +322,7 @@ const FarmerCollection = () => {
     const branchName = selectedVLCs.length > 1 ? "Multiple Centers" : (selectedBranch ? selectedBranch.name : "");
     const fromDateStr = format(fromDate, "dd-MM-yyyy");
     const toDateStr = format(toDate, "dd-MM-yyyy");
-    generateFarmerCollectionExcel(collectionData, branchName, fromDateStr, toDateStr, shift, milkType);
+    generateFarmerCollectionExcel(collectionData, branchName, fromDateStr, toDateStr, shift, milkType, multiVlcDayFileName());
     toast.success("Excel exported successfully");
   };
 
@@ -363,7 +370,7 @@ const FarmerCollection = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Collection_Data_${format(fromDate, "dd-MM-yyyy")}_to_${format(toDate, "dd-MM-yyyy")}.txt`;
+    link.download = `${multiVlcDayFileName() || `Collection_Data_${format(fromDate, "dd-MM-yyyy")}_to_${format(toDate, "dd-MM-yyyy")}`}.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

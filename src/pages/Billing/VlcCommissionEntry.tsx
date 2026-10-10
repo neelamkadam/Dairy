@@ -19,11 +19,16 @@ import { cn } from "@/lib/utils";
 import { reportsApi } from "@/services/reportsApi";
 import { History, TrendingUp, Wallet, Calendar, CheckCircle2, Copy } from "lucide-react";
 
+// Selected VLCs are saved a few at a time, so "Select All" does not fire one
+// request per VLC all at once
+const SAVE_CONCURRENCY = 4;
+
 const VlcCCommissionEntry: React.FC = () => {
   const { t } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
   const [formData, setFormData] = useState({
-    vlcc: "",
+    // One commission is saved for every selected VLC
+    vlccs: [] as string[],
     commissionType: "per-liter",
     commissionAmount: "",
     effectiveDate: new Date() as Date | undefined,
@@ -44,12 +49,17 @@ const VlcCCommissionEntry: React.FC = () => {
     );
   };
 
+  // History and auto-fill follow a single selected VLC; with several selected the
+  // panel lists them instead
+  const singleVlc = formData.vlccs.length === 1 ? formData.vlccs[0] : "";
+  const selectedBranches = (branches || []).filter((b) => formData.vlccs.includes(String(b.branch_id)));
+
   const fetchCommissionData = async () => {
-    if (!formData.vlcc) return;
+    if (!singleVlc) return;
     const dateToUse = formData.effectiveDate || new Date();
     try {
       const data = await reportsApi.getVlcCommissionReport({
-        vlc_id: formData.vlcc,
+        vlc_id: singleVlc,
         start_date: format(dateToUse, 'yyyy-MM-dd'),
         end_date: format(dateToUse, 'yyyy-MM-dd')
       });
@@ -72,37 +82,67 @@ const VlcCCommissionEntry: React.FC = () => {
   };
 
   useEffect(() => {
-    if (formData.vlcc) {
+    if (singleVlc) {
       fetchCommissionData();
+    } else {
+      setCommissionData(null);
     }
-  }, [formData.vlcc]);
+  }, [singleVlc]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.vlcc || !formData.commissionAmount || !formData.effectiveDate) {
+    if (!formData.vlccs.length || !formData.commissionAmount || !formData.effectiveDate) {
       toast.error(t("please_fill_all_required_fields", "Please fill all required fields"));
       return;
     }
+    const base = {
+      type: formData.commissionType === "per-liter" ? "Commission" : "Fixed",
+      amount: parseFloat(formData.commissionAmount),
+      effective_from: format(formData.effectiveDate, "yyyy-MM-dd")
+    };
     setLoading(true);
-    try {
-      const payload = {
-        vlcc: formData.vlcc,
-        type: formData.commissionType === "per-liter" ? "Commission" : "Fixed",
-        amount: parseFloat(formData.commissionAmount),
-        effective_from: format(formData.effectiveDate, "yyyy-MM-dd")
-      };
-      const response = await vlcCommissionApi.create(payload);
-      if (response.data.success) {
-        toast.success(response.data.message);
-        setInputValue(`VLC-${response.data.id}-${Date.now()}`);
-        setIsSubmitted(true);
-        fetchCommissionData();
-        setTimeout(() => setIsSubmitted(false), 5000);
+    const saved: { vlcc: string; id: number; message: string }[] = [];
+    const failed: { vlcc: string; message: string }[] = [];
+    for (let i = 0; i < formData.vlccs.length; i += SAVE_CONCURRENCY) {
+      const batch = formData.vlccs.slice(i, i + SAVE_CONCURRENCY);
+      const results = await Promise.allSettled(batch.map((vlcc) => vlcCommissionApi.create({ vlcc, ...base })));
+      results.forEach((result, j) => {
+        const vlcc = batch[j];
+        if (result.status === "fulfilled" && result.value.data.success) {
+          saved.push({ vlcc, id: result.value.data.id, message: result.value.data.message });
+        } else {
+          const error: any = result.status === "rejected" ? result.reason : null;
+          failed.push({
+            vlcc,
+            message: error?.response?.data?.message || (result.status === "fulfilled" && result.value.data.message) || t("failed_to_submit_commission", "Failed to submit commission"),
+          });
+        }
+      });
+    }
+    setLoading(false);
+
+    const vlcLabel = (vlcc: string) => {
+      const branch = (branches || []).find((b) => String(b.branch_id) === vlcc);
+      return branch ? `${branch.username} - ${branch.name}` : vlcc;
+    };
+    if (formData.vlccs.length === 1) {
+      if (saved.length) toast.success(saved[0].message);
+      else toast.error(failed[0].message);
+    } else {
+      if (saved.length) toast.success(t("commission_saved_for_vlcs", { count: saved.length, defaultValue: "Commission saved for {{count}} VLCs" }));
+      if (failed.length) {
+        toast.error(t("commission_failed_for_vlcs", {
+          list: failed.map((f) => `${vlcLabel(f.vlcc)} (${f.message})`).join(", "),
+          defaultValue: "Could not save for: {{list}}",
+        }));
       }
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || t("failed_to_submit_commission", "Failed to submit commission"));
-    } finally {
-      setLoading(false);
+    }
+    if (saved.length) {
+      const stamp = Date.now();
+      setInputValue(saved.map((s) => `VLC-${s.id}-${stamp}`).join(", "));
+      setIsSubmitted(true);
+      fetchCommissionData();
+      setTimeout(() => setIsSubmitted(false), 5000);
     }
   };
 
@@ -142,9 +182,10 @@ const VlcCCommissionEntry: React.FC = () => {
                     <div className="relative">
                       <VLCDropdown
                         branches={branches}
-                        value={formData.vlcc}
-                        onChange={(value) => setFormData({ ...formData, vlcc: value })}
+                        value={formData.vlccs}
+                        onChange={(value: string[]) => setFormData((prev) => ({ ...prev, vlccs: value }))}
                         valueKey="branch_id"
+                        isMultiSelect
                         placeholder={t("choose_a_vlc_center", "Choose a VLC center...")}
                       />
                     </div>
@@ -305,7 +346,21 @@ const VlcCCommissionEntry: React.FC = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0 flex-1 overflow-hidden relative">
-                {commissionData && commissionData.commissions?.length > 0 ? (
+                {selectedBranches.length > 1 ? (
+                  <div className="absolute inset-0 overflow-y-auto p-4 space-y-2 custom-scrollbar">
+                    <p className="text-xs font-medium text-slate-500 mb-3">
+                      {t("multi_vlc_commission_note", {
+                        count: selectedBranches.length,
+                        defaultValue: "This commission will be saved for each of these {{count}} VLCs.",
+                      })}
+                    </p>
+                    {selectedBranches.map((b) => (
+                      <div key={b.branch_id} className="rounded-lg border border-slate-100 bg-white px-3 py-2 text-sm font-medium text-slate-700">
+                        {b.username} - {b.name}
+                      </div>
+                    ))}
+                  </div>
+                ) : commissionData && commissionData.commissions?.length > 0 ? (
                   <div className="absolute inset-0 overflow-y-auto p-4 space-y-3 custom-scrollbar">
                     {commissionData.commissions.map((comm: any, idx: number) => {
                       const isActive = idx === 0;

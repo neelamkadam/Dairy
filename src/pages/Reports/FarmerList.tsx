@@ -20,6 +20,7 @@ import { farmerBankApi, farmerUserId, isBankVerified } from "@/services/farmerBa
 import FarmerEditModal from "@/components/FarmerEditModal";
 import Pagination from "@/components/Pagination";
 import { useVlcSectionLabel } from "@/utils/vlcSectionLabel";
+import { cn } from "@/lib/utils";
 
 // One selected dairy and its farmers.
 interface DairySection {
@@ -29,6 +30,8 @@ interface DairySection {
   branchName: string;
   farmers: any[];
 }
+
+type VerificationFilter = "all" | "verified" | "unverified";
 
 // Dairies are fetched a few at a time, so "Select All" on a long list does not
 // fire one request per dairy all at once.
@@ -65,6 +68,7 @@ const FarmerList = () => {
   const { showSerials, label: sectionLabel } = useVlcSectionLabel();
   const [editing, setEditing] = useState<{ dairyId: string; farmerCode: string; fullName?: string } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [verificationFilter, setVerificationFilter] = useState<VerificationFilter>("all");
 
   // Re-read one dairy's farmers after an edit, keeping the page where it is.
   const reloadSection = async (branchId: string) => {
@@ -153,7 +157,23 @@ const FarmerList = () => {
   };
 
 
-  const totalFarmers = sections.reduce((sum, s) => sum + s.farmers.length, 0);
+  const verifiedCount = sections.reduce((sum, s) => sum + s.farmers.filter(isBankVerified).length, 0);
+  const unverifiedCount = sections.reduce((sum, s) => sum + s.farmers.length, 0) - verifiedCount;
+
+  // The dairies as shown and exported: each one's farmers narrowed to the verification filter
+  const visibleSections = verificationFilter === "all"
+    ? sections
+    : sections.map((s) => ({
+        ...s,
+        farmers: s.farmers.filter((f) => isBankVerified(f) === (verificationFilter === "verified")),
+      }));
+
+  const totalFarmers = visibleSections.reduce((sum, s) => sum + s.farmers.length, 0);
+
+  const changeVerificationFilter = (filter: VerificationFilter) => {
+    setVerificationFilter(filter);
+    setCurrentPage(1);
+  };
 
   const handleExportPDF = () => {
     if (!sections.length) {
@@ -161,7 +181,7 @@ const FarmerList = () => {
       return;
     }
     generateFarmerListPDFForDairies(
-      sections.map((s) => ({ vlcName: sectionLabel(s), farmers: s.farmers }))
+      visibleSections.map((s) => ({ vlcName: sectionLabel(s), farmers: s.farmers }))
     );
     toast.success(t("pdf_exported_successfully", "PDF exported successfully"));
   };
@@ -172,14 +192,14 @@ const FarmerList = () => {
       return;
     }
     generateFarmerListExcelForDairies(
-      sections.map((s) => ({ vlcName: sectionLabel(s), farmers: s.farmers }))
+      visibleSections.map((s) => ({ vlcName: sectionLabel(s), farmers: s.farmers }))
     );
     toast.success(t("excel_exported_successfully", "Excel exported successfully"));
   };
 
   // Every farmer in dairy order, so pagination runs straight through the dairies.
   // Only farmers are paged, so "of N" is the real farmer count.
-  const rows = sections.flatMap((section) => section.farmers.map((farmer) => ({ section, farmer })));
+  const rows = visibleSections.flatMap((section) => section.farmers.map((farmer) => ({ section, farmer })));
   const totalPages = Math.max(1, Math.ceil(rows.length / itemsPerPage));
   const page = Math.min(currentPage, totalPages);
   const startIndex = (page - 1) * itemsPerPage;
@@ -190,7 +210,7 @@ const FarmerList = () => {
   // before the next dairy that has farmers, or after everything on the last page.
   const emptiesBefore = new Map<DairySection, DairySection[]>();
   let pendingEmpty: DairySection[] = [];
-  sections.forEach((section) => {
+  visibleSections.forEach((section) => {
     if (section.farmers.length) {
       emptiesBefore.set(section, pendingEmpty);
       pendingEmpty = [];
@@ -217,7 +237,11 @@ const FarmerList = () => {
       {sectionHeader(section, false)}
       <TableRow>
         <TableCell colSpan={10} className="border border-gray-300 text-center py-3 text-gray-500">
-          {t("no_farmers_registered", "No farmers registered for this dairy")}
+          {verificationFilter === "verified"
+            ? t("no_verified_farmers_in_dairy", "No verified farmers in this dairy")
+            : verificationFilter === "unverified"
+              ? t("no_unverified_farmers_in_dairy", "No unverified farmers in this dairy")
+              : t("no_farmers_registered", "No farmers registered for this dairy")}
         </TableCell>
       </TableRow>
     </Fragment>
@@ -282,13 +306,37 @@ const FarmerList = () => {
       )}
 
       {sections.length > 0 && (
-        <p className="mb-2 text-sm text-slate-600">
-          {t("farmers_across_dairies", {
-            farmers: totalFarmers,
-            dairies: sections.length,
-            defaultValue: "{{farmers}} farmers across {{dairies}} dairies",
-          })}
-        </p>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm text-slate-600">
+            {t("farmers_across_dairies", {
+              farmers: totalFarmers,
+              dairies: sections.length,
+              defaultValue: "{{farmers}} farmers across {{dairies}} dairies",
+            })}
+          </p>
+          <div role="group" className="inline-flex rounded-lg border border-gray-200 bg-white p-0.5 text-sm">
+            {[
+              { value: "all" as const, label: t("all", "All"), count: verifiedCount + unverifiedCount, icon: null, active: "bg-blue-600" },
+              { value: "verified" as const, label: t("verified", "Verified"), count: verifiedCount, icon: BadgeCheck, active: "bg-emerald-600" },
+              { value: "unverified" as const, label: t("unverified", "Unverified"), count: unverifiedCount, icon: ShieldOff, active: "bg-amber-500" },
+            ].map(({ value, label, count, icon: Icon, active }) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={verificationFilter === value}
+                onClick={() => changeVerificationFilter(value)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium transition-colors",
+                  verificationFilter === value ? `${active} text-white` : "text-gray-700 hover:bg-gray-50"
+                )}
+              >
+                {Icon && <Icon className="h-3.5 w-3.5" />}
+                {label}
+                <span className="tabular-nums opacity-80">({count})</span>
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
       <div className="border border-gray-200 rounded-lg overflow-x-auto">

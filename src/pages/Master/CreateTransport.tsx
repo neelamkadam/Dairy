@@ -4,11 +4,12 @@ import { toast } from "react-toastify";
 import { format } from "date-fns";
 import { useAppSelector } from "@/redux/store";
 import { routeApi } from "@/services/routeBmcCcApi";
-import { transportApi, Transport, TransportDetails, RouteHistoryRow } from "@/services/transportApi";
+import { transportApi, Transport, TransportDetails, RouteHistoryRow, RouteAssignment, AssignmentKms } from "@/services/transportApi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -29,7 +30,24 @@ const EMPTY_DETAILS: TransportDetails = {
 };
 
 const today = () => format(new Date(), "yyyy-MM-dd");
-const emptyAssignment = () => ({ route_id: "", km_per_trip: "", rate_per_km: "", effective_from: today() });
+// Separate Morning / Evening KMs are on by default; off, one KMs figure covers every trip
+const emptyAssignment = () => ({
+  route_id: "", shift_wise_km: true, km_per_trip: "", morning_km: "", evening_km: "", rate_per_km: "", effective_from: today(),
+});
+type AssignmentForm = ReturnType<typeof emptyAssignment>;
+
+const assignmentPayload = (a: AssignmentForm): RouteAssignment => ({
+  route_id: Number(a.route_id),
+  shift_wise_km: a.shift_wise_km,
+  ...(a.shift_wise_km
+    ? { morning_km: Number(a.morning_km), evening_km: Number(a.evening_km) }
+    : { km_per_trip: Number(a.km_per_trip) }),
+  rate_per_km: Number(a.rate_per_km),
+  effective_from: a.effective_from,
+});
+
+const isShiftWise = (row: AssignmentKms) => Number(row.shift_wise_km) === 1;
+const kmText = (value: string | null) => (value ? Number(value).toFixed(2) : "-");
 
 // null when valid, else the message to show
 const validateDetails = (d: TransportDetails): string | null => {
@@ -43,9 +61,12 @@ const validateDetails = (d: TransportDetails): string | null => {
   return null;
 };
 
-const validateAssignment = (a: ReturnType<typeof emptyAssignment>): string | null => {
+const validateAssignment = (a: AssignmentForm): string | null => {
   if (!a.route_id) return "Please select a route";
-  if (!(Number(a.km_per_trip) > 0)) return "KMs per trip must be greater than 0";
+  if (a.shift_wise_km) {
+    if (!(Number(a.morning_km) > 0)) return "Morning KMs must be greater than 0";
+    if (!(Number(a.evening_km) > 0)) return "Evening KMs must be greater than 0";
+  } else if (!(Number(a.km_per_trip) > 0)) return "KMs per trip must be greater than 0";
   if (a.rate_per_km === "" || Number(a.rate_per_km) < 0) return "Rate per KM is required";
   if (!a.effective_from) return "Start date is required";
   return null;
@@ -124,14 +145,7 @@ const CreateTransport = () => {
     try {
       const { data } = editingId
         ? await transportApi.update(editingId, { user_id: userId, ...details })
-        : await transportApi.create({
-            user_id: userId,
-            ...details,
-            route_id: Number(assignment.route_id),
-            km_per_trip: Number(assignment.km_per_trip),
-            rate_per_km: Number(assignment.rate_per_km),
-            effective_from: assignment.effective_from,
-          });
+        : await transportApi.create({ user_id: userId, ...details, ...assignmentPayload(assignment) });
       if (data?.success) {
         toast.success(data.message);
         resetForm();
@@ -170,10 +184,15 @@ const CreateTransport = () => {
 
   const openRouteDialog = (tr: Transport) => {
     setRouteDialog(tr);
+    // Starts from the current assignment's KMs; a transport with no route gets the new-form default
+    const asNumber = (value: string | null) => (value ? String(Number(value)) : "");
     setRouteForm({
       route_id: tr.route_id ? String(tr.route_id) : "",
-      km_per_trip: tr.km_per_trip ? String(Number(tr.km_per_trip)) : "",
-      rate_per_km: tr.rate_per_km ? String(Number(tr.rate_per_km)) : "",
+      shift_wise_km: tr.route_id ? isShiftWise(tr) : true,
+      km_per_trip: asNumber(tr.km_per_trip),
+      morning_km: asNumber(tr.morning_km),
+      evening_km: asNumber(tr.evening_km),
+      rate_per_km: asNumber(tr.rate_per_km),
       effective_from: today(),
     });
   };
@@ -184,13 +203,7 @@ const CreateTransport = () => {
     if (error) { toast.error(error); return; }
     setRouteSaving(true);
     try {
-      const { data } = await transportApi.changeRoute(routeDialog.id, {
-        user_id: userId,
-        route_id: Number(routeForm.route_id),
-        km_per_trip: Number(routeForm.km_per_trip),
-        rate_per_km: Number(routeForm.rate_per_km),
-        effective_from: routeForm.effective_from,
-      });
+      const { data } = await transportApi.changeRoute(routeDialog.id, { user_id: userId, ...assignmentPayload(routeForm) });
       if (data?.success) {
         toast.success(data.message);
         setRouteDialog(null);
@@ -265,33 +278,70 @@ const CreateTransport = () => {
     </Select>
   );
 
+  // KMs per trip, or the Morning / Evening KMs of a shift-wise assignment
+  const kmCell = (row: AssignmentKms) => (isShiftWise(row) ? (
+    <>
+      <span className="block whitespace-nowrap">{t("morning", "Morning")} {kmText(row.morning_km)}</span>
+      <span className="block whitespace-nowrap">{t("evening", "Evening")} {kmText(row.evening_km)}</span>
+    </>
+  ) : kmText(row.km_per_trip));
+
   const assignmentFields = (
-    form: ReturnType<typeof emptyAssignment>,
-    setForm: (updater: (prev: ReturnType<typeof emptyAssignment>) => ReturnType<typeof emptyAssignment>) => void,
+    form: AssignmentForm,
+    setForm: (updater: (prev: AssignmentForm) => AssignmentForm) => void,
     forTransportId: number | null
-  ) => (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <div className="space-y-2 sm:col-span-2">
-        <Label className="text-sm font-medium text-gray-700">{t("route", "Route")} <span className="text-red-500">*</span></Label>
-        {routeSelect(form.route_id, (v) => setForm((p) => ({ ...p, route_id: v })), forTransportId)}
-      </div>
+  ) => {
+    const kmInput = (key: "km_per_trip" | "morning_km" | "evening_km", label: string, placeholder: string) => (
       <div className="space-y-2">
-        <Label className="text-sm font-medium text-gray-700">{t("km_per_trip", "KMs per Trip")} <span className="text-red-500">*</span></Label>
-        <Input type="number" step="0.01" placeholder="e.g. 85" value={form.km_per_trip}
-          onChange={(e) => setForm((p) => ({ ...p, km_per_trip: e.target.value }))} className="bg-gray-50 border-gray-200 h-10" />
+        <Label className="text-sm font-medium text-gray-700">{label} <span className="text-red-500">*</span></Label>
+        <Input type="number" step="0.01" placeholder={placeholder} value={form[key]}
+          onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.value }))} className="bg-gray-50 border-gray-200 h-10" />
       </div>
-      <div className="space-y-2">
-        <Label className="text-sm font-medium text-gray-700">{t("rate_per_km", "Rate per KM (₹)")} <span className="text-red-500">*</span></Label>
-        <Input type="number" step="0.01" placeholder="e.g. 13.00" value={form.rate_per_km}
-          onChange={(e) => setForm((p) => ({ ...p, rate_per_km: e.target.value }))} className="bg-gray-50 border-gray-200 h-10" />
+    );
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-2 sm:col-span-2">
+          <Label className="text-sm font-medium text-gray-700">{t("route", "Route")} <span className="text-red-500">*</span></Label>
+          {routeSelect(form.route_id, (v) => setForm((p) => ({ ...p, route_id: v })), forTransportId)}
+        </div>
+        <div className="sm:col-span-2 flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+          <div>
+            <Label htmlFor={`shift-wise-km-${forTransportId ?? "new"}`} className="text-sm font-medium text-gray-700 cursor-pointer">
+              {t("shift_wise_km", "Separate Morning / Evening KMs")}
+            </Label>
+            <p className="text-xs text-gray-500">
+              {form.shift_wise_km
+                ? t("shift_wise_km_on_hint", "Morning trips are paid the Morning KMs, Evening trips the Evening KMs")
+                : t("shift_wise_km_off_hint", "Every trip is paid the same KMs")}
+            </p>
+          </div>
+          <Switch
+            id={`shift-wise-km-${forTransportId ?? "new"}`}
+            checked={form.shift_wise_km}
+            onCheckedChange={(checked) => setForm((p) => ({ ...p, shift_wise_km: checked }))}
+          />
+        </div>
+        {form.shift_wise_km ? (
+          <>
+            {kmInput("morning_km", t("morning_km", "Morning KMs"), "e.g. 45")}
+            {kmInput("evening_km", t("evening_km", "Evening KMs"), "e.g. 40")}
+          </>
+        ) : (
+          kmInput("km_per_trip", t("km_per_trip", "KMs per Trip"), "e.g. 85")
+        )}
+        <div className="space-y-2">
+          <Label className="text-sm font-medium text-gray-700">{t("rate_per_km", "Rate per KM (₹)")} <span className="text-red-500">*</span></Label>
+          <Input type="number" step="0.01" placeholder="e.g. 13.00" value={form.rate_per_km}
+            onChange={(e) => setForm((p) => ({ ...p, rate_per_km: e.target.value }))} className="bg-gray-50 border-gray-200 h-10" />
+        </div>
+        <div className={form.shift_wise_km ? "space-y-2" : "space-y-2 sm:col-span-2"}>
+          <Label className="text-sm font-medium text-gray-700">{t("applies_from", "Applies From")} <span className="text-red-500">*</span></Label>
+          <Input type="date" value={form.effective_from}
+            onChange={(e) => setForm((p) => ({ ...p, effective_from: e.target.value }))} className="bg-gray-50 border-gray-200 h-10" />
+        </div>
       </div>
-      <div className="space-y-2 sm:col-span-2">
-        <Label className="text-sm font-medium text-gray-700">{t("applies_from", "Applies From")} <span className="text-red-500">*</span></Label>
-        <Input type="date" value={form.effective_from}
-          onChange={(e) => setForm((p) => ({ ...p, effective_from: e.target.value }))} className="bg-gray-50 border-gray-200 h-10" />
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="space-y-4 bg-gray-50 min-h-screen p-4">
@@ -425,7 +475,7 @@ const CreateTransport = () => {
                         </>
                       ) : <Badge variant="outline">{t("no_route", "No route")}</Badge>}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">{tr.km_per_trip ? Number(tr.km_per_trip).toFixed(2) : "-"}</TableCell>
+                    <TableCell className="text-right tabular-nums">{kmCell(tr)}</TableCell>
                     <TableCell className="text-right tabular-nums">{tr.rate_per_km ? Number(tr.rate_per_km).toFixed(2) : "-"}</TableCell>
                     <TableCell className="text-xs">
                       <span className="font-medium text-gray-800">{tr.account_holder}</span>
@@ -499,7 +549,7 @@ const CreateTransport = () => {
               {history.map((h) => (
                 <TableRow key={h.id}>
                   <TableCell>{h.route_id} - {h.route_name || "-"}</TableCell>
-                  <TableCell className="text-right tabular-nums">{Number(h.km_per_trip).toFixed(2)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{kmCell(h)}</TableCell>
                   <TableCell className="text-right tabular-nums">{Number(h.rate_per_km).toFixed(2)}</TableCell>
                   <TableCell>{formatDate(h.effective_from)}</TableCell>
                   <TableCell>{h.effective_to ? formatDate(h.effective_to) : <Badge className="bg-emerald-100 text-emerald-800">{t("current", "Current")}</Badge>}</TableCell>

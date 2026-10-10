@@ -3,7 +3,8 @@ import AxiosClient from "./interceptor";
 // Transports — a transporter + vehicle that runs one route at a time. The route's
 // VLCs dispatch milk into its tanker (mobile dispatch entries); each date + shift
 // with a dispatch is one trip, paid as KMs per trip × rate per KM of the route
-// assignment in force that day. Route changes keep history, so past periods are
+// assignment in force that day — or, with shift-wise KMs, the Morning or Evening
+// KMs by the trip's shift. Route changes keep history, so past periods are
 // billed on the route, KMs and rate they ran on. Every call sends the web user's
 // id; the server keeps the rows under that user's admin.
 
@@ -24,28 +25,39 @@ export interface TransportDetails {
   ifsc_code: string;
 }
 
+// One KMs figure per trip, or (shift_wise_km) separate Morning and Evening KMs
 export interface RouteAssignment {
   route_id: number;
-  km_per_trip: number;
+  shift_wise_km: boolean;
+  km_per_trip?: number;
+  morning_km?: number;
+  evening_km?: number;
   rate_per_km: number;
   effective_from: string; // yyyy-MM-dd
 }
 
-export interface Transport extends TransportDetails {
+// KM columns as the server returns them; km_per_trip is null on a shift-wise
+// assignment, morning_km / evening_km are null otherwise
+export interface AssignmentKms {
+  shift_wise_km: number | null;
+  km_per_trip: string | null;
+  morning_km: string | null;
+  evening_km: string | null;
+}
+
+export interface Transport extends TransportDetails, AssignmentKms {
   id: number;
   // Current route (null when none)
   route_id: number | null;
   route_name: string | null;
-  km_per_trip: string | null;
   rate_per_km: string | null;
   route_from: string | null;
 }
 
-export interface RouteHistoryRow {
+export interface RouteHistoryRow extends AssignmentKms {
   id: number;
   route_id: number;
   route_name: string | null;
-  km_per_trip: string;
   rate_per_km: string;
   effective_from: string;
   effective_to: string | null;
