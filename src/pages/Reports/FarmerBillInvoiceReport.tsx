@@ -92,6 +92,58 @@ const pdfNameFor = (dairyName: string, farmers: { farmer_id: string; farmer_deta
   return single ? (farmers[0].farmer_details?.fullName || farmers[0].farmer_id) : dairyName;
 };
 
+// One VLC's PDF in an export run. Each VLC gets its own bill period, since VLCs
+// can bill on different cycle lengths.
+interface ExportJob {
+  vlcId: string;
+  label: string;
+  fromDate: string;
+  toDate: string;
+  farmerCode: string;
+}
+
+// `message` is the translation key the single-VLC toast shows
+type ExportOutcome = { status: 'saved' | 'empty' | 'failed'; message: string };
+
+// Thrown from generatePage once the user stops the export, so a half-built PDF is never saved
+const EXPORT_CANCELLED = new Error('export-cancelled');
+
+// html2canvas clones the whole document the target element lives in, once for every
+// page it draws. Drawing bills inside a bare iframe that carries only the app's
+// stylesheets keeps that clone small instead of copying the entire app (sidebar,
+// preview table, dialogs) per page. Same stylesheets, so the bills look the same.
+const createRenderHost = async () => {
+  const iframe = document.createElement('iframe');
+  iframe.setAttribute('aria-hidden', 'true');
+  iframe.tabIndex = -1;
+  iframe.style.cssText = 'position:fixed;left:-10000px;top:0;width:794px;height:1123px;border:0;pointer-events:none;';
+  document.body.appendChild(iframe);
+
+  // Written with a doctype: a bare about:blank page is in quirks mode, which lays tables out differently
+  const doc = iframe.contentDocument!;
+  doc.open();
+  doc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><base href="${document.baseURI}"></head><body></body></html>`);
+  doc.close();
+  doc.documentElement.className = document.documentElement.className;
+  doc.body.className = document.body.className;
+
+  const linksLoaded: Promise<void>[] = [];
+  document.querySelectorAll('link[rel="stylesheet"], style').forEach((node) => {
+    const copy = doc.importNode(node, true) as HTMLElement;
+    if (node.nodeName === 'LINK') {
+      linksLoaded.push(new Promise<void>((resolve) => {
+        copy.addEventListener('load', () => resolve(), { once: true });
+        copy.addEventListener('error', () => resolve(), { once: true });
+        setTimeout(resolve, 5000);
+      }));
+    }
+    doc.head.appendChild(copy);
+  });
+  await Promise.all(linksLoaded);
+
+  return { doc, dispose: () => iframe.remove() };
+};
+
 const FarmerBillInvoiceReport = () => {
   const { t, i18n } = useTranslation();
   const branches = useAppSelector((state) => (state as any).branch.branches);
@@ -99,12 +151,15 @@ const FarmerBillInvoiceReport = () => {
   const vlcNo = useVlcNumbering();
   const userId = useAppSelector((state) => (state as any).authData?.userData?.id);
   const hideRateAmount = userId === '7';
-  const [selectedVLC, setSelectedVLC] = useState<string>('');
+  // Export PDF downloads every selected VLC, one after another. Show, the bill
+  // preview and editing work on one VLC: the first one selected.
+  const [selectedVLCs, setSelectedVLCs] = useState<string[]>([]);
+  const selectedVLC = selectedVLCs[0] || '';
   const [language, setLanguage] = useState<string>(i18n.language || 'en');
 
   const selectedVlcObj = branches.find((b: any) => b.branch_id.toString() === selectedVLC);
 
-  const calculateDateRange = (dateStr: string) => {
+  const calculateDateRange = (dateStr: string, cycleDays: number = selectedVlcObj?.days || 10) => {
     if (!dateStr) return { from: '', to: '' };
 
     let year: number, month: number, day: number;
@@ -127,7 +182,6 @@ const FarmerBillInvoiceReport = () => {
 
     if (isNaN(year) || isNaN(month) || isNaN(day)) return { from: '', to: '' };
 
-    const cycleDays = selectedVlcObj?.days || 10;
     const lastDayOfMonth = new Date(year, month, 0).getDate();
 
     let startDay: number, endDay: number;
@@ -172,7 +226,7 @@ const FarmerBillInvoiceReport = () => {
   };
   useEffect(() => {
     if (branches.length > 0 && !selectedVLC) {
-      setSelectedVLC(branches[0].branch_id.toString());
+      setSelectedVLCs([branches[0].branch_id.toString()]);
       // Initialize dates for the first branch
       const dates = calculateDateRange(new Date().toISOString().split("T")[0]);
       setFromDate(dates.from);
@@ -198,6 +252,10 @@ const FarmerBillInvoiceReport = () => {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [exportProgress, setExportProgress] = useState<{ vlc: string; current: number; count: number; done: number; total: number } | null>(null);
+  const cancelExportRef = useRef(false);
+  // Document the bill pages are drawn in during an export (see createRenderHost)
+  const renderDocRef = useRef<Document | null>(null);
   const [exportFormat, setExportFormat] = useState<'1-per-page' | '2-per-page' | '3-per-page' | 'detailed-horizontal' | 'format-4' | 'format-5' | 'format-6' | 'format-7'>('1-per-page');
 
   // Edit Collection State
@@ -553,12 +611,19 @@ const FarmerBillInvoiceReport = () => {
   };
 
   const generatePage = async (htmlContent: string) => {
-    const tempDiv = document.createElement('div');
+    if (cancelExportRef.current) throw EXPORT_CANCELLED;
+    const doc = renderDocRef.current ?? document;
+    const tempDiv = doc.createElement('div');
     tempDiv.innerHTML = htmlContent;
     tempDiv.style.position = 'absolute';
     tempDiv.style.left = '-9999px';
     tempDiv.style.width = '210mm'; // A4 width
-    document.body.appendChild(tempDiv);
+    doc.body.appendChild(tempDiv);
+    // html2canvas measures text baselines in the main document's body, so the bill's own
+    // styles (e.g. its body line-height) must apply there too, or text is drawn too low
+    const mirroredStyles = doc === document
+      ? []
+      : Array.from(tempDiv.querySelectorAll('style'), (style) => document.body.appendChild(style.cloneNode(true) as HTMLStyleElement));
 
     try {
       const canvas = await html2canvas(tempDiv, {
@@ -583,9 +648,13 @@ const FarmerBillInvoiceReport = () => {
       const imgData = canvas.toDataURL('image/jpeg', 0.85); // JPEG = much smaller than PNG
       const imgWidth = 210;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      // Free the bitmap now instead of at GC; a multi-VLC run draws hundreds of pages
+      canvas.width = 0;
+      canvas.height = 0;
       return { imgData, imgWidth, imgHeight };
     } finally {
-      document.body.removeChild(tempDiv);
+      doc.body.removeChild(tempDiv);
+      mirroredStyles.forEach((style) => style.remove());
     }
   };
 
@@ -606,12 +675,12 @@ const FarmerBillInvoiceReport = () => {
   };
 
   // ── Shared helper: fetch bonus deductions and build a map keyed by farmer_id ──
-  const fetchBonusMap = async (dairyId: number): Promise<Map<string, any>> => {
+  const fetchBonusMap = async (dairyId: number, periodFrom: string, periodTo: string): Promise<Map<string, any>> => {
     try {
       const bonusResponse = await bonusApi.getBonusDeductions({
         dairy_id: dairyId,
-        start_date: fromDate,
-        end_date: toDate,
+        start_date: periodFrom,
+        end_date: periodTo,
       });
       const bonusMap = new Map<string, any>();
       (bonusResponse.data.data || []).forEach((entry: any) => {
@@ -628,10 +697,10 @@ const FarmerBillInvoiceReport = () => {
   };
 
   // Helper: attach bonus_deduction_info to a farmer object using the bonus map
-  const attachBonus = (farmer: any, bonusMap: Map<string, any>, totalQty: number) => {
+  const attachBonus = (farmer: any, bonusMap: Map<string, any>, totalQty: number, periodTo: string) => {
     const entry = bonusMap.get(farmer.farmer_id);
     if (!entry) return { ...farmer, bonus_deduction_info: null };
-    const periodEnd = new Date(toDate);
+    const periodEnd = new Date(periodTo);
     const effectiveFrom = new Date(entry.effective_from);
     if (periodEnd <= effectiveFrom) return { ...farmer, bonus_deduction_info: null };
     return {
@@ -702,8 +771,8 @@ const FarmerBillInvoiceReport = () => {
   };
 
   // Bill end date as a local date — what Generate Bill compares effective_from with
-  const billEndDate = () => {
-    const [y, m, d] = toDate.split('-').map(Number);
+  const billEndDate = (periodTo: string) => {
+    const [y, m, d] = periodTo.split('-').map(Number);
     return new Date(y, m - 1, d);
   };
 
@@ -714,10 +783,10 @@ const FarmerBillInvoiceReport = () => {
   // amount Generate Bill / Farmer Deduction put into its net payable; a bill saved
   // before that was stored falls back to the shared rule. Templates only print it
   // (never add it again). The cow/buffalo split is shown only when it adds up.
-  const billTravelCommission = (farmerId: string, collections: any[], currentBill: any, lookup: CommissionLookup) => {
+  const billTravelCommission = (farmerId: string, collections: any[], currentBill: any, lookup: CommissionLookup, periodTo: string = toDate) => {
     const cow = litresOf(collections, 'Cow');
     const buffalo = litresOf(collections, 'Buffalo');
-    const computed = computeTravelCommission(lookup, farmerId, { cow, buffalo }, billEndDate());
+    const computed = computeTravelCommission(lookup, farmerId, { cow, buffalo }, billEndDate(periodTo));
     const stored = currentBill?.travel_commission;
     const amount = stored !== undefined && stored !== null && stored !== '' ? Number(stored) : computed.total;
     const matchesBill = Math.abs(computed.total - amount) < 0.01;
@@ -743,8 +812,25 @@ const FarmerBillInvoiceReport = () => {
     ...(withSummary ? { fixed: bill.computed.fixed, matches_bill: bill.matchesBill, billed_amount: bill.amount } : {})
   });
 
-  const exportToPDF = async (templateFn: typeof generateTemplate2 = generateTemplate2) => {
-    setPdfLoading(true);
+  // Everything one VLC's PDF needs from the API. An export run calls this for the
+  // next VLC while the current one is still being drawn.
+  const fetchExportData = (job: ExportJob) => {
+    const branch = branches.find((b: any) => b.branch_id.toString() === job.vlcId);
+    const dairyId = branch?.branch_id || branch?.id;
+    return Promise.all([
+      billApi.getFarmerReport({ dairy_id: dairyId, start_date: job.fromDate, end_date: job.toDate }),
+      fetchBonusMap(dairyId, job.fromDate, job.toDate),
+      fetchReportLanguage(job.vlcId),
+      fetchCommissionLookup(job.vlcId)
+    ]);
+  };
+  type ExportData = Awaited<ReturnType<typeof fetchExportData>>;
+
+  const reportBillProgress = (done: number, total: number) =>
+    setExportProgress((prev) => (prev ? { ...prev, done, total } : prev));
+
+  const exportToPDF = async (job: ExportJob, exportData: Promise<ExportData>, templateFn: typeof generateTemplate2 = generateTemplate2): Promise<ExportOutcome> => {
+    const { vlcId, fromDate, toDate, farmerCode } = job;
 
     // Format 5 (Milk Bill) is drawn at full page width and exactly 75% of the page
     // height, so the bottom 25% of every farmer's page stays empty below the table.
@@ -754,24 +840,16 @@ const FarmerBillInvoiceReport = () => {
     const milkBillHeight = A4_HEIGHT * 0.75;
 
     try {
-      const selectedBranch = branches.find(v => v.branch_id.toString() === selectedVLC);
+      const selectedBranch = branches.find(v => v.branch_id.toString() === vlcId);
       const dairyName = selectedBranch?.name || 'Dairy';
       const dairyCode = selectedBranch?.username ? `${vlcNo.prefix(selectedBranch.username)}${selectedBranch.username}` : '';
       const branchName = selectedBranch?.branchName || '';
-      // @ts-ignore
-      const dairyId = selectedBranch?.branch_id || selectedBranch?.id;
 
-      // Fetch farmer data, bonus data, report language, and commissions in parallel
-      const [response, bonusMap, reportLang, commissionLookup] = await Promise.all([
-        billApi.getFarmerReport({ dairy_id: dairyId, start_date: fromDate, end_date: toDate }),
-        fetchBonusMap(dairyId),
-        fetchReportLanguage(selectedVLC),
-        fetchCommissionLookup(selectedVLC)
-      ]);
+      // Farmer data, bonus data, report language, and commissions (fetched in parallel)
+      const [response, bonusMap, reportLang, commissionLookup] = await exportData;
 
       if (!response.data.success) {
-        toast.error(t('failed_to_fetch_farmer_report_data'));
-        return;
+        return { status: 'failed', message: 'failed_to_fetch_farmer_report_data' };
       }
 
       let farmerData: FarmerReportData[] = [];
@@ -808,8 +886,7 @@ const FarmerBillInvoiceReport = () => {
         : farmerIds.sort((a, b) => parseInt(a) - parseInt(b));
 
       if (filteredFarmerIds.length === 0) {
-        toast.info(t('no_data_found_for_selected_criteria'));
-        return;
+        return { status: 'empty', message: 'no_data_found_for_selected_criteria' };
       }
 
 
@@ -869,7 +946,7 @@ const FarmerBillInvoiceReport = () => {
           previous_bill: farmerInfo.previous_bill,
           bonus_deduction_info: templateFn === generateTemplate4
             ? format4BonusInfo
-            : attachBonus(farmerInfo, bonusMap, templateDataItems.reduce((s, i) => s + i.liters, 0)).bonus_deduction_info,
+            : attachBonus(farmerInfo, bonusMap, templateDataItems.reduce((s, i) => s + i.liters, 0), toDate).bonus_deduction_info,
           bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary,
           bankDetails: farmerInfo.farmer_details ? {
             accountNumber: farmerInfo.farmer_details.accountNumber,
@@ -879,7 +956,7 @@ const FarmerBillInvoiceReport = () => {
           hideRateAmount: hideRateAmount
         };
 
-        const bill = billTravelCommission(farmerId, farmerInfo.collections, farmerInfo.current_bill, commissionLookup);
+        const bill = billTravelCommission(farmerId, farmerInfo.collections, farmerInfo.current_bill, commissionLookup, toDate);
         const isFormat7 = templateFn === generateTemplate7;
 
         // Check for mixed types (only relevant when milkTypeFilter is 'All').
@@ -941,44 +1018,31 @@ const FarmerBillInvoiceReport = () => {
           pdf.save(buildPdfFileName(dairyName, branchName, fromDate, toDate, `Part${Math.floor(i / BATCH_SIZE) + 1}`));
           pdf = new jsPDF('p', 'mm', 'a4');
         }
+        reportBillProgress(i + 1, filteredFarmerIds.length);
       }
 
       pdf.save(buildPdfFileName(pdfNameFor(dairyName, filteredFarmerIds.map(id => farmerDataMap.get(id))), branchName, fromDate, toDate));
-      toast.success(t('pdf_downloaded_successfully'));
+      return { status: 'saved', message: 'pdf_downloaded_successfully' };
     } catch (error) {
+      if (error === EXPORT_CANCELLED) throw error;
       console.error('PDF Generation Error:', error);
-      toast.error(t('failed_to_generate_pdf'));
-    } finally {
-      setPdfLoading(false);
+      return { status: 'failed', message: 'failed_to_generate_pdf' };
     }
   };
 
-  const exportMultiPerPagePDF = async (chunkSize: number) => {
-    if (!selectedVLC || !fromDate || !toDate) {
-      toast.error(t('please_select_vlc_center_and_date_range'));
-      return;
-    }
-
-    setPdfLoading(true);
+  const exportMultiPerPagePDF = async (job: ExportJob, exportData: Promise<ExportData>, chunkSize: number): Promise<ExportOutcome> => {
+    const { vlcId, fromDate, toDate, farmerCode } = job;
     try {
-      const selectedBranch = branches.find(v => v.branch_id.toString() === selectedVLC);
+      const selectedBranch = branches.find(v => v.branch_id.toString() === vlcId);
       const dairyName = selectedBranch?.name || 'Dairy';
       const dairyCode = selectedBranch?.name || '';
       const branchName = selectedBranch?.branchName || '';
-      // @ts-ignore
-      const dairyId = selectedBranch?.branch_id || selectedBranch?.id;
 
-      // Fetch farmer data, bonus data, report language, and commissions in parallel
-      const [response, bonusMap, reportLang, commissionLookup] = await Promise.all([
-        billApi.getFarmerReport({ dairy_id: dairyId, start_date: fromDate, end_date: toDate }),
-        fetchBonusMap(dairyId),
-        fetchReportLanguage(selectedVLC),
-        fetchCommissionLookup(selectedVLC)
-      ]);
+      // Farmer data, bonus data, report language, and commissions (fetched in parallel)
+      const [response, bonusMap, reportLang, commissionLookup] = await exportData;
 
       if (!response.data.success) {
-        toast.error(t('failed_to_fetch_farmer_report_data'));
-        return;
+        return { status: 'failed', message: 'failed_to_fetch_farmer_report_data' };
       }
 
       const cowData: FarmerReportData[] = response.data.cow || [];
@@ -999,11 +1063,11 @@ const FarmerBillInvoiceReport = () => {
           const buffalo = buffaloData.find(f => f.farmer_id === id);
           const isMixed = !!(cow && buffalo); // farmer has BOTH types
           if (cow) {
-            const withBonus = attachBonus(cow, bonusMap, cow.collections_summary?.total_quantity || 0);
+            const withBonus = attachBonus(cow, bonusMap, cow.collections_summary?.total_quantity || 0, toDate);
             allData.push({ ...withBonus, _displayMilkType: 'Cow', _hideDeductions: isMixed });
           }
           if (buffalo) {
-            const withBonus = attachBonus(buffalo, bonusMap, buffalo.collections_summary?.total_quantity || 0);
+            const withBonus = attachBonus(buffalo, bonusMap, buffalo.collections_summary?.total_quantity || 0, toDate);
             // When mixed, buffalo entry carries combined milk total for accurate deduction display
             const combinedLiters = isMixed
               ? (cow!.collections_summary?.total_quantity || 0) + (buffalo.collections_summary?.total_quantity || 0)
@@ -1017,16 +1081,15 @@ const FarmerBillInvoiceReport = () => {
       } else if (milkTypeFilter === 'Cow') {
         allData = cowData
           .sort((a, b) => parseInt(a.farmer_id) - parseInt(b.farmer_id))
-          .map(f => ({ ...attachBonus(f, bonusMap, f.collections_summary?.total_quantity || 0), _displayMilkType: 'Cow', _hideDeductions: false }));
+          .map(f => ({ ...attachBonus(f, bonusMap, f.collections_summary?.total_quantity || 0, toDate), _displayMilkType: 'Cow', _hideDeductions: false }));
       } else {
         allData = buffaloData
           .sort((a, b) => parseInt(a.farmer_id) - parseInt(b.farmer_id))
-          .map(f => ({ ...attachBonus(f, bonusMap, f.collections_summary?.total_quantity || 0), _displayMilkType: 'Buffalo', _hideDeductions: false }));
+          .map(f => ({ ...attachBonus(f, bonusMap, f.collections_summary?.total_quantity || 0, toDate), _displayMilkType: 'Buffalo', _hideDeductions: false }));
       }
 
       if (allData.length === 0) {
-        toast.info(t('no_data_found_for_selected_period'));
-        return;
+        return { status: 'empty', message: 'no_data_found_for_selected_period' };
       }
 
       // Enrich payments with payment_logs data (same as detailed horizontal format)
@@ -1045,8 +1108,7 @@ const FarmerBillInvoiceReport = () => {
         : enrichedData;
 
       if (filteredData.length === 0) {
-        toast.info(t('no_data_found_for_selected_farmer_or_criteria'));
-        return;
+        return { status: 'empty', message: 'no_data_found_for_selected_farmer_or_criteria' };
       }
 
       // A mixed farmer arrives as a cow entry and a buffalo entry; the commission
@@ -1065,7 +1127,8 @@ const FarmerBillInvoiceReport = () => {
             farmer.farmer_id,
             collectionsByFarmer.get(farmer.farmer_id) || farmer.collections,
             farmer.current_bill,
-            commissionLookup
+            commissionLookup,
+            toDate
           ).travel
         }));
 
@@ -1097,40 +1160,32 @@ const FarmerBillInvoiceReport = () => {
         const { imgData, imgWidth, imgHeight } = await generatePage(htmlContent);
         if (i > 0) pdf.addPage();
         pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+        reportBillProgress(Math.min(i + chunkSize, filteredData.length), filteredData.length);
       }
 
       pdf.save(buildPdfFileName(pdfNameFor(dairyName, filteredData), branchName, fromDate, toDate));
-      toast.success(t('pdf_downloaded_successfully'));
+      return { status: 'saved', message: 'pdf_downloaded_successfully' };
 
     } catch (error: any) {
+      if (error === EXPORT_CANCELLED) throw error;
       console.error('Export error:', error);
-      toast.error(t('failed_to_generate_pdf'));
-    } finally {
-      setPdfLoading(false);
+      return { status: 'failed', message: 'failed_to_generate_pdf' };
     }
   };
 
-  const exportDetailedHorizontalPDF = async () => {
-    setPdfLoading(true);
+  const exportDetailedHorizontalPDF = async (job: ExportJob, exportData: Promise<ExportData>): Promise<ExportOutcome> => {
+    const { vlcId, fromDate, toDate, farmerCode } = job;
     try {
-      const selectedBranch = branches.find(v => v.branch_id.toString() === selectedVLC);
+      const selectedBranch = branches.find(v => v.branch_id.toString() === vlcId);
       const dairyName = selectedBranch?.name || 'Dairy';
       const dairyCode = selectedBranch?.name || '';
       const branchName = selectedBranch?.branchName || '';
-      // @ts-ignore
-      const dairyId = selectedBranch?.branch_id || selectedBranch?.id;
 
-      // Fetch farmer data, bonus data, report language, and commissions in parallel
-      const [response, bonusMap, reportLang, commissionLookup] = await Promise.all([
-        billApi.getFarmerReport({ dairy_id: dairyId, start_date: fromDate, end_date: toDate }),
-        fetchBonusMap(dairyId),
-        fetchReportLanguage(selectedVLC),
-        fetchCommissionLookup(selectedVLC)
-      ]);
+      // Farmer data, bonus data, report language, and commissions (fetched in parallel)
+      const [response, bonusMap, reportLang, commissionLookup] = await exportData;
 
       if (!response.data.success) {
-        toast.error(t('failed_to_fetch_farmer_report_data'));
-        return;
+        return { status: 'failed', message: 'failed_to_fetch_farmer_report_data' };
       }
 
       let farmerData: FarmerReportData[] = [];
@@ -1163,8 +1218,7 @@ const FarmerBillInvoiceReport = () => {
         .filter(f => !farmerCode.trim() || f.farmer_id === farmerCode.padStart(4, '0'));
 
       if (sortedFarmers.length === 0) {
-        toast.info(t('no_data_found_for_selected_farmer_or_criteria'));
-        return;
+        return { status: 'empty', message: 'no_data_found_for_selected_farmer_or_criteria' };
       }
 
       const pdf = new jsPDF('p', 'mm', 'a4');
@@ -1208,9 +1262,9 @@ const FarmerBillInvoiceReport = () => {
           current_bill: farmer.current_bill,
           previous_bill: (farmer as any).previous_bill,
           payments: getNormalizedPayments(farmer),
-          bonus_deduction_info: attachBonus(farmer, bonusMap, farmer.collections_summary?.total_quantity || 0).bonus_deduction_info,
+          bonus_deduction_info: attachBonus(farmer, bonusMap, farmer.collections_summary?.total_quantity || 0, toDate).bonus_deduction_info,
           bonus_deduction_logs_summary: (response.data as any).bonus_deduction_logs_summary || null,
-          travel_commission: billTravelCommission(farmer.farmer_id, farmer.collections, farmer.current_bill, commissionLookup).travel
+          travel_commission: billTravelCommission(farmer.farmer_id, farmer.collections, farmer.current_bill, commissionLookup, toDate).travel
         };
 
         const hasCow = farmerBillData.some(d => d.type === 'Cow');
@@ -1243,45 +1297,128 @@ const FarmerBillInvoiceReport = () => {
           if (i > 0) pdf.addPage();
           pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
         }
+        reportBillProgress(i + 1, sortedFarmers.length);
       }
       pdf.save(buildPdfFileName(pdfNameFor(dairyName, sortedFarmers), branchName, fromDate, toDate));
-      toast.success(t('detailed_pdf_downloaded_successfully'));
+      return { status: 'saved', message: 'detailed_pdf_downloaded_successfully' };
     } catch (error) {
+      if (error === EXPORT_CANCELLED) throw error;
       console.error('Export error:', error);
-      toast.error(t('failed_to_generate_detailed_pdf'));
-    } finally {
-      setPdfLoading(false);
+      return { status: 'failed', message: 'failed_to_generate_detailed_pdf' };
     }
   };
 
-  const handleExport = () => {
-    if ((exportFormat === '1-per-page' || exportFormat === 'format-4' || exportFormat === 'format-5' || exportFormat === 'format-6' || exportFormat === 'format-7') && collectionData.length === 0) {
+  const exportJob = (job: ExportJob, exportData: Promise<ExportData>) => {
+    if (exportFormat === 'detailed-horizontal') return exportDetailedHorizontalPDF(job, exportData);
+    if (exportFormat === '1-per-page') return exportToPDF(job, exportData);
+    if (exportFormat === 'format-4') return exportToPDF(job, exportData, generateTemplate4);
+    if (exportFormat === 'format-5') return exportToPDF(job, exportData, generateTemplate5MilkBill);
+    if (exportFormat === 'format-6') return exportToPDF(job, exportData, generateTemplate6);
+    if (exportFormat === 'format-7') return exportToPDF(job, exportData, generateTemplate7);
+    if (exportFormat === '2-per-page') return exportMultiPerPagePDF(job, exportData, 1);
+    return exportMultiPerPagePDF(job, exportData, 3);
+  };
+
+  // Downloads one PDF per selected VLC, one after another. While a VLC is being
+  // drawn, the next VLC's data is already being fetched.
+  const handleExport = async () => {
+    if (selectedVLCs.length === 0 || !fromDate) {
+      toast.error(t('please_select_vlc_center_and_date_range'));
+      return;
+    }
+    const single = selectedVLCs.length === 1;
+    if (single && (exportFormat === '1-per-page' || exportFormat === 'format-4' || exportFormat === 'format-5' || exportFormat === 'format-6' || exportFormat === 'format-7') && collectionData.length === 0) {
       toast.error(t('please_click_show_first_for_detailed_report'));
       return;
     }
     setShowExportModal(false);
-    if (exportFormat === 'detailed-horizontal') {
-      exportDetailedHorizontalPDF();
-    } else if (exportFormat === '1-per-page') {
-      exportToPDF();
-    } else if (exportFormat === 'format-4') {
-      exportToPDF(generateTemplate4);
-    } else if (exportFormat === 'format-5') {
-      exportToPDF(generateTemplate5MilkBill);
-    } else if (exportFormat === 'format-6') {
-      exportToPDF(generateTemplate6);
-    } else if (exportFormat === 'format-7') {
-      exportToPDF(generateTemplate7);
-    } else if (exportFormat === '2-per-page') {
-      exportMultiPerPagePDF(1);
-    } else {
-      exportMultiPerPagePDF(3);
+
+    // In the order the VLCs are listed, not the order they were ticked
+    const jobs: ExportJob[] = branches
+      .filter((b: any) => selectedVLCs.includes(b.branch_id.toString()))
+      .map((b: any) => {
+        // Each VLC's own bill period: the cycle around the chosen from date
+        const period = calculateDateRange(fromDate, b.days || 10);
+        return {
+          vlcId: b.branch_id.toString(),
+          label: [`${vlcNo.prefix(b.username)}${b.username}`, b.name].filter(Boolean).join(' - '),
+          fromDate: period.from,
+          toDate: period.to,
+          // Farmer codes are per VLC, so the filter only applies to a single-VLC download
+          farmerCode: single ? farmerCode : ''
+        };
+      });
+    if (jobs.length === 0) return;
+
+    cancelExportRef.current = false;
+    setPdfLoading(true);
+    const results: { job: ExportJob; outcome: ExportOutcome }[] = [];
+    let cancelled = false;
+    let host: Awaited<ReturnType<typeof createRenderHost>> | null = null;
+    try {
+      host = await createRenderHost();
+      renderDocRef.current = host.doc;
+
+      let nextData = fetchExportData(jobs[0]);
+      for (let i = 0; i < jobs.length; i++) {
+        const data = nextData;
+        if (i + 1 < jobs.length) {
+          nextData = fetchExportData(jobs[i + 1]);
+          // Awaited on its turn; this only stops an "unhandled rejection" if the run is stopped first
+          nextData.catch(() => {});
+        }
+        setExportProgress({ vlc: jobs[i].label, current: i + 1, count: jobs.length, done: 0, total: 0 });
+        try {
+          results.push({ job: jobs[i], outcome: await exportJob(jobs[i], data) });
+        } catch (error) {
+          if (error !== EXPORT_CANCELLED) throw error;
+          cancelled = true;
+          break;
+        }
+      }
+    } catch (error) {
+      console.error('PDF Generation Error:', error);
+      toast.error(t('failed_to_generate_pdf'));
+    } finally {
+      renderDocRef.current = null;
+      host?.dispose();
+      setExportProgress(null);
+      setPdfLoading(false);
     }
+
+    if (cancelled) toast.info(t('pdf_download_stopped'));
+    if (single) {
+      const outcome = results[0]?.outcome;
+      if (outcome?.status === 'saved') toast.success(t(outcome.message));
+      else if (outcome?.status === 'empty') toast.info(t(outcome.message));
+      else if (outcome) toast.error(t(outcome.message));
+      return;
+    }
+    const saved = results.filter(r => r.outcome.status === 'saved').length;
+    const labelsWith = (status: ExportOutcome['status']) => results.filter(r => r.outcome.status === status).map(r => r.job.label).join(', ');
+    (saved === jobs.length ? toast.success : toast.warning)(t('multi_vlc_download_summary', { saved, count: jobs.length }));
+    if (labelsWith('empty')) toast.info(t('multi_vlc_no_data', { list: labelsWith('empty') }));
+    if (labelsWith('failed')) toast.error(t('multi_vlc_failed', { list: labelsWith('failed') }));
   };
 
   return (
     <div className="p-2 sm:p-4 bg-gray-50 min-h-screen text-left">
-      <PdfLoader isLoading={pdfLoading} />
+      <PdfLoader
+        isLoading={pdfLoading}
+        message={exportProgress && (
+          <>
+            {exportProgress.count > 1 && (
+              <span className="block font-semibold">{t('pdf_export_vlc_progress', { current: exportProgress.current, count: exportProgress.count })}</span>
+            )}
+            <span className="block">{exportProgress.vlc}</span>
+            {exportProgress.total > 0 && (
+              <span className="block tabular-nums">{t('pdf_export_bill_progress', { done: exportProgress.done, total: exportProgress.total })}</span>
+            )}
+          </>
+        )}
+        onCancel={exportProgress ? () => { cancelExportRef.current = true; } : undefined}
+        cancelLabel={t('cancel')}
+      />
       {/* Header */}
       <div className="flex flex-col items-start text-left gap-1 animate-in fade-in slide-in-from-top-4 duration-700 px-2 mb-2">
         <h1 className="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600">
@@ -1294,9 +1431,10 @@ const FarmerBillInvoiceReport = () => {
           <Label>{t('vlcc_center')}</Label>
           <VLCDropdown
             branches={branches || []}
-            value={selectedVLC}
-            onChange={setSelectedVLC}
+            value={selectedVLCs}
+            onChange={setSelectedVLCs}
             valueKey="branch_id"
+            isMultiSelect
             placeholder={t('select_vlc_center')}
           />
         </div>
@@ -1841,6 +1979,9 @@ const FarmerBillInvoiceReport = () => {
               {t('choose_farmer_bills_per_a4')}
             </DialogDescription>
           </DialogHeader>
+          {selectedVLCs.length > 1 && (
+            <p className="text-xs text-gray-500">{t('multi_vlc_download_hint', { count: selectedVLCs.length })}</p>
+          )}
           <div className="py-2">
             <RadioGroup
               value={exportFormat}
