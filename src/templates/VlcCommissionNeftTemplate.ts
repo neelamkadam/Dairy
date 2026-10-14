@@ -1,15 +1,20 @@
 import * as XLSX from "xlsx";
 import pdfMake from "pdfmake/build/pdfmake";
 import { PDF_FONT } from "@/utils/pdfMakeFonts";
-import { VLC_NEFT_COLUMNS, VlcNeftRow, formatAmount, vlcNeftTotals } from "@/utils/vlcCommissionNeft";
+import { VLC_NEFT_COLUMNS, VlcNeftRow, formatColumnAmount, vlcNeftTotals } from "@/utils/vlcCommissionNeft";
+
+type VlcNeftColumn = (typeof VLC_NEFT_COLUMNS)[number];
 
 const fileName = (ext: string, fromDate: string, toDate: string) =>
   `VLC_Commission_NEFT_${fromDate}_${toDate}.${ext}`.replace(/\//g, "-");
 
-const totalRow = <T>(rows: VlcNeftRow[], amountCell: (n: number) => T, blank: T, label: T) => {
+const totalRow = <T>(rows: VlcNeftRow[], amountCell: (n: number, c: VlcNeftColumn) => T, blank: T, label: T) => {
   const totals = vlcNeftTotals(rows);
-  return VLC_NEFT_COLUMNS.map((c, i) => (c.amount ? amountCell(totals[c.key] ?? 0) : i === 0 ? label : blank));
+  return VLC_NEFT_COLUMNS.map((c, i) => (c.amount ? amountCell(totals[c.key] ?? 0, c) : i === 0 ? label : blank));
 };
+
+// Excel number: whole rupees for the rounded final amounts, else paise
+const excelAmount = (n: number, c: VlcNeftColumn) => Number(n.toFixed(c.wholeRupees ? 0 : 2));
 
 // Header row, one row per VLC, then "Total Amount". A/C numbers stay text so
 // Excel does not turn them into 1.23E+13.
@@ -17,9 +22,9 @@ export const generateVlcCommissionNeftExcel = (rows: VlcNeftRow[], fromDate: str
   const aoa: (string | number)[][] = [
     VLC_NEFT_COLUMNS.map((c) => c.label),
     ...rows.map((r) =>
-      VLC_NEFT_COLUMNS.map((c) => (c.amount ? Number((r[c.key] as number).toFixed(2)) : String(r[c.key] ?? "")))
+      VLC_NEFT_COLUMNS.map((c) => (c.amount ? excelAmount(r[c.key] as number, c) : String(r[c.key] ?? "")))
     ),
-    totalRow<string | number>(rows, (n) => Number(n.toFixed(2)), "", "Total Amount"),
+    totalRow<string | number>(rows, excelAmount, "", "Total Amount"),
   ];
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   const range = XLSX.utils.decode_range(ws["!ref"] as string);
@@ -27,7 +32,7 @@ export const generateVlcCommissionNeftExcel = (rows: VlcNeftRow[], fromDate: str
     VLC_NEFT_COLUMNS.forEach((c, i) => {
       const cell = ws[XLSX.utils.encode_cell({ r, c: i })];
       if (!cell) return;
-      if (c.amount) cell.z = "0.00";
+      if (c.amount) cell.z = c.wholeRupees ? "0" : "0.00";
       else cell.t = "s";
     });
   }
@@ -50,13 +55,13 @@ export const generateVlcCommissionNeftPDF = (
     ...rows.map((r) =>
       VLC_NEFT_COLUMNS.map((c) =>
         c.amount
-          ? { text: formatAmount(r[c.key] as number), alignment: "right", color: (r[c.key] as number) < 0 ? "#b91c1c" : undefined }
+          ? { text: formatColumnAmount(c, r[c.key] as number), alignment: "right", color: (r[c.key] as number) < 0 ? "#b91c1c" : undefined }
           : { text: String(r[c.key] ?? ""), fillColor: r.missingBank && (c.key === "accountNumber" || c.key === "ifscCode") ? "#fef3c7" : null }
       )
     ),
     totalRow<any>(
       rows,
-      (n) => ({ text: formatAmount(n), alignment: "right", bold: true }),
+      (n, c) => ({ text: formatColumnAmount(c, n), alignment: "right", bold: true }),
       { text: "" },
       { text: "Total Amount", bold: true }
     ),

@@ -15,6 +15,8 @@ import {
 //   Advance           = advance recovered in the bills
 //   Deduction         = cattle feed + other1 + other2 + bonus deduction + fixed deduction
 //   Net Payable       = Payable − Advance − Deduction   (only rows with Net Payable > 0)
+// Payable and Net Payable are rounded to the nearest rupee (worked out from the exact
+// figures); the other amounts keep their paise.
 
 export interface NeftRow {
   vlcId: string;
@@ -117,10 +119,11 @@ export const fetchNeftRowsForVlc = async (
 
     const purchaseAmount = round2(f.milk);
     const commission = round2(commissionByFarmer.get(code) || 0);
-    const payableAmount = round2(purchaseAmount + commission);
+    const exactPayable = purchaseAmount + commission;
+    const payableAmount = Math.round(round2(exactPayable));
     const advance = round2(f.advance);
     const deduction = round2(f.otherDeduction + bonusFixed);
-    const netPayable = round2(payableAmount - advance - deduction);
+    const netPayable = Math.round(round2(exactPayable - advance - deduction));
     if (netPayable <= 0) return;
 
     const bank = bankByFarmer.get(code);
@@ -151,16 +154,17 @@ export const fetchNeftRowsForVlc = async (
   return rows.sort((a, b) => (parseInt(a.farmerCode, 10) || 0) - (parseInt(b.farmerCode, 10) || 0));
 };
 
-export const NEFT_COLUMNS: Array<{ key: keyof NeftRow; label: string; amount?: boolean }> = [
+// wholeRupees: the amount is rounded and shown without paise
+export const NEFT_COLUMNS: Array<{ key: keyof NeftRow; label: string; amount?: boolean; wholeRupees?: boolean }> = [
   { key: "farmerCode", label: "Farmer ID" },
   { key: "accountNumber", label: "A/C Number" },
   { key: "accountHolder", label: "Account Holder" },
-  { key: "payableAmount", label: "Payable Amount", amount: true },
+  { key: "payableAmount", label: "Payable Amount", amount: true, wholeRupees: true },
   { key: "ifscCode", label: "IFSCode" },
   { key: "purchaseAmount", label: "Purchase Amount", amount: true },
   { key: "advance", label: "Advance", amount: true },
   { key: "deduction", label: "Deduction", amount: true },
-  { key: "netPayable", label: "Net Payable Amount", amount: true },
+  { key: "netPayable", label: "Net Payable Amount", amount: true, wholeRupees: true },
 ];
 
 export const neftTotals = (rows: NeftRow[]) =>
@@ -177,6 +181,12 @@ export const neftTotals = (rows: NeftRow[]) =>
 
 export const formatAmount = (n: number) =>
   n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// Final amounts in the NEFT statements: nearest rupee, no paise ("|| 0" keeps -0 from printing as "-0")
+export const formatRupees = (n: number) => (Math.round(n) || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 });
+
+export const formatColumnAmount = (column: { wholeRupees?: boolean }, n: number) =>
+  column.wholeRupees ? formatRupees(n) : formatAmount(n);
 
 export interface NeftGroup {
   label: string; // VLC heading, as on the Farmer List

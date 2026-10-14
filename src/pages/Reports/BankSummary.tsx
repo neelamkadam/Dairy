@@ -33,6 +33,12 @@ const calculateDateRange = (date: Date) => {
   return { startDate, endDate };
 };
 
+// The amount the bank transfers, rounded to the nearest rupee ("|| 0" keeps -0 out)
+const roundedAmount = (milkTotal: unknown) => {
+  const amount = parseFloat(String(milkTotal ?? "0")) || 0;
+  return Math.round(Math.round(amount * 100) / 100) || 0; // paise first, against float noise
+};
+
 const BankSummary: React.FC = () => {
   const { t } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
@@ -134,7 +140,7 @@ const BankSummary: React.FC = () => {
         "BNF_NAME": row.fullName,
         "BENE_ACC_NO": row.accountNumber || "",
         "BENE_IFSC": row.ifscCode || "",
-        "AMOUNT": parseFloat(row.milk_total?.toString() || "0").toFixed(2),
+        "AMOUNT": String(roundedAmount(row.milk_total)),
         "DEBIT_NARR": "",
         "CREDIT_NARR": "",
         "MOBILE_NUM": row.mobile_number || "",
@@ -167,7 +173,7 @@ const BankSummary: React.FC = () => {
         "Name": row.fullName,
         "Mobile": row.mobile_number,
         "Email": row.email || "-",
-        "Milk Total": parseFloat(row.milk_total?.toString() || "0").toFixed(2),
+        "Milk Total": String(roundedAmount(row.milk_total)),
         "Bank Name": row.bankName || "-",
         "Account Number": row.accountNumber || "-",
         "IFSC Code": row.ifscCode || "-"
@@ -251,7 +257,7 @@ const BankSummary: React.FC = () => {
                   <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
                     <CardContent className="p-4">
                       <p className="text-sm text-purple-600 font-medium">Total Amount</p>
-                      <p className="text-2xl font-bold text-purple-900">₹{data.reduce((sum, row) => sum + parseFloat(row.milk_total?.toString() || "0"), 0).toFixed(2)}</p>
+                      <p className="text-2xl font-bold text-purple-900">₹{data.reduce((sum, row) => sum + roundedAmount(row.milk_total), 0)}</p>
                     </CardContent>
                   </Card>
                 </div>
@@ -295,7 +301,7 @@ const BankSummary: React.FC = () => {
                         <td className="py-2 px-3">{row.fullName}</td>
                         <td className="py-2 px-3">{row.mobile_number}</td>
                         <td className="py-2 px-3">{row.email || "-"}</td>
-                        <td className="py-2 px-3 text-right">₹{parseFloat(row.milk_total?.toString() || "0").toFixed(2)}</td>
+                        <td className="py-2 px-3 text-right">₹{roundedAmount(row.milk_total)}</td>
                         <td className="py-2 px-3">{row.bankName || "-"}</td>
                         <td className="py-2 px-3">{row.accountNumber || "-"}</td>
                         <td className="py-2 px-3">{row.ifscCode || "-"}</td>

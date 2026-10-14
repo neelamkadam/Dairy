@@ -4,7 +4,7 @@ import { toast } from "react-toastify";
 import { endOfMonth, format } from "date-fns";
 import { useAppSelector } from "@/redux/store";
 import { transportApi, TransportNeftRow, TransportNeftTotals } from "@/services/transportApi";
-import { generateTransportNeftExcel, generateTransportNeftPDF } from "@/templates/TransportNeftTemplate";
+import { formatRupees, generateTransportNeftExcel, generateTransportNeftPDF, roundedNetPayableTotal } from "@/templates/TransportNeftTemplate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -195,7 +195,7 @@ const TransportNeftStatement = () => {
                       {r.account_holder}
                       {r.account_holder !== r.name && <span className="block text-xs text-gray-500">{r.name}</span>}
                     </td>
-                    <td className={`${td} text-right font-semibold`}>{n2(r.net_payable)}</td>
+                    <td className={`${td} text-right font-semibold`}>{formatRupees(r.net_payable)}</td>
                     <td className={td}>{r.ifsc_code}</td>
                     <td className={td}>{r.route_names.join(", ") || "-"}</td>
                     <td className={`${td} text-right`}>{r.km_per_trip.map((v) => v.toFixed(2)).join(" / ") || "-"}</td>
@@ -219,7 +219,7 @@ const TransportNeftStatement = () => {
                         {n2(r.composite_amount)} − {n2(r.dispatch_amount)}
                       </span>
                     </td>
-                    <td className={`${td} text-right font-bold`}>{n2(r.net_payable)}</td>
+                    <td className={`${td} text-right font-bold`}>{formatRupees(r.net_payable)}</td>
                     <td className={td}>
                       <Button size="sm" onClick={() => saveRow(r)} disabled={!isDirty(r) || savingId === r.transport_id}
                         className="h-8 bg-blue-600 hover:bg-blue-700 text-white">
@@ -234,7 +234,7 @@ const TransportNeftStatement = () => {
               <tfoot>
                 <tr className="bg-amber-50 font-bold">
                   <td className={td} colSpan={2}>{t("total_amount", "Total Amount")}</td>
-                  <td className={`${td} text-right`}>{n2(totals.net_payable)}</td>
+                  <td className={`${td} text-right`}>{formatRupees(roundedNetPayableTotal(rows))}</td>
                   <td className={td} colSpan={3} />
                   <td className={`${td} text-right`}>{totals.trips}</td>
                   <td className={`${td} text-right`}>{n2(totals.total_km)}</td>
@@ -243,7 +243,7 @@ const TransportNeftStatement = () => {
                   <td className={`${td} text-right`}>{n2(totals.payment_amount)}</td>
                   <td className={`${td} text-right`}>{n2(totals.advance)}</td>
                   <td className={`${td} text-right`}>{n2(totals.dca_deduction)}</td>
-                  <td className={`${td} text-right`}>{n2(totals.net_payable)}</td>
+                  <td className={`${td} text-right`}>{formatRupees(roundedNetPayableTotal(rows))}</td>
                   <td className={td} />
                 </tr>
               </tfoot>

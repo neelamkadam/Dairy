@@ -7,7 +7,8 @@ import { createDairyApi } from "@/services/createDairyApi";
 //   Advance              always blank: filled in by hand on the exported sheet
 //   Deduction From CDA   the VLC's Composite − Dispatch amount (composite amount
 //                        minus dispatch amount) over the dates, when negative
-//   Net Payable          Commission − Deduction; Payable Amount is the same
+//   Net Payable          Commission − Deduction, rounded to the nearest rupee;
+//                        Payable Amount is the same
 
 export interface VlcNeftRow {
   branchId: string;
@@ -140,7 +141,7 @@ export const fetchVlcCommissionNeft = async (
     const { amount: commission, note } = commissionFor(commissionByVlc.get(v.branchId), to);
     const compositeDispatch = differences[i];
     const deduction = compositeDispatch < 0 ? round2(-compositeDispatch) : 0;
-    const netPayable = round2(commission - deduction);
+    const netPayable = Math.round(round2(commission - deduction)) || 0;
     return {
       branchId: v.branchId,
       vlcId: v.vlcId,
@@ -160,17 +161,17 @@ export const fetchVlcCommissionNeft = async (
   });
 };
 
-// Column order of the NEFT format.
-export const VLC_NEFT_COLUMNS: Array<{ key: keyof VlcNeftRow; label: string; amount?: boolean }> = [
+// Column order of the NEFT format. wholeRupees: rounded, shown without paise.
+export const VLC_NEFT_COLUMNS: Array<{ key: keyof VlcNeftRow; label: string; amount?: boolean; wholeRupees?: boolean }> = [
   { key: "accountNumber", label: "A/C Number" },
   { key: "accountHolder", label: "Account Holder" },
-  { key: "payableAmount", label: "Payable Amount", amount: true },
+  { key: "payableAmount", label: "Payable Amount", amount: true, wholeRupees: true },
   { key: "ifscCode", label: "IFSCode" },
   { key: "vspName", label: "VSP Name" },
   { key: "commission", label: "Commission Amount", amount: true },
   { key: "advance", label: "Advance" }, // blank column, filled in by hand
   { key: "deduction", label: "Deduction From CDA", amount: true },
-  { key: "netPayable", label: "Net Payable Amount", amount: true },
+  { key: "netPayable", label: "Net Payable Amount", amount: true, wholeRupees: true },
 ];
 
 export const vlcNeftTotals = (rows: VlcNeftRow[]) => {
@@ -183,3 +184,9 @@ export const vlcNeftTotals = (rows: VlcNeftRow[]) => {
 
 export const formatAmount = (n: number) =>
   n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// Final amounts: nearest rupee, no paise ("|| 0" keeps -0 from printing as "-0")
+export const formatRupees = (n: number) => (Math.round(n) || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 });
+
+export const formatColumnAmount = (column: { wholeRupees?: boolean }, n: number) =>
+  column.wholeRupees ? formatRupees(n) : formatAmount(n);

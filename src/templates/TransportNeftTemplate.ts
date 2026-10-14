@@ -5,25 +5,33 @@ import type { TransportNeftRow, TransportNeftTotals } from "@/services/transport
 
 // Transport NEFT statement, laid out like the bank upload sheet: one row per
 // transport, then "Total Amount". Every figure comes from the server.
-//   Payable Amount = Net Payable Amount (what the bank transfers)
+//   Payable Amount = Net Payable Amount (what the bank transfers), rounded to the
+//                    nearest rupee; its total is the sum of the rounded rows
 //   Shift          = trips run in the period
 //   KMS / Rate     = KMs per trip / rate per KM (several when the route changed)
 
-type Kind = "text" | "amount" | "number";
+// "rupees": a whole-rupee final amount, shown without paise
+type Kind = "text" | "amount" | "number" | "rupees";
 interface Column {
   label: string;
   kind: Kind;
   value: (r: TransportNeftRow) => string | number;
-  total?: (t: TransportNeftTotals) => number;
+  total?: (t: TransportNeftTotals, rows: TransportNeftRow[]) => number;
   width: number;
 }
+
+// Paise first, so 1234.4999… (float noise for 1234.50) still rounds up; "|| 0" keeps -0 out
+export const roundRupees = (n: number) => Math.round(Math.round(n * 100) / 100) || 0;
+export const formatRupees = (n: number) => roundRupees(n).toLocaleString("en-IN");
+export const roundedNetPayableTotal = (rows: TransportNeftRow[]) =>
+  rows.reduce((sum, r) => sum + roundRupees(r.net_payable), 0);
 
 const joinNumbers = (values: number[]) => values.map((v) => v.toFixed(2)).join(" / ");
 
 export const TRANSPORT_NEFT_COLUMNS: Column[] = [
   { label: "A/C Number", kind: "text", value: (r) => r.account_number, width: 20 },
   { label: "Account Holder", kind: "text", value: (r) => r.account_holder, width: 28 },
-  { label: "Payable Amount", kind: "amount", value: (r) => r.net_payable, total: (t) => t.net_payable, width: 15 },
+  { label: "Payable Amount", kind: "rupees", value: (r) => roundRupees(r.net_payable), total: (_t, rows) => roundedNetPayableTotal(rows), width: 15 },
   { label: "IFSCode", kind: "text", value: (r) => r.ifsc_code, width: 14 },
   { label: "Route Name", kind: "text", value: (r) => r.route_names.join(", "), width: 22 },
   { label: "KMS", kind: "text", value: (r) => joinNumbers(r.km_per_trip), width: 10 },
@@ -35,7 +43,7 @@ export const TRANSPORT_NEFT_COLUMNS: Column[] = [
   { label: "Payment Amount", kind: "amount", value: (r) => r.payment_amount, total: (t) => t.payment_amount, width: 15 },
   { label: "Advance", kind: "amount", value: (r) => r.advance, total: (t) => t.advance, width: 12 },
   { label: "Deduction from DCA Report", kind: "amount", value: (r) => r.dca_deduction, total: (t) => t.dca_deduction, width: 16 },
-  { label: "Net Payable Amount", kind: "amount", value: (r) => r.net_payable, total: (t) => t.net_payable, width: 16 },
+  { label: "Net Payable Amount", kind: "rupees", value: (r) => roundRupees(r.net_payable), total: (_t, rows) => roundedNetPayableTotal(rows), width: 16 },
 ];
 
 const money = (n: number) => n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -49,7 +57,7 @@ export const generateTransportNeftExcel = (rows: TransportNeftRow[], totals: Tra
   const aoa: (string | number)[][] = [
     TRANSPORT_NEFT_COLUMNS.map((c) => c.label),
     ...rows.map((r) => TRANSPORT_NEFT_COLUMNS.map((c) => c.value(r))),
-    TRANSPORT_NEFT_COLUMNS.map((c, i) => (c.total ? c.total(totals) : i === 0 ? "Total Amount" : "")),
+    TRANSPORT_NEFT_COLUMNS.map((c, i) => (c.total ? c.total(totals, rows) : i === 0 ? "Total Amount" : "")),
   ];
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   // A/C numbers stay text so Excel does not turn them into 1.23E+13
@@ -58,6 +66,7 @@ export const generateTransportNeftExcel = (rows: TransportNeftRow[], totals: Tra
       const cell = ws[XLSX.utils.encode_cell({ r, c: i })];
       if (!cell) return;
       if (c.kind === "amount" && cell.t === "n") cell.z = "0.00";
+      if (c.kind === "rupees" && cell.t === "n") cell.z = "0";
       if (c.kind === "text") cell.t = "s";
     });
   }
@@ -77,14 +86,18 @@ export const generateTransportNeftPDF = (
   const cell = (c: Column, value: string | number, extra: Record<string, any> = {}) =>
     c.kind === "text"
       ? { text: String(value ?? ""), ...extra }
-      : { text: c.kind === "amount" ? money(Number(value)) : String(value), alignment: "right", ...extra };
+      : {
+          text: c.kind === "amount" ? money(Number(value)) : c.kind === "rupees" ? formatRupees(Number(value)) : String(value),
+          alignment: "right",
+          ...extra,
+        };
 
   const body: any[][] = [
     TRANSPORT_NEFT_COLUMNS.map((c) => ({ text: c.label, bold: true, alignment: c.kind === "text" ? "left" : "right", fillColor: "#f3f4f6" })),
     ...rows.map((r) => TRANSPORT_NEFT_COLUMNS.map((c) => cell(c, c.value(r)))),
     TRANSPORT_NEFT_COLUMNS.map((c, i) =>
       c.total
-        ? cell(c, c.total(totals), { bold: true, fillColor: "#fef3c7" })
+        ? cell(c, c.total(totals, rows), { bold: true, fillColor: "#fef3c7" })
         : { text: i === 0 ? "Total Amount" : "", bold: true, fillColor: "#fef3c7" }
     ),
   ];

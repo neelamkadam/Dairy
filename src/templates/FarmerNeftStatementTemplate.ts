@@ -1,7 +1,7 @@
 import * as XLSX from "xlsx";
 import pdfMake from "pdfmake/build/pdfmake";
 import { PDF_FONT } from "@/utils/pdfMakeFonts";
-import { NEFT_COLUMNS, NeftGroup, NeftRow, formatAmount, neftTotals } from "@/utils/farmerNeftStatement";
+import { NEFT_COLUMNS, NeftGroup, NeftRow, formatColumnAmount, neftTotals } from "@/utils/farmerNeftStatement";
 
 const fileName = (ext: string, fromDate: string, toDate: string) =>
   `Farmer_NEFT_Statement_${fromDate}_${toDate}.${ext}`.replace(/\//g, "-");
@@ -10,18 +10,21 @@ const groupHeading = (g: NeftGroup) => `${g.label}  (${g.rows.length} Farmers)`;
 
 // Excel column order (bank-upload sheet). Differs from the screen / PDF: no
 // Farmer ID, and the VLC (1 - VLC name - branch) sits after IFSCode.
-type ExcelColumn = { key: keyof NeftRow | "vlc"; label: string; amount?: boolean; width: number };
+// wholeRupees: rounded final amounts, written without paise.
+type ExcelColumn = { key: keyof NeftRow | "vlc"; label: string; amount?: boolean; wholeRupees?: boolean; width: number };
 const EXCEL_COLUMNS: ExcelColumn[] = [
   { key: "accountNumber", label: "A/C Number", width: 22 },
   { key: "accountHolder", label: "Account Holder", width: 32 },
-  { key: "payableAmount", label: "Payable Amount", amount: true, width: 16 },
+  { key: "payableAmount", label: "Payable Amount", amount: true, wholeRupees: true, width: 16 },
   { key: "ifscCode", label: "IFSCode", width: 14 },
   { key: "vlc", label: "VLC", width: 34 },
   { key: "purchaseAmount", label: "Purchase Amount", amount: true, width: 16 },
   { key: "advance", label: "Advance", amount: true, width: 12 },
   { key: "deduction", label: "Deduction", amount: true, width: 12 },
-  { key: "netPayable", label: "Net Payable Amount", amount: true, width: 20 },
+  { key: "netPayable", label: "Net Payable Amount", amount: true, wholeRupees: true, width: 20 },
 ];
+
+const excelAmount = (c: ExcelColumn, n: number) => Number(n.toFixed(c.wholeRupees ? 0 : 2));
 
 // Header row, one row per farmer, then the total row. No VLC heading rows.
 // Account numbers stay text so Excel does not turn them into 1.23E+13.
@@ -37,7 +40,7 @@ export const generateFarmerNeftExcel = (groups: NeftGroup[], fromDate: string, t
           c.key === "vlc"
             ? g.vlcColumn
             : c.amount
-              ? Number((r[c.key] as number).toFixed(2))
+              ? excelAmount(c, r[c.key] as number)
               : String(r[c.key] || "")
         )
       )
@@ -45,7 +48,7 @@ export const generateFarmerNeftExcel = (groups: NeftGroup[], fromDate: string, t
   );
   aoa.push(
     EXCEL_COLUMNS.map((c, i) =>
-      c.amount ? Number(totals[c.key as keyof typeof totals].toFixed(2)) : i === 0 ? `Total (${rows.length})` : ""
+      c.amount ? excelAmount(c, totals[c.key as keyof typeof totals]) : i === 0 ? `Total (${rows.length})` : ""
     )
   );
 
@@ -55,7 +58,7 @@ export const generateFarmerNeftExcel = (groups: NeftGroup[], fromDate: string, t
     EXCEL_COLUMNS.forEach((c, i) => {
       const cell = ws[XLSX.utils.encode_cell({ r, c: i })];
       if (!cell) return;
-      if (c.amount) cell.z = "0.00";
+      if (c.amount) cell.z = c.wholeRupees ? "0" : "0.00";
       else cell.t = "s";
     });
   }
@@ -87,7 +90,7 @@ export const generateFarmerNeftPDF = (
       body.push(
         NEFT_COLUMNS.map((c) =>
           c.amount
-            ? { text: formatAmount(r[c.key] as number), alignment: "right" }
+            ? { text: formatColumnAmount(c, r[c.key] as number), alignment: "right" }
             : { text: String(r[c.key] || ""), fillColor: r.missingBank && (c.key === "accountNumber" || c.key === "ifscCode") ? "#fef3c7" : null }
         )
       )
@@ -96,7 +99,7 @@ export const generateFarmerNeftPDF = (
   body.push(
     NEFT_COLUMNS.map((c, i) =>
       c.amount
-        ? { text: formatAmount(totals[c.key as keyof typeof totals]), alignment: "right", bold: true }
+        ? { text: formatColumnAmount(c, totals[c.key as keyof typeof totals]), alignment: "right", bold: true }
         : { text: i === 0 ? `Total (${rows.length})` : "", bold: true }
     )
   );

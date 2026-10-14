@@ -12,6 +12,7 @@ import {
   NeftRow,
   fetchNeftRowsForVlc,
   formatAmount,
+  formatColumnAmount,
   groupNeftRows,
   neftTotals,
 } from "@/utils/farmerNeftStatement";
@@ -227,7 +228,7 @@ const FarmerNeftStatement = () => {
                               </span>
                             )}
                           </div>
-                        ) : c.amount ? formatAmount(r[c.key] as number) : String(r[c.key] || "")}
+                        ) : c.amount ? formatColumnAmount(c, r[c.key] as number) : String(r[c.key] || "")}
                       </td>
                     ))}
                   </tr>
@@ -238,7 +239,7 @@ const FarmerNeftStatement = () => {
                   {NEFT_COLUMNS.map((c, i) => (
                     <td key={c.key} className={`${cell} ${c.amount ? "text-right" : ""}`}>
                       {c.amount
-                        ? formatAmount(totals[c.key as keyof typeof totals])
+                        ? formatColumnAmount(c, totals[c.key as keyof typeof totals])
                         : i === 0 ? `Total (${rows.length})` : ""}
                     </td>
                   ))}

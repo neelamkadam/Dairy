@@ -13,6 +13,7 @@ import {
   VlcNeftRow,
   fetchVlcCommissionNeft,
   formatAmount,
+  formatColumnAmount,
   vlcNeftTotals,
 } from "@/utils/vlcCommissionNeft";
 import { generateVlcCommissionNeftExcel, generateVlcCommissionNeftPDF } from "@/templates/VlcCommissionNeftTemplate";
@@ -204,7 +205,7 @@ const VlcCommissionNeft = () => {
                               : undefined
                         }
                       >
-                        {c.amount ? formatAmount(r[c.key] as number) : String(r[c.key] || "")}
+                        {c.amount ? formatColumnAmount(c, r[c.key] as number) : String(r[c.key] || "")}
                       </td>
                     ))}
                   </tr>
@@ -212,7 +213,7 @@ const VlcCommissionNeft = () => {
                 <tr className="bg-gray-200 font-bold">
                   {VLC_NEFT_COLUMNS.map((c, i) => (
                     <td key={c.key} className={`${cell} ${c.amount ? "text-right" : ""}`}>
-                      {c.amount ? formatAmount(totals[c.key] ?? 0) : i === 0 ? "Total Amount" : ""}
+                      {c.amount ? formatColumnAmount(c, totals[c.key] ?? 0) : i === 0 ? "Total Amount" : ""}
                     </td>
                   ))}
                 </tr>
