@@ -39,6 +39,7 @@ import { settingsApi, type PageSettingsForVlc } from "@/services/settingsApi";
 import { webUserApi } from "@/services/webUserApi";
 import { toast } from "react-toastify";
 import { cn } from "@/lib/utils";
+import SettingsLockGate from "@/components/SettingsLockGate";
 
 // ─── Module-level sub-components (must be outside GeneralSettings to keep
 //     stable references across re-renders — prevents input focus loss) ─────────
@@ -798,4 +799,11 @@ const GeneralSettings = () => {
   );
 };
 
-export default GeneralSettings;
+// Locked behind the super admin's settings password when one is set
+const LockedGeneralSettings = () => (
+  <SettingsLockGate>
+    <GeneralSettings />
+  </SettingsLockGate>
+);
+
+export default LockedGeneralSettings;

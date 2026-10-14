@@ -535,6 +535,7 @@ const FarmerCollection = () => {
                 <thead className="bg-gray-200">
                   <tr>
                     <th className="border border-gray-300 px-4 py-2">{t('date')}</th>
+                    <th className="border border-gray-300 px-4 py-2">{t('time', 'Time')}</th>
                     <th className="border border-gray-300 px-4 py-2">{t('vlc_id')}</th>
                     <th className="border border-gray-300 px-4 py-2">
                       {t('farmer_id')}
@@ -559,6 +560,9 @@ const FarmerCollection = () => {
                       <tr key={row.id || index}>
                         <td className="border border-gray-300 px-4 py-2">
                           {format(new Date(row.created_at), "dd-MM-yyyy")}
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2 whitespace-nowrap">
+                          {format(new Date(row.created_at), "hh:mm a")}
                         </td>
                         <td className="border border-gray-300 px-4 py-2">
                           {row.vlc_id ?? ""}
@@ -600,7 +604,7 @@ const FarmerCollection = () => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={13} className="border border-gray-300 px-4 py-8 text-center text-gray-500">
+                      <td colSpan={14} className="border border-gray-300 px-4 py-8 text-center text-gray-500">
                         {loading ? "Loading..." : "No data available. Please submit the form to fetch data."}
                       </td>
                     </tr>

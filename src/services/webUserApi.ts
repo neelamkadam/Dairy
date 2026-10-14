@@ -30,4 +30,15 @@ export const webUserApi = {
     const { data } = await AxiosClient.put('/web-users/company-profile', { userId, ...profile });
     return data as { success: boolean; message: string };
   },
+
+  // General Settings lock, set by the super admin on the user's account owner
+  getSettingsLock: async (userId: number) => {
+    const { data } = await AxiosClient.get(`/web-users/settings-lock/${userId}`);
+    return data as { success: boolean; locked: boolean };
+  },
+
+  verifySettingsLock: async (userId: number, password: string) => {
+    const { data } = await AxiosClient.post('/web-users/settings-lock/verify', { userId, password });
+    return data as { success: boolean; valid: boolean };
+  },
 };
