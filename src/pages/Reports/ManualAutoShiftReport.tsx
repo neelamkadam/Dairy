@@ -38,11 +38,13 @@ import { collectionApi, AntibioticStatusResponse } from "@/services/collectionAp
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
 
-// TODO: backend will supply the entry mode (manual/auto) per record.
-// Until then, derive a stable dummy value from the farmer code.
-const getEntryMode = (record: any, index: number): "Manual" | "Auto" => {
-  const code = parseInt(record?.code, 10);
-  return (isNaN(code) ? index : code) % 2 === 0 ? "Auto" : "Manual";
+// Auto when FAT/SNF came from the analyser. The backend stamps analyser_auto on
+// each new collection (app entries: the VLC's Analyser setting at upload; web
+// entries: 0). Collections from before that have it null and show "-".
+type EntryMode = "Auto" | "Manual" | "-";
+const getEntryMode = (record: { analyser_auto?: number | null }): EntryMode => {
+  if (record?.analyser_auto === null || record?.analyser_auto === undefined) return "-";
+  return Number(record.analyser_auto) === 1 ? "Auto" : "Manual";
 };
 
 const ManualAutoShiftReport: React.FC = () => {
@@ -482,7 +484,7 @@ const ManualAutoShiftReport: React.FC = () => {
           </TableHeader>
           <TableBody>
             {paginatedData.length > 0 ? paginatedData.map((record: any, index: number) => {
-              const entryMode = getEntryMode(record, startIndex + index);
+              const entryMode = getEntryMode(record);
               return (
               <TableRow
                 key={`${record.code}-${record.type}-${index}`}
@@ -498,14 +500,18 @@ const ManualAutoShiftReport: React.FC = () => {
                 <TableCell className="font-medium border border-gray-100">{record.rate}</TableCell>
                 <TableCell className="font-medium border border-gray-100">₹{record.amount}</TableCell>
                 <TableCell className="font-medium border border-gray-100">
-                  <span className={cn(
-                    "inline-block px-2 py-0.5 rounded-full text-xs font-semibold",
-                    entryMode === "Auto"
-                      ? "bg-blue-100 text-blue-700"
-                      : "bg-purple-100 text-purple-700"
-                  )}>
-                    {entryMode}
-                  </span>
+                  {entryMode === "-" ? (
+                    <span className="text-gray-400" title="Recorded before entry mode was tracked">-</span>
+                  ) : (
+                    <span className={cn(
+                      "inline-block px-2 py-0.5 rounded-full text-xs font-semibold",
+                      entryMode === "Auto"
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-purple-100 text-purple-700"
+                    )}>
+                      {entryMode}
+                    </span>
+                  )}
                 </TableCell>
               </TableRow>
               );
@@ -683,7 +689,7 @@ const ManualAutoShiftReport: React.FC = () => {
                   <td className="border border-[#9ca3af] py-1 px-3 text-center text-sm capitalize">{record.type}</td>
                   <td className="border border-[#9ca3af] py-1 px-3 text-center text-sm">{record.rate}</td>
                   <td className="border border-[#9ca3af] py-1 px-3 text-center text-sm">₹{record.amount}</td>
-                  <td className="border border-[#9ca3af] py-1 px-3 text-center text-sm">{getEntryMode(record, index)}</td>
+                  <td className="border border-[#9ca3af] py-1 px-3 text-center text-sm">{getEntryMode(record)}</td>
                 </tr>
               ))}
             </tbody>
