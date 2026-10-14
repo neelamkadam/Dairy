@@ -27,6 +27,19 @@ export interface BankDetails {
   ifscCode?: string;
   bankName?: string;
   branchName?: string;
+  accountHolder?: string;
+}
+
+// Format 6 header: the company (account profile), the VLC with its owner, and
+// the VLC's route with that route's supervisor. Missing lines are left out.
+export interface BillHeaderInfo {
+  companyName?: string | null;
+  companyAddress?: string | null;
+  vlcName?: string | null;
+  vlcOwner?: string | null;
+  routeName?: string | null;
+  supervisorName?: string | null;
+  supervisorMobile?: string | null;
 }
 
 export interface Template2Data {
@@ -36,6 +49,7 @@ export interface Template2Data {
   dairyPhone?: string;
   farmerCode: string;
   farmerName: string;
+  farmerMobile?: string | null;
   fromDate: string;
   toDate: string;
   milkType: string;
@@ -65,8 +79,9 @@ export interface Template2Data {
     amount_taken: string;
     received: string;
     created_at?: string;
+    date?: string;
     descriptions?: string;
-    stock?: number;
+    stock?: number; // cattle feed: units (bags) taken
     stock_name?: string;
     cattlefeed_stock?: any;
   }[];
@@ -108,6 +123,8 @@ export interface Template2Data {
   travel_commission?: BillTravelCommission;
   // Format 7: per-day travel commission column for the milk type on this page.
   daily_commission?: DailyCommission;
+  // Format 6: company / VLC / route lines at the top of the bill.
+  bill_header?: BillHeaderInfo;
 }
 
 export interface BillTravelCommission {
@@ -194,6 +211,8 @@ export interface FarmerReportData {
     accountNumber: string;
     ifscCode: string;
     bankName: string;
+    bname?: string | null; // account holder name as the bank has it
+    mobile_number?: string | null;
   } | null;
   payments: BillPayment[];
   current_bill: BillDetail | null;
@@ -294,7 +313,34 @@ const getLabels = (language: string = 'mr') => {
       fixedDeduction: 'Fixed Deduction',
       commission: 'Commission',
       inclFixed: 'incl. fixed',
-      dailyCommissionNote: 'Per-day commission uses the current commission settings; this bill holds ₹{amount}.'
+      dailyCommissionNote: 'Per-day commission uses the current commission settings; this bill holds ₹{amount}.',
+      vspName: 'VSP Name',
+      routeName: 'Route Name',
+      farmerNameCode: 'Farmer Name & Code',
+      supervisorName: 'Supervisor Name',
+      billDate: 'Bill Date',
+      accountHolderName: 'Account Holder Name',
+      accountNoShort: 'A/C No',
+      bankName: 'Bank Name',
+      other1Generic: 'Other 1',
+      typeLabel: 'Type',
+      milkBillPeriod: 'Milk Bill Period',
+      periodTo: 'to',
+      codeNo: 'Code No.',
+      mobNo: 'Mob No.',
+      acNoLower: 'a/c no.',
+      ifscCodeLower: 'ifsc code',
+      totalAmount: 'Total Amount',
+      deductionType: 'Deduction Type',
+      previousShort: 'Previous',
+      currentShort: 'Current',
+      deductionShort: 'Deduction',
+      remainingShort: 'Remaining',
+      itemName: 'Item Name',
+      qtyShort: 'Qty',
+      totalLiters: 'Total Liters',
+      totalRemaining: 'Total Remaining',
+      netPayableAmount: 'Net Payable Amount'
     },
     hi: {
       date: 'दिनांक',
@@ -357,7 +403,34 @@ const getLabels = (language: string = 'mr') => {
       fixedDeduction: 'निश्चित कटौती',
       commission: 'कमीशन',
       inclFixed: 'निश्चित सहित',
-      dailyCommissionNote: 'दैनिक कमीशन वर्तमान कमीशन सेटिंग से है; इस बिल में ₹{amount} है।'
+      dailyCommissionNote: 'दैनिक कमीशन वर्तमान कमीशन सेटिंग से है; इस बिल में ₹{amount} है।',
+      vspName: 'वीएसपी नाम',
+      routeName: 'रूट नाम',
+      farmerNameCode: 'किसान नाम व कोड',
+      supervisorName: 'सुपरवाइज़र नाम',
+      billDate: 'बिल दिनांक',
+      accountHolderName: 'खाताधारक नाम',
+      accountNoShort: 'खाता क्र.',
+      bankName: 'बैंक नाम',
+      other1Generic: 'अन्य 1',
+      typeLabel: 'प्रकार',
+      milkBillPeriod: 'दूध बिल अवधि',
+      periodTo: 'से',
+      codeNo: 'कोड नं',
+      mobNo: 'Mob No.',
+      acNoLower: 'a/c no.',
+      ifscCodeLower: 'ifsc code',
+      totalAmount: 'कुल राशि',
+      deductionType: 'कटौती प्रकार',
+      previousShort: 'पिछला',
+      currentShort: 'चालू',
+      deductionShort: 'कटौती',
+      remainingShort: 'शेष',
+      itemName: 'माल का नाम',
+      qtyShort: 'नग',
+      totalLiters: 'कुल लीटर',
+      totalRemaining: 'कुल शेष',
+      netPayableAmount: 'शुद्ध देय राशि'
     },
     mr: {
       date: 'दिनांक',
@@ -421,7 +494,34 @@ const getLabels = (language: string = 'mr') => {
       fixedDeduction: 'निश्चित कपात',
       commission: 'कमिशन',
       inclFixed: 'निश्चित सह',
-      dailyCommissionNote: 'दैनिक कमिशन सध्याच्या कमिशन सेटिंगनुसार आहे; या बिलात ₹{amount} आहे.'
+      dailyCommissionNote: 'दैनिक कमिशन सध्याच्या कमिशन सेटिंगनुसार आहे; या बिलात ₹{amount} आहे.',
+      vspName: 'व्हीएसपी नाव',
+      routeName: 'रूट नाव',
+      farmerNameCode: 'शेतकरी नाव व कोड',
+      supervisorName: 'सुपरवायझर नाव',
+      billDate: 'बिल दिनांक',
+      accountHolderName: 'खातेधारकाचे नाव',
+      accountNoShort: 'खाते क्र.',
+      bankName: 'बँकेचे नाव',
+      other1Generic: 'इतर 1',
+      typeLabel: 'प्रकार',
+      milkBillPeriod: 'दुध बिल कालावधी',
+      periodTo: 'ते',
+      codeNo: 'कोड नं',
+      mobNo: 'Mob No.',
+      acNoLower: 'a/c no.',
+      ifscCodeLower: 'ifsc code',
+      totalAmount: 'एकुण रक्कम',
+      deductionType: 'कपात प्रकार',
+      previousShort: 'मागील',
+      currentShort: 'चालु',
+      deductionShort: 'कपात',
+      remainingShort: 'येणे बाकी',
+      itemName: 'मालाचे नाव',
+      qtyShort: 'नग',
+      totalLiters: 'एकुण लिटर',
+      totalRemaining: 'एकुण येणे बाकी',
+      netPayableAmount: 'निव्वळ देय रक्कम'
     }
   };
   const selected = { ... (translations[lang] || translations.mr || translations.en) };
@@ -2281,27 +2381,33 @@ export const generateTemplate5MilkBill = (templateData: Template2Data, _language
 </html>`;
 };
 
-// Format 6: Morning and Evening collections side by side (one row per date + milk type),
-// followed by Format 1's deduction table. Both milk types stay on one page.
+// Bill period dates arrive as YYYY-MM-DD, DD-MM-YYYY or DD/MM/YYYY
+const parseBillPeriodDate = (dateStr: string) => {
+  if (!dateStr) return new Date();
+  if (dateStr.includes("/")) {
+    const parts = dateStr.split("/");
+    return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+  }
+  if (dateStr.includes("-")) {
+    const parts = dateStr.split("-");
+    if (parts[0].length === 4) return new Date(dateStr); // YYYY-MM-DD
+    return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0])); // DD-MM-YYYY
+  }
+  return new Date(dateStr);
+};
+
+// For text users type in (company profile, VLC, route, stock names)
+const escapeHtml = (value: unknown) => String(value ?? '')
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+// Format 6: company / VSP / route header (templateData.bill_header), Morning and Evening
+// collections side by side (one row per date + milk type), then Format 1's deduction and
+// details tables with the farmer's bank details. Both milk types stay on one page.
 export const generateTemplate6 = (templateData: Template2Data, language: string = 'mr'): string => {
   const labels = getLabels(language);
 
-  const parseDate = (dateStr: string) => {
-    if (!dateStr) return new Date();
-    if (dateStr.includes("/")) {
-      const parts = dateStr.split("/");
-      return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-    }
-    if (dateStr.includes("-")) {
-      const parts = dateStr.split("-");
-      if (parts[0].length === 4) return new Date(dateStr); // YYYY-MM-DD
-      return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0])); // DD-MM-YYYY
-    }
-    return new Date(dateStr);
-  };
-
-  const fromDate = parseDate(templateData.fromDate);
-  const toDate = parseDate(templateData.toDate);
+  const fromDate = parseBillPeriodDate(templateData.fromDate);
+  const toDate = parseBillPeriodDate(templateData.toDate);
 
   const pad2 = (n: number) => String(n).padStart(2, '0');
   const fmtDMY = (d: Date) => `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`;
@@ -2358,7 +2464,7 @@ export const generateTemplate6 = (templateData: Template2Data, language: string 
     }).join('');
     const totalAvg = (w: number) => (liters > 0 ? w / liters : 0);
 
-    return `<table class="shift-table">
+    return `<table class="grid">
       <thead>
         <tr>
           <th>${labels.dt}</th>
@@ -2392,7 +2498,7 @@ export const generateTemplate6 = (templateData: Template2Data, language: string 
   const showBonusTillDate = !!templateData.bonus_deduction_info || parseFloat(String(sm.totalBonusTillDate)) > 0 || sm.isTravelValid;
   const summaryRow = (label: string, value: number) => `<tr><td class="lbl">${label}</td><td class="num">${value.toFixed(2)}</td></tr>`;
 
-  const deductionTable = `<table class="shift-table">
+  const deductionTable = `<table class="grid">
       <thead>
         <tr>
           <th>${labels.name}</th>
@@ -2420,7 +2526,7 @@ export const generateTemplate6 = (templateData: Template2Data, language: string 
       </tbody>
     </table>`;
 
-  const summaryTable = `<table class="shift-table">
+  const summaryTable = `<table class="grid">
       <thead>
         <tr>
           <th>${labels.details}</th>
@@ -2443,15 +2549,28 @@ export const generateTemplate6 = (templateData: Template2Data, language: string 
         ${summaryRow(labels.yeneBaaki, sm.totalBal)}
         <tr class="total-row net-row">
           <td class="lbl">${labels.netPayable}</td>
-          <td class="num">₹${sm.netPayable.toFixed(2)}</td>
+          <td class="num">${sm.netPayable.toFixed(2)}</td>
         </tr>
       </tbody>
     </table>`;
 
+  const esc = escapeHtml;
+  const header = templateData.bill_header || {};
+  const companyName = header.companyName?.trim() || templateData.dairyName;
+  const companyAddress = header.companyAddress?.trim() || '';
+  const vlcName = header.vlcName?.trim() || templateData.dairyName;
+  const vlcOwner = header.vlcOwner?.trim() || '';
+  const routeName = header.routeName?.trim() || '';
+  const supervisorName = header.supervisorName?.trim() || '';
+  const supervisorMobile = header.supervisorMobile?.trim() || '';
+
   const bank = templateData.bankDetails;
-  const bankLine = `<b>${labels.bankDetail}:</b> ${labels.accountNumber}: ${bank?.accountNumber || templateData.farmer_details?.accountNumber || "N/A"}
-    &nbsp;|&nbsp; ${labels.ifsc}: ${bank?.ifscCode || templateData.farmer_details?.ifscCode || "N/A"}
-    &nbsp;|&nbsp; ${labels.bank}: ${bank?.bankName || templateData.farmer_details?.bankName || "N/A"}`;
+  const accountHolder = bank?.accountHolder || templateData.farmerName;
+  const bankBlock = `<div class="title">${labels.bankDetail}:</div>
+    <div>${labels.accountHolderName} - ${esc(accountHolder)}</div>
+    <div>${labels.accountNoShort} - ${esc(bank?.accountNumber || templateData.farmer_details?.accountNumber)}</div>
+    <div>${labels.ifsc} - ${esc(bank?.ifscCode || templateData.farmer_details?.ifscCode)}</div>
+    <div>${labels.bankName} - ${esc(bank?.bankName || templateData.farmer_details?.bankName)}</div>`;
 
   return `<!DOCTYPE html>
 <html>
@@ -2460,51 +2579,324 @@ export const generateTemplate6 = (templateData: Template2Data, language: string 
   <style>
     * { box-sizing: border-box; }
     body { font-family: Arial, sans-serif; font-size: 12px; line-height: 1.2; margin: 0; padding: 0; color: black; }
-    .header { text-align: center; font-size: 22px; font-weight: bold; padding-bottom: 8px; border-bottom: 2px solid black; }
-    .info-row { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0 14px 0; font-size: 12px; font-weight: bold; }
-    .info-row .shift { width: 70px; }
-    .info-row .farmer { flex: 1.2; }
-    .info-row .farmer .code { font-size: 11px; }
-    .info-row .branch { flex: 1; }
-    .info-row .period { white-space: nowrap; font-size: 14px; }
-    .info-row .shift.right { text-align: right; }
-    .tables { display: flex; gap: 8px; align-items: flex-start; }
-    .shift-table { width: 50%; border-collapse: collapse; border: 1px solid black; }
-    .shift-table th { padding: 4px 3px; font-size: 12px; font-weight: bold; text-align: center; border-bottom: 1px solid black; }
-    .shift-table td { padding: 3px 3px; font-size: 12px; text-align: center; border-right: 1px solid #ccc; }
-    .shift-table td:last-child { border-right: none; }
-    .shift-table td.milk, .shift-table td.lbl { text-align: left; }
-    .shift-table td.num { text-align: right; }
-    .shift-table .total-row td { font-weight: bold; border-top: 1px solid black; }
-    .shift-table .net-row td { font-size: 14px; padding: 5px 3px; }
-    .bottom { margin-top: 12px; }
-    .bottom .half { width: 50%; }
-    .bottom .half .shift-table { width: 100%; }
-    .bank { margin-top: 6px; font-size: 11px; line-height: 1.4; }
+    .page { padding: 26px 28px 20px 28px; background-color: white; }
+    .company { text-align: center; }
+    .company-name { font-size: 30px; line-height: 1.15; }
+    .company-address { font-size: 12.5px; line-height: 1.4; margin: 4px auto 0 auto; max-width: 80%; }
+    .vsp { text-align: center; font-size: 15px; margin-top: 16px; }
+    .info { margin-top: 6px; font-size: 15px; line-height: 1.3; }
+    .shift-labels { display: flex; margin-top: 2px; font-size: 11.5px; }
+    .shift-labels > div { width: 50%; display: flex; justify-content: space-between; align-items: flex-end; padding: 0 2px 3px 2px; }
+    .collection { display: flex; border: 1px solid black; }
+    .collection > div { width: 50%; }
+    .collection > div + div { border-left: 1px solid black; }
+    .grid { width: 100%; border-collapse: collapse; }
+    .grid th { padding: 5px 3px; font-size: 11.5px; font-weight: bold; text-align: center; border-bottom: 1px solid black; }
+    .grid td { padding: 3px 3px; font-size: 11.5px; text-align: center; }
+    .grid td.milk, .grid td.lbl { text-align: left; }
+    .grid td.num { text-align: right; }
+    .grid .total-row td { font-weight: bold; border-top: 1px solid black; }
+    .grid .net-row td { font-size: 14px; padding: 6px 4px; border-top: 1.5px solid black; }
+    .bottom { display: flex; gap: 10px; align-items: flex-start; margin-top: 16px; }
+    .bottom > div { width: 50%; }
+    .box { border: 1px solid black; }
+    .bank { margin-top: 10px; font-size: 13px; }
+    .bank .title { font-size: 10.5px; font-weight: bold; margin-bottom: 10px; }
+    .bank div + div { margin-top: 12px; }
   </style>
 </head>
 <body style="margin: 0; padding: 0;">
-  <div style="padding: 30px 30px 20px 30px; box-sizing: border-box; background-color: white;">
-    <div class="header">${templateData.dairyName}</div>
-    <div class="info-row">
-      <div class="shift">${labels.morning}</div>
-      <div class="farmer">${templateData.farmerName}<div class="code">${templateData.farmerCode}</div></div>
-      <div class="branch">${templateData.branchName}</div>
-      <div class="period">${fmtDMY(fromDate)} - ${fmtDMY(toDate)}</div>
-      <div class="shift right">${labels.evening}</div>
+  <div class="page">
+    <div class="company">
+      <div class="company-name">${esc(companyName)}</div>
+      ${companyAddress ? `<div class="company-address">${esc(companyAddress).replace(/\r?\n/g, '<br>')}</div>` : ''}
+    </div>
+    <div class="vsp">${labels.vspName} - ${esc(vlcName)}${vlcOwner ? ` (${esc(vlcOwner)})` : ''}</div>
+    <div class="info">
+      ${routeName ? `<div>${labels.routeName} – ${esc(routeName)}</div>` : ''}
+      <div>${labels.farmerNameCode} – ${esc(templateData.farmerCode)} ${esc(templateData.farmerName)}</div>
+      ${supervisorName ? `<div>${labels.supervisorName} – ${esc(supervisorName)}${supervisorMobile ? ` (${esc(supervisorMobile)})` : ''}</div>` : ''}
     </div>
 
-    <div class="tables">
-      ${renderShiftTable(morning)}
-      ${renderShiftTable(evening)}
+    <div class="shift-labels">
+      <div><span>${labels.morning}</span></div>
+      <div><span>${labels.evening}</span><span>${labels.billDate}-${fmtDMY(fromDate)} - ${fmtDMY(toDate)}</span></div>
+    </div>
+    <div class="collection">
+      <div>${renderShiftTable(morning)}</div>
+      <div>${renderShiftTable(evening)}</div>
     </div>
 
-    <div class="tables bottom">
-      <div class="half">
-        ${deductionTable}
-        <div class="bank">${bankLine}</div>
+    <div class="bottom">
+      <div>
+        <div class="box">${deductionTable}</div>
+        <div class="bank">${bankBlock}</div>
       </div>
-      ${summaryTable}
+      <div class="box">${summaryTable}</div>
+    </div>
+  </div>
+</body>
+</html>`;
+};
+
+// Format 8: one row per date with Morning and Evening side by side and the day's total,
+// then the deductions, the cattle feed taken this period (date, item, bags, rate, amount)
+// and the bill totals. Both milk types stay on one page, grouped Cow then Buffalo.
+export const generateTemplate8 = (templateData: Template2Data, language: string = 'mr'): string => {
+  const labels = getLabels(language);
+  const esc = escapeHtml;
+
+  const fromDate = parseBillPeriodDate(templateData.fromDate);
+  const toDate = parseBillPeriodDate(templateData.toDate);
+
+  const pad2 = (n: number) => String(n).padStart(2, '0');
+  const fmtDMY = (d: Date) => `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`;
+  const fmtDashed = (d: Date) => `${pad2(d.getDate())}-${pad2(d.getMonth() + 1)}-${d.getFullYear()}`;
+
+  const isBuffalo = (type: string) => (type || '').toString().toLowerCase().trim().startsWith('b');
+  let items = templateData.data;
+  if (templateData.milkType === 'Cow') items = items.filter(i => !isBuffalo(i.type));
+  else if (templateData.milkType === 'Buffalo') items = items.filter(i => isBuffalo(i.type));
+
+  // One row per date and milk type; several entries in the same shift are added up
+  interface ShiftTotal { liters: number; amount: number; fatW: number; snfW: number; }
+  interface DayRow { date: Date; morning: ShiftTotal; evening: ShiftTotal; }
+  const emptyShift = (): ShiftTotal => ({ liters: 0, amount: 0, fatW: 0, snfW: 0 });
+  const addTo = (target: ShiftTotal, s: ShiftTotal) => {
+    target.liters += s.liters;
+    target.amount += s.amount;
+    target.fatW += s.fatW;
+    target.snfW += s.snfW;
+  };
+
+  const days = { Cow: new Map<string, DayRow>(), Buffalo: new Map<string, DayRow>() };
+  for (const item of items) {
+    const d = new Date(item.date);
+    const key = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+    const byDate = days[isBuffalo(item.type) ? 'Buffalo' : 'Cow'];
+    if (!byDate.has(key)) byDate.set(key, { date: d, morning: emptyShift(), evening: emptyShift() });
+    const liters = item.liters || 0;
+    addTo(byDate.get(key)![(item.shift || '').toLowerCase().startsWith('e') ? 'evening' : 'morning'], {
+      liters,
+      amount: item.amount || 0,
+      fatW: (item.fat || 0) * liters,
+      snfW: (item.snf || 0) * liters
+    });
+  }
+
+  // FAT/SNF are litre-weighted averages; the rate is amount / litres
+  const avg = (weighted: number, liters: number, digits: number) => (liters > 0 ? (weighted / liters).toFixed(digits) : '');
+  const shiftCells = (s: ShiftTotal, first: boolean) => `
+    <td class="${first ? 'sep' : ''}">${s.liters > 0 ? s.liters.toFixed(1) : ''}</td>
+    <td>${avg(s.fatW, s.liters, 1)}</td>
+    <td>${avg(s.snfW, s.liters, 1)}</td>
+    <td class="num">${avg(s.amount, s.liters, 2)}</td>
+    <td class="num">${s.liters > 0 ? s.amount.toFixed(2) : ''}</td>`;
+  const totalRow = (label: string, m: ShiftTotal, e: ShiftTotal, extraClass = '') => `<tr class="total-row ${extraClass}">
+      <td class="date">${label}</td>
+      ${shiftCells(m, false)}
+      ${shiftCells(e, true)}
+      <td class="num sep">${(m.amount + e.amount).toFixed(2)}</td>
+    </tr>`;
+
+  const types = (['Cow', 'Buffalo'] as const).filter(type => days[type].size > 0);
+  const mixed = types.length > 1;
+  const grand = { morning: emptyShift(), evening: emptyShift() };
+  const milkRows = types.map(type => {
+    const typeLabel = type === 'Buffalo' ? labels.buffalo : labels.cow;
+    const sub = { morning: emptyShift(), evening: emptyShift() };
+    const rows = Array.from(days[type].entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([, r]) => {
+        addTo(sub.morning, r.morning);
+        addTo(sub.evening, r.evening);
+        return `<tr>
+          <td class="date">${fmtDMY(r.date)}</td>
+          ${shiftCells(r.morning, false)}
+          ${shiftCells(r.evening, true)}
+          <td class="num sep">${(r.morning.amount + r.evening.amount).toFixed(2)}</td>
+        </tr>`;
+      }).join('');
+    addTo(grand.morning, sub.morning);
+    addTo(grand.evening, sub.evening);
+    return `${mixed ? `<tr class="type-row"><td colspan="12">${typeLabel}</td></tr>` : ''}
+      ${rows}
+      ${totalRow(mixed ? `${labels.total} ${typeLabel}` : labels.total, sub.morning, sub.evening)}`;
+  }).join('');
+  const grandRow = mixed ? totalRow(labels.total, grand.morning, grand.evening, 'grand-row') : '';
+  const typeText = types.map(type => (type === 'Buffalo' ? labels.buffalo : labels.cow)).join(' + ');
+
+  // Deductions as Format 1 works them out; Other 1 under its generic name
+  const sm = computeFormat1Summary(templateData, { ...labels, other1: labels.other1Generic }, toDate);
+  const showBonusTillDate = !!templateData.bonus_deduction_info || parseFloat(String(sm.totalBonusTillDate)) > 0;
+  const deductionTable = `<table class="grid">
+      <thead>
+        <tr>
+          <th class="lbl">${labels.deductionType}</th>
+          <th>${labels.previousShort}</th>
+          <th>${labels.currentShort}</th>
+          <th>${labels.deductionShort}</th>
+          <th>${labels.remainingShort}</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${sm.processedDeductionInfo.map(d => `<tr>
+          <td class="lbl">${d.label}</td>
+          <td>${d.prev.toFixed(2)}</td>
+          <td>${d.payment.toFixed(2)}</td>
+          <td>${d.deduction.toFixed(2)}</td>
+          <td>${d.balance.toFixed(2)}</td>
+        </tr>`).join('')}
+        <tr class="total-row">
+          <td class="lbl">${labels.total}</td>
+          <td>${sm.totalPrev.toFixed(2)}</td>
+          <td>${sm.totalPay.toFixed(2)}</td>
+          <td>${sm.totalDed.toFixed(2)}</td>
+          <td>${sm.totalBal.toFixed(2)}</td>
+        </tr>
+      </tbody>
+    </table>`;
+
+  // Cattle feed taken this period. stock is the number of units (bags); the rate is
+  // worked back from the amount, since the entry stores only the total.
+  const isFeed = (type: string) => ['cattlefeed', 'pashukhady', 'पशुखाद्य'].includes((type || '').toLowerCase().replace(/\s/g, ''));
+  const feedEntries = (templateData.payments || [])
+    .filter(p => isFeed(p.payment_type) && parseFloat(p.amount_taken || '0') > 0)
+    .map(p => {
+      const amount = parseFloat(p.amount_taken || '0');
+      const qty = Number(p.stock) || 0;
+      return { date: new Date(p.date || p.created_at || ''), item: p.stock_name || labels.feed, qty, amount };
+    })
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
+  const feedTotal = feedEntries.reduce((sum, f) => sum + f.amount, 0);
+  const feedTable = `<table class="grid">
+      <thead>
+        <tr>
+          <th class="lbl">${labels.date}</th>
+          <th class="lbl">${labels.itemName}</th>
+          <th>${labels.qtyShort}</th>
+          <th>${labels.rate}</th>
+          <th>${labels.amount}</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${feedEntries.length > 0
+          ? feedEntries.map(f => `<tr>
+              <td class="lbl">${isNaN(f.date.getTime()) ? '' : fmtDashed(f.date)}</td>
+              <td class="lbl item">${esc(f.item)}</td>
+              <td>${f.qty > 0 ? f.qty : ''}</td>
+              <td>${f.qty > 0 ? (f.amount / f.qty).toFixed(0) : ''}</td>
+              <td>${f.amount.toFixed(2)}</td>
+            </tr>`).join('') + `<tr class="total-row"><td colspan="4"></td><td>${feedTotal.toFixed(2)}</td></tr>`
+          : `<tr><td colspan="5" class="empty">-</td></tr>`}
+      </tbody>
+    </table>`;
+
+  const summaryLine = (label: string, value: string, extraClass = '') =>
+    `<div class="line ${extraClass}"><span>${label}</span><span>${value}</span></div>`;
+  const summary = [
+    summaryLine(labels.totalLiters, (sm.cowLiters + sm.buffaloLiters).toFixed(1)),
+    summaryLine(labels.totalAmount, sm.summaryTotalAmount.toFixed(2)),
+    summaryLine(labels.ekunKapat, sm.totalDed.toFixed(2)),
+    sm.bonusAmount > 0 ? summaryLine(labels.bonusDeduction, sm.bonusAmount.toFixed(2)) : '',
+    sm.fixedAmount > 0 ? summaryLine(labels.fixedDeduction, sm.fixedAmount.toFixed(2)) : '',
+    showBonusTillDate ? summaryLine(labels.totalBonusTillDate, parseFloat(String(sm.totalBonusTillDate)).toFixed(2)) : '',
+    sm.isTravelValid ? summaryLine(labels.travelCommission, sm.travelAmount.toFixed(2)) : '',
+    summaryLine(labels.totalRemaining, sm.totalBal.toFixed(2)),
+    summaryLine(labels.netPayableAmount, sm.netPayable.toFixed(2), 'net')
+  ].join('');
+
+  const header = templateData.bill_header || {};
+  const title = header.companyName?.trim() || templateData.dairyName;
+  const branch = templateData.branchName || header.vlcName || templateData.dairyName;
+  const bank = templateData.bankDetails;
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; font-size: 12px; line-height: 1.2; margin: 0; padding: 0; color: black; }
+    .page { padding: 22px 22px 18px 22px; background-color: white; }
+    .title { text-align: center; font-size: 22px; font-weight: bold; }
+    .row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+    .row1 { margin-top: 8px; font-size: 13px; }
+    .row2 { margin-top: 4px; font-size: 11.5px; }
+    .row2 .farmer { font-size: 13.5px; font-weight: bold; }
+    .milk { width: 100%; border-collapse: collapse; border: 1px solid black; margin-top: 6px; }
+    .milk th { font-weight: normal; padding: 4px 3px; font-size: 12px; text-align: center; border-bottom: 1px solid black; }
+    .milk td { padding: 3px 4px; font-size: 11.5px; text-align: center; }
+    .milk td.num { text-align: right; }
+    .milk td.date, .milk th.date { text-align: left; }
+    .milk .sep { border-left: 1px solid black; }
+    .milk .type-row td { text-align: left; font-weight: bold; padding-top: 6px; }
+    .milk .total-row td { font-weight: bold; border-top: 1px solid black; }
+    .milk .grand-row td { border-top: 1.5px solid black; }
+    .bottom { display: flex; gap: 6px; align-items: flex-start; margin-top: 14px; }
+    .box { border: 1px solid black; }
+    .ded { flex: 0 0 40%; }
+    .feed { flex: 0 0 35%; }
+    .summary { flex: 1; min-width: 0; }
+    .grid { width: 100%; border-collapse: collapse; }
+    .grid th { font-weight: normal; padding: 4px 3px; font-size: 11.5px; text-align: right; border-bottom: 1px solid black; white-space: nowrap; }
+    .grid td { padding: 3px 3px; font-size: 11.5px; text-align: right; white-space: nowrap; }
+    .grid td.item { white-space: normal; }
+    .grid .lbl { text-align: left; }
+    .grid td.empty { text-align: center; }
+    .grid .total-row td { font-weight: bold; border-top: 1px solid black; }
+    .summary .line { display: flex; justify-content: space-between; gap: 6px; padding: 3px 2px; font-size: 12.5px; }
+    .summary .net { font-weight: bold; font-size: 14px; border-top: 1px solid black; margin-top: 4px; padding-top: 5px; }
+  </style>
+</head>
+<body style="margin: 0; padding: 0;">
+  <div class="page">
+    <div class="title">${esc(title)}</div>
+    <div class="row row1">
+      <div>${labels.branch} : ${esc(branch)}</div>
+      <div>${labels.typeLabel} : ${typeText}</div>
+      <div>${labels.milkBillPeriod}</div>
+      <div>${labels.date} <b>${fmtDMY(fromDate)}</b> ${labels.periodTo} <b>${fmtDMY(toDate)}</b></div>
+    </div>
+    <div class="row row2">
+      <div class="farmer">${labels.codeNo} ${esc(templateData.farmerCode)} &nbsp;${esc(templateData.farmerName)}</div>
+      <div>${labels.mobNo} ${esc(templateData.farmerMobile)}</div>
+      <div>${labels.acNoLower} ${esc(bank?.accountNumber || templateData.farmer_details?.accountNumber)}</div>
+      <div>${labels.ifscCodeLower} ${esc(bank?.ifscCode || templateData.farmer_details?.ifscCode)}</div>
+    </div>
+
+    <table class="milk">
+      <thead>
+        <tr>
+          <th colspan="6">${labels.morning}</th>
+          <th colspan="5" class="sep">${labels.evening}</th>
+          <th class="sep"></th>
+        </tr>
+        <tr>
+          <th class="date">${labels.date}</th>
+          <th>${labels.quantity}</th>
+          <th>${labels.fat}</th>
+          <th>${labels.snf}</th>
+          <th>${labels.rate}</th>
+          <th>${labels.amount}</th>
+          <th class="sep">${labels.quantity}</th>
+          <th>${labels.fat}</th>
+          <th>${labels.snf}</th>
+          <th>${labels.rate}</th>
+          <th>${labels.amount}</th>
+          <th class="sep">${labels.totalAmount}</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${milkRows}
+        ${grandRow}
+      </tbody>
+    </table>
+
+    <div class="bottom">
+      <div class="box ded">${deductionTable}</div>
+      <div class="box feed">${feedTable}</div>
+      <div class="summary">${summary}</div>
     </div>
   </div>
 </body>

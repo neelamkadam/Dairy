@@ -1473,5 +1473,14 @@
   "auto": "Auto",
   "shown_after_show": "Shown after Show",
   "transport_neft_subtitle": "Enter the advance for this bill period, save, then export",
-  "transport_neft_note": "Shift = trips run. KMS and Rate are per trip / per KM; several values mean the route changed in the period. Payment = Total Kms × Rate. Deduction from DCA Report = Composite − Dispatch amount of the route's VLCs over the days the transport ran it (as in VLC Difference Report 2), never below 0. Net Payable = Payment − Advance − DCA deduction. The advance is saved for exactly this From–To period."
+  "transport_neft_note": "Shift = trips run. KMS and Rate are per trip / per KM; several values mean the route changed in the period. Payment = Total Kms × Rate. Deduction from DCA Report = Composite − Dispatch amount of the route's VLCs over the days the transport ran it (as in VLC Difference Report 2), never below 0. Net Payable = Payment − Advance − DCA deduction. The advance is saved for exactly this From–To period.",
+  "company_profile": "Company Profile",
+  "company_name": "Company Name",
+  "company_address": "Company Address",
+  "company_name_placeholder": "e.g. Bansi Dairy Foods",
+  "company_address_placeholder": "Address printed under the company name",
+  "company_profile_hint": "Printed at the top of farmer bills (Format 6) for every VLC.",
+  "company_profile_admin_only": "Only the admin can change it.",
+  "company_profile_saved": "Company profile saved",
+  "export_option_format_8": "Format 8 (Cattle Feed Details)"
 }

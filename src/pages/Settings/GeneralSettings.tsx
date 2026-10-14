@@ -30,9 +30,13 @@ import {
   Save,
   ToggleLeft,
   AlertTriangle,
+  Building2,
 } from "lucide-react";
 import { VLCDropdown } from "@/components/ui/vlc-dropdown";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { settingsApi, type PageSettingsForVlc } from "@/services/settingsApi";
+import { webUserApi } from "@/services/webUserApi";
 import { toast } from "react-toastify";
 import { cn } from "@/lib/utils";
 
@@ -146,6 +150,102 @@ const SegmentControl = ({
     ))}
   </div>
 );
+
+// Company name / address printed at the top of farmer bills (Format 6). One profile
+// for the whole account, so it saves on its own rather than with the VLC settings.
+const CompanyProfileCard = () => {
+  const { t } = useTranslation();
+  const userData = useAppSelector((state) => state.authData.userData);
+  const userId = Number(userData?.id);
+  const isAdmin = userData?.is_admin === true || userData?.is_admin === 1;
+  const [name, setName] = useState("");
+  const [address, setAddress] = useState("");
+  const [saved, setSaved] = useState({ name: "", address: "" });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    setLoading(true);
+    webUserApi.getCompanyProfile(userId)
+      .then(({ data }) => {
+        if (!active) return;
+        const next = { name: data?.company_name || "", address: data?.company_address || "" };
+        setName(next.name);
+        setAddress(next.address);
+        setSaved(next);
+      })
+      .catch((error) => console.error("Error fetching company profile:", error))
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [userId]);
+
+  const dirty = name.trim() !== saved.name || address.trim() !== saved.address;
+
+  const handleSave = async () => {
+    const next = { name: name.trim(), address: address.trim() };
+    setSaving(true);
+    try {
+      const res = await webUserApi.updateCompanyProfile(userId, { company_name: next.name, company_address: next.address });
+      if (!res.success) {
+        toast.error(res.message);
+        return;
+      }
+      setSaved(next);
+      toast.success(t("company_profile_saved", "Company profile saved"));
+    } catch (error) {
+      const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(message || t("oops_something_went_wrong"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <SectionCard>
+      <SectionHeader icon={Building2} title={t("company_profile", "Company Profile")}>
+        {isAdmin && (
+          <Button
+            size="sm" onClick={handleSave} disabled={!dirty || saving || loading}
+            className="bg-blue-600 hover:bg-blue-700 text-white h-8 px-3 text-xs gap-1.5 rounded-lg disabled:bg-gray-300 disabled:opacity-60"
+          >
+            <Save className="h-3.5 w-3.5" />
+            {saving ? t("saving", "Saving...") : t("save", "Save")}
+          </Button>
+        )}
+      </SectionHeader>
+      <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-1.5">
+          <label htmlFor="company-name" className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            {t("company_name", "Company Name")}
+          </label>
+          <Input
+            id="company-name" value={name} maxLength={150} disabled={!isAdmin || loading}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t("company_name_placeholder", "e.g. Bansi Dairy Foods")}
+            className="bg-gray-50 border-gray-200 h-10"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor="company-address" className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            {t("company_address", "Company Address")}
+          </label>
+          <Textarea
+            id="company-address" value={address} maxLength={500} rows={2} disabled={!isAdmin || loading}
+            onChange={(e) => setAddress(e.target.value)}
+            placeholder={t("company_address_placeholder", "Address printed under the company name")}
+            className="bg-gray-50 border-gray-200 min-h-10 resize-y"
+          />
+        </div>
+        <p className="md:col-span-2 text-xs text-gray-500">
+          {t("company_profile_hint", "Printed at the top of farmer bills (Format 6) for every VLC.")}
+          {!isAdmin && ` ${t("company_profile_admin_only", "Only the admin can change it.")}`}
+        </p>
+      </div>
+    </SectionCard>
+  );
+};
 
 const GeneralSettings = () => {
   const { t } = useTranslation();
@@ -464,6 +564,8 @@ const GeneralSettings = () => {
       </div>
 
       <div className="w-full p-3 space-y-3">
+
+        <CompanyProfileCard />
 
         {/* Row 1: Language + VLC + System Toggles */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

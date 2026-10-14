@@ -70,6 +70,13 @@ export const bmcApi = {
   remove: (bmcId: number) => AxiosClient.delete(`/web/bmc/${bmcId}`),
 };
 
+// Printed on farmer bills under the route name. A value sets, null / "" clears,
+// omitted keeps (also on update).
+interface RouteSupervisorFields {
+  supervisor_name?: string | null;
+  supervisor_mobile?: string | null;
+}
+
 export const routeApi = {
   // A route can sit under a BMC, a CC, or BOTH. Response returns route_id
   // (900001+). vlcIds (dairy ids) is optional — those dairies get linked now.
@@ -79,10 +86,10 @@ export const routeApi = {
       bmcId?: number;
       ccId?: number;
       vlcIds?: number[];
-    } & RegistrationFields
+    } & RegistrationFields & RouteSupervisorFields
   ) => AxiosClient.post("/web/routes/create", p),
 
-  // Each route has bmc_name, cc_name and its vlcs[].
+  // Each route has bmc_name, cc_name, supervisor_name, supervisor_mobile and its vlcs[].
   list: (userId: number) => AxiosClient.get(`/web/routes/list/${userId}`),
 
   // FULL REPLACE: an omitted/null parent is cleared — always send the
@@ -92,7 +99,7 @@ export const routeApi = {
       routeId: number;
       bmcId?: number | null;
       ccId?: number | null;
-    } & RegistrationFields
+    } & RegistrationFields & RouteSupervisorFields
   ) => AxiosClient.put("/web/routes/update", p),
 
   // Replaces the route's VLC membership; dairies dropped from the list are

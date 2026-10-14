@@ -9,7 +9,7 @@ import { api } from '@/services/config';
 import { useAppSelector } from '@/redux/store';
 import { useVlcNumbering } from "@/utils/vlcSectionLabel";
 import { toast } from 'react-toastify';
-import { generateTemplate2, generateTemplate4, generateTemplate5MilkBill, generateTemplate6, generateTemplate7, generateTemplateDetailedHorizontal, FarmerBillData, BankDetails, BillTravelCommission, DailyCommission } from '@/templates/FarmerBillInvoiceTemplate';
+import { generateTemplate2, generateTemplate4, generateTemplate5MilkBill, generateTemplate6, generateTemplate7, generateTemplate8, generateTemplateDetailedHorizontal, FarmerBillData, BankDetails, BillHeaderInfo, BillTravelCommission, DailyCommission } from '@/templates/FarmerBillInvoiceTemplate';
 import { generateFarmer2PerPage } from '@/templates/FarmerBill2PerPageTemplate';
 import { bankSummaryApi } from '@/services/bankSummaryApi';
 import { format } from 'date-fns';
@@ -32,12 +32,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Pencil, Loader2 } from 'lucide-react';
+import { Pencil, Loader2, Download, FileText, Info } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { userApi } from '@/services/userApi';
 import { rateChartApi } from '@/services/rateChartApi';
 import { collectionApi } from '@/services/collectionApi';
 import { calculateCLRFromFatAndSNF } from '@/utils/milkCalculations';
+import { webUserApi, CompanyProfile } from '@/services/webUserApi';
+import { createDairyApi, UserDairy } from '@/services/createDairyApi';
 
 interface CollectionRecord {
   date: string;
@@ -142,6 +144,146 @@ const createRenderHost = async () => {
   await Promise.all(linksLoaded);
 
   return { doc, dispose: () => iframe.remove() };
+};
+
+type ExportFormat = '1-per-page' | '2-per-page' | '3-per-page' | 'detailed-horizontal' | 'format-4' | 'format-5' | 'format-6' | 'format-7' | 'format-8';
+
+// Formats offered in the export dialog, numbered the way users refer to them.
+// 3-per-page is still handled by exportJob but is not offered.
+const EXPORT_FORMATS: { value: ExportFormat; number: number; labelKey: string }[] = [
+  { value: '1-per-page', number: 1, labelKey: 'export_option_1_per_page' },
+  { value: '2-per-page', number: 2, labelKey: 'export_option_2_per_page' },
+  { value: 'detailed-horizontal', number: 3, labelKey: 'export_option_detailed_horizontal' },
+  { value: 'format-4', number: 4, labelKey: 'export_option_format_4' },
+  { value: 'format-5', number: 5, labelKey: 'export_option_format_5' },
+  { value: 'format-6', number: 6, labelKey: 'export_option_format_6' },
+  { value: 'format-7', number: 7, labelKey: 'export_option_format_7' },
+  { value: 'format-8', number: 8, labelKey: 'export_option_format_8' },
+];
+
+// ── Export dialog thumbnails: a sketch of each format's page, not a real render ──
+const MiniTable = ({ rows, cols, accentCol = -1 }: { rows: number; cols: number; accentCol?: number }) => (
+  <div className="grid gap-x-[2px] gap-y-[3px]" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+    {Array.from({ length: (rows + 1) * cols }, (_, i) => {
+      const header = i < cols;
+      const accent = i % cols === accentCol;
+      const color = accent ? (header ? 'bg-blue-500' : 'bg-blue-300') : (header ? 'bg-slate-500' : 'bg-slate-200');
+      return <span key={i} className={`rounded-full ${header ? 'h-[3px]' : 'h-[2px]'} ${color}`} />;
+    })}
+  </div>
+);
+
+const MiniHeader = ({ active }: { active: boolean }) => (
+  <div className="space-y-[3px] mb-[5px]">
+    <div className={`h-[4px] w-3/5 mx-auto rounded-full ${active ? 'bg-blue-600' : 'bg-slate-700'}`} />
+    <div className="h-[2px] w-2/5 mx-auto rounded-full bg-slate-300" />
+  </div>
+);
+
+const MiniSummary = ({ className = 'mt-auto' }: { className?: string }) => (
+  <div className={`rounded-[2px] border border-slate-300 p-[3px] space-y-[2px] ${className}`}>
+    <div className="h-[2px] w-full rounded-full bg-slate-200" />
+    <div className="h-[2px] w-4/5 rounded-full bg-slate-200" />
+    <div className="h-[3px] w-full rounded-full bg-emerald-400" />
+  </div>
+);
+
+const FormatPreview = ({ format, active }: { format: ExportFormat; active: boolean }) => {
+  const header = <MiniHeader active={active} />;
+  let body: React.ReactNode;
+  switch (format) {
+    case '2-per-page':
+      // One compact bill per page
+      body = <>{header}<MiniTable rows={6} cols={5} /><MiniSummary className="mt-[5px]" /></>;
+      break;
+    case 'detailed-horizontal':
+      // Morning and evening in one wide row per date
+      body = <>{header}<MiniTable rows={10} cols={9} /><MiniSummary /></>;
+      break;
+    case 'format-4':
+      // Compact table, then DEDUCTION and GROSS SUMMARY boxes side by side
+      body = (
+        <>
+          {header}
+          <MiniTable rows={7} cols={5} />
+          <div className="mt-auto flex gap-[3px]">
+            <MiniSummary className="flex-1" />
+            <MiniSummary className="flex-1" />
+          </div>
+        </>
+      );
+      break;
+    case 'format-5':
+      // Drawn over the top 75% of the page; the bottom quarter stays empty
+      body = (
+        <>
+          <div className="h-3/4 flex flex-col">
+            {header}
+            <MiniTable rows={7} cols={6} />
+            <div className="mt-auto flex gap-[3px]">
+              <MiniSummary className="flex-1" />
+              <MiniSummary className="flex-1" />
+            </div>
+          </div>
+          <div className="flex-1 mt-[4px] border-t border-dashed border-slate-300" />
+        </>
+      );
+      break;
+    case 'format-6':
+      // Company / VSP / route lines, morning and evening tables in one box, then
+      // deductions and details side by side
+      body = (
+        <>
+          {header}
+          <div className="space-y-[2px] mb-[4px]">
+            <div className="h-[2px] w-1/2 mx-auto rounded-full bg-slate-300" />
+            <div className="h-[2px] w-3/5 rounded-full bg-slate-400" />
+            <div className="h-[2px] w-2/3 rounded-full bg-slate-400" />
+          </div>
+          <div className="flex rounded-[1px] border border-slate-300 p-[2px]">
+            <div className="flex-1 pr-[2px] border-r border-slate-300"><MiniTable rows={6} cols={4} /></div>
+            <div className="flex-1 pl-[2px]"><MiniTable rows={6} cols={4} /></div>
+          </div>
+          <div className="mt-auto flex gap-[3px]">
+            <MiniSummary className="flex-1" />
+            <MiniSummary className="flex-1" />
+          </div>
+        </>
+      );
+      break;
+    case 'format-7':
+      // Format 1 with a per-day commission column
+      body = <>{header}<MiniTable rows={11} cols={6} accentCol={5} /><MiniSummary /></>;
+      break;
+    case 'format-8':
+      // One row per date (morning | evening | total), then deductions,
+      // the cattle feed list (highlighted) and the totals
+      body = (
+        <>
+          {header}
+          <div className="rounded-[1px] border border-slate-300 p-[2px]">
+            <MiniTable rows={8} cols={9} />
+          </div>
+          <div className="mt-auto flex gap-[2px]">
+            <div className="flex-[4] rounded-[1px] border border-slate-300 p-[2px]"><MiniTable rows={3} cols={3} /></div>
+            <div className="flex-[3] rounded-[1px] border border-blue-300 p-[2px]"><MiniTable rows={3} cols={2} accentCol={0} /></div>
+            <div className="flex-[2] space-y-[3px] pt-[2px]">
+              <div className="h-[2px] rounded-full bg-slate-200" />
+              <div className="h-[2px] rounded-full bg-slate-200" />
+              <div className="h-[3px] rounded-full bg-emerald-400" />
+            </div>
+          </div>
+        </>
+      );
+      break;
+    default:
+      body = <>{header}<MiniTable rows={11} cols={5} /><MiniSummary /></>;
+  }
+  return (
+    <div className={`mx-auto w-[74px] aspect-[210/297] rounded-[3px] bg-white p-[6px] flex flex-col ring-1 transition-shadow ${active ? 'ring-blue-300 shadow-md' : 'ring-slate-200 shadow-sm'}`}>
+      {body}
+    </div>
+  );
 };
 
 const FarmerBillInvoiceReport = () => {
@@ -256,7 +398,9 @@ const FarmerBillInvoiceReport = () => {
   const cancelExportRef = useRef(false);
   // Document the bill pages are drawn in during an export (see createRenderHost)
   const renderDocRef = useRef<Document | null>(null);
-  const [exportFormat, setExportFormat] = useState<'1-per-page' | '2-per-page' | '3-per-page' | 'detailed-horizontal' | 'format-4' | 'format-5' | 'format-6' | 'format-7'>('1-per-page');
+  // Format 6 header data, loaded once per export run (see loadBillHeaders)
+  const billHeadersRef = useRef<{ company: CompanyProfile | null; dairies: Map<string, UserDairy> } | null>(null);
+  const [exportFormat, setExportFormat] = useState<ExportFormat>('1-per-page');
 
   // Edit Collection State
   const [editSheetOpen, setEditSheetOpen] = useState(false);
@@ -826,6 +970,37 @@ const FarmerBillInvoiceReport = () => {
   };
   type ExportData = Awaited<ReturnType<typeof fetchExportData>>;
 
+  // Format 6 header: the account's company profile, and each VLC's owner, route
+  // and route supervisor. A failed lookup only leaves those header lines out.
+  const loadBillHeaders = async () => {
+    const id = Number(userId);
+    const [company, dairies] = await Promise.all([
+      webUserApi.getCompanyProfile(id).then(res => res.data).catch((error) => {
+        console.error('Error fetching company profile:', error);
+        return null;
+      }),
+      createDairyApi.listUserDairies(id).then(res => res.data || []).catch((error) => {
+        console.error('Error fetching VLC details:', error);
+        return [] as UserDairy[];
+      })
+    ]);
+    billHeadersRef.current = { company, dairies: new Map(dairies.map(d => [String(d.dairy_id), d])) };
+  };
+
+  const billHeaderFor = (vlcId: string, vlcName: string): BillHeaderInfo => {
+    const company = billHeadersRef.current?.company;
+    const dairy = billHeadersRef.current?.dairies.get(vlcId);
+    return {
+      companyName: company?.company_name,
+      companyAddress: company?.company_address,
+      vlcName: dairy?.name || vlcName,
+      vlcOwner: dairy?.ownername,
+      routeName: dairy?.route_name,
+      supervisorName: dairy?.supervisor_name,
+      supervisorMobile: dairy?.supervisor_mobile
+    };
+  };
+
   const reportBillProgress = (done: number, total: number) =>
     setExportProgress((prev) => (prev ? { ...prev, done, total } : prev));
 
@@ -937,6 +1112,7 @@ const FarmerBillInvoiceReport = () => {
           dairyCode: dairyCode,
           farmerCode: farmerId,
           farmerName: farmerInfo.farmer_details?.fullName || farmerId,
+          farmerMobile: farmerInfo.farmer_details?.mobile_number,
           fromDate: fromDate,
           toDate: toDate,
           milkType: milkTypeFilter,
@@ -952,18 +1128,21 @@ const FarmerBillInvoiceReport = () => {
             accountNumber: farmerInfo.farmer_details.accountNumber,
             ifscCode: farmerInfo.farmer_details.ifscCode,
             bankName: farmerInfo.farmer_details.bankName,
+            accountHolder: farmerInfo.farmer_details.bname || undefined,
           } : undefined,
-          hideRateAmount: hideRateAmount
+          hideRateAmount: hideRateAmount,
+          ...(templateFn === generateTemplate6 || templateFn === generateTemplate8 ? { bill_header: billHeaderFor(vlcId, dairyName) } : {})
         };
 
         const bill = billTravelCommission(farmerId, farmerInfo.collections, farmerInfo.current_bill, commissionLookup, toDate);
         const isFormat7 = templateFn === generateTemplate7;
 
         // Check for mixed types (only relevant when milkTypeFilter is 'All').
-        // Format 5 (Milk Bill) and Format 6 keep both types on one page, so they never split.
+        // Format 5 (Milk Bill), Format 6 and Format 8 keep both types on one page, so they never split.
         const hasCow = templateDataItems.some(item => item.type === 'Cow');
         const hasBuffalo = templateDataItems.some(item => item.type === 'Buffalo');
-        const isMixed = milkTypeFilter === 'All' && hasCow && hasBuffalo && templateFn !== generateTemplate5MilkBill && templateFn !== generateTemplate6;
+        const keepsTypesTogether = templateFn === generateTemplate5MilkBill || templateFn === generateTemplate6 || templateFn === generateTemplate8;
+        const isMixed = milkTypeFilter === 'All' && hasCow && hasBuffalo && !keepsTypesTogether;
 
         if (isMixed) {
           // 1. Cow Page (Header YES, Summary NO)
@@ -1315,6 +1494,7 @@ const FarmerBillInvoiceReport = () => {
     if (exportFormat === 'format-5') return exportToPDF(job, exportData, generateTemplate5MilkBill);
     if (exportFormat === 'format-6') return exportToPDF(job, exportData, generateTemplate6);
     if (exportFormat === 'format-7') return exportToPDF(job, exportData, generateTemplate7);
+    if (exportFormat === 'format-8') return exportToPDF(job, exportData, generateTemplate8);
     if (exportFormat === '2-per-page') return exportMultiPerPagePDF(job, exportData, 1);
     return exportMultiPerPagePDF(job, exportData, 3);
   };
@@ -1327,7 +1507,7 @@ const FarmerBillInvoiceReport = () => {
       return;
     }
     const single = selectedVLCs.length === 1;
-    if (single && (exportFormat === '1-per-page' || exportFormat === 'format-4' || exportFormat === 'format-5' || exportFormat === 'format-6' || exportFormat === 'format-7') && collectionData.length === 0) {
+    if (single && (exportFormat === '1-per-page' || exportFormat === 'format-4' || exportFormat === 'format-5' || exportFormat === 'format-6' || exportFormat === 'format-7' || exportFormat === 'format-8') && collectionData.length === 0) {
       toast.error(t('please_click_show_first_for_detailed_report'));
       return;
     }
@@ -1358,6 +1538,8 @@ const FarmerBillInvoiceReport = () => {
     try {
       host = await createRenderHost();
       renderDocRef.current = host.doc;
+      billHeadersRef.current = null;
+      if (exportFormat === 'format-6' || exportFormat === 'format-8') await loadBillHeaders();
 
       let nextData = fetchExportData(jobs[0]);
       for (let i = 0; i < jobs.length; i++) {
@@ -1972,61 +2154,69 @@ const FarmerBillInvoiceReport = () => {
       </Sheet>
 
       <Dialog open={showExportModal} onOpenChange={setShowExportModal}>
-        <DialogContent className="sm:max-w-[425px] bg-white">
-          <DialogHeader>
-            <DialogTitle>{t('select_export_format')}</DialogTitle>
-            <DialogDescription>
+        <DialogContent className="sm:max-w-[820px] max-h-[92vh] bg-white border-none shadow-2xl rounded-2xl p-0 gap-0 overflow-hidden flex flex-col [&>button]:text-white">
+          <DialogHeader className="bg-slate-900 text-white p-5 sm:p-6 text-left">
+            <DialogTitle className="text-xl font-bold flex items-center">
+              <FileText className="w-5 h-5 mr-3 text-blue-400" />
+              {t('select_export_format')}
+            </DialogTitle>
+            <DialogDescription className="text-slate-400 text-sm mt-1">
               {t('choose_farmer_bills_per_a4')}
             </DialogDescription>
           </DialogHeader>
-          {selectedVLCs.length > 1 && (
-            <p className="text-xs text-gray-500">{t('multi_vlc_download_hint', { count: selectedVLCs.length })}</p>
-          )}
-          <div className="py-2">
+
+          <div className="p-4 sm:p-6 space-y-4 overflow-y-auto bg-slate-50/60">
+            {selectedVLCs.length > 1 && (
+              <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                <Info className="w-4 h-4 mt-px shrink-0" />
+                <p>{t('multi_vlc_download_hint', { count: selectedVLCs.length })}</p>
+              </div>
+            )}
             <RadioGroup
               value={exportFormat}
-              onValueChange={(val) => setExportFormat(val as any)}
-              className="space-y-3"
+              onValueChange={(val) => setExportFormat(val as ExportFormat)}
+              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"
             >
-              <div className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExportFormat('1-per-page')}>
-                <RadioGroupItem value="1-per-page" id="1-per-page" />
-                <Label htmlFor="1-per-page" className="flex-1 font-semibold cursor-pointer">{t('export_option_1_per_page')}</Label>
-              </div>
-              <div className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExportFormat('2-per-page')}>
-                <RadioGroupItem value="2-per-page" id="2-per-page" />
-                <Label htmlFor="2-per-page" className="flex-1 font-semibold cursor-pointer">{t('export_option_2_per_page')}</Label>
-              </div>
-              {/* 
-              <div className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExportFormat('3-per-page')}>
-                <RadioGroupItem value="3-per-page" id="3-per-page" />
-                <Label htmlFor="3-per-page" className="flex-1 font-semibold cursor-pointer">{t('export_option_3_per_page')}</Label>
-              </div>
-*/}
-              <div className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExportFormat('detailed-horizontal' as any)}>
-                <RadioGroupItem value="detailed-horizontal" id="detailed-horizontal" />
-                <Label htmlFor="detailed-horizontal" className="flex-1 font-semibold cursor-pointer">{t('export_option_detailed_horizontal')}</Label>
-              </div>
-              <div className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExportFormat('format-4')}>
-                <RadioGroupItem value="format-4" id="format-4" />
-                <Label htmlFor="format-4" className="flex-1 font-semibold cursor-pointer">{t('export_option_format_4')}</Label>
-              </div>
-              <div className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExportFormat('format-5')}>
-                <RadioGroupItem value="format-5" id="format-5" />
-                <Label htmlFor="format-5" className="flex-1 font-semibold cursor-pointer">{t('export_option_format_5')}</Label>
-              </div>
-              <div className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExportFormat('format-6')}>
-                <RadioGroupItem value="format-6" id="format-6" />
-                <Label htmlFor="format-6" className="flex-1 font-semibold cursor-pointer">{t('export_option_format_6')}</Label>
-              </div>
-              <div className="flex items-center space-x-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExportFormat('format-7')}>
-                <RadioGroupItem value="format-7" id="format-7" />
-                <Label htmlFor="format-7" className="flex-1 font-semibold cursor-pointer">{t('export_option_format_7')}</Label>
-              </div>
+              {EXPORT_FORMATS.map(({ value, number, labelKey }) => {
+                const active = exportFormat === value;
+                return (
+                  <label
+                    key={value}
+                    htmlFor={`export-${value}`}
+                    className={`flex flex-col gap-3 rounded-xl border-2 p-3 cursor-pointer transition-all has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-blue-400 has-[:focus-visible]:ring-offset-2 ${active
+                      ? 'border-blue-600 bg-blue-50 shadow-md shadow-blue-100'
+                      : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className={`inline-flex h-6 min-w-6 items-center justify-center rounded-md px-1.5 text-xs font-bold tabular-nums ${active ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                        {number}
+                      </span>
+                      <RadioGroupItem
+                        value={value}
+                        id={`export-${value}`}
+                        className={`bg-white ${active ? 'border-blue-600 [&_svg]:fill-blue-600 [&_svg]:text-blue-600' : 'border-slate-300'}`}
+                      />
+                    </div>
+                    <div className={`rounded-lg py-3 transition-colors ${active ? 'bg-blue-100/70' : 'bg-slate-100'}`}>
+                      <FormatPreview format={value} active={active} />
+                    </div>
+                    <span className={`text-sm font-semibold leading-snug ${active ? 'text-blue-900' : 'text-slate-700'}`}>
+                      {t(labelKey)}
+                    </span>
+                  </label>
+                );
+              })}
             </RadioGroup>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowExportModal(false)}>{t('cancel')}</Button>
-            <Button onClick={handleExport} className="bg-blue-600 text-white hover:bg-blue-700">{t('download_pdf')}</Button>
+
+          <DialogFooter className="bg-white px-4 sm:px-6 py-4 border-t border-slate-100 gap-2 sm:gap-0">
+            <Button variant="ghost" onClick={() => setShowExportModal(false)} className="hover:bg-slate-100 rounded-xl px-6">
+              {t('cancel')}
+            </Button>
+            <Button onClick={handleExport} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-6 font-semibold shadow-lg shadow-blue-100">
+              <Download className="w-4 h-4 mr-2" />
+              {t('download_pdf')}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

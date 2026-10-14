@@ -51,6 +51,8 @@ const CreateRoute = () => {
   const [ownername, setOwnername] = useState("");
   const [villagename, setVillagename] = useState("");
   const [address, setAddress] = useState("");
+  const [supervisorName, setSupervisorName] = useState("");
+  const [supervisorMobile, setSupervisorMobile] = useState("");
   // A route can sit under a BMC, a CC, or BOTH — two independent pickers.
   const [bmcSel, setBmcSel] = useState<string>(NONE);
   const [ccSel, setCcSel] = useState<string>(NONE);
@@ -111,6 +113,8 @@ const CreateRoute = () => {
     setOwnername("");
     setVillagename("");
     setAddress("");
+    setSupervisorName("");
+    setSupervisorMobile("");
     setBmcSel(NONE);
     setCcSel(NONE);
     setSelectedVlcs([]);
@@ -178,6 +182,9 @@ const CreateRoute = () => {
       villagename: villagename.trim(),
       address: address.trim(),
       ownername: ownername.trim(),
+      // "" clears on the server
+      supervisor_name: supervisorName.trim(),
+      supervisor_mobile: supervisorMobile.trim(),
     };
 
     setIsSaving(true);
@@ -264,6 +271,8 @@ const CreateRoute = () => {
     setOwnername(route?.ownername || "");
     setVillagename(route?.villagename || "");
     setAddress(route?.address || "");
+    setSupervisorName(route?.supervisor_name || "");
+    setSupervisorMobile(route?.supervisor_mobile || "");
     setBmcSel(route?.bmc_id ? String(route.bmc_id) : NONE);
     setCcSel(route?.cc_id ? String(route.cc_id) : NONE);
     setSelectedVlcs(getRouteVlcIds(route));
@@ -354,6 +363,7 @@ const CreateRoute = () => {
       "Under": getParentLabel(route),
       "Owner": route?.ownername || "-",
       "Village": route?.villagename || "-",
+      "Supervisor": [route?.supervisor_name, route?.supervisor_mobile].filter(Boolean).join(" - ") || "-",
       "VLC Count": getRouteVlcIds(route).length,
       "VLCs": getRouteVlcNames(route),
     }));
@@ -429,6 +439,31 @@ const CreateRoute = () => {
                     onChange={(e) => setAddress(e.target.value)}
                     className="bg-gray-50 border-gray-200 h-10"
                   />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700">Supervisor Name</Label>
+                    <Input
+                      placeholder="Enter supervisor name"
+                      value={supervisorName}
+                      maxLength={100}
+                      onChange={(e) => setSupervisorName(e.target.value)}
+                      className="bg-gray-50 border-gray-200 h-10"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700">Supervisor Mobile</Label>
+                    <Input
+                      type="tel"
+                      inputMode="numeric"
+                      placeholder="Enter mobile number"
+                      value={supervisorMobile}
+                      maxLength={15}
+                      onChange={(e) => setSupervisorMobile(e.target.value.replace(/\D/g, ""))}
+                      className="bg-gray-50 border-gray-200 h-10"
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

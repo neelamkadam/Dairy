@@ -38,6 +38,9 @@ export interface UserDairy {
   bmc_name: string | null;
   route_id: number | null;
   route_name: string | null;
+  // The route's supervisor; absent until the server has the route supervisor columns.
+  supervisor_name?: string | null;
+  supervisor_mobile?: string | null;
   active: number | null;
   // VLC bank details; absent until the server has the dairy bank columns.
   bank_name?: string | null;
