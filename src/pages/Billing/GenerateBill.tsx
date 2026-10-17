@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -78,6 +78,16 @@ const GenerateBill = () => {
   const [isBillFinalized, setIsBillFinalized] = useState(false);
   const [resetting, setResetting] = useState(false);
 
+  // The fetched rows belong to one VLC and bill period. Drop them when either
+  // changes, so Generate Bills can never save them under another VLC or period.
+  const billKey = `${selectedDairy}|${format(startDate, "yyyy-MM-dd")}|${format(endDate, "yyyy-MM-dd")}`;
+  const billKeyRef = useRef(billKey);
+  useEffect(() => {
+    billKeyRef.current = billKey;
+    setFarmersData([]);
+    setIsBillFinalized(false);
+  }, [billKey]);
+
   const shouldShowTravelCommission = () => farmersData.some(f => (f.travelCommissionAmount || 0) > 0);
 
   const totals = farmersData.reduce(
@@ -100,15 +110,12 @@ const GenerateBill = () => {
     }
   }, [branches]);
 
-  // Keep the selected VLC when it is on the new route, otherwise move to the
-  // route's first VLC and drop the fetched rows, which belong to the old VLC.
+  // Keep the selected VLC when it is on the new route, otherwise move to the route's first VLC.
   const handleRouteChange = (id: string) => {
     setRouteId(id);
     const vlcs = branchesOf(id);
     if (vlcs.length > 0 && !vlcs.some((b) => b.branch_id === selectedDairy)) {
       setSelectedDairy(vlcs[0].branch_id);
-      setFarmersData([]);
-      setIsBillFinalized(false);
     }
   };
 
@@ -121,6 +128,8 @@ const GenerateBill = () => {
   }, [selectedDairy, branches]); // Added branches to dependency to ensure selectedVlc is available
 
   const fetchBillData = async () => {
+    // A response that lands after the VLC or period changed is discarded.
+    const requestKey = billKey;
     setFetchLoading(true);
     try {
       const { data } = await deductionApi.getAllFarmersBalance(
@@ -245,6 +254,7 @@ const GenerateBill = () => {
           return false;
         });
 
+        if (billKeyRef.current !== requestKey) return;
         setIsBillFinalized(hasFinalized);
         console.log('🔒 Bills Finalized Status:', hasFinalized);
 
@@ -554,6 +564,7 @@ const GenerateBill = () => {
         finalAmount: f.finalAmount
       })));
 
+      if (billKeyRef.current !== requestKey) return;
       setFarmersData(adjustedData);
     } catch (error: any) {
       toast.error(error?.response?.data?.message || t("failed_to_fetch_bill_data", "Failed to fetch bill data"));
