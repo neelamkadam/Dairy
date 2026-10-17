@@ -33,6 +33,8 @@ import {
   Building2,
 } from "lucide-react";
 import { VLCDropdown } from "@/components/ui/vlc-dropdown";
+import { ALL_ROUTES, useRouteFilter } from "@/hooks/useRouteFilter";
+import RouteSelect from "@/components/RouteSelect";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { settingsApi, type PageSettingsForVlc } from "@/services/settingsApi";
@@ -253,6 +255,12 @@ const GeneralSettings = () => {
   const branches = useAppSelector((state) => state.branch.branches);
   // One or more VLCs; one set of settings is shown and saved for all of them.
   const [selectedVlcs, setSelectedVlcs] = useState<string[]>([]);
+  // Picking a route ticks all its VLCs (and lists only those); "All Routes" keeps the ticks.
+  const { routes, routeId, setRouteId, branchesOf, routeBranches } = useRouteFilter();
+  const handleRouteChange = (id: string) => {
+    setRouteId(id);
+    if (id !== ALL_ROUTES) setSelectedVlcs(branchesOf(id).map((b) => String(b.branch_id)));
+  };
   // In dairy-list order, so "the first selected VLC" does not depend on click order.
   const orderedVlcs = branches.map((b) => String(b.branch_id)).filter((id) => selectedVlcs.includes(id));
   const selectionKey = orderedVlcs.join(",");
@@ -629,8 +637,11 @@ const GeneralSettings = () => {
             <SectionCard className="overflow-visible">
               <SectionHeader icon={Settings2} title={t("select_vlc", "Select VLC")} />
               <div className="p-4 overflow-visible space-y-2">
+                {routes.length > 0 && (
+                  <RouteSelect routes={routes} value={routeId} onChange={handleRouteChange} className="rounded-xl" />
+                )}
                 <VLCDropdown
-                  branches={branches || []}
+                  branches={routeBranches}
                   value={selectedVlcs}
                   onChange={(value: string[]) => setSelectedVlcs(value)}
                   valueKey="branch_id"

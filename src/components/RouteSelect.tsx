@@ -21,7 +21,8 @@ const RouteSelect = ({ routes, value, onChange, className }: RouteSelectProps) =
   const { t } = useTranslation();
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className={cn("w-full border-gray-200 bg-white", className)}>
+      {/* Same height as the VLC dropdown it sits next to. */}
+      <SelectTrigger className={cn("w-full border-gray-200 bg-white data-[size=default]:h-10", className)}>
         <SelectValue placeholder={t("select_route", "Select Route")} />
       </SelectTrigger>
       <SelectContent className="bg-white">

@@ -807,7 +807,7 @@ const GenerateBill = () => {
               {routes.length > 0 && (
                 <div className="space-y-1.5">
                   <Label className="text-sm font-semibold text-gray-700">{t("route", "Route")}</Label>
-                  <RouteSelect routes={routes} value={routeId} onChange={handleRouteChange} className="h-10" />
+                  <RouteSelect routes={routes} value={routeId} onChange={handleRouteChange} />
                 </div>
               )}
               <div className="space-y-1.5">
