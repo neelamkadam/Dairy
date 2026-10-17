@@ -32,6 +32,8 @@ import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/redux/store";
 import { useVlcNumbering } from "@/utils/vlcSectionLabel";
+import { ALL_ROUTES, useRouteFilter } from "@/hooks/useRouteFilter";
+import RouteSelect from "@/components/RouteSelect";
 import { toast } from "react-toastify";
 import { api } from "@/services/config";
 import { generateFarmerCollectionSummaryPDF } from "@/templates/FarmerCollectionSummaryTemplate";
@@ -50,6 +52,12 @@ const FarmerCollection = () => {
   const vlcNo = useVlcNumbering();
   const dairyName = useAppSelector((state) => state.authData.userData?.name) || "";
   const [selectedVLCs, setSelectedVLCs] = useState<string[]>([]);
+  // Picking a route ticks all its VLCs (and lists only those); "All Routes" keeps the ticks.
+  const { routes, routeId, setRouteId, branchesOf, routeBranches } = useRouteFilter();
+  const handleRouteChange = (id: string) => {
+    setRouteId(id);
+    if (id !== ALL_ROUTES) setSelectedVLCs(branchesOf(id).map((b) => String(b.branch_id)));
+  };
   const [vlcSearch, setVlcSearch] = useState("");
   const [milkType, setMilkType] = useState("All");
   const [isFromCalendarOpen, setIsFromCalendarOpen] = useState(false);
@@ -395,11 +403,17 @@ const FarmerCollection = () => {
         </div>
         <Tabs defaultValue="collection" className="w-full border-none">
           <TabsContent value="collection" className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-end bg-white p-3 sm:p-4 rounded-lg shadow-sm mx-2 mb-4 text-left">
+            <div className={cn("grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 items-end bg-white p-3 sm:p-4 rounded-lg shadow-sm mx-2 mb-4 text-left", routes.length > 0 ? "xl:grid-cols-6" : "xl:grid-cols-5")}>
+              {routes.length > 0 && (
+                <div>
+                  <label className="text-sm font-medium">{t('route', 'Route')}</label>
+                  <RouteSelect routes={routes} value={routeId} onChange={handleRouteChange} />
+                </div>
+              )}
               <div>
                 <label className="text-sm font-medium">{t('vlc_name')}</label>
                 <VLCDropdown
-                  branches={branches || []}
+                  branches={routeBranches}
                   value={selectedVLCs}
                   onChange={(value) => setSelectedVLCs(value)}
                   valueKey="branch_id"
@@ -455,7 +469,7 @@ const FarmerCollection = () => {
                   className="w-full"
                 />
               </div>
-              <div className="lg:col-span-4 xl:col-span-5 flex justify-end">
+              <div className="lg:col-span-4 xl:col-span-full flex justify-end">
                 <Button onClick={handleSubmit} disabled={loading} className="bg-blue-600 hover:bg-blue-700 w-[120px] text-white">
                   {loading ? t('loading') : t('submit')}
                 </Button>

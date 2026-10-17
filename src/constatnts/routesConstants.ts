@@ -77,6 +77,7 @@ export const ROUTES = {
     VLC_DIFFERENCE_REPORT: `/dashboard/vlc-diffrerence-report`,
     VLC_DIFFERENCE_REPORT_2: `/dashboard/vlc-diffrerence-report-2`,
     BANK_SUMMARY:`/dashboard/bank-summary`,
+    BANK_SUMMARY_REPORT:`/dashboard/bank-summary-report`,
     BONUS_REPORT:`/dashboard/bonus-report`,
   },
   SETTINGS:{

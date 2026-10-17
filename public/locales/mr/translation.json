@@ -1024,6 +1024,8 @@
   "collection_reports": "संकलन अहवाल",
   "farmer_reports": "शेतकरी अहवाल",
   "billing_payment_reports": "बिलिंग आणि पेमेंट",
+  "bank_summary_report": "बँक सारांश",
+  "bank_name_not_set": "बँकेचे नाव भरलेले नाही",
   "commission_neft_reports": "कमिशन आणि NEFT",
   "vlc_bank_details": "व्हीएलसी बँक तपशील",
   "route_collection": "रूट संकलन",

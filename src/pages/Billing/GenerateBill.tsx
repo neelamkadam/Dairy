@@ -15,12 +15,16 @@ import { normalizeFarmerId } from "@/utils/farmerIdUtils";
 import { format } from "date-fns";
 import { toast } from "react-toastify";
 import { useAppSelector } from "@/redux/store";
+import { useRouteFilter } from "@/hooks/useRouteFilter";
+import RouteSelect from "@/components/RouteSelect";
 
 const GenerateBill = () => {
   const { t } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
   const [selectedDairy, setSelectedDairy] = useState<number>(0);
   const selectedVlc = branches.find(b => b.branch_id === selectedDairy);
+  // A route only narrows the VLC list; bills are still generated one VLC at a time.
+  const { routes, routeId, setRouteId, branchesOf, routeBranches } = useRouteFilter();
   
   const calculateDateRange = (dateStr: string) => {
     const [year, month, day] = dateStr.split('-').map(Number);
@@ -95,6 +99,18 @@ const GenerateBill = () => {
       setSelectedDairy(branches[0].branch_id);
     }
   }, [branches]);
+
+  // Keep the selected VLC when it is on the new route, otherwise move to the
+  // route's first VLC and drop the fetched rows, which belong to the old VLC.
+  const handleRouteChange = (id: string) => {
+    setRouteId(id);
+    const vlcs = branchesOf(id);
+    if (vlcs.length > 0 && !vlcs.some((b) => b.branch_id === selectedDairy)) {
+      setSelectedDairy(vlcs[0].branch_id);
+      setFarmersData([]);
+      setIsBillFinalized(false);
+    }
+  };
 
   useEffect(() => {
     if (selectedDairy !== 0) {
@@ -776,11 +792,17 @@ const GenerateBill = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4 py-3">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+            <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 items-end ${routes.length > 0 ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
+              {routes.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-semibold text-gray-700">{t("route", "Route")}</Label>
+                  <RouteSelect routes={routes} value={routeId} onChange={handleRouteChange} className="h-10" />
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label className="text-sm font-semibold text-gray-700">{t("select_vlc", "Select VLC")}</Label>
                 <VLCDropdown
-                  branches={branches}
+                  branches={routeBranches}
                   value={String(selectedDairy)}
                   onChange={(val) => setSelectedDairy(Number(val))}
                   valueKey="branch_id"

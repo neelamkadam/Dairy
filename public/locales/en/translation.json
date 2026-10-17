@@ -1025,6 +1025,8 @@
   "collection_reports": "Collection Reports",
   "farmer_reports": "Farmer Reports",
   "billing_payment_reports": "Billing & Payment",
+  "bank_summary_report": "Bank Summary",
+  "bank_name_not_set": "Bank name not set",
   "commission_neft_reports": "Commission & NEFT",
   "vlc_bank_details": "VLC Bank Details",
   "route_collection": "Route Collection",

@@ -112,6 +112,7 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
           children: [
             { title: t('payment_summary_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.PAYMENT_SUMMARY },
             { title: t('farmer_bill_invoice_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.FARMER_BILL_INVOICE_REPORT },
+            { title: t('bank_summary_report', 'Bank Summary'), icon: <Dot size={24} />, href: ROUTES.REPORTS.BANK_SUMMARY_REPORT },
             { title: t('remaining_balance_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.REMAINING_BALANCE },
             { title: t('pl_statement'), icon: <Dot size={24} />, href: ROUTES.REPORTS.PL_STATEMENT },
           ]

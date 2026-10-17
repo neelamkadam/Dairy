@@ -20,6 +20,8 @@ import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import { Label } from "@/components/ui/label";
 import { useAppSelector } from "@/redux/store";
 import { useVlcNumbering } from "@/utils/vlcSectionLabel";
+import { ALL_ROUTES, useRouteFilter } from "@/hooks/useRouteFilter";
+import RouteSelect from "@/components/RouteSelect";
 import { reportsApi } from "@/services/reportsApi";
 import { toast } from "react-toastify";
 import { format } from "date-fns";
@@ -115,6 +117,12 @@ const VlcDifferenceReport2 = () => {
   // VLC numbers (1, 2, 3 …) for the web user who uses them; "" for everyone else.
   const vlcNo = useVlcNumbering();
   const [vlcIds, setVlcIds] = useState<string[]>([]);
+  // Picking a route ticks all its VLCs (and lists only those); "All Routes" keeps the ticks.
+  const { routes, routeId, setRouteId, branchesOf, routeBranches } = useRouteFilter();
+  const handleRouteChange = (id: string) => {
+    setRouteId(id);
+    if (id !== ALL_ROUTES) setVlcIds(branchesOf(id).map((b) => String(b.username)));
+  };
   const [fromDate, setFromDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [toDate, setToDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   
@@ -742,10 +750,16 @@ const VlcDifferenceReport2 = () => {
         </h1>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 items-end bg-white p-3 sm:p-4 rounded-lg shadow-sm mx-2 mb-4 text-left">
+          {routes.length > 0 && (
+            <div>
+              <Label className="mb-1">Route</Label>
+              <RouteSelect routes={routes} value={routeId} onChange={handleRouteChange} />
+            </div>
+          )}
           <div>
             <Label className="mb-1">VLC Name</Label>
           <VLCDropdown
-            branches={branches || []}
+            branches={routeBranches}
             value={vlcIds}
             onChange={(val) => setVlcIds(val as string[])}
             valueKey="username"

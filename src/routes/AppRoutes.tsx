@@ -72,6 +72,7 @@ import TankerDaywiseReport from "@/pages/Reports/TankerDaywiseReport";
 import VlcDifferenceReport from "@/pages/Reports/VlcDifferenceReport";
 import VlcDifferenceReport2 from "@/pages/Reports/VlcDifferenceReport2";
 import BankSummary from "@/pages/Reports/BankSummary";
+import BankSummaryReport from "@/pages/Reports/BankSummaryReport";
 import CattleFeedStockReport from "@/pages/Reports/CattleFeedStockReport";
 import CattleFeedFarmerWiseReport from "@/pages/Reports/CattleFeedFarmerWiseReport";
 import CattleFeedSalesReport from "@/pages/Reports/CattleFeedSalesReport";
@@ -353,6 +354,10 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "bank-summary",
         element: <BankSummary />,
+      },
+      {
+        path: "bank-summary-report",
+        element: <BankSummaryReport />,
       },
       {
         path: "cattle-feed-farmer-wise-report",
