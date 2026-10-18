@@ -6,16 +6,18 @@ export const generateShiftReportExcel = (
   date: string,
   shift: string,
   milkType: string,
-  totals: any
+  totals: any,
+  farmersMap: Record<string, string> = {}
 ) => {
   const worksheetData = [
     ['Daily Shift Report'],
     [`VLC: ${vlcName}`],
     [`Date: ${date} | Shift: ${shift} | Milk Type: ${milkType || "All"}`],
     [],
-    ['Farmer ID', 'Quantity', 'Fat', 'SNF', 'Milk Type', 'Rate', 'Total Amount'],
+    ['Farmer ID', 'Farmer Name', 'Quantity', 'Fat', 'SNF', 'Milk Type', 'Rate', 'Total Amount'],
     ...reportData.map(row => [
       row.code,
+      farmersMap[row.code] || "-",
       row.quantity,
       row.fat,
       row.snf,

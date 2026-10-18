@@ -293,7 +293,7 @@ const ManualAutoShiftReport: React.FC = () => {
     const selectedBranch = branches?.find(b => b.branch_id.toString() === formData.selectedDairy);
     const vlcName = selectedBranch ? selectedBranch.name : "";
     const dateStr = formData.date ? format(formData.date, "dd-MM-yyyy") : "";
-    generateShiftReportExcel(farmerData, vlcName, dateStr, formData.shift, formData.milkType, totals);
+    generateShiftReportExcel(farmerData, vlcName, dateStr, formData.shift, formData.milkType, totals, farmersMap);
     toast.success("Excel exported successfully");
   };
 

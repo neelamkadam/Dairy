@@ -290,7 +290,7 @@ const ShiftReports:React.FC = () => {
     const selectedBranch = branches?.find(b => b.branch_id.toString() === formData.selectedDairy);
     const vlcName = selectedBranch ? selectedBranch.name : "";
     const dateStr = formData.date ? format(formData.date, "dd-MM-yyyy") : "";
-    generateShiftReportExcel(farmerData, vlcName, dateStr, formData.shift, formData.milkType, totals);
+    generateShiftReportExcel(farmerData, vlcName, dateStr, formData.shift, formData.milkType, totals, farmersMap);
     toast.success("Excel exported successfully");
   };
 
@@ -599,88 +599,6 @@ const ShiftReports:React.FC = () => {
         </div>
 
 
-      </div>
-
-      {/* Hidden printable area for PDF export */}
-      <div style={{ position: "absolute", left: "-9999px", top: 0 }}>
-        <div ref={pdfExportRef} className="p-8 bg-white" style={{ width: "800px", fontFamily: "'Noto Sans Devanagari', 'Roboto', sans-serif" }}>
-          <div className="flex justify-between items-start mb-8">
-            <div className="flex-1"></div>
-            <div className="text-center flex-1">
-              <h2 className="text-xl font-bold mb-1">
-                {(() => {
-                  const selected = branches.find(b => b.branch_id.toString() === formData.selectedDairy);
-                  return selected ? selected.name : "";
-                })()}
-              </h2>
-              <p className="text-sm text-gray-600">
-                Dairy: {(() => {
-                  const selected = branches.find(b => b.branch_id.toString() === formData.selectedDairy);
-                  return selected ? selected.username : "";
-                })()}
-              </p>
-            </div>
-            <div className="flex-1 text-right">
-              <p className="text-sm text-gray-600">
-                Date: {format(new Date(), "dd-MM-yyyy")}
-              </p>
-            </div>
-          </div>
-
-          <h1 className="text-2xl font-bold text-center mb-4">Daily Shift Report</h1>
-          <p className="text-center text-sm text-gray-600 mb-8">
-            Date: {formData.date ? format(formData.date, "dd-MM-yyyy") : ""} | Shift: {formData.shift} | Milk Type: {formData.milkType || "All"}
-          </p>
-
-          <table className="w-full border-collapse mb-8">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="border p-2 text-sm font-bold">Farmer ID</th>
-                <th className="border p-2 text-sm font-bold">Quantity</th>
-                <th className="border p-2 text-sm font-bold">Fat</th>
-                <th className="border p-2 text-sm font-bold">SNF</th>
-                <th className="border p-2 text-sm font-bold">Milk Type</th>
-                <th className="border p-2 text-sm font-bold">Rate</th>
-                <th className="border p-2 text-sm font-bold">Total Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {farmerData.map((record: any, index: number) => (
-                <tr key={index}>
-                  <td className="border p-2 text-center text-sm">{record.code}</td>
-                  <td className="border p-2 text-center text-sm">{record.quantity}</td>
-                  <td className="border p-2 text-center text-sm">{record.fat}</td>
-                  <td className="border p-2 text-center text-sm">{record.snf}</td>
-                  <td className="border p-2 text-center text-sm">{record.type}</td>
-                  <td className="border p-2 text-center text-sm">{record.rate}</td>
-                  <td className="border p-2 text-center text-sm">₹{record.amount}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <div className="mt-8">
-            <h3 className="text-lg font-bold mb-4 text-center">Summary Statistics</h3>
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-gray-200">
-                  <th className="border p-2 text-sm font-bold">Total Quantity (L)</th>
-                  <th className="border p-2 text-sm font-bold">Average Fat (%)</th>
-                  <th className="border p-2 text-sm font-bold">Average SNF (%)</th>
-                  <th className="border p-2 text-sm font-bold">Total Amount (₹)</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="bg-gray-50">
-                  <td className="border p-2 text-center text-sm font-bold">{totals.quantity}</td>
-                  <td className="border p-2 text-center text-sm font-bold">{totals.avgFat}</td>
-                  <td className="border p-2 text-center text-sm font-bold">{totals.avgSnf}</td>
-                  <td className="border p-2 text-center text-sm font-bold">{totals.totalAmount}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
       </div>
 
       {/* Hidden printable area for PDF export */}
