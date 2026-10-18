@@ -1521,5 +1521,6 @@
   "machine_entry_lock_saved": "Saved for {{user}}",
   "failed_to_save_machine_entry_lock": "Could not save",
   "you": "You",
+  "machine_entry_lock_own_row": "Only your admin can change your own lock",
   "admin": "Admin"
 }

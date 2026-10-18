@@ -31,6 +31,8 @@ type LockKey = keyof Lock;
 
 const LOAD_AT_ONCE = 8;
 
+const isAdminUser = (user?: WebUser) => user?.is_admin === true || Number(user?.is_admin) === 1;
+
 const MachineEntryLock = () => {
   const { t } = useTranslation();
   const authState = useAppSelector((state) => state.authData);
@@ -42,6 +44,9 @@ const MachineEntryLock = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  // A sub-user given this page (Sidebar Access) manages the other sub-users of
+  // their admin; their own lock stays with the admin.
+  const [viewerIsSubUser, setViewerIsSubUser] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,14 +55,20 @@ const MachineEntryLock = () => {
       try {
         const { data } = await adminApi.getAllUsers();
         let list: WebUser[] = data?.success ? data.data?.webUsers ?? [] : [];
-        // A dairy owner sees themselves and the sub-users they created; the
+        // A dairy owner sees themselves and the sub-users they created; a
+        // sub-user sees themselves and the other sub-users of their admin; the
         // super admin sees everyone (as on Sidebar Access).
+        let subUser = false;
         if (userRole === "user" && loggedInUserId) {
           const me = String(loggedInUserId);
-          list = list.filter((u) => String(u.id) === me || String(u.created_by ?? "") === me);
+          const meRow = list.find((u) => String(u.id) === me);
+          subUser = !!meRow?.created_by && !isAdminUser(meRow);
+          const owner = subUser ? String(meRow!.created_by) : me;
+          list = list.filter((u) => String(u.id) === me || String(u.created_by ?? "") === owner);
         }
         list.sort((a, b) => (String(a.id) === String(loggedInUserId) ? -1 : String(b.id) === String(loggedInUserId) ? 1 : a.email.localeCompare(b.email)));
         if (cancelled) return;
+        setViewerIsSubUser(subUser);
         setUsers(list);
 
         const found: Record<number, Lock> = {};
@@ -111,14 +122,14 @@ const MachineEntryLock = () => {
     (u) => !query || u.email.toLowerCase().includes(query) || (u.name ?? "").toLowerCase().includes(query) || String(u.id).includes(query)
   );
 
-  const lockSwitch = (user: WebUser, which: LockKey, label: string, Icon: typeof Scale) => {
+  const lockSwitch = (user: WebUser, which: LockKey, label: string, Icon: typeof Scale, readOnly: boolean) => {
     const lock = locks[user.id];
     const on = !!lock?.[which];
     const busy = saving === `${user.id}:${which}`;
     return (
       <label
         className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 bg-white transition-colors ${
-          lock ? "cursor-pointer hover:border-blue-300" : "cursor-wait opacity-60"
+          !lock ? "cursor-wait opacity-60" : readOnly ? "cursor-not-allowed" : "cursor-pointer hover:border-blue-300"
         } ${on ? "border-amber-300 bg-amber-50/60" : "border-slate-200"}`}
       >
         <span className="flex items-center gap-2 min-w-0">
@@ -130,7 +141,7 @@ const MachineEntryLock = () => {
         ) : (
           <Switch
             checked={on}
-            disabled={!lock || saving !== null}
+            disabled={!lock || readOnly || saving !== null}
             onCheckedChange={(checked) => toggle(user, which, checked)}
             className="data-[state=checked]:bg-amber-500"
           />
@@ -189,7 +200,8 @@ const MachineEntryLock = () => {
               <div className="divide-y divide-slate-100">
                 {shown.map((user) => {
                   const isMe = String(user.id) === String(loggedInUserId);
-                  const isAdmin = user.is_admin === true || Number(user.is_admin) === 1;
+                  const isAdmin = isAdminUser(user);
+                  const readOnly = isMe && viewerIsSubUser;
                   return (
                     <div key={user.id} className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_220px_220px] gap-2 md:gap-3 py-3 md:items-center">
                       <div className="min-w-0">
@@ -204,9 +216,14 @@ const MachineEntryLock = () => {
                           </span>
                         </p>
                         <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                        {readOnly && (
+                          <p className="text-[11px] font-medium text-amber-700">
+                            {t("machine_entry_lock_own_row", "Only your admin can change your own lock")}
+                          </p>
+                        )}
                       </div>
-                      {lockSwitch(user, "analyser", t("analyser_machine_only", "Analyser: machine only"), FlaskConical)}
-                      {lockSwitch(user, "weight", t("weight_machine_only", "Weight: machine only"), Scale)}
+                      {lockSwitch(user, "analyser", t("analyser_machine_only", "Analyser: machine only"), FlaskConical, readOnly)}
+                      {lockSwitch(user, "weight", t("weight_machine_only", "Weight: machine only"), Scale, readOnly)}
                     </div>
                   );
                 })}

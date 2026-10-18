@@ -1509,5 +1509,6 @@
   "machine_entry_lock_saved": "{{user}} के लिए सहेजा गया",
   "failed_to_save_machine_entry_lock": "सहेजा नहीं जा सका",
   "you": "आप",
+  "machine_entry_lock_own_row": "आपका अपना लॉक केवल आपका एडमिन बदल सकता है",
   "admin": "एडमिन"
 }

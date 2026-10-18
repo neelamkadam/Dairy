@@ -1509,5 +1509,6 @@
   "machine_entry_lock_saved": "{{user}} साठी जतन केले",
   "failed_to_save_machine_entry_lock": "जतन करता आले नाही",
   "you": "तुम्ही",
+  "machine_entry_lock_own_row": "तुमचा स्वतःचा लॉक फक्त तुमचा ॲडमिन बदलू शकतो",
   "admin": "ॲडमिन"
 }

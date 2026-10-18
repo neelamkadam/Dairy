@@ -15,7 +15,7 @@ import NeoDairyLogo from "@/assets/NeoDairy_Logo.png";
 import { RootState, useAppSelector } from "@/redux/store";
 import { useTranslation } from "react-i18next";
 import { getSidebarAccess, getVlcStepAccess, isItemOn, isOnByDefault } from "@/services/sidebarAccessApi";
-import { SECTION_ITEMS, itemTitle, type SidebarItemDef, type SidebarSectionKey } from "@/constatnts/sidebarItems";
+import { SECTION_ITEMS, itemDefault, itemTitle, type SidebarItemDef, type SidebarSectionKey } from "@/constatnts/sidebarItems";
 
 interface MenuItem {
   title: string;
@@ -41,7 +41,7 @@ const buildSectionItems = (defs: SidebarItemDef[], t: any, access: any, isAdmin:
         ? [{ title: itemTitle(t, def), icon: GROUP_ICONS[def.key] ?? <Dot size={24} />, children }]
         : [];
     }
-    if (!isItemOn(access, def.key)) return [];
+    if (!isItemOn(access, def.key, itemDefault(def, isAdmin))) return [];
     // VLC Collection Entry also needs the Weight or the Analyser step.
     if (def.key === "vlc_collection_entry") {
       const steps = getVlcStepAccess(access);

@@ -1521,5 +1521,6 @@
   "machine_entry_lock_saved": "{{user}} ಗಾಗಿ ಉಳಿಸಲಾಗಿದೆ",
   "failed_to_save_machine_entry_lock": "ಉಳಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ",
   "you": "ನೀವು",
+  "machine_entry_lock_own_row": "ನಿಮ್ಮ ಸ್ವಂತ ಲಾಕ್ ಅನ್ನು ನಿಮ್ಮ ನಿರ್ವಾಹಕರು ಮಾತ್ರ ಬದಲಾಯಿಸಬಹುದು",
   "admin": "ನಿರ್ವಾಹಕ"
 }

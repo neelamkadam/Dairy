@@ -34,9 +34,9 @@ export const parseItemAccess = (raw: unknown): Record<string, number> => {
   return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, Number(v) === 1 ? 1 : 0]));
 };
 
-/** An item inside a section: on unless switched off (sidebarItems.ts has the keys). */
-export const isItemOn = (access: SidebarAccessRow, key: string) =>
-  !!access && (parseItemAccess(access.item_access)[key] ?? 1) === 1;
+/** An item inside a section: on unless switched off (sidebarItems.ts has the keys), or `fallback` when never switched. */
+export const isItemOn = (access: SidebarAccessRow, key: string, fallback = 1) =>
+  !!access && (parseItemAccess(access.item_access)[key] ?? fallback) === 1;
 
 /** Which VLC Collection Entry steps a user may open. Both need the Collection Entry section and its VLC item. */
 export const getVlcStepAccess = (access: SidebarAccessRow) => {

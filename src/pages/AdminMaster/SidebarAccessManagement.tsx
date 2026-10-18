@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { getSidebarAccess, createOrUpdateSidebarAccess, parseItemAccess } from "@/services/sidebarAccessApi";
-import { ALL_ITEM_KEYS, SECTION_ITEMS, itemTitle, leafItems, type SidebarItemDef, type SidebarSectionKey } from "@/constatnts/sidebarItems";
+import { ALL_ITEM_KEYS, SECTION_ITEMS, itemDefault, itemTitle, leafItems, type SidebarItemDef, type SidebarSectionKey } from "@/constatnts/sidebarItems";
 import { adminApi } from "@/services/adminApi";
 import { toast } from "react-toastify";
 import { Input } from "@/components/ui/input";
@@ -39,6 +39,12 @@ type VlcStepKey = "vlc_weight" | "vlc_analyser";
 
 // Every item inside a section switched on — what a user has until an admin changes it.
 const allItemsOn = (): Record<string, number> => Object.fromEntries(ALL_ITEM_KEYS.map((key) => [key, 1]));
+
+// What a user has before any item is switched: all on, except the items that
+// start off for a sub-user (Machine Entry Lock).
+const ALL_ITEM_DEFS = (Object.values(SECTION_ITEMS) as SidebarItemDef[][]).flatMap(leafItems);
+const defaultItems = (isAdmin: boolean): Record<string, number> =>
+  Object.fromEntries(ALL_ITEM_DEFS.map((def) => [def.key, itemDefault(def, isAdmin)]));
 
 const isSectionKey = (key: string): key is SidebarSectionKey => key in SECTION_ITEMS;
 
@@ -133,8 +139,10 @@ const SidebarAccessManagement = () => {
             DEFAULT_ON_KEYS.map((key) => [key, Number(response.data[key] ?? 1)])
           ) as Pick<SidebarAccess, (typeof DEFAULT_ON_KEYS)[number]>,
         });
-        // Items never switched (or a server without item_access) stay on.
-        setItemAccess({ ...allItemsOn(), ...parseItemAccess(response.data.item_access) });
+        // Items never switched (or a server without item_access) keep their default.
+        const user = users.find((u) => u.id === userId);
+        const isAdmin = user?.is_admin === true || Number(user?.is_admin) === 1;
+        setItemAccess({ ...defaultItems(isAdmin), ...parseItemAccess(response.data.item_access) });
       }
     } catch (error) {
       console.error("Error fetching sidebar access:", error);

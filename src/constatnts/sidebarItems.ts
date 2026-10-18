@@ -19,6 +19,9 @@ export interface SidebarItemDef {
   href?: string;
   // Only admin web users ever see it in the sidebar.
   adminOnly?: boolean;
+  // Admins have it unless switched off; a sub-user only once it is switched on
+  // for them in Sidebar Access.
+  subUserOffByDefault?: boolean;
   // A sub-group inside the section (Master → Create, Reports → Farmer Reports).
   // Groups have no switch of their own stored: they disappear when all their
   // items are off (Sidebar Access offers a switch that sets all of them).
@@ -160,7 +163,7 @@ export const SECTION_ITEMS: Record<SidebarSectionKey, SidebarItemDef[]> = {
     { key: "password_manager", titleKey: "password_manager", titleDefault: "Password Manager", href: ROUTES.SETTINGS.PASSWORD_MANAGER },
     { key: "tanker_collector", titleKey: "tanker_collector", titleDefault: "Tanker Collector", href: ROUTES.TANKER_COLLECTION, adminOnly: true },
     { key: "sidebar_access", titleKey: "sidebar_access", titleDefault: "Sidebar Access", href: ROUTES.SETTINGS.SIDEBAR_ACCESS, adminOnly: true },
-    { key: "machine_entry_lock", titleKey: "machine_entry_lock", titleDefault: "Machine Entry Lock", href: ROUTES.SETTINGS.MACHINE_ENTRY_LOCK, adminOnly: true },
+    { key: "machine_entry_lock", titleKey: "machine_entry_lock", titleDefault: "Machine Entry Lock", href: ROUTES.SETTINGS.MACHINE_ENTRY_LOCK, subUserOffByDefault: true },
     { key: "shift_timings", titleKey: "shift_timings", titleDefault: "Shift Timings", href: ROUTES.SETTINGS.SHIFT_TIMINGS, adminOnly: true },
   ],
 };
@@ -168,6 +171,9 @@ export const SECTION_ITEMS: Record<SidebarSectionKey, SidebarItemDef[]> = {
 /** The switchable items of a section (groups flattened). */
 export const leafItems = (defs: SidebarItemDef[]): SidebarItemDef[] =>
   defs.flatMap((def) => (def.children ? leafItems(def.children) : [def]));
+
+/** What an item is when it was never switched: on, except subUserOffByDefault items for a sub-user. */
+export const itemDefault = (def: SidebarItemDef, isAdmin: boolean) => (def.subUserOffByDefault && !isAdmin ? 0 : 1);
 
 /** Every item key, across all sections. */
 export const ALL_ITEM_KEYS = (Object.values(SECTION_ITEMS) as SidebarItemDef[][]).flatMap((defs) => leafItems(defs).map((d) => d.key));
