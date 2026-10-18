@@ -1510,5 +1510,11 @@
   "failed_to_save_machine_entry_lock": "सहेजा नहीं जा सका",
   "you": "आप",
   "machine_entry_lock_own_row": "आपका अपना लॉक केवल आपका एडमिन बदल सकता है",
-  "admin": "एडमिन"
+  "admin": "एडमिन",
+  "select_at_least_one_vlc": "कम से कम एक VLC चुनें",
+  "generate_and_finalize_bills_for": "बिल बनाकर अंतिम करें:",
+  "bills_generated_and_finalized_for": "बिल बनकर अंतिम हुए:",
+  "vlcs_finalized": "VLC अंतिम",
+  "mixed_bill_cycles_note": "इन VLC के बिल चक्र अलग-अलग हैं। हर एक का बिल शुरुआती तारीख वाले उसके अपने चक्र के अनुसार बनेगा।",
+  "not_billed_no_collection": "बिल नहीं (इस अवधि में संग्रह नहीं या लोड नहीं हुआ)"
 }

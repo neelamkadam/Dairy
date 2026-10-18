@@ -1522,5 +1522,11 @@
   "failed_to_save_machine_entry_lock": "ಉಳಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ",
   "you": "ನೀವು",
   "machine_entry_lock_own_row": "ನಿಮ್ಮ ಸ್ವಂತ ಲಾಕ್ ಅನ್ನು ನಿಮ್ಮ ನಿರ್ವಾಹಕರು ಮಾತ್ರ ಬದಲಾಯಿಸಬಹುದು",
-  "admin": "ನಿರ್ವಾಹಕ"
+  "admin": "ನಿರ್ವಾಹಕ",
+  "select_at_least_one_vlc": "ಕನಿಷ್ಠ ಒಂದು VLC ಆಯ್ಕೆಮಾಡಿ",
+  "generate_and_finalize_bills_for": "ಬಿಲ್ ರಚಿಸಿ ಅಂತಿಮಗೊಳಿಸಿ:",
+  "bills_generated_and_finalized_for": "ಬಿಲ್ ರಚಿಸಿ ಅಂತಿಮಗೊಳಿಸಲಾಗಿದೆ:",
+  "vlcs_finalized": "VLC ಅಂತಿಮ",
+  "mixed_bill_cycles_note": "ಈ VLC ಗಳ ಬಿಲ್ ಚಕ್ರಗಳು ಬೇರೆ ಬೇರೆ. ಪ್ರತಿಯೊಂದಕ್ಕೂ ಆರಂಭ ದಿನಾಂಕವಿರುವ ಅದರದೇ ಚಕ್ರದ ಬಿಲ್ ಆಗುತ್ತದೆ.",
+  "not_billed_no_collection": "ಬಿಲ್ ಆಗಿಲ್ಲ (ಈ ಅವಧಿಯಲ್ಲಿ ಸಂಗ್ರಹವಿಲ್ಲ ಅಥವಾ ಲೋಡ್ ಆಗಲಿಲ್ಲ)"
 }

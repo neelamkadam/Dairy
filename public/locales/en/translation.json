@@ -1522,5 +1522,11 @@
   "failed_to_save_machine_entry_lock": "Could not save",
   "you": "You",
   "machine_entry_lock_own_row": "Only your admin can change your own lock",
-  "admin": "Admin"
+  "admin": "Admin",
+  "select_at_least_one_vlc": "Select at least one VLC",
+  "generate_and_finalize_bills_for": "Generate and finalize bills for",
+  "bills_generated_and_finalized_for": "Bills generated and finalized for",
+  "vlcs_finalized": "VLCs finalized",
+  "mixed_bill_cycles_note": "These VLCs have different bill cycles. Each is billed for its own cycle that holds the start date.",
+  "not_billed_no_collection": "Not billed (no collection in the period or could not load)"
 }

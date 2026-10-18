@@ -1510,5 +1510,11 @@
   "failed_to_save_machine_entry_lock": "जतन करता आले नाही",
   "you": "तुम्ही",
   "machine_entry_lock_own_row": "तुमचा स्वतःचा लॉक फक्त तुमचा ॲडमिन बदलू शकतो",
-  "admin": "ॲडमिन"
+  "admin": "ॲडमिन",
+  "select_at_least_one_vlc": "किमान एक VLC निवडा",
+  "generate_and_finalize_bills_for": "बिले तयार करून अंतिम करा:",
+  "bills_generated_and_finalized_for": "बिले तयार व अंतिम झाली:",
+  "vlcs_finalized": "VLC अंतिम",
+  "mixed_bill_cycles_note": "या VLC चे बिल सायकल वेगवेगळे आहेत. प्रत्येकाचे बिल सुरुवातीची तारीख असलेल्या त्याच्या स्वतःच्या सायकलनुसार होईल.",
+  "not_billed_no_collection": "बिल नाही (या कालावधीत संकलन नाही किंवा लोड झाले नाही)"
 }
