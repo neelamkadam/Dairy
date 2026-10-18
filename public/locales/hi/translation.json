@@ -1495,5 +1495,14 @@
   "settings_lock_dialog_desc": "जनरल सेटिंग्स खोलने के लिए इस ग्राहक को यह पासवर्ड डालना होगा। यह उनके सभी वीएलसी और सब-यूज़र्स पर लागू होता है।",
   "show_less": "कम दिखाएं",
   "branches_more": "+{{count}} और",
-  "time": "समय"
+  "time": "समय",
+  "machine_entry_lock": "मशीन एंट्री लॉक",
+  "machine_entry_lock_subtitle": "हर उपयोगकर्ता के लिए चुनें कि Doodh Setu PC पर कौन-सी रीडिंग केवल मशीन से आएगी",
+  "machine_entry_lock_hint": "चालू: वह उपयोगकर्ता Doodh Setu PC पर मान हाथ से नहीं लिख सकता; यह केवल जुड़े एनालाइज़र या वज़न मशीन से भरेगा। (जनरल सेटिंग्स → एनालाइज़र / वज़न मोबाइल ऐप के लिए हैं और PC को लॉक नहीं करते।)",
+  "analyser_machine_only": "एनालाइज़र: केवल मशीन",
+  "weight_machine_only": "वज़न: केवल मशीन",
+  "machine_entry_lock_saved": "{{user}} के लिए सहेजा गया",
+  "failed_to_save_machine_entry_lock": "सहेजा नहीं जा सका",
+  "you": "आप",
+  "admin": "एडमिन"
 }

@@ -10,8 +10,12 @@ import { Badge } from "@/components/ui/badge";
 import { useAppSelector } from "@/redux/store";
 import { canModifyCollection } from "@/constatnts/commonConstants";
 import VLCIdPicker from "./VLCIdPicker";
+import RouteSelect from "@/components/RouteSelect";
+import { ALL_ROUTES, useRouteFilter } from "@/hooks/useRouteFilter";
 import { useVlcSerialNumbers } from "./vlcSerialNumbers";
 import { cn } from "@/lib/utils";
+import { LOCKED_INPUT_CLASS, LOCKED_INPUT_TITLE, useMachineEntryLock, useMachineValues } from "@/hooks/useMachineEntryLock";
+import MachineOnlyTag from "@/components/MachineOnlyTag";
 import {
   vlcCollectionApi,
   isWeightCompleted,
@@ -33,6 +37,11 @@ const MILK_TYPES: VLCMilkType[] = ['Cow', 'Buffalo', 'Both'];
 const VLCWeightEntry = ({ date, shift, refreshKey, type, onTypeChange: setType }: VLCWeightEntryProps) => {
   const { t } = useTranslation();
   const { branches } = useAppSelector((state) => state.branch);
+  // Machine Entry Lock: a user locked on weight takes it only from the weighing
+  // machine, which the web cannot read, so they weigh on Doodh Setu PC.
+  const machineLock = useMachineEntryLock();
+  // Route picker: the chosen route's VLCs in the VLC list, every VLC for All Routes.
+  const { routes, routeId, setRouteId, branchesOf, routeBranches } = useRouteFilter();
   const canModify = canModifyCollection(useAppSelector((state) => state.authData.userData?.id));
 
   const [vlcId, setVlcId] = useState("");
@@ -91,9 +100,22 @@ const VLCWeightEntry = ({ date, shift, refreshKey, type, onTypeChange: setType }
     setVlcName(selectedBranch?.name || "");
   };
 
+  const handleRouteChange = (id: string) => {
+    setRouteId(id);
+    // A VLC that is not on the new route is let go, so nothing is weighed against it by mistake.
+    if (vlcId && id !== ALL_ROUTES && !branchesOf(id).some(branch => branch.username === vlcId)) {
+      setVlcId("");
+      setVlcName("");
+    }
+  };
+
   const handleSubmit = async () => {
     if (!vlcId || !vlcName) {
       toast.error("Please select a VLC");
+      return;
+    }
+    if (machineLock.weight) {
+      toast.error("Your weight can only come from the weighing machine. Use Doodh Setu PC.");
       return;
     }
     const qty = parseFloat(weight);
@@ -171,13 +193,22 @@ const VLCWeightEntry = ({ date, shift, refreshKey, type, onTypeChange: setType }
 
         <Card className="shadow-sm border border-gray-200/60 bg-white/95 backdrop-blur-sm rounded-2xl overflow-hidden">
           <CardContent className="p-6 space-y-6 enter-nav-container">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className={cn("grid grid-cols-1 gap-5", routes.length > 0 ? "md:grid-cols-3" : "md:grid-cols-2")}>
+              {routes.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    {t('route', 'Route')}
+                  </Label>
+                  <RouteSelect routes={routes} value={routeId} onChange={handleRouteChange} className="h-10 rounded-xl shadow-sm" />
+                </div>
+              )}
               <div className="space-y-1.5 overflow-visible" ref={vlcFieldRef}>
                 <Label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   {t('vlc_id')}
                 </Label>
                 <VLCIdPicker
-                  branches={branches || []}
+                  branches={routeBranches}
+                  numberedBranches={branches || []}
                   value={vlcId}
                   onChange={handleVLCIdChange}
                   onNumberEnter={() => weightRef.current?.focus()}
@@ -231,7 +262,7 @@ const VLCWeightEntry = ({ date, shift, refreshKey, type, onTypeChange: setType }
 
               <div className="space-y-1.5">
                 <Label htmlFor="weight" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  {t('weight')} <span className="text-gray-400 normal-case font-normal">(kg)</span>
+                  {t('weight')} <span className="text-gray-400 normal-case font-normal">(kg)</span>{machineLock.weight && <MachineOnlyTag />}
                 </Label>
                 <Input
                   ref={weightRef}
@@ -248,7 +279,9 @@ const VLCWeightEntry = ({ date, shift, refreshKey, type, onTypeChange: setType }
                       handleSubmit();
                     }
                   }}
-                  className="bg-white border-gray-200 hover:border-blue-300 focus:border-blue-500 focus:ring-blue-500/20 transition-all w-full h-10 rounded-xl shadow-sm font-semibold text-gray-900 enter-field"
+                  readOnly={machineLock.weight}
+                  title={machineLock.weight ? LOCKED_INPUT_TITLE : undefined}
+                  className={cn("bg-white border-gray-200 hover:border-blue-300 focus:border-blue-500 focus:ring-blue-500/20 transition-all w-full h-10 rounded-xl shadow-sm font-semibold text-gray-900 enter-field", machineLock.weight && LOCKED_INPUT_CLASS)}
                 />
               </div>
             </div>

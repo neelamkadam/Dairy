@@ -13,6 +13,8 @@ import { usePostApi, usePutApi, useDeleteApi } from "@/services/use-api";
 import { useAppSelector } from "@/redux/store";
 import { canModifyCollection } from "@/constatnts/commonConstants";
 import { cn } from "@/lib/utils";
+import { LOCKED_INPUT_CLASS, LOCKED_INPUT_TITLE, useMachineEntryLock, useMachineValues } from "@/hooks/useMachineEntryLock";
+import MachineOnlyTag from "@/components/MachineOnlyTag";
 import { rateChartApi } from "@/services/rateChartApi";
 import {
   vlcCollectionApi,
@@ -72,6 +74,10 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
   const [sampleInput, setSampleInput] = useState("");
   const [record, setRecord] = useState<AnalysisRecord | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
+  // Machine Entry Lock: a user locked on the analyser takes FAT/SNF only from it,
+  // which this page cannot read, so they analyse on Doodh Setu PC.
+  const machineLock = useMachineEntryLock();
+  const machineValues = useMachineValues<'fat' | 'snf'>();
   const [fat, setFat] = useState("");
   const [snf, setSnf] = useState("");
   const [clr, setClr] = useState("");
@@ -324,6 +330,10 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
       toast.error("FAT, SNF and CLR are required");
       return;
     }
+    if (machineLock.analyser && !(machineValues.fromMachine("fat", fat) && machineValues.fromMachine("snf", snf))) {
+      toast.error("Your FAT and SNF can only come from the milk analyser. Use Doodh Setu PC.");
+      return;
+    }
 
     setFinalizing(true);
     try {
@@ -405,6 +415,9 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
     setSampleInput(entry.sample_id != null ? String(entry.sample_id) : "");
     setFat(String(entry.fat ?? ""));
     setSnf(String(entry.snf ?? ""));
+    // The saved entry's own values may be saved again under Machine Entry Lock.
+    machineValues.accept("fat", String(entry.fat ?? ""));
+    machineValues.accept("snf", String(entry.snf ?? ""));
     setClr(String(entry.clr ?? ""));
     setRate(entry.rate ? entry.rate.toString() : "");
   };
@@ -557,7 +570,7 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div className="space-y-1.5">
                   <Label htmlFor="fat" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    {t('fat')} <span className="text-gray-400 normal-case font-normal">(%)</span>
+                    {t('fat')} <span className="text-gray-400 normal-case font-normal">(%)</span>{machineLock.analyser && <MachineOnlyTag />}
                   </Label>
                   <Input
                     ref={fatRef}
@@ -568,13 +581,15 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
                     value={fat}
                     onChange={(e) => handleFatChange(e.target.value)}
                     onKeyDown={handleFatEnter}
-                    className="bg-white border-gray-200 hover:border-purple-300 focus:border-purple-500 focus:ring-purple-500/20 transition-all w-full h-10 rounded-xl shadow-sm font-medium text-gray-900 enter-field"
+                    readOnly={machineLock.analyser}
+                    title={machineLock.analyser ? LOCKED_INPUT_TITLE : undefined}
+                    className={cn("bg-white border-gray-200 hover:border-purple-300 focus:border-purple-500 focus:ring-purple-500/20 transition-all w-full h-10 rounded-xl shadow-sm font-medium text-gray-900 enter-field", machineLock.analyser && LOCKED_INPUT_CLASS)}
                   />
                 </div>
 
                 <div className="space-y-1.5">
                   <Label htmlFor="snf" className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    {t('snf')} <span className="text-gray-400 normal-case font-normal">(%)</span>
+                    {t('snf')} <span className="text-gray-400 normal-case font-normal">(%)</span>{machineLock.analyser && <MachineOnlyTag />}
                   </Label>
                   <Input
                     ref={snfRef}
@@ -585,7 +600,9 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
                     value={snf}
                     onChange={(e) => handleSnfChange(e.target.value)}
                     onKeyDown={handleQualityEnter('snf')}
-                    className="bg-white border-gray-200 hover:border-purple-300 focus:border-purple-500 focus:ring-purple-500/20 transition-all w-full h-10 rounded-xl shadow-sm font-medium text-gray-900 enter-field"
+                    readOnly={machineLock.analyser}
+                    title={machineLock.analyser ? LOCKED_INPUT_TITLE : undefined}
+                    className={cn("bg-white border-gray-200 hover:border-purple-300 focus:border-purple-500 focus:ring-purple-500/20 transition-all w-full h-10 rounded-xl shadow-sm font-medium text-gray-900 enter-field", machineLock.analyser && LOCKED_INPUT_CLASS)}
                   />
                 </div>
 
@@ -602,7 +619,9 @@ const VLCAnalyserEntry = ({ date, shift, refreshKey }: VLCAnalyserEntryProps) =>
                     value={clr}
                     onChange={(e) => handleClrChange(e.target.value)}
                     onKeyDown={handleQualityEnter('clr')}
-                    className="bg-white border-gray-200 hover:border-purple-300 focus:border-purple-500 focus:ring-purple-500/20 transition-all w-full h-10 rounded-xl shadow-sm font-medium text-gray-900 enter-field"
+                    readOnly={machineLock.analyser}
+                    title={machineLock.analyser ? LOCKED_INPUT_TITLE : undefined}
+                    className={cn("bg-white border-gray-200 hover:border-purple-300 focus:border-purple-500 focus:ring-purple-500/20 transition-all w-full h-10 rounded-xl shadow-sm font-medium text-gray-900 enter-field", machineLock.analyser && LOCKED_INPUT_CLASS)}
                   />
                 </div>
               </div>

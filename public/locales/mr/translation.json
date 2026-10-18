@@ -1495,5 +1495,14 @@
   "settings_lock_dialog_desc": "जनरल सेटिंग्ज उघडण्यासाठी या ग्राहकाला हा पासवर्ड टाकावा लागेल. तो त्यांच्या सर्व व्हीएलसी आणि सब-युजर्सना लागू होतो.",
   "show_less": "कमी दाखवा",
   "branches_more": "+{{count}} अधिक",
-  "time": "वेळ"
+  "time": "वेळ",
+  "machine_entry_lock": "मशीन एंट्री लॉक",
+  "machine_entry_lock_subtitle": "प्रत्येक वापरकर्त्यासाठी निवडा की Doodh Setu PC वर कोणते रीडिंग फक्त मशीनमधून येईल",
+  "machine_entry_lock_hint": "चालू: तो वापरकर्ता Doodh Setu PC वर मूल्य हाताने लिहू शकत नाही; ते फक्त जोडलेल्या ॲनालायझर किंवा वजन काट्यातून भरेल. (जनरल सेटिंग्ज → ॲनालायझर / वजन मोबाइल ॲपसाठी आहेत आणि PC लॉक करत नाहीत.)",
+  "analyser_machine_only": "ॲनालायझर: फक्त मशीन",
+  "weight_machine_only": "वजन: फक्त मशीन",
+  "machine_entry_lock_saved": "{{user}} साठी जतन केले",
+  "failed_to_save_machine_entry_lock": "जतन करता आले नाही",
+  "you": "तुम्ही",
+  "admin": "ॲडमिन"
 }

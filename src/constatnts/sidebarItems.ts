@@ -160,6 +160,7 @@ export const SECTION_ITEMS: Record<SidebarSectionKey, SidebarItemDef[]> = {
     { key: "password_manager", titleKey: "password_manager", titleDefault: "Password Manager", href: ROUTES.SETTINGS.PASSWORD_MANAGER },
     { key: "tanker_collector", titleKey: "tanker_collector", titleDefault: "Tanker Collector", href: ROUTES.TANKER_COLLECTION, adminOnly: true },
     { key: "sidebar_access", titleKey: "sidebar_access", titleDefault: "Sidebar Access", href: ROUTES.SETTINGS.SIDEBAR_ACCESS, adminOnly: true },
+    { key: "machine_entry_lock", titleKey: "machine_entry_lock", titleDefault: "Machine Entry Lock", href: ROUTES.SETTINGS.MACHINE_ENTRY_LOCK, adminOnly: true },
     { key: "shift_timings", titleKey: "shift_timings", titleDefault: "Shift Timings", href: ROUTES.SETTINGS.SHIFT_TIMINGS, adminOnly: true },
   ],
 };

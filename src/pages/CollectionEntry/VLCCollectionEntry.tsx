@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { useState, useRef, useCallback, useEffect, ReactNode } from "react";
 import { usePostApi } from "@/services/use-api";
 import { getSidebarAccess, getVlcStepAccess } from "@/services/sidebarAccessApi";
+import { useMachineEntryLock } from "@/hooks/useMachineEntryLock";
 import { toast } from "react-toastify";
 import { useAppSelector } from "@/redux/store";
 import { useTranslation } from "react-i18next";
@@ -263,8 +264,10 @@ const VLCCollectionEntry = () => {
   const allowedSteps = steps.filter((s) => stepAccess?.[s.key]);
   // The remembered step may no longer be allowed; fall back to one that is.
   const activeStep = allowedSteps.some((s) => s.key === step) ? step : allowedSteps[0]?.key;
-  // Bulk import writes weight and quality together, so it needs both steps.
-  const canBulkImport = !!stepAccess?.weight && !!stepAccess?.analyser;
+  const machineLock = useMachineEntryLock();
+  // Bulk import writes weight and quality together, so it needs both steps;
+  // it is typed-in data, so not for a user under Machine Entry Lock.
+  const canBulkImport = !!stepAccess?.weight && !!stepAccess?.analyser && !machineLock.analyser && !machineLock.weight;
 
   return (
     <div className="flex flex-col gap-4 md:gap-6 w-full p-4 md:p-6 max-w-7xl mx-auto min-w-0 overflow-x-hidden" onKeyDown={handleEnterAsTab}>

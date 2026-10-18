@@ -80,6 +80,7 @@ import CattleFeedPurchasesReport from "@/pages/Reports/CattleFeedPurchasesReport
 import GroupCattleFeedStockReport from "@/pages/Reports/GroupCattleFeedStockReport";
 import BonusReport from "@/pages/Reports/BonusReport";
 import GeneralSettings from "@/pages/Settings/GeneralSettings";
+import MachineEntryLock from "@/pages/Settings/MachineEntryLock";
 import CattleFeedStockSettings from "@/pages/Settings/CattleFeedStock";
 import PasswordManager from "@/pages/Settings/PasswordManager";
 import AdminCreateUser from "@/pages/Settings/AdminCreateUser";
@@ -402,6 +403,10 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "shift-timings",
         element: <ShiftTimings />,
+      },
+      {
+        path: "machine-entry-lock",
+        element: <MachineEntryLock />,
       },
       {
         path: "create-user",

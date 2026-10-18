@@ -168,7 +168,8 @@ const SidebarAccessManagement = () => {
       newAccess[key as keyof SidebarAccess] = newVal;
     });
     setAccess(newAccess);
-    setItemAccess(Object.fromEntries(ALL_ITEM_KEYS.map((key) => [key, newVal])));
+    // Only the sidebar items: other entries (Machine Entry Lock's) stay as they are.
+    setItemAccess((prev) => ({ ...prev, ...Object.fromEntries(ALL_ITEM_KEYS.map((key) => [key, newVal])) }));
   };
 
   const handleSave = async () => {

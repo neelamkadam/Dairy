@@ -6,6 +6,10 @@ import { useVlcSerialNumbers } from "./vlcSerialNumbers";
 
 interface VLCIdPickerProps {
   branches: Branch[];
+  // The whole VLC list the numbers count in, when `branches` is only part of
+  // it (a route's VLCs): each VLC keeps its number, and a number outside
+  // `branches` does not match.
+  numberedBranches?: Branch[];
   // Selected VLC username (its real 500xxx id) — what gets saved.
   value: string;
   onChange: (username: string) => void;
@@ -19,11 +23,17 @@ interface VLCIdPickerProps {
  * box sits beside the dropdown: typing 1 selects the first VLC in the list, 2
  * the second, and so on. Everyone else gets the plain dropdown.
  */
-const VLCIdPicker = ({ branches, value, onChange, onNumberEnter, numberInputRef }: VLCIdPickerProps) => {
-  const serials = useVlcSerialNumbers(branches);
+const VLCIdPicker = ({ branches, numberedBranches, value, onChange, onNumberEnter, numberInputRef }: VLCIdPickerProps) => {
+  const serials = useVlcSerialNumbers(numberedBranches ?? branches);
   const [text, setText] = useState("");
 
-  const invalid = text !== "" && !serials.branchAt(Number(text));
+  // The VLC at a number, if it is one that can be picked here.
+  const pickable = (number: number) => {
+    const branch = serials.branchAt(number);
+    return branch && branches.some((b) => b.username === branch.username) ? branch : null;
+  };
+  const invalid = text !== "" && !pickable(Number(text));
+  const outsideList = invalid && !!serials.branchAt(Number(text));
 
   // Follow selections made elsewhere — the dropdown, or a reset after saving.
   useEffect(() => {
@@ -32,7 +42,7 @@ const VLCIdPicker = ({ branches, value, onChange, onNumberEnter, numberInputRef 
     setText((current) => {
       if (selected != null) return Number(current) === selected ? current : String(selected);
       // Nothing selected: clear a number that pointed at a VLC, keep a wrong one on screen.
-      return serials.branchAt(Number(current)) ? "" : current;
+      return pickable(Number(current)) ? "" : current;
     });
   }, [value, serials.enabled, branches]);
 
@@ -44,7 +54,7 @@ const VLCIdPicker = ({ branches, value, onChange, onNumberEnter, numberInputRef 
     const digits = raw.replace(/\D/g, "");
     setText(digits);
     // A wrong number clears the selection, so nothing is saved against the previous VLC.
-    const branch = digits ? serials.branchAt(Number(digits)) : null;
+    const branch = digits ? pickable(Number(digits)) : null;
     onChange(branch ? branch.username : "");
   };
 
@@ -78,7 +88,7 @@ const VLCIdPicker = ({ branches, value, onChange, onNumberEnter, numberInputRef 
       </div>
       {invalid && (
         <p className="text-xs font-medium text-red-600">
-          No VLC number {text} — enter 1 to {serials.count}
+          {outsideList ? `VLC ${text} is not on the chosen route` : `No VLC number ${text} — enter 1 to ${serials.count}`}
         </p>
       )}
     </div>

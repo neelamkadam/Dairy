@@ -1507,5 +1507,14 @@
   "settings_lock_dialog_desc": "This customer must enter this password to open General Settings. It covers all their VLCs and sub-users.",
   "show_less": "Show less",
   "branches_more": "+{{count}} more",
-  "time": "Time"
+  "time": "Time",
+  "machine_entry_lock": "Machine Entry Lock",
+  "machine_entry_lock_subtitle": "Choose, per user, which readings may only come from the machine on Doodh Setu PC",
+  "machine_entry_lock_hint": "On: that user cannot type the value on Doodh Setu PC; it fills only from the wired analyser or weighing scale. (General Settings → Analyser / Weight are for the mobile app and do not lock the PC.)",
+  "analyser_machine_only": "Analyser: machine only",
+  "weight_machine_only": "Weight: machine only",
+  "machine_entry_lock_saved": "Saved for {{user}}",
+  "failed_to_save_machine_entry_lock": "Could not save",
+  "you": "You",
+  "admin": "Admin"
 }

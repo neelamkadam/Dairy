@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useSerialAnalyzer } from "@/hooks/useSerialAnalyzer";
+import { LOCKED_INPUT_CLASS, LOCKED_INPUT_TITLE, useMachineEntryLock, useMachineValues } from "@/hooks/useMachineEntryLock";
+import MachineOnlyTag from "@/components/MachineOnlyTag";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constatnts/routesConstants";
@@ -100,14 +102,21 @@ const FarmerCollectionEntry = () => {
   const formContainerRef = useRef<HTMLDivElement>(null);
   const [showWater, setShowWater] = useState(false);
 
+  // Machine Entry Lock (this user): those readings only from the machine, never typed.
+  // The web reads the analyser below; it has no weighing-machine connection.
+  const machineLock = useMachineEntryLock();
+  const machineValues = useMachineValues<'quantity' | 'fat' | 'snf'>();
+
   // Serial (wired machine) connection — logic lives in useSerialAnalyzer hook
   const { serialStatus, errorMessage, connectMachine, disconnectMachine } = useSerialAnalyzer({
     enabled: !!farmerId,
     onData: useCallback((data) => {
+      machineValues.accept('fat', data.fat);
+      machineValues.accept('snf', data.snf);
       setFat(data.fat);
       setSnf(data.snf);
       setClr('');
-    }, []),
+    }, [machineValues]),
   });
 
   useEffect(() => {
@@ -313,6 +322,14 @@ const FarmerCollectionEntry = () => {
     if (!selectedBranch || !farmerId || !quantity || !fat || !snf || !clr || !rate) {
       console.log('❌ Validation failed:', { selectedBranch, farmerId, quantity, fat, snf, clr, rate });
       toast.error(t('please_fill_required_fields'));
+      return;
+    }
+    if (machineLock.weight && !machineValues.fromMachine('quantity', quantity)) {
+      toast.error('Your quantity can only come from the weighing machine. Use Doodh Setu PC.');
+      return;
+    }
+    if (machineLock.analyser && !(machineValues.fromMachine('fat', fat) && machineValues.fromMachine('snf', snf))) {
+      toast.error('Your FAT and SNF can only come from the milk analyser. Connect it and run the sample.');
       return;
     }
     setLoading(true);
@@ -556,6 +573,10 @@ const FarmerCollectionEntry = () => {
       setQuantity(qtyVal.toString());
       setFat(parseFloat(existing.fat.toString()).toFixed(1));
       setSnf(parseFloat(existing.snf.toString()).toFixed(1));
+      // The saved entry's own values may be saved again under Machine Entry Lock.
+      machineValues.accept('quantity', qtyVal.toString());
+      machineValues.accept('fat', parseFloat(existing.fat.toString()).toFixed(1));
+      machineValues.accept('snf', parseFloat(existing.snf.toString()).toFixed(1));
       setClr(parseFloat(existing.clr.toString()).toFixed(1));
       setRate(existing.rate.toString());
       setAmount(amtVal);
@@ -695,9 +716,11 @@ const FarmerCollectionEntry = () => {
             >
               Weight Collection
             </Button>
-            <div className="w-full sm:w-auto [&>button]:w-full">
-              <BulkCollectionUpload />
-            </div>
+            {!(machineLock.analyser || machineLock.weight) && (
+              <div className="w-full sm:w-auto [&>button]:w-full">
+                <BulkCollectionUpload />
+              </div>
+            )}
           </div>
         </div>
 
@@ -864,7 +887,7 @@ const FarmerCollectionEntry = () => {
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs font-semibold text-gray-600 uppercase tracking-wider block">
-                        {t('liter')}
+                        {t('liter')}{machineLock.weight && <MachineOnlyTag />}
                       </Label>
                       <Input
                         ref={quantityRef}
@@ -873,12 +896,14 @@ const FarmerCollectionEntry = () => {
                         value={quantity}
                         placeholder="0.00"
                         onChange={(e) => setQuantity(e.target.value)}
-                        className="bg-white border-gray-200 hover:border-blue-300 focus:border-blue-500 focus:ring-blue-500/20 transition-all w-full h-10 rounded-xl shadow-sm font-medium text-gray-900"
+                        readOnly={machineLock.weight}
+                        title={machineLock.weight ? LOCKED_INPUT_TITLE : undefined}
+                        className={cn("bg-white border-gray-200 hover:border-blue-300 focus:border-blue-500 focus:ring-blue-500/20 transition-all w-full h-10 rounded-xl shadow-sm font-medium text-gray-900", machineLock.weight && LOCKED_INPUT_CLASS)}
                       />
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs font-semibold text-gray-600 uppercase tracking-wider block">
-                        {t('fat')} <span className="text-gray-400 normal-case font-normal">(%)</span>
+                        {t('fat')} <span className="text-gray-400 normal-case font-normal">(%)</span>{machineLock.analyser && <MachineOnlyTag />}
                       </Label>
                       <Input
                         type="number"
@@ -886,12 +911,14 @@ const FarmerCollectionEntry = () => {
                         value={fat}
                         placeholder="0.0"
                         onChange={(e) => setFat(e.target.value)}
-                        className="bg-white border-gray-200 hover:border-blue-300 focus:border-blue-500 focus:ring-blue-500/20 transition-all w-full h-10 rounded-xl shadow-sm font-medium text-gray-900"
+                        readOnly={machineLock.analyser}
+                        title={machineLock.analyser ? LOCKED_INPUT_TITLE : undefined}
+                        className={cn("bg-white border-gray-200 hover:border-blue-300 focus:border-blue-500 focus:ring-blue-500/20 transition-all w-full h-10 rounded-xl shadow-sm font-medium text-gray-900", machineLock.analyser && LOCKED_INPUT_CLASS)}
                       />
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs font-semibold text-gray-600 uppercase tracking-wider block">
-                        {t('snf')} <span className="text-gray-400 normal-case font-normal">(%)</span>
+                        {t('snf')} <span className="text-gray-400 normal-case font-normal">(%)</span>{machineLock.analyser && <MachineOnlyTag />}
                       </Label>
                       <Input
                         type="number"
@@ -902,12 +929,14 @@ const FarmerCollectionEntry = () => {
                           setSnf(e.target.value);
                           if (e.target.value) setClr('');
                         }}
-                        className="bg-white border-gray-200 hover:border-blue-300 focus:border-blue-500 focus:ring-blue-500/20 transition-all w-full h-10 rounded-xl shadow-sm font-medium text-gray-900"
+                        readOnly={machineLock.analyser}
+                        title={machineLock.analyser ? LOCKED_INPUT_TITLE : undefined}
+                        className={cn("bg-white border-gray-200 hover:border-blue-300 focus:border-blue-500 focus:ring-blue-500/20 transition-all w-full h-10 rounded-xl shadow-sm font-medium text-gray-900", machineLock.analyser && LOCKED_INPUT_CLASS)}
                       />
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs font-semibold text-gray-600 uppercase tracking-wider block">
-                        {t('clr')}
+                        {t('clr')}{machineLock.analyser && <MachineOnlyTag />}
                       </Label>
                       <Input
                         type="number"
@@ -919,7 +948,9 @@ const FarmerCollectionEntry = () => {
                           setClr(e.target.value);
                           if (e.target.value) setSnf('');
                         }}
-                        className="bg-white border-gray-200 hover:border-blue-300 focus:border-blue-500 focus:ring-blue-500/20 transition-all w-full h-10 rounded-xl shadow-sm font-medium text-gray-900"
+                        readOnly={machineLock.analyser}
+                        title={machineLock.analyser ? LOCKED_INPUT_TITLE : undefined}
+                        className={cn("bg-white border-gray-200 hover:border-blue-300 focus:border-blue-500 focus:ring-blue-500/20 transition-all w-full h-10 rounded-xl shadow-sm font-medium text-gray-900", machineLock.analyser && LOCKED_INPUT_CLASS)}
                       />
                     </div>
                     {showWater && (

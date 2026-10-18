@@ -86,6 +86,7 @@ export const ROUTES = {
     PASSWORD_MANAGER:`/dashboard/password-manager`,
     SHIFT_TIMINGS:`/dashboard/shift-timings`,
     SIDEBAR_ACCESS:`/dashboard/sidebar-access`,
+    MACHINE_ENTRY_LOCK:`/dashboard/machine-entry-lock`,
     CREATE_USER:`/dashboard/create-user`,
     CREATE_DAIRY:`/dashboard/create-dairy`,
   },
