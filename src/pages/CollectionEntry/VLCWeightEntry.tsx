@@ -42,6 +42,7 @@ const VLCWeightEntry = ({ date, shift, refreshKey, type, onTypeChange: setType }
   const machineLock = useMachineEntryLock();
   // Route picker: the chosen route's VLCs in the VLC list, every VLC for All Routes.
   const { routes, routeId, setRouteId, branchesOf, routeBranches } = useRouteFilter();
+  const routeName = routes.find(route => route.id === routeId)?.name;
   const canModify = canModifyCollection(useAppSelector((state) => state.authData.userData?.id));
 
   const [vlcId, setVlcId] = useState("");
@@ -90,9 +91,13 @@ const VLCWeightEntry = ({ date, shift, refreshKey, type, onTypeChange: setType }
   const sameVlcEntries = vlcId
     ? entries.filter(e => e.vlc_id === vlcId && String(e.type).toLowerCase() === type.toLowerCase())
     : [];
-  const sortedEntries = [...entries].sort((a, b) => (parseInt(String(b.sample_id)) || 0) - (parseInt(String(a.sample_id)) || 0));
-  const pendingCount = entries.filter(e => !isWeightCompleted(e)).length;
-  const totalWeight = entries.reduce((sum, e) => sum + (Number(e.weight) || 0), 0);
+  // The list and its totals show the chosen route's VLCs only; All Routes shows every entry.
+  // Sample numbers still run across the whole dairy, so the next one comes from all entries.
+  const routeVlcIds = new Set(routeBranches.map(branch => branch.username));
+  const shownEntries = routeName ? entries.filter(e => routeVlcIds.has(e.vlc_id)) : entries;
+  const sortedEntries = [...shownEntries].sort((a, b) => (parseInt(String(b.sample_id)) || 0) - (parseInt(String(a.sample_id)) || 0));
+  const pendingCount = shownEntries.filter(e => !isWeightCompleted(e)).length;
+  const totalWeight = shownEntries.reduce((sum, e) => sum + (Number(e.weight) || 0), 0);
 
   const handleVLCIdChange = (username: string) => {
     const selectedBranch = branches?.find(branch => branch.username === username);
@@ -320,7 +325,8 @@ const VLCWeightEntry = ({ date, shift, refreshKey, type, onTypeChange: setType }
               <span className="flex items-center gap-2">
                 <Scale className="h-5 w-5 text-blue-500" />
                 {t('weight_collection')}
-                <Badge variant="secondary" className="bg-blue-50 text-blue-600 text-[10px] h-5">{entries.length}</Badge>
+                <Badge variant="secondary" className="bg-blue-50 text-blue-600 text-[10px] h-5">{shownEntries.length}</Badge>
+                {routeName && <span className="text-xs font-medium text-gray-400 truncate">{routeName}</span>}
               </span>
               <Button
                 variant="ghost"
@@ -379,14 +385,18 @@ const VLCWeightEntry = ({ date, shift, refreshKey, type, onTypeChange: setType }
             ) : (
               <div className="flex flex-col items-center justify-center py-10 text-center">
                 <CheckCircle2 className="h-8 w-8 text-gray-200 mb-2" />
-                <p className="text-sm text-gray-500">No weight entries for selected date and shift</p>
+                <p className="text-sm text-gray-500">
+                  {routeName && entries.length > 0
+                    ? `No weight entries from ${routeName} for selected date and shift`
+                    : "No weight entries for selected date and shift"}
+                </p>
               </div>
             )}
           </CardContent>
-          {entries.length > 0 ? (
+          {shownEntries.length > 0 ? (
             <div className="flex justify-between items-center px-6 py-3 bg-gray-50 border-t border-gray-100 text-xs font-semibold text-gray-500">
               <span>Pending analysis: <span className="text-amber-600">{pendingCount}</span></span>
-              <span>Total: <span className="text-blue-600">{totalWeight.toFixed(2)} kg</span></span>
+              <span>{routeName ? `${routeName} total` : "Total"}: <span className="text-blue-600">{totalWeight.toFixed(2)} kg</span></span>
             </div>
           ) : (
             <div className="pb-2" />
