@@ -14,6 +14,11 @@ export interface EquipmentPdfItem {
   serial_number?: string | null;
 }
 
+export interface EquipmentPdfSheet {
+  dairy: EquipmentPdfDairy;
+  items: EquipmentPdfItem[];
+}
+
 const pad = (n: number) => String(n).padStart(2, "0");
 
 /**
@@ -22,14 +27,7 @@ const pad = (n: number) => String(n).padStart(2, "0");
  * at handover. Labels stay in English like the other report PDFs — the
  * embedded font covers Latin and Devanagari only.
  */
-export const exportDeliveredEquipmentPdf = async (dairy: EquipmentPdfDairy, items: EquipmentPdfItem[]) => {
-  const doc = new jsPDF();
-  // Equipment and dairy names are often Marathi, which the default font cannot render.
-  const font = await registerDevanagariFont(doc);
-
-  const now = new Date();
-  const displayDate = `${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear()}`;
-  const fileDate = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+const drawSheet = (doc: jsPDF, font: string, { dairy, items }: EquipmentPdfSheet, displayDate: string) => {
   const dairyLine = [dairy.username, dairy.name].filter(Boolean).join(" - ");
 
   doc.setFont(font, "normal");
@@ -89,7 +87,28 @@ export const exportDeliveredEquipmentPdf = async (dairy: EquipmentPdfDairy, item
   doc.line(pageWidth - 84, signY, pageWidth - 14, signY);
   doc.text("Delivered by", 14, signY + 6);
   doc.text("Received by (Dairy)", pageWidth - 84, signY + 6);
+};
 
-  const fileLabel = String(dairy.username || dairy.name || "dairy").replace(/[^\w-]+/g, "_");
+/** One PDF holding a delivery sheet per dairy, each starting on a new page. */
+export const exportDeliveredEquipmentSheetsPdf = async (sheets: EquipmentPdfSheet[]) => {
+  const doc = new jsPDF();
+  // Equipment and dairy names are often Marathi, which the default font cannot render.
+  const font = await registerDevanagariFont(doc);
+
+  const now = new Date();
+  const displayDate = `${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear()}`;
+  const fileDate = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+  sheets.forEach((sheet, index) => {
+    if (index > 0) doc.addPage();
+    drawSheet(doc, font, sheet, displayDate);
+  });
+
+  const fileLabel = sheets.length === 1
+    ? String(sheets[0].dairy.username || sheets[0].dairy.name || "dairy").replace(/[^\w-]+/g, "_")
+    : `${sheets.length}_VLCs`;
   doc.save(`Delivered_Equipment_${fileLabel}_${fileDate}.pdf`);
 };
+
+export const exportDeliveredEquipmentPdf = (dairy: EquipmentPdfDairy, items: EquipmentPdfItem[]) =>
+  exportDeliveredEquipmentSheetsPdf([{ dairy, items }]);

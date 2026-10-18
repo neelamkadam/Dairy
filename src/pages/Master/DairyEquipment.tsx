@@ -22,9 +22,9 @@ import {
   type DairyEquipmentItem,
   type EquipmentDairy,
 } from "@/services/dairyEquipmentApi";
-import { exportDeliveredEquipmentPdf } from "@/utils/dairyEquipmentPdf";
+import { exportDeliveredEquipmentPdf, exportDeliveredEquipmentSheetsPdf } from "@/utils/dairyEquipmentPdf";
 import { toast } from "react-toastify";
-import { AlertTriangle, Building2, Download, Loader2, Package, Pencil, Plus, Save, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, Building2, Download, FileDown, Loader2, Package, Pencil, Plus, Save, Search, Trash2 } from "lucide-react";
 
 interface EquipmentForm {
   equipment_name: string;
@@ -52,6 +52,25 @@ const errorInfo = (error: unknown) => {
 };
 
 const focusField = (id: string) => setTimeout(() => document.getElementById(id)?.focus(), 30);
+
+// Runs fn over items at most `limit` at a time, keeping results in input order —
+// so exporting many VLCs does not fire every request at once.
+async function mapLimited<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>) {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const index = next++;
+      results[index] = await fn(items[index]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
+
+// "500101, 500102, 500103 +2" — keeps toasts short when many VLCs are involved.
+const vlcList = (dairies: EquipmentDairy[], max = 3) =>
+  dairies.slice(0, max).map((d) => d.username).join(", ") + (dairies.length > max ? ` +${dairies.length - max}` : "");
 
 const inputClass =
   "h-10 rounded-xl border-slate-200 bg-slate-50 hover:border-blue-300 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all";
@@ -85,6 +104,11 @@ const DairyEquipment = () => {
   const [deleting, setDeleting] = useState<DairyEquipmentRecord | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [exporting, setExporting] = useState(false);
+
+  // Multi-VLC export: one delivery sheet per selected VLC in a single PDF.
+  const [exportIds, setExportIds] = useState<string[]>([]);
+  const [bulkExporting, setBulkExporting] = useState(false);
+  const [bulkLoaded, setBulkLoaded] = useState(0);
 
   const dairyId = dairy?.branch_id ?? null;
   const unavailableMessage = t("dairy_equipment_unavailable", "Dairy equipment is not enabled on the server yet");
@@ -321,6 +345,69 @@ const DairyEquipment = () => {
     }
   };
 
+  const handleBulkExportPdf = async () => {
+    // Branch-list order, so the PDF pages follow the VLC numbering.
+    const selected: EquipmentDairy[] = (branches || []).filter((b) => exportIds.includes(String(b.branch_id)));
+    if (selected.length === 0) return;
+
+    setBulkExporting(true);
+    setBulkLoaded(0);
+    try {
+      // items is null when that VLC's request failed.
+      type VlcResult = { dairy: EquipmentDairy; items: DairyEquipmentRecord[] | null; status?: number };
+      const results = await mapLimited(selected, 5, async (vlc): Promise<VlcResult> => {
+        try {
+          const res = await dairyEquipmentApi.list(vlc.branch_id);
+          return { dairy: vlc, items: Array.isArray(res?.data) ? res.data : [] };
+        } catch (error) {
+          return { dairy: vlc, items: null, status: errorInfo(error).status };
+        } finally {
+          setBulkLoaded((n) => n + 1);
+        }
+      });
+
+      // A PDF quietly missing some VLCs is worse than none — stop and say which failed.
+      const failed = results.filter((r) => r.items === null);
+      if (failed.length) {
+        if (failed.some((r) => r.status === 503)) {
+          setUnavailable(true);
+          toast.error(unavailableMessage);
+        } else {
+          toast.error(t("failed_to_load_equipment_for_vlcs", {
+            vlcs: vlcList(failed.map((r) => r.dairy)),
+            defaultValue: "Could not load equipment for {{vlcs}} — try again",
+            interpolation: { escapeValue: false },
+          }));
+        }
+        return;
+      }
+
+      const sheets = results.flatMap((r) => (r.items?.length ? [{ dairy: r.dairy, items: r.items }] : []));
+      if (sheets.length === 0) {
+        toast.error(t("no_equipment_for_selected_vlcs", "None of the selected VLCs has equipment yet"));
+        return;
+      }
+
+      await exportDeliveredEquipmentSheetsPdf(sheets);
+      const empty = results.filter((r) => r.items?.length === 0).map((r) => r.dairy);
+      if (empty.length) {
+        toast.success(t("equipment_pdf_skipped_vlcs", {
+          count: empty.length,
+          vlcs: vlcList(empty),
+          defaultValue: "PDF exported. Left out {{count}} VLC(s) with no equipment: {{vlcs}}",
+          interpolation: { escapeValue: false },
+        }));
+      } else {
+        toast.success(t("pdf_exported_successfully", "PDF exported successfully"));
+      }
+    } catch (error) {
+      console.error("Failed to export equipment PDF:", error);
+      toast.error(t("failed_to_export_pdf", "Failed to export PDF"));
+    } finally {
+      setBulkExporting(false);
+    }
+  };
+
   const selectedInBranches = dairyId != null && branches?.some((b) => b.branch_id === dairyId);
 
   return (
@@ -380,6 +467,56 @@ const DairyEquipment = () => {
             </form>
           </div>
         </div>
+
+        {/* Export — pick several VLCs, get one PDF with a delivery sheet per VLC */}
+        <Card className={cardClass}>
+          <CardContent className="p-4 md:p-5 flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-6">
+            <div className="flex items-center gap-3 text-left lg:flex-1 min-w-0">
+              <div className="p-2 bg-blue-50 text-blue-600 rounded-xl shrink-0">
+                <FileDown className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-base font-bold text-slate-800">{t("export_equipment_pdf", "Export Equipment PDF")}</h2>
+                <p className="text-sm text-slate-500">
+                  {t("export_equipment_pdf_desc", "Select one or more VLCs — each gets its own delivery sheet in one PDF")}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto lg:min-w-[520px]">
+              <div className="flex-1 min-w-0">
+                <VLCDropdown
+                  isMultiSelect
+                  branches={branches || []}
+                  value={exportIds}
+                  onChange={setExportIds}
+                  placeholder={t("select_vlcs", "Select VLCs")}
+                  className="min-h-11 bg-white"
+                  valueKey="branch_id"
+                  disabled={bulkExporting}
+                />
+              </div>
+              <Button
+                type="button"
+                onClick={handleBulkExportPdf}
+                disabled={bulkExporting || exportIds.length === 0}
+                className="h-11 px-4 rounded-xl gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold shrink-0"
+              >
+                {bulkExporting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="tabular-nums">{bulkLoaded}/{exportIds.length}</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    {t("export_pdf", "Export PDF")}
+                    {exportIds.length > 0 && <span className="tabular-nums">({exportIds.length})</span>}
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {!dairy ? (
           <Card className={cardClass}>
