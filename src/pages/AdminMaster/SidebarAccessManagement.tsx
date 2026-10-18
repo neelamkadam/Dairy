@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { getSidebarAccess, createOrUpdateSidebarAccess, parseItemAccess } from "@/services/sidebarAccessApi";
-import { ALL_ITEM_KEYS, SECTION_ITEMS, leafItems, type SidebarItemDef, type SidebarSectionKey } from "@/constatnts/sidebarItems";
+import { ALL_ITEM_KEYS, SECTION_ITEMS, itemTitle, leafItems, type SidebarItemDef, type SidebarSectionKey } from "@/constatnts/sidebarItems";
 import { adminApi } from "@/services/adminApi";
 import { toast } from "react-toastify";
 import { Input } from "@/components/ui/input";
@@ -152,6 +152,11 @@ const SidebarAccessManagement = () => {
     setItemAccess((prev) => ({ ...prev, [key]: prev[key] === 0 ? 1 : 0 }));
   };
 
+  // A group's switch (Reports → Farmer Reports): all its items on, or all off.
+  const setGroupItems = (defs: SidebarItemDef[], on: boolean) => {
+    setItemAccess((prev) => ({ ...prev, ...Object.fromEntries(defs.map((d) => [d.key, on ? 1 : 0])) }));
+  };
+
   const isAllSelected = Object.keys(access).length > 0 &&
     Object.keys(access).every(key => access[key as keyof SidebarAccess] === 1) &&
     ALL_ITEM_KEYS.every((key) => itemAccess[key] !== 0);
@@ -261,7 +266,7 @@ const SidebarAccessManagement = () => {
       >
         <span className="min-w-0">
           <span className={`text-sm font-semibold ${on ? "text-blue-900" : "text-slate-600"}`}>
-            {t(def.titleKey, def.titleDefault)}
+            {itemTitle(t, def)}
           </span>
           {def.adminOnly && (
             <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wide text-indigo-500">
@@ -318,7 +323,8 @@ const SidebarAccessManagement = () => {
   };
 
   // A section switch with a switch for each item inside it; groups (Master →
-  // Create, Commission Entry) get their own heading.
+  // Create, Reports → Farmer Reports …) get their own heading, with a switch
+  // that turns all of the group's items on or off.
   const renderSectionCard = (key: SidebarSectionKey, label: string, sectionOn: boolean) => {
     const defs = visibleDefs(SECTION_ITEMS[key]);
     const leaves = visibleDefs(leafItems(defs));
@@ -360,11 +366,24 @@ const SidebarAccessManagement = () => {
           {defs.filter((d) => d.children).map((group) => {
             const groupItems = visibleDefs(group.children!);
             if (!groupItems.length) return null;
+            const onCount = groupItems.filter((d) => itemOn(d.key)).length;
+            const groupOn = onCount === groupItems.length;
             return (
               <div key={group.key} className="space-y-2">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                  {t(group.titleKey, group.titleDefault)}
-                </p>
+                <div
+                  onClick={() => { if (sectionOn) setGroupItems(groupItems, !groupOn); }}
+                  className={`flex items-center justify-between gap-3 rounded-lg px-3 py-2 ${
+                    sectionOn ? "cursor-pointer bg-slate-100/70 hover:bg-slate-100" : "cursor-not-allowed bg-slate-50"
+                  }`}
+                >
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                    {itemTitle(t, group)}
+                    <span className="ml-2 normal-case tracking-normal font-semibold text-slate-400">
+                      {onCount}/{groupItems.length} {t("on", "on")}
+                    </span>
+                  </p>
+                  <Switch checked={groupOn} disabled={!sectionOn} className="data-[state=checked]:bg-blue-600 pointer-events-none" />
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {groupItems.map((def) => itemRow(def, sectionOn))}
                 </div>

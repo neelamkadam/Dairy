@@ -15,7 +15,7 @@ import NeoDairyLogo from "@/assets/NeoDairy_Logo.png";
 import { RootState, useAppSelector } from "@/redux/store";
 import { useTranslation } from "react-i18next";
 import { getSidebarAccess, getVlcStepAccess, isItemOn, isOnByDefault } from "@/services/sidebarAccessApi";
-import { SECTION_ITEMS, type SidebarItemDef, type SidebarSectionKey } from "@/constatnts/sidebarItems";
+import { SECTION_ITEMS, itemTitle, type SidebarItemDef, type SidebarSectionKey } from "@/constatnts/sidebarItems";
 
 interface MenuItem {
   title: string;
@@ -38,7 +38,7 @@ const buildSectionItems = (defs: SidebarItemDef[], t: any, access: any, isAdmin:
     if (def.children) {
       const children = buildSectionItems(def.children, t, access, isAdmin);
       return children.length
-        ? [{ title: t(def.titleKey, def.titleDefault), icon: GROUP_ICONS[def.key] ?? <Dot size={24} />, children }]
+        ? [{ title: itemTitle(t, def), icon: GROUP_ICONS[def.key] ?? <Dot size={24} />, children }]
         : [];
     }
     if (!isItemOn(access, def.key)) return [];
@@ -47,7 +47,7 @@ const buildSectionItems = (defs: SidebarItemDef[], t: any, access: any, isAdmin:
       const steps = getVlcStepAccess(access);
       if (!steps.weight && !steps.analyser) return [];
     }
-    return [{ title: t(def.titleKey, def.titleDefault), icon: <Dot size={24} />, href: def.href }];
+    return [{ title: itemTitle(t, def), icon: <Dot size={24} />, href: def.href }];
   });
 
 const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
@@ -73,81 +73,8 @@ const getMenuItems = (t: any, access: any, isAdmin: boolean): MenuItem[] => {
   pushSection('master', t('master'), <Settings size={20} className="stroke-[1.5]" />);
   pushSection('billing', t('billing'), <CreditCard size={20} className="stroke-[1.5]" />);
 
-  if (access?.reports) {
-    items.push({
-      title: t('reports'),
-      icon: <LineChart size={20} className="stroke-[1.5]" />,
-      // Grouped so the list stays short; each group opens to its reports.
-      children: [
-        {
-          title: t('collection_reports', 'Collection Reports'),
-          icon: <Dot size={24} />,
-          children: [
-            { title: t('shift_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.SHIFT_REPORTS },
-            { title: t('manual_auto_shift_report', 'Manual/Auto Shift Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.MANUAL_AUTO_SHIFT_REPORT },
-            { title: t('dispatch_status_report', 'Dispatch Status Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.DISPATCH_STATUS_REPORT },
-            { title: t('vlc_collection_entry_report', 'VLC Collection Entry Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.VLC_COLLECTION_ENTRY_REPORT },
-            { title: t('tanker_dispatch_report', 'Tanker Dispatch Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.TANKER_DISPATCH_REPORT },
-            { title: t('tanker_profit_loss_report', 'Tanker Profit & Loss Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.TANKER_PROFIT_LOSS_REPORT },
-            { title: t('tanker_daywise_report', 'Tanker Day-wise Purchase & Sale Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.TANKER_DAYWISE_REPORT },
-            { title: t('farmer_collection'), icon: <Dot size={24} />, href: ROUTES.REPORTS.FARMER_COLLECTION },
-            { title: t('total_collection_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.TOTAL_COLLECTION_REPORT },
-            { title: t('vlc_difference_report') + " 1", icon: <Dot size={24} />, href: ROUTES.REPORTS.VLC_DIFFERENCE_REPORT },
-            { title: t('vlc_difference_report') + " 2", icon: <Dot size={24} />, href: ROUTES.REPORTS.VLC_DIFFERENCE_REPORT_2 },
-          ]
-        },
-        {
-          title: t('farmer_reports', 'Farmer Reports'),
-          icon: <Dot size={24} />,
-          children: [
-            { title: t('farmer_list'), icon: <Dot size={24} />, href: ROUTES.REPORTS.FARMER_LIST },
-            { title: t('farmer_passbook'), icon: <Dot size={24} />, href: ROUTES.REPORTS.FARMER_PASSBOOK },
-            { title: t('rate_chart_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.RATECHART_REPORT },
-            { title: t('bonus_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.BONUS_REPORT },
-          ]
-        },
-        {
-          title: t('billing_payment_reports', 'Billing & Payment'),
-          icon: <Dot size={24} />,
-          children: [
-            { title: t('payment_summary_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.PAYMENT_SUMMARY },
-            { title: t('farmer_bill_invoice_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.FARMER_BILL_INVOICE_REPORT },
-            { title: t('bank_summary_report', 'Bank Summary'), icon: <Dot size={24} />, href: ROUTES.REPORTS.BANK_SUMMARY_REPORT },
-            { title: t('remaining_balance_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.REMAINING_BALANCE },
-            { title: t('pl_statement'), icon: <Dot size={24} />, href: ROUTES.REPORTS.PL_STATEMENT },
-          ]
-        },
-        {
-          title: t('commission_neft_reports', 'Commission & NEFT'),
-          icon: <Dot size={24} />,
-          children: [
-            { title: t('vlc_commission_report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.VLC_COMMISSION_REPORT },
-            { title: t('farmer_commission_report', 'Farmer Commission Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.FARMER_COMMISSION_REPORT },
-            { title: t('farmer_neft_statement', 'Farmer Bank NEFT Statement'), icon: <Dot size={24} />, href: ROUTES.REPORTS.FARMER_NEFT_STATEMENT },
-            { title: t('vlc_commission_neft', 'VLC Commission NEFT'), icon: <Dot size={24} />, href: ROUTES.REPORTS.VLC_COMMISSION_NEFT },
-          ]
-        },
-        {
-          title: t('transport_collection', 'Transport Collection'),
-          icon: <Dot size={24} />,
-          children: [
-            { title: t('transport_neft_statement', 'Transport NEFT Statement'), icon: <Dot size={24} />, href: ROUTES.REPORTS.TRANSPORT_NEFT_STATEMENT },
-            { title: t('transport_bill_invoice', 'Transport Bill Invoice'), icon: <Dot size={24} />, href: ROUTES.REPORTS.TRANSPORT_BILL_INVOICE },
-          ]
-        },
-        {
-          title: t('cattle_feed_report', 'Cattle Feed Report'),
-          icon: <Dot size={24} />,
-          children: [
-            { title: t('farmer_wise_cattle_feed_report', 'Farmer-wise Cattle Feed Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.CATTLE_FEED_FARMER_WISE_REPORT },
-            { title: t('cattle_feed_sales_report', 'Cattle Feed Sales Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.CATTLE_FEED_SALES_REPORT },
-            { title: t('cattle_feed_stock_report', 'Cattle Feed Stock Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.CATTLE_FEED_STOCK_REPORT },
-            { title: t('cattle_feed_purchases_report', 'Cattle Feed Purchases Report'), icon: <Dot size={24} />, href: ROUTES.REPORTS.CATTLE_FEED_PURCHASE_REPORT },
-          ]
-        },
-      ]
-    });
-  }
+  // Reports: groups of reports, each switched on or off in Sidebar Access.
+  pushSection('reports', t('reports'), <LineChart size={20} className="stroke-[1.5]" />);
 
   pushSection('settings', t('settings'), <Settings size={20} className="stroke-[1.5]" />);
 
