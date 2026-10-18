@@ -1298,6 +1298,7 @@
   "no_farmers_registered": "No farmers registered for this dairy",
   "no_verified_farmers_in_dairy": "No verified farmers in this dairy",
   "no_unverified_farmers_in_dairy": "No unverified farmers in this dairy",
+  "all_farmers_verified_in_selected_vlcs": "All farmers in the selected VLCs are verified",
   "apply_password_confirm": "Set this password on all {{count}} selected VLCs?",
   "password_set_for_vlcs": "Password set for {{count}} VLCs",
   "password_created_successfully": "Password created successfully",

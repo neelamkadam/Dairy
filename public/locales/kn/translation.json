@@ -1298,6 +1298,7 @@
   "no_farmers_registered": "ಈ ಡೈರಿಯಲ್ಲಿ ಯಾವುದೇ ರೈತರು ನೋಂದಾಯಿಸಿಲ್ಲ",
   "no_verified_farmers_in_dairy": "ಈ ಡೈರಿಯಲ್ಲಿ ಪರಿಶೀಲಿಸಿದ ರೈತರು ಇಲ್ಲ",
   "no_unverified_farmers_in_dairy": "ಈ ಡೈರಿಯಲ್ಲಿ ಪರಿಶೀಲಿಸದ ರೈತರು ಇಲ್ಲ",
+  "all_farmers_verified_in_selected_vlcs": "ಆಯ್ಕೆ ಮಾಡಿದ VLC ಗಳ ಎಲ್ಲಾ ರೈತರು ಪರಿಶೀಲಿತರಾಗಿದ್ದಾರೆ",
   "apply_password_confirm": "ಆಯ್ಕೆಮಾಡಿದ ಎಲ್ಲಾ {{count}} VLC ಗಳಿಗೆ ಈ ಪಾಸ್‌ವರ್ಡ್ ಹೊಂದಿಸಬೇಕೆ?",
   "password_set_for_vlcs": "{{count}} VLC ಗಳಿಗೆ ಪಾಸ್‌ವರ್ಡ್ ಹೊಂದಿಸಲಾಗಿದೆ",
   "password_created_successfully": "ಪಾಸ್‌ವರ್ಡ್ ಯಶಸ್ವಿಯಾಗಿ ರಚಿಸಲಾಗಿದೆ",

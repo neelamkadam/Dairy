@@ -1279,6 +1279,7 @@
   "no_farmers_registered": "इस डेयरी में कोई किसान पंजीकृत नहीं है",
   "no_verified_farmers_in_dairy": "इस डेयरी में कोई सत्यापित किसान नहीं है",
   "no_unverified_farmers_in_dairy": "इस डेयरी में कोई असत्यापित किसान नहीं है",
+  "all_farmers_verified_in_selected_vlcs": "चयनित VLC के सभी किसान सत्यापित हैं",
   "apply_password_confirm": "सभी {{count}} चयनित VLC पर यह पासवर्ड सेट करें?",
   "password_set_for_vlcs": "{{count}} VLC के लिए पासवर्ड सेट किया गया",
   "password_created_successfully": "पासवर्ड सफलतापूर्वक बनाया गया",

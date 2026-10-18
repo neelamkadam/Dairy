@@ -160,13 +160,16 @@ const FarmerList = () => {
   const verifiedCount = sections.reduce((sum, s) => sum + s.farmers.filter(isBankVerified).length, 0);
   const unverifiedCount = sections.reduce((sum, s) => sum + s.farmers.length, 0) - verifiedCount;
 
-  // The dairies as shown and exported: each one's farmers narrowed to the verification filter
+  // The dairies as shown and exported: each one's farmers narrowed to the verification filter.
+  // The unverified view is a to-do list, so dairies with nothing left to verify are dropped.
   const visibleSections = verificationFilter === "all"
     ? sections
-    : sections.map((s) => ({
-        ...s,
-        farmers: s.farmers.filter((f) => isBankVerified(f) === (verificationFilter === "verified")),
-      }));
+    : sections
+        .map((s) => ({
+          ...s,
+          farmers: s.farmers.filter((f) => isBankVerified(f) === (verificationFilter === "verified")),
+        }))
+        .filter((s) => verificationFilter !== "unverified" || s.farmers.length > 0);
 
   const totalFarmers = visibleSections.reduce((sum, s) => sum + s.farmers.length, 0);
 
@@ -176,7 +179,7 @@ const FarmerList = () => {
   };
 
   const handleExportPDF = () => {
-    if (!sections.length) {
+    if (!visibleSections.length) {
       toast.error(t("no_data_to_export", "No data to export"));
       return;
     }
@@ -187,7 +190,7 @@ const FarmerList = () => {
   };
 
   const handleExportExcel = () => {
-    if (!sections.length) {
+    if (!visibleSections.length) {
       toast.error(t("no_data_to_export", "No data to export"));
       return;
     }
@@ -310,7 +313,7 @@ const FarmerList = () => {
           <p className="text-sm text-slate-600">
             {t("farmers_across_dairies", {
               farmers: totalFarmers,
-              dairies: sections.length,
+              dairies: visibleSections.length,
               defaultValue: "{{farmers}} farmers across {{dairies}} dairies",
             })}
           </p>
@@ -356,7 +359,7 @@ const FarmerList = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {currentRows.length > 0 || sections.length > 0 ? (
+            {currentRows.length > 0 || visibleSections.length > 0 ? (
               <>
               {currentRows.map(({ section, farmer }, i) => {
                 const newSection = i === 0 || currentRows[i - 1].section !== section;
@@ -457,7 +460,11 @@ const FarmerList = () => {
             ) : (
               <TableRow>
                 <TableCell colSpan={10} className="text-center py-10 text-gray-500">
-                  {loading ? t("loading", "Loading...") : t("select_vlc_show_farmers", "Select VLC and click Show to view farmers")}
+                  {loading
+                    ? t("loading", "Loading...")
+                    : sections.length > 0
+                      ? t("all_farmers_verified_in_selected_vlcs", "All farmers in the selected VLCs are verified")
+                      : t("select_vlc_show_farmers", "Select VLC and click Show to view farmers")}
                 </TableCell>
               </TableRow>
             )}
