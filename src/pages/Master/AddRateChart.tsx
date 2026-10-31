@@ -7,18 +7,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import {
-  Upload, FileSpreadsheet, Download, CheckCircle2, Plus, Trash2, Eye, EyeOff,
+  Upload, FileSpreadsheet, Download, CheckCircle2, Plus,
   Search, Sun, Moon, CloudUpload, Pencil, Sparkles,
   TrendingUp, BarChart3, Info, X, FileText, Table2
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AppDatePicker } from "@/components/ui/date-picker";
-import { VLCDropdown } from "@/components/ui/vlc-dropdown";
+import { VLCDropdown, type Branch } from "@/components/ui/vlc-dropdown";
 import { format, isValid, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/redux/store";
 import { toast } from "react-toastify";
 import { api } from "@/services/config";
+import { buildRateTable, sortSteps, type RateStep } from "@/utils/rateChartSteps";
 
 // ─── Shared Styled Components ─────────────────────────────────────────────────
 
@@ -68,9 +69,15 @@ const handleEnterKey = (e: React.KeyboardEvent<HTMLElement>) => {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-const AddRateChart = () => {
+interface AddRateChartProps {
+  // The VLCs to choose from. Omitted: the logged-in user's own branches.
+  branches?: Branch[];
+}
+
+const AddRateChart = ({ branches: branchesProp }: AddRateChartProps) => {
   const { t } = useTranslation();
-  const { branches } = useAppSelector((state) => state.branch);
+  const { branches: userBranches } = useAppSelector((state) => state.branch);
+  const branches = branchesProp ?? userBranches;
   const [formData, setFormData] = useState({
     vlcc: [] as string[],
     rateChart: "",
@@ -603,7 +610,7 @@ const AddRateChart = () => {
             </Card>
           </>
         ) : (
-          <ManualRateChartForm />
+          <ManualRateChartForm branches={branches} />
         )}
       </div>
     </div>
@@ -612,75 +619,129 @@ const AddRateChart = () => {
 
 // ─── Manual Rate Chart Form ───────────────────────────────────────────────────
 
-const ManualRateChartForm = () => {
+const DEFAULT_STARTING_AMOUNT = "44.50";
+const DEFAULT_FAT_STEPS: RateStep[] = [
+  { id: "1", from: "5.0", rate: "0.30" },
+  { id: "2", from: "8.4", rate: "1.00" },
+  { id: "3", from: "10.0", rate: "0.00" },
+];
+const DEFAULT_SNF_STEPS: RateStep[] = [
+  { id: "1", from: "8.5", rate: "0.50" },
+  { id: "2", from: "9.4", rate: "0.10" },
+  { id: "3", from: "10.0", rate: "0.00" },
+];
+
+const STEP_TABLE_STYLES = {
+  fat: { badge: "bg-emerald-100 text-emerald-700", add: "bg-emerald-500 hover:bg-emerald-600", input: "hover:border-emerald-300 focus:border-emerald-400" },
+  snf: { badge: "bg-blue-100 text-blue-700", add: "bg-blue-500 hover:bg-blue-600", input: "hover:border-blue-300 focus:border-blue-400" },
+};
+
+const StepTable = ({ kind, steps, onChange }: { kind: "fat" | "snf"; steps: RateStep[]; onChange: (steps: RateStep[]) => void }) => {
   const { t } = useTranslation();
-  const { branches } = useAppSelector((state) => state.branch);
+  const styles = STEP_TABLE_STYLES[kind];
+  const inputClass = cn("bg-gray-50/80 border-gray-200 rounded-xl h-9 text-sm transition-colors", styles.input);
+
+  const updateStep = (id: string, field: "from" | "rate", value: string) =>
+    onChange(steps.map((s) => (s.id === id ? { ...s, [field]: value } : s)));
+
+  return (
+    <div className="rounded-xl border border-gray-200 p-3">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className={cn("w-6 h-6 rounded-md flex items-center justify-center", styles.badge)}>
+            <span className="text-xs font-bold">{kind === "fat" ? "F" : "S"}</span>
+          </div>
+          <h3 className="text-sm font-semibold text-gray-900">
+            {kind === "fat" ? t("fat_step", "FAT Step") : t("snf_step", "SNF Step")}
+          </h3>
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => onChange([...steps, { id: Date.now().toString(), from: "", rate: "" }])}
+          className={cn("rounded-xl text-white shadow-sm gap-1 h-7 px-2.5 text-xs", styles.add)}
+        >
+          <Plus className="w-3 h-3" />
+          {t("add", "Add")}
+        </Button>
+      </div>
+
+      {/* Column Headers */}
+      <div className="grid grid-cols-[1fr_1fr_28px] gap-2 mb-1.5 px-0.5">
+        <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">{t("from", "From")}</span>
+        <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">{t("rate_per_point", "₹ per 0.1")}</span>
+        <span></span>
+      </div>
+
+      <div className="space-y-1.5">
+        {steps.map((step, i) => {
+          const isLast = i === steps.length - 1;
+          return (
+            <div
+              key={step.id}
+              // Once the row is left, move it to its place so a step can be added anywhere
+              onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget)) onChange(sortSteps(steps));
+              }}
+              className="grid grid-cols-[1fr_1fr_28px] gap-2 items-center"
+            >
+              <Input
+                type="number" step="0.1" placeholder="0.0"
+                value={step.from}
+                onChange={(e) => updateStep(step.id, "from", e.target.value)}
+                onKeyDown={handleEnterKey}
+                className={inputClass}
+              />
+              <Input
+                type="number" step="0.01" placeholder="0.00"
+                value={isLast ? "0.00" : step.rate}
+                disabled={isLast}
+                onChange={(e) => updateStep(step.id, "rate", e.target.value)}
+                onKeyDown={handleEnterKey}
+                className={inputClass}
+              />
+              {isLast && steps.length > 2 && (
+                <Button
+                  type="button" variant="ghost" size="sm"
+                  onClick={() => onChange(steps.slice(0, -1))}
+                  className="rounded-lg h-7 w-7 p-0 hover:bg-red-50 hover:text-red-500"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+const ManualRateChartForm = ({ branches }: { branches: Branch[] }) => {
+  const { t } = useTranslation();
   const [vlcc, setVlcc] = useState<string[]>([]);
   const [animalType, setAnimalType] = useState<"cow" | "buffalo">("cow");
   const [rateChartName, setRateChartName] = useState("");
   const [effectiveDate, setEffectiveDate] = useState<Date | undefined>(undefined);
   const [isShiftWise, setIsShiftWise] = useState(false);
   const [selectedShift, setSelectedShift] = useState<"Morning" | "Evening">("Morning");
-  const [baseRate, setBaseRate] = useState<number>(24);
-  const [fatRanges, setFatRanges] = useState<{ id: string; min: number; max: number; multiplier: number }[]>([
-    { id: "1", min: 2.0, max: 3.5, multiplier: 0.5 },
-    { id: "2", min: 3.6, max: 4.0, multiplier: 0.2 },
-  ]);
-  const [snfRanges, setSnfRanges] = useState<{ id: string; min: number; max: number; multiplier: number }[]>([
-    { id: "1", min: 7.0, max: 10.0, multiplier: 0.3 },
-  ]);
+  const [startingAmount, setStartingAmount] = useState(DEFAULT_STARTING_AMOUNT);
+  const [fatSteps, setFatSteps] = useState<RateStep[]>(DEFAULT_FAT_STEPS);
+  const [snfSteps, setSnfSteps] = useState<RateStep[]>(DEFAULT_SNF_STEPS);
   const [loading, setLoading] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
 
-  const calculateRate = (fat: number, snf: number): number => {
-    let rate = baseRate;
-
-    for (const range of fatRanges) {
-      if (fat >= range.min && fat <= range.max) {
-        const steps = Math.round((fat - range.min) * 10);
-        rate += steps * range.multiplier;
-        break;
-      }
-    }
-
-    for (const range of snfRanges) {
-      if (snf >= range.min && snf <= range.max) {
-        const steps = Math.round((snf - range.min) * 10);
-        rate += steps * range.multiplier;
-        break;
-      }
-    }
-
-    return parseFloat(rate.toFixed(2));
-  };
-
-  const generateRateMatrix = () => {
-    const rates = [];
-    const maxFat = Math.max(...fatRanges.map(r => r.max));
-    const maxSnf = Math.max(...snfRanges.map(r => r.max));
-    const minFat = Math.min(...fatRanges.map(r => r.min));
-    const minSnf = Math.min(...snfRanges.map(r => r.min));
-
-    for (let fat = minFat; fat <= maxFat; fat += 0.1) {
-      for (let snf = minSnf; snf <= maxSnf; snf += 0.1) {
-        rates.push({
-          fat: parseFloat(fat.toFixed(1)),
-          snf: parseFloat(snf.toFixed(1)),
-          price: calculateRate(parseFloat(fat.toFixed(1)), parseFloat(snf.toFixed(1))),
-        });
-      }
-    }
-    return rates;
-  };
+  const rateTable = buildRateTable(startingAmount, fatSteps, snfSteps);
 
   const handleSubmit = async () => {
-    if (vlcc.length === 0 || !rateChartName || !effectiveDate) {
+    if (vlcc.length === 0 || !rateChartName || !effectiveDate || !rateTable) {
       toast.error("Please fill all required fields");
       return;
     }
     setLoading(true);
     try {
-      const rates = generateRateMatrix();
+      const rates = rateTable.rows.flatMap((row) =>
+        row.rates.map((price, i) => ({ fat: row.fat, snf: rateTable.snfs[i], price }))
+      );
       const displayName = `${animalType === "cow" ? "🐄 Cow" : "🐃 Buffalo"} ${rateChartName} ${isShiftWise ? selectedShift : "All Day"}`;
       const payload: any = {
         created_by: "Admin",
@@ -699,12 +760,15 @@ const ManualRateChartForm = () => {
       setEffectiveDate(undefined);
       setIsShiftWise(false);
       setSelectedShift("Morning");
-      setBaseRate(24);
-      setFatRanges([{ id: "1", min: 2.0, max: 3.5, multiplier: 0.5 }, { id: "2", min: 3.6, max: 4.0, multiplier: 0.2 }]);
-      setSnfRanges([{ id: "1", min: 7.0, max: 10.0, multiplier: 0.3 }]);
-      setShowPreview(false);
+      setStartingAmount(DEFAULT_STARTING_AMOUNT);
+      setFatSteps(DEFAULT_FAT_STEPS);
+      setSnfSteps(DEFAULT_SNF_STEPS);
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to create rate chart");
+      toast.error(
+        error?.response?.status === 413
+          ? "This chart is too large to save. Reduce the FAT or SNF range."
+          : error?.response?.data?.message || "Failed to create rate chart"
+      );
     } finally {
       setLoading(false);
     }
@@ -898,21 +962,21 @@ const ManualRateChartForm = () => {
       {/* ── Rate Configuration Card ────────────────────────────── */}
       <Card className="shadow-sm border-gray-100/80 rounded-2xl overflow-hidden">
         <CardContent className="p-5 md:p-6">
-          <SectionTitle icon={TrendingUp} title="Rate Calculation Rules" subtitle="Define the base rate and range-based multipliers" />
+          <SectionTitle icon={TrendingUp} title="Rate Calculation Rules" subtitle={t("rate_steps_subtitle", "Set the starting amount and the FAT and SNF steps")} />
 
-          {/* Base Rate */}
+          {/* Starting Amount */}
           <div className="mb-5 p-4 bg-gradient-to-r from-blue-50/80 to-indigo-50/50 rounded-xl border border-blue-100/60">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-800">Base Rate (₹)</label>
-                <p className="text-xs text-gray-500 mt-0.5">Starting price per unit</p>
+                <label className="block text-sm font-semibold text-gray-800">{t("starting_amount", "Starting Amount")} (₹)</label>
+                <p className="text-xs text-gray-500 mt-0.5">{t("starting_amount_hint", "Rate at the first FAT and first SNF")}</p>
               </div>
               <div className="w-28">
                 <Input
                   type="number"
-                  step="0.1"
-                  value={baseRate}
-                  onChange={(e) => setBaseRate(parseFloat(e.target.value) || 0)}
+                  step="0.01"
+                  value={startingAmount}
+                  onChange={(e) => setStartingAmount(e.target.value)}
                   onKeyDown={handleEnterKey}
                   className="bg-white border-blue-200 rounded-xl text-center font-semibold text-lg h-10 shadow-sm focus:border-blue-400 focus:ring-blue-400/20"
                 />
@@ -920,160 +984,60 @@ const ManualRateChartForm = () => {
             </div>
           </div>
 
-          {/* FAT Ranges */}
-          <div className="mb-5">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-md bg-emerald-100 flex items-center justify-center">
-                  <span className="text-xs font-bold text-emerald-700">F</span>
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900">FAT Ranges</h3>
-                  <p className="text-xs text-gray-400">Fat content ranges and multipliers</p>
-                </div>
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => setFatRanges([...fatRanges, { id: Date.now().toString(), min: 0, max: 0, multiplier: 0 }])}
-                className="rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm gap-1 h-7 px-2.5 text-xs"
-              >
-                <Plus className="w-3 h-3" />
-                Add
-              </Button>
-            </div>
-
-            {/* Column Headers */}
-            <div className="grid grid-cols-[1fr_1fr_1fr_36px] gap-2.5 mb-1.5 px-0.5">
-              <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Min</span>
-              <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Max</span>
-              <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Multiplier (₹)</span>
-              <span></span>
-            </div>
-
-            <div className="space-y-1.5">
-              {fatRanges.map((range) => (
-                <div key={range.id} className="grid grid-cols-[1fr_1fr_1fr_36px] gap-2.5 items-center group">
-                  <Input
-                    type="number" step="0.1" placeholder="0.0"
-                    value={range.min || ""}
-                    onChange={(e) => setFatRanges(fatRanges.map((r) => (r.id === range.id ? { ...r, min: parseFloat(e.target.value) || 0 } : r)))}
-                    onKeyDown={handleEnterKey}
-                    className="bg-gray-50/80 border-gray-200 rounded-xl h-9 text-sm hover:border-emerald-300 focus:border-emerald-400 transition-colors"
-                  />
-                  <Input
-                    type="number" step="0.1" placeholder="0.0"
-                    value={range.max || ""}
-                    onChange={(e) => setFatRanges(fatRanges.map((r) => (r.id === range.id ? { ...r, max: parseFloat(e.target.value) || 0 } : r)))}
-                    onKeyDown={handleEnterKey}
-                    className="bg-gray-50/80 border-gray-200 rounded-xl h-9 text-sm hover:border-emerald-300 focus:border-emerald-400 transition-colors"
-                  />
-                  <Input
-                    type="number" step="0.1" placeholder="0.0"
-                    value={range.multiplier || ""}
-                    onChange={(e) => setFatRanges(fatRanges.map((r) => (r.id === range.id ? { ...r, multiplier: parseFloat(e.target.value) || 0 } : r)))}
-                    onKeyDown={handleEnterKey}
-                    className="bg-gray-50/80 border-gray-200 rounded-xl h-9 text-sm hover:border-emerald-300 focus:border-emerald-400 transition-colors"
-                  />
-                  <Button
-                    type="button" variant="ghost" size="sm"
-                    onClick={() => setFatRanges(fatRanges.filter((r) => r.id !== range.id))}
-                    disabled={fatRanges.length === 1}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity rounded-lg h-9 w-9 p-0 hover:bg-red-50 hover:text-red-500 disabled:opacity-30"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-              ))}
-            </div>
+          {/* FAT and SNF Steps */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+            <StepTable kind="fat" steps={fatSteps} onChange={setFatSteps} />
+            <StepTable kind="snf" steps={snfSteps} onChange={setSnfSteps} />
           </div>
 
-          {/* Divider */}
-          <div className="border-t border-gray-100 my-5" />
-
-          {/* SNF Ranges */}
-          <div className="mb-5">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-md bg-blue-100 flex items-center justify-center">
-                  <span className="text-xs font-bold text-blue-700">S</span>
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900">SNF Ranges</h3>
-                  <p className="text-xs text-gray-400">Solid-not-fat ranges and multipliers</p>
-                </div>
+          {/* Rate Table */}
+          {rateTable ? (
+            <div className="rounded-xl overflow-hidden border border-gray-200 bg-white">
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-2.5 border-b border-gray-200 flex items-center gap-2">
+                <Table2 className="w-4 h-4 text-blue-600" />
+                <h4 className="font-semibold text-sm text-gray-800">{t("rate_chart", "Rate Chart")}</h4>
               </div>
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => setSnfRanges([...snfRanges, { id: Date.now().toString(), min: 0, max: 0, multiplier: 0 }])}
-                className="rounded-xl bg-blue-500 hover:bg-blue-600 text-white shadow-sm gap-1 h-7 px-2.5 text-xs"
-              >
-                <Plus className="w-3 h-3" />
-                Add
-              </Button>
+              <div className="overflow-x-auto max-h-80">
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 z-10">
+                    <tr className="bg-gradient-to-r from-blue-100/80 to-indigo-100/80 backdrop-blur-sm">
+                      <th className="px-2 py-1.5 border-r border-b border-blue-200/50 font-bold text-blue-800 sticky left-0 bg-blue-100 z-20 text-xs">FAT/SNF</th>
+                      {rateTable.snfs.map((snf) => (
+                        <th key={snf} className="px-1.5 py-1.5 border-r border-b border-blue-200/50 font-semibold text-blue-700 text-center min-w-[40px] text-xs">
+                          {snf.toFixed(1)}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rateTable.rows.map((row) => (
+                      <tr key={row.fat} className="hover:bg-blue-50/40 transition-colors">
+                        <td className="px-2 py-1 border-r border-b border-gray-100 font-bold text-blue-800 bg-blue-50/60 sticky left-0 z-10 text-xs">
+                          {row.fat.toFixed(1)}
+                        </td>
+                        {row.rates.map((price, i) => (
+                          <td key={rateTable.snfs[i]} className="px-1.5 py-1 border-r border-b border-gray-100 text-center text-gray-700 font-medium text-xs">
+                            {price.toFixed(2)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-
-            {/* Column Headers */}
-            <div className="grid grid-cols-[1fr_1fr_1fr_36px] gap-2.5 mb-1.5 px-0.5">
-              <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Min</span>
-              <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Max</span>
-              <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Multiplier (₹)</span>
-              <span></span>
+          ) : (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              {t("rate_steps_invalid", "Enter the starting amount, and in each table a different value from 0 to 20 in every row.")}
             </div>
-
-            <div className="space-y-1.5">
-              {snfRanges.map((range) => (
-                <div key={range.id} className="grid grid-cols-[1fr_1fr_1fr_36px] gap-2.5 items-center group">
-                  <Input
-                    type="number" step="0.1" placeholder="0.0"
-                    value={range.min || ""}
-                    onChange={(e) => setSnfRanges(snfRanges.map((r) => (r.id === range.id ? { ...r, min: parseFloat(e.target.value) || 0 } : r)))}
-                    onKeyDown={handleEnterKey}
-                    className="bg-gray-50/80 border-gray-200 rounded-xl h-9 text-sm hover:border-blue-300 focus:border-blue-400 transition-colors"
-                  />
-                  <Input
-                    type="number" step="0.1" placeholder="0.0"
-                    value={range.max || ""}
-                    onChange={(e) => setSnfRanges(snfRanges.map((r) => (r.id === range.id ? { ...r, max: parseFloat(e.target.value) || 0 } : r)))}
-                    onKeyDown={handleEnterKey}
-                    className="bg-gray-50/80 border-gray-200 rounded-xl h-9 text-sm hover:border-blue-300 focus:border-blue-400 transition-colors"
-                  />
-                  <Input
-                    type="number" step="0.1" placeholder="0.0"
-                    value={range.multiplier || ""}
-                    onChange={(e) => setSnfRanges(snfRanges.map((r) => (r.id === range.id ? { ...r, multiplier: parseFloat(e.target.value) || 0 } : r)))}
-                    onKeyDown={handleEnterKey}
-                    className="bg-gray-50/80 border-gray-200 rounded-xl h-9 text-sm hover:border-blue-300 focus:border-blue-400 transition-colors"
-                  />
-                  <Button
-                    type="button" variant="ghost" size="sm"
-                    onClick={() => setSnfRanges(snfRanges.filter((r) => r.id !== range.id))}
-                    disabled={snfRanges.length === 1}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity rounded-lg h-9 w-9 p-0 hover:bg-red-50 hover:text-red-500 disabled:opacity-30"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </div>
+          )}
 
           {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-100">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowPreview(!showPreview)}
-              className="flex-1 rounded-xl h-10 gap-2 border-gray-200 hover:bg-blue-50 hover:border-blue-300 transition-all"
-            >
-              {showPreview ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              {showPreview ? "Hide Preview" : "Preview Rate Chart"}
-            </Button>
+          <div className="flex justify-end mt-5 pt-4 border-t border-gray-100">
             <Button
               onClick={handleSubmit}
-              disabled={loading || vlcc.length === 0 || !rateChartName || !effectiveDate}
-              className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl h-10 shadow-lg shadow-blue-500/25 disabled:opacity-50 disabled:shadow-none transition-all gap-2"
+              disabled={loading || vlcc.length === 0 || !rateChartName || !effectiveDate || !rateTable}
+              className="w-full sm:w-auto px-8 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl h-10 shadow-lg shadow-blue-500/25 disabled:opacity-50 disabled:shadow-none transition-all gap-2"
             >
               {loading ? (
                 <>
@@ -1088,62 +1052,6 @@ const ManualRateChartForm = () => {
               )}
             </Button>
           </div>
-
-          {/* Preview Table */}
-          {showPreview && (
-            <div className="mt-4 rounded-xl overflow-hidden border border-gray-200 bg-white">
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-2.5 border-b border-gray-200 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Table2 className="w-4 h-4 text-blue-600" />
-                  <h4 className="font-semibold text-sm text-gray-800">Complete Rate Chart Preview</h4>
-                </div>
-                <span className="text-xs text-gray-400 bg-white px-2 py-0.5 rounded-md border border-gray-100">
-                  Base: ₹{baseRate}
-                </span>
-              </div>
-              <div className="overflow-x-auto max-h-80">
-                <table className="w-full text-xs">
-                  <thead className="sticky top-0 z-10">
-                    <tr className="bg-gradient-to-r from-blue-100/80 to-indigo-100/80 backdrop-blur-sm">
-                      <th className="px-2 py-1.5 border-r border-b border-blue-200/50 font-bold text-blue-800 sticky left-0 bg-blue-100 z-20 text-xs">FAT \ SNF</th>
-                      {(() => {
-                        const minSnf = Math.min(...snfRanges.map(r => r.min));
-                        const maxSnf = Math.max(...snfRanges.map(r => r.max));
-                        const snfCount = Math.round((maxSnf - minSnf) * 10) + 1;
-                        return Array.from({ length: snfCount }, (_, i) => minSnf + i * 0.1).map((snf) => (
-                          <th key={snf} className="px-1.5 py-1.5 border-r border-b border-blue-200/50 font-semibold text-blue-700 text-center min-w-[40px] text-xs">
-                            {snf.toFixed(1)}
-                          </th>
-                        ));
-                      })()}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(() => {
-                      const minFat = Math.min(...fatRanges.map(r => r.min));
-                      const maxFat = Math.max(...fatRanges.map(r => r.max));
-                      const fatCount = Math.round((maxFat - minFat) * 10) + 1;
-                      const minSnf = Math.min(...snfRanges.map(r => r.min));
-                      const maxSnf = Math.max(...snfRanges.map(r => r.max));
-                      const snfCount = Math.round((maxSnf - minSnf) * 10) + 1;
-                      return Array.from({ length: fatCount }, (_, i) => minFat + i * 0.1).map((fat) => (
-                        <tr key={fat} className="hover:bg-blue-50/40 transition-colors">
-                          <td className="px-2 py-1 border-r border-b border-gray-100 font-bold text-blue-800 bg-blue-50/60 sticky left-0 z-10 text-xs">
-                            {fat.toFixed(1)}
-                          </td>
-                          {Array.from({ length: snfCount }, (_, i) => minSnf + i * 0.1).map((snf) => (
-                            <td key={`${fat}-${snf}`} className="px-1.5 py-1 border-r border-b border-gray-100 text-center text-gray-700 font-medium text-xs">
-                              {calculateRate(parseFloat(fat.toFixed(1)), parseFloat(snf.toFixed(1)))}
-                            </td>
-                          ))}
-                        </tr>
-                      ));
-                    })()}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>

@@ -20,6 +20,8 @@ import { farmerBankApi, farmerUserId, isBankVerified } from "@/services/farmerBa
 import FarmerEditModal from "@/components/FarmerEditModal";
 import Pagination from "@/components/Pagination";
 import { useVlcSectionLabel } from "@/utils/vlcSectionLabel";
+import { ALL_ROUTES, useRouteFilter } from "@/hooks/useRouteFilter";
+import RouteSelect from "@/components/RouteSelect";
 import { cn } from "@/lib/utils";
 
 // One selected dairy and its farmers.
@@ -69,6 +71,21 @@ const FarmerList = () => {
   const [editing, setEditing] = useState<{ dairyId: string; farmerCode: string; fullName?: string } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [verificationFilter, setVerificationFilter] = useState<VerificationFilter>("all");
+
+  // A new VLC selection clears the loaded farmers until Show is clicked again.
+  const changeSelectedVlcs = (value: string[]) => {
+    setSelectedVlcs(value);
+    setSections([]);
+    setFailedDairies([]);
+    setCurrentPage(1);
+  };
+
+  // Picking a route ticks all its VLCs (and lists only those); "All Routes" keeps the ticks.
+  const { routes, routeId, setRouteId, branchesOf, routeBranches } = useRouteFilter();
+  const handleRouteChange = (id: string) => {
+    setRouteId(id);
+    if (id !== ALL_ROUTES) changeSelectedVlcs(branchesOf(id).map((b) => String(b.branch_id)));
+  };
 
   // Re-read one dairy's farmers after an edit, keeping the page where it is.
   const reloadSection = async (branchId: string) => {
@@ -258,24 +275,25 @@ const FarmerList = () => {
         <p className="text-sm font-medium text-slate-500">{t("manage_view_farmers", "Manage and view all farmers")}</p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-end bg-white p-3 sm:p-4 rounded-lg shadow-sm mb-4 text-left">
+        {routes.length > 0 && (
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">{t("route", "Route")}</label>
+            <RouteSelect routes={routes} value={routeId} onChange={handleRouteChange} />
+          </div>
+        )}
         <div className="space-y-2 sm:col-span-2 lg:col-span-2">
           <label className="text-sm font-medium text-gray-700">{t("select_vlc_center", "Select VLC")}</label>
           <VLCDropdown
-            branches={branches || []}
+            branches={routeBranches}
             value={selectedVlcs}
-            onChange={(value: string[]) => {
-              setSelectedVlcs(value);
-              setSections([]);
-              setFailedDairies([]);
-              setCurrentPage(1);
-            }}
+            onChange={changeSelectedVlcs}
             valueKey="branch_id"
             isMultiSelect
             showSerialNumbers={showSerials}
             placeholder={t("select_vlc_center", "Select VLC")}
           />
         </div>
-        <div className="sm:col-span-2 lg:col-span-2 xl:col-span-3 flex flex-wrap gap-2 justify-end">
+        <div className={cn("sm:col-span-2 lg:col-span-2 flex flex-wrap gap-2 justify-end", routes.length > 0 ? "xl:col-span-2" : "xl:col-span-3")}>
           <Button onClick={handleShow} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white w-[120px] h-10">
             {loading ? t("loading", "Loading...") : t("show", "Show")}
           </Button>

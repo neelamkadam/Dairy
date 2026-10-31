@@ -1516,5 +1516,12 @@
   "bills_generated_and_finalized_for": "बिल बनकर अंतिम हुए:",
   "vlcs_finalized": "VLC अंतिम",
   "mixed_bill_cycles_note": "इन VLC के बिल चक्र अलग-अलग हैं। हर एक का बिल शुरुआती तारीख वाले उसके अपने चक्र के अनुसार बनेगा।",
-  "not_billed_no_collection": "बिल नहीं (इस अवधि में संग्रह नहीं या लोड नहीं हुआ)"
+  "not_billed_no_collection": "बिल नहीं (इस अवधि में संग्रह नहीं या लोड नहीं हुआ)",
+  "rate_steps_subtitle": "शुरुआती राशि और फैट व एसएनएफ स्टेप सेट करें",
+  "starting_amount": "शुरुआती राशि",
+  "starting_amount_hint": "पहले फैट और पहले एसएनएफ पर दर",
+  "fat_step": "फैट स्टेप",
+  "snf_step": "एसएनएफ स्टेप",
+  "rate_per_point": "₹ प्रति 0.1",
+  "rate_steps_invalid": "शुरुआती राशि भरें और हर तालिका की हर पंक्ति में 0 से 20 के बीच अलग मान भरें।"
 }

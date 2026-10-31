@@ -1528,5 +1528,12 @@
   "bills_generated_and_finalized_for": "Bills generated and finalized for",
   "vlcs_finalized": "VLCs finalized",
   "mixed_bill_cycles_note": "These VLCs have different bill cycles. Each is billed for its own cycle that holds the start date.",
-  "not_billed_no_collection": "Not billed (no collection in the period or could not load)"
+  "not_billed_no_collection": "Not billed (no collection in the period or could not load)",
+  "rate_steps_subtitle": "Set the starting amount and the FAT and SNF steps",
+  "starting_amount": "Starting Amount",
+  "starting_amount_hint": "Rate at the first FAT and first SNF",
+  "fat_step": "FAT Step",
+  "snf_step": "SNF Step",
+  "rate_per_point": "₹ per 0.1",
+  "rate_steps_invalid": "Enter the starting amount, and in each table a different value from 0 to 20 in every row."
 }
