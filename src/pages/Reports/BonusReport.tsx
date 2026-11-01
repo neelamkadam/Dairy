@@ -42,7 +42,7 @@ import { bonusApi, BonusDeduction } from "@/services/bonusApi";
 import { deductionApi } from "@/services/deductionApi";
 import { userApi } from "@/services/reportsApi";
 import { normalizeFarmerId } from "@/utils/farmerIdUtils";
-import { registerDevanagariFont } from "@/utils/pdfFonts";
+import { hasDevanagari, registerDevanagariFont, shapedTextImage, type ShapedTextImage } from "@/utils/pdfFonts";
 import { useTranslation } from "react-i18next";
 
 interface BonusReportRow {
@@ -393,22 +393,35 @@ const BonusReport = () => {
       const doc = new jsPDF("l", "mm", "a4");
       const font = await registerDevanagariFont(doc);
       const pageW = doc.internal.pageSize.getWidth();
+      const fontSize = 8;
 
-      doc.setFont(font, "bold");
+      // Marathi text is placed as images so it stays correctly spelled
+      const nameImages = new Map<string, ShapedTextImage>();
+      for (const { farmer_name } of deductionRows) {
+        if (hasDevanagari(farmer_name) && !nameImages.has(farmer_name)) {
+          nameImages.set(farmer_name, await shapedTextImage(farmer_name, fontSize));
+        }
+      }
+
+      doc.setFont("helvetica", "bold");
       doc.setFontSize(13);
       doc.text("Bonus Deductions Report", pageW / 2, 12, { align: "center" });
       doc.setFont(font, "normal");
-      doc.setFontSize(8);
-      doc.text(
-        `VLC: ${selectedVlcObj?.name || ""}   |   Period: ${displayDate(reportPeriod.from)} to ${displayDate(reportPeriod.to)}`,
-        pageW / 2,
-        18,
-        { align: "center" }
-      );
+      doc.setFontSize(fontSize);
+
+      const vlcLine = `VLC: ${selectedVlcObj?.name || ""}`;
+      if (hasDevanagari(vlcLine)) {
+        const image = await shapedTextImage(vlcLine, fontSize, "#000000");
+        doc.addImage(image.dataUrl, "PNG", (pageW - image.width) / 2, 17 - image.height * 0.72, image.width, image.height);
+      } else {
+        doc.text(vlcLine, pageW / 2, 17, { align: "center" });
+      }
+
+      doc.text(`Period: ${displayDate(reportPeriod.from)} to ${displayDate(reportPeriod.to)}`, pageW / 2, 21, { align: "center" });
       doc.text(
         `Total Collection (All Farmers): ${totalCollection.toFixed(2)} L   |   Bonus Applied On: ${bonusCollection.toFixed(2)} L   |   Bonus Deducted: Rs ${totalBonus.toFixed(2)}   |   Fixed Deducted: Rs ${totalFixed.toFixed(2)}   |   Total Deducted: Rs ${totalDeducted.toFixed(2)}`,
         pageW / 2,
-        23,
+        25,
         { align: "center" }
       );
 
@@ -428,11 +441,11 @@ const BonusReport = () => {
         ]),
         foot: [["Total", "", "", "", listedCollection.toFixed(2), bonusCollection.toFixed(2), "", totalBonus.toFixed(2), totalFixed.toFixed(2), totalDeducted.toFixed(2)]],
         showFoot: "lastPage",
-        startY: 27,
+        startY: 29,
         theme: "grid",
-        styles: { font, fontSize: 8, cellPadding: 1.5, overflow: "linebreak" },
+        styles: { font, fontSize, textColor: [31, 41, 55], cellPadding: 1.5, overflow: "linebreak" },
         headStyles: { font: "helvetica", fillColor: [55, 65, 81], textColor: 255, fontStyle: "bold", halign: "center" },
-        footStyles: { fillColor: [229, 231, 235], textColor: [31, 41, 55], fontStyle: "bold", halign: "right" },
+        footStyles: { font: "helvetica", fillColor: [229, 231, 235], textColor: [31, 41, 55], fontStyle: "bold", halign: "right" },
         columnStyles: {
           0: { cellWidth: 16, halign: "center" },
           1: { cellWidth: 52 },
@@ -443,9 +456,22 @@ const BonusReport = () => {
           6: { halign: "right" },
           7: { halign: "right" },
           8: { halign: "right" },
-          9: { halign: "right", fontStyle: "bold" },
+          9: { halign: "right", font: "helvetica", fontStyle: "bold" },
         },
         alternateRowStyles: { fillColor: [249, 250, 251] },
+        didParseCell: (data) => {
+          if (data.section === "body" && data.column.index === 1 && nameImages.has(String(data.cell.raw))) {
+            data.cell.text = [""];
+          }
+        },
+        didDrawCell: (data) => {
+          if (data.section !== "body" || data.column.index !== 1) return;
+          const image = nameImages.get(String(data.cell.raw));
+          if (!image) return;
+          const scale = Math.min(1, (data.cell.width - 3) / image.width);
+          const height = image.height * scale;
+          doc.addImage(image.dataUrl, "PNG", data.cell.x + 1.5, data.cell.y + (data.cell.height - height) / 2, image.width * scale, height);
+        },
       });
 
       doc.save(`Bonus_Report_${reportPeriod.from}_to_${reportPeriod.to}.pdf`);
@@ -652,7 +678,7 @@ const BonusReport = () => {
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table className="whitespace-nowrap text-sm [&_th]:h-auto [&_th]:py-2 [&_th]:px-3 [&_td]:py-2 [&_td]:px-3 [&_th]:align-middle">
+            <Table className="whitespace-nowrap text-sm [&_th]:h-auto [&_th]:py-2 [&_th]:px-3 [&_td]:py-2 [&_td]:px-3 [&_th]:align-middle [&_th]:whitespace-normal">
               <TableHeader className="bg-gray-50">
                 <TableRow>
                   <TableHead className="font-bold text-left">Farmer ID</TableHead>

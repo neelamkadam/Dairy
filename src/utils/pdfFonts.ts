@@ -49,3 +49,59 @@ export const registerDevanagariFont = async (doc: jsPDF): Promise<string> => {
     return FALLBACK_FONT;
   }
 };
+
+const MM_PER_PT = 0.3528;
+const PX_PER_PT = 4; // about 288 DPI: crisp in print without bloating the PDF
+
+export const hasDevanagari = (text: string) => /[ऀ-ॿ]/.test(text);
+
+let canvasFontReady: Promise<void> | null = null;
+
+const loadCanvasFont = () => {
+  if (!canvasFontReady) {
+    canvasFontReady = new FontFace(FONT_NAME, `url(${FONT_URL})`)
+      .load()
+      .then((face) => {
+        document.fonts.add(face);
+      })
+      .catch(() => {
+        // The browser's own Devanagari font is used instead
+      });
+  }
+  return canvasFontReady;
+};
+
+export interface ShapedTextImage {
+  dataUrl: string;
+  width: number; // mm
+  height: number; // mm
+}
+
+/**
+ * The embedded font gives jsPDF the right glyphs, but jsPDF writes them in stored
+ * order with no Indic shaping, so the vowel sign in "किरण" lands after the next
+ * letter ("करिण"). The browser shapes canvas text correctly, so Devanagari that has
+ * to be spelled right can be drawn from this image instead.
+ */
+export const shapedTextImage = async (text: string, fontSizePt: number, color = "#1f2937"): Promise<ShapedTextImage> => {
+  await loadCanvasFont();
+
+  const fontPx = fontSizePt * PX_PER_PT;
+  const font = `${fontPx}px "${FONT_NAME}", sans-serif`;
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d")!;
+  context.font = font;
+  canvas.width = Math.ceil(context.measureText(text).width);
+  canvas.height = Math.ceil(fontPx * 1.6); // room for vowel signs above and below the line
+
+  // Resizing the canvas resets its drawing state
+  context.font = font;
+  context.fillStyle = color;
+  context.fillText(text, 0, fontPx * 1.15);
+
+  return {
+    dataUrl: canvas.toDataURL("image/png"),
+    width: (canvas.width / PX_PER_PT) * MM_PER_PT,
+    height: (canvas.height / PX_PER_PT) * MM_PER_PT,
+  };
+};
