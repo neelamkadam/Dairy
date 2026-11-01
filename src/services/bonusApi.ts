@@ -54,6 +54,16 @@ export const bonusApi = {
     return api.put(`/bonus-deductions/${id}`, data);
   },
 
+  // GET /bonus-deduction-logs?dairy_id={}&start_date={}&end_date={}&farmer_id={}
+  getBonusDeductionLogs: (params: {
+    dairy_id: number;
+    start_date: string;
+    end_date: string;
+    farmer_id?: string;
+  }) => {
+    return api.get("/bonus-deduction-logs", { params });
+  },
+
   // POST /bonus-deduction-logs
   createBonusDeductionLog: (data: BonusDeductionLog) => {
     return api.post("/bonus-deduction-logs", data);
