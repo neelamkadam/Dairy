@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constatnts/routesConstants";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -14,7 +15,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { format, parse, isValid } from "date-fns";
+import { format, parse, isValid, subDays } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -32,6 +33,7 @@ import { rateChartApi } from "@/services/rateChartApi";
 import { userApi, Farmer } from "@/services/userApi";
 import { normalizeFarmerId, formatFarmerIdForDisplay } from "@/utils/farmerIdUtils";
 import { calculateCLRFromFatAndSNF, calculateSNFFromFatAndCLR } from "@/utils/milkCalculations";
+import { findPreviousDayReadings } from "@/utils/previousDayValues";
 import { toast } from "react-toastify";
 import {
   Dialog,
@@ -107,10 +109,24 @@ const FarmerCollectionEntry = () => {
   const machineLock = useMachineEntryLock();
   const machineValues = useMachineValues<'quantity' | 'fat' | 'snf'>();
 
+  // "Use previous day" tick: FAT/SNF/CLR come from the farmer's entry for this
+  // shift on the day before the selected date, whether the analyser is connected
+  // or the user is under Machine Entry Lock. Stays on from farmer to farmer until
+  // it is unticked or the page is left.
+  const [usePreviousDay, setUsePreviousDay] = useState(false);
+  const [previousDayNote, setPreviousDayNote] = useState("");
+  // Copied values are in the form: analyser readings are ignored and the save is
+  // flagged.
+  const copiedValuesRef = useRef(false);
+  // Bumped to abandon a lookup still running when the farmer or milk type moves on.
+  const previousDayRequestRef = useRef(0);
+
   // Serial (wired machine) connection — logic lives in useSerialAnalyzer hook
   const { serialStatus, errorMessage, connectMachine, disconnectMachine } = useSerialAnalyzer({
     enabled: !!farmerId,
     onData: useCallback((data) => {
+      // The operator chose the previous day's values for this entry.
+      if (copiedValuesRef.current) return;
       machineValues.accept('fat', data.fat);
       machineValues.accept('snf', data.snf);
       setFat(data.fat);
@@ -202,6 +218,60 @@ const FarmerCollectionEntry = () => {
     }, 300);
     return () => clearTimeout(timer);
   }, [selectedBranch, milkType, fat, snf, farmerData, date]);
+
+  // Fill the form from the farmer's previous-day entry. With none, the form is
+  // left as it is and the analyser or typing carries on as usual.
+  useEffect(() => {
+    const request = ++previousDayRequestRef.current;
+
+    // Anything copied belonged to the previous farmer or milk type, or the tick
+    // has just come off. This page keeps its readings across a milk type change,
+    // so without this a copied Cow FAT could be saved as Buffalo.
+    if (copiedValuesRef.current) {
+      copiedValuesRef.current = false;
+      setFat('');
+      setSnf('');
+      setClr('');
+      setRate('');
+      setAmount(0);
+    }
+    setPreviousDayNote('');
+
+    // Behind the "already exists" dialog the form's purpose is not decided yet,
+    // and modifying corrects the entry on screen.
+    if (!usePreviousDay || !farmerData || !selectedBranch || showModal || editingId) return;
+
+    const day = subDays(date, 1);
+    const label = { date: format(day, 'dd-MM-yyyy'), shift: t(shift.toLowerCase()), type: milkType };
+    setPreviousDayNote(t('previous_day_loading'));
+
+    collectionApi
+      .getTodaysCollectionByFarmer(selectedBranch, farmerId, format(day, 'yyyy-MM-dd'))
+      .then((response) => {
+        if (request !== previousDayRequestRef.current) return;
+
+        const readings = findPreviousDayReadings(response?.data || [], shift, milkType);
+        if (!readings) {
+          setPreviousDayNote(t('previous_day_missing', label));
+          return;
+        }
+
+        copiedValuesRef.current = true;
+        // Copied values may be saved under Machine Entry Lock, like a saved entry's.
+        machineValues.accept('fat', readings.fat);
+        machineValues.accept('snf', readings.snf);
+        setFat(readings.fat);
+        setSnf(readings.snf);
+        setClr(readings.clr);
+        setPreviousDayNote(t('previous_day_copied', label));
+      })
+      .catch((error) => {
+        console.error('Failed to fetch previous day values:', error);
+        if (request === previousDayRequestRef.current) {
+          setPreviousDayNote(t('previous_day_unavailable', label));
+        }
+      });
+  }, [usePreviousDay, farmerData, farmerId, milkType, showModal, editingId, selectedBranch, date, shift, machineValues, t]);
 
   const handleFarmerSearch = async () => {
     if (!selectedBranch || !farmerIdInput.trim()) {
@@ -376,6 +446,8 @@ const FarmerCollectionEntry = () => {
             amount: totalAmount,
             shift: shift,
             date: `${dateStr} ${time}`,
+            // A top-up averaged with copied values is no longer an analyser reading.
+            ...(copiedValuesRef.current && { values_copied: 1 }),
           };
 
           await collectionApi.update(existing.id, payload);
@@ -396,6 +468,7 @@ const FarmerCollectionEntry = () => {
           amount: amount,
           shift: shift,
           date: `${dateStr} ${time}`,
+          ...(copiedValuesRef.current && { values_copied: 1 }),
         };
 
         if (editingId) {
@@ -859,6 +932,25 @@ const FarmerCollectionEntry = () => {
                     </div>
                     {serialStatus === 'error' && errorMessage && (
                       <p className="mt-1.5 text-xs text-red-600">{errorMessage}</p>
+                    )}
+                  </div>
+                  {/* Previous day's FAT/SNF/CLR instead of the analyser */}
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="use-previous-day"
+                        checked={usePreviousDay}
+                        onCheckedChange={(checked) => setUsePreviousDay(checked as boolean)}
+                        className="border-gray-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                      />
+                      <label htmlFor="use-previous-day" className="text-sm font-medium text-gray-700 cursor-pointer">
+                        {t('use_previous_day_values')}
+                      </label>
+                    </div>
+                    {usePreviousDay && editingId ? (
+                      <p className="mt-1 ml-6 text-xs text-gray-500">{t('previous_day_not_while_modifying')}</p>
+                    ) : previousDayNote && (
+                      <p className="mt-1 ml-6 text-xs text-gray-500">{previousDayNote}</p>
                     )}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-5">

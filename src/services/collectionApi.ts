@@ -14,6 +14,8 @@ export interface CollectionPayload {
   shift: 'Morning' | 'Evening';
   date: string;
   cc_collection_id?: number;
+  /** FAT/SNF/CLR were copied from the previous day, not read from the analyser. */
+  values_copied?: number;
 }
 
 export const collectionApi = {

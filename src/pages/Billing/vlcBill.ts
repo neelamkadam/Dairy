@@ -112,6 +112,19 @@ export const previousBillCycle = (currentStartDate: Date, cycleDays: number): Bi
   };
 };
 
+// Repayments taken on the Payment screen reduce what a farmer still owes, including debt
+// carried forward from earlier bills. Expects the debts to already hold that carry-forward.
+export const applyReceivedToDebts = (farmer: any) => {
+  farmer.advance = Math.max(0, farmer.advance - farmer.receivedAdvance);
+  farmer.cattleFeedAmount = Math.max(0, farmer.cattleFeedAmount - farmer.receivedCattleFeed);
+  farmer.other1Amount = Math.max(0, farmer.other1Amount - farmer.receivedOther1);
+  farmer.other2Amount = Math.max(0, farmer.other2Amount - farmer.receivedOther2);
+};
+
+// A saved, unfinalized bill may have been saved before a repayment came in.
+export const savedDeductionAfterReceived = (saved: number, owed: number, received: number) =>
+  received > 0 ? Math.min(saved, owed) : saved;
+
 // The farmers' bill rows for the period, and whether its bills are already finalized.
 export const loadVlcBill = async (dairyId: number, startDate: Date, endDate: Date) => {
   const { data } = await deductionApi.getAllFarmersBalance(dairyId, ymd(startDate), ymd(endDate));
@@ -133,7 +146,11 @@ export const loadVlcBill = async (dairyId: number, startDate: Date, endDate: Dat
         existing.cattleFeedAmount += farmer.deductions?.cattle_feed || 0;
         existing.other1Amount += farmer.deductions?.other1 || 0;
         existing.other2Amount += farmer.deductions?.other2 || 0;
-        existing.received_total += farmer.total_received || 0;
+        existing.received_total += (farmer.total_received || 0) + (farmer.received?.cattle_feed || 0);
+        existing.receivedAdvance += farmer.received?.advance || 0;
+        existing.receivedCattleFeed += farmer.received?.cattle_feed || 0;
+        existing.receivedOther1 += farmer.received?.other1 || 0;
+        existing.receivedOther2 += farmer.received?.other2 || 0;
       } else {
         farmerMap.set(farmerId, {
           farmer_id: farmerId,
@@ -151,7 +168,11 @@ export const loadVlcBill = async (dairyId: number, startDate: Date, endDate: Dat
           other1Deduction: 0,
           other2Amount: (farmer.deductions?.other2 || 0) + parseFloat(farmer.previous_bill?.other2_remaining || 0),
           other2Deduction: 0,
-          received_total: farmer.total_received || 0,
+          received_total: (farmer.total_received || 0) + (farmer.received?.cattle_feed || 0),
+          receivedAdvance: farmer.received?.advance || 0,
+          receivedCattleFeed: farmer.received?.cattle_feed || 0,
+          receivedOther1: farmer.received?.other1 || 0,
+          receivedOther2: farmer.received?.other2 || 0,
           net_payable: farmer.net_payable || 0,
           hasBill: false,
           from_bills: farmer.from_bills || null,
@@ -212,6 +233,11 @@ export const loadVlcBill = async (dairyId: number, startDate: Date, endDate: Dat
 
     processedData.forEach(farmer => {
       const billDetail = billDetailsMap.get(farmer.farmer_id) as any;
+
+      // A finalized bill stays as it was issued
+      const isFarmerFinalized = farmer.from_bills?.is_finalized === 1 || billDetail?.is_finalized === 1;
+      if (!isFarmerFinalized) applyReceivedToDebts(farmer);
+
       if (billDetail) {
         const advTotal = parseFloat(billDetail.advance_total || 0);
         const advRemaining = parseFloat(billDetail.advance_remaining || 0);
@@ -233,10 +259,10 @@ export const loadVlcBill = async (dairyId: number, startDate: Date, endDate: Dat
         if (hasData) {
           // Keep aggregated *Amount fields — they include new deductions added after the last save.
           // Only pull the deduction amounts from the saved bill.
-          farmer.advanceDeduction = advTotal;
-          farmer.cattleFeedDeduction = cfTotal;
-          farmer.other1Deduction = o1Total;
-          farmer.other2Deduction = o2Total;
+          farmer.advanceDeduction = isFarmerFinalized ? advTotal : savedDeductionAfterReceived(advTotal, farmer.advance, farmer.receivedAdvance);
+          farmer.cattleFeedDeduction = isFarmerFinalized ? cfTotal : savedDeductionAfterReceived(cfTotal, farmer.cattleFeedAmount, farmer.receivedCattleFeed);
+          farmer.other1Deduction = isFarmerFinalized ? o1Total : savedDeductionAfterReceived(o1Total, farmer.other1Amount, farmer.receivedOther1);
+          farmer.other2Deduction = isFarmerFinalized ? o2Total : savedDeductionAfterReceived(o2Total, farmer.other2Amount, farmer.receivedOther2);
           farmer.hasBill = true;
         }
       }

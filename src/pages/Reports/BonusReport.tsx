@@ -48,11 +48,12 @@ import { useTranslation } from "react-i18next";
 interface BonusReportRow {
   farmer_id: string;
   farmer_name: string;
-  billed_from: string;
-  billed_to: string;
+  deducted_from: string;
+  deducted_to: string;
   quantity: number;
   bonus_quantity: number;
   rates: number[];
+  bonus_amount: number;
   bonus_deduction: number;
   fixed_deduction: number;
 }
@@ -61,17 +62,22 @@ const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 
 const toDayKey = (date: string) => format(new Date(date), "yyyy-MM-dd");
 
+// Rounds the way the DECIMAL(10,2) log column does, so 455.1 x 0.25 stays 113.78
+const toRupees = (amount: number) => Math.round(amount * 100 + 1e-6) / 100;
+
+const notDeducted = (row: BonusReportRow) => Math.max(0, toRupees(row.bonus_amount - row.bonus_deduction));
+
 const formatRates = (rates: number[], prefix = "") =>
   rates.length ? [...rates].sort((a, b) => a - b).map((rate) => `${prefix}${rate.toFixed(2)}`).join(", ") : "-";
 
-// One row per farmer: litres collected in the range, the litres their bonus was
-// charged on, and what their bills deducted.
+// One row per farmer: litres collected in the range, the bonus those litres come to,
+// and what the generated bills recorded as deducted.
 const buildReportRows = (
   logs: any[],
   collectionDays: any[],
   rateEntries: any[],
   farmerNames: Map<string, string>,
-  rangeEnd: string
+  cycleEndOf: (date: string) => string
 ): BonusReportRow[] => {
   const rows = new Map<string, BonusReportRow>();
   const rowFor = (id: string, fallbackName = "-") => {
@@ -81,11 +87,12 @@ const buildReportRows = (
       row = {
         farmer_id: farmerId,
         farmer_name: farmerNames.get(farmerId) || fallbackName,
-        billed_from: "",
-        billed_to: "",
+        deducted_from: "",
+        deducted_to: "",
         quantity: 0,
         bonus_quantity: 0,
         rates: [],
+        bonus_amount: 0,
         bonus_deduction: 0,
         fixed_deduction: 0,
       };
@@ -94,22 +101,18 @@ const buildReportRows = (
     return row;
   };
 
-  // Bill cycles each farmer had a bonus deducted for
-  const bonusCycles = new Map<string, { from: string; to: string }[]>();
-  logs.filter((log: any) => Number(log.bonus_deduction) > 0).forEach((log: any) => {
-    const farmerId = normalizeFarmerId(String(log.farmer_id));
-    bonusCycles.set(farmerId, [...(bonusCycles.get(farmerId) || []), { from: toDayKey(log.start_date), to: toDayKey(log.end_date) }]);
-  });
-
+  // A bill charges all of a cycle's litres at the rate in force when the cycle ends
+  const litresByCycle = new Map<string, Map<string, number>>();
   collectionDays.forEach((day: any) => {
     (day.farmers || []).forEach((farmer: any) => {
       const row = rowFor(farmer.farmer_id, farmer.farmer_name);
-      const date = toDayKey(farmer.date || day.date);
       const quantity = Number(farmer.quantity) || 0;
-      if (date <= rangeEnd) row.quantity += quantity;
-      if ((bonusCycles.get(row.farmer_id) || []).some((cycle) => date >= cycle.from && date <= cycle.to)) {
-        row.bonus_quantity += quantity;
-      }
+      row.quantity += quantity;
+
+      const cycleEnd = cycleEndOf(toDayKey(farmer.date || day.date));
+      const cycles = litresByCycle.get(row.farmer_id) || new Map<string, number>();
+      cycles.set(cycleEnd, (cycles.get(cycleEnd) || 0) + quantity);
+      litresByCycle.set(row.farmer_id, cycles);
     });
   });
 
@@ -120,6 +123,7 @@ const buildReportRows = (
   });
 
   // bonus_deduction on a log is the amount the bill deducted (litres x rate)
+  const chargedCycles = new Set<string>();
   logs.forEach((log: any) => {
     const row = rowFor(log.farmer_id);
     const bonus = Number(log.bonus_deduction) || 0;
@@ -128,17 +132,30 @@ const buildReportRows = (
 
     const cycleStart = toDayKey(log.start_date);
     const cycleEnd = toDayKey(log.end_date);
-    if (!row.billed_from || cycleStart < row.billed_from) row.billed_from = cycleStart;
-    if (cycleEnd > row.billed_to) row.billed_to = cycleEnd;
-
     if (bonus > 0) {
-      // Fixed-deduction entries carry a 0 rate, so they can't be the rate this bonus used
-      const inForce = (entriesByFarmer.get(row.farmer_id) || [])
-        .filter((entry) => Number(entry.bonus_deduction) > 0 && new Date(entry.effective_from) <= new Date(log.end_date))
+      chargedCycles.add(`${row.farmer_id}|${cycleEnd}`);
+      if (!row.deducted_from || cycleStart < row.deducted_from) row.deducted_from = cycleStart;
+      if (cycleEnd > row.deducted_to) row.deducted_to = cycleEnd;
+    }
+  });
+
+  // Latest entry wins, as on the bill screens. Fixed-deduction entries carry a 0 rate, so
+  // they can't be the rate of a cycle that was actually charged a bonus.
+  litresByCycle.forEach((cycles, farmerId) => {
+    const row = rowFor(farmerId);
+    cycles.forEach((litres, cycleEnd) => {
+      const charged = chargedCycles.has(`${farmerId}|${cycleEnd}`);
+      const inForce = (entriesByFarmer.get(farmerId) || [])
+        .filter((entry) => toDayKey(entry.effective_from) <= cycleEnd && (!charged || Number(entry.bonus_deduction) > 0))
         .reduce((latest, entry) => (!latest || entry.id > latest.id ? entry : latest), null as any);
       const rate = Number(inForce?.bonus_deduction) || 0;
-      if (rate > 0 && !row.rates.includes(rate)) row.rates.push(rate);
-    }
+
+      if (rate > 0 && litres > 0) {
+        row.bonus_quantity += litres;
+        row.bonus_amount += toRupees(litres * rate);
+        if (!row.rates.includes(rate)) row.rates.push(rate);
+      }
+    });
   });
 
   return Array.from(rows.values()).sort((a, b) =>
@@ -253,17 +270,9 @@ const BonusReport = () => {
       const dairyId = parseInt(selectedVLC);
       const requestPayload = { dairy_id: dairyId, start_date: fromDate, end_date: toDate };
 
-      const logsResponse = await bonusApi.getBonusDeductionLogs(requestPayload);
-      const logs: any[] = logsResponse.data.data || [];
-
-      // A cycle starting in the range can end after it; its later days still count towards the bonus litres
-      const collectionTo = logs.reduce((latest, log) => {
-        const cycleEnd = toDayKey(log.end_date);
-        return cycleEnd > latest ? cycleEnd : latest;
-      }, toDate);
-
-      const [summaryResponse, ratesResponse, farmersResponse] = await Promise.all([
-        deductionApi.getAllFarmersBalance(dairyId, fromDate, collectionTo),
+      const [logsResponse, summaryResponse, ratesResponse, farmersResponse] = await Promise.all([
+        bonusApi.getBonusDeductionLogs(requestPayload),
+        deductionApi.getAllFarmersBalance(dairyId, fromDate, toDate),
         bonusApi.getBonusDeductions(requestPayload),
         userApi.getFarmers(selectedVLC).catch(() => null),
       ]);
@@ -275,11 +284,11 @@ const BonusReport = () => {
         });
 
         const rows = buildReportRows(
-          logs,
+          logsResponse.data.data || [],
           summaryResponse.data.data || [],
           ratesResponse.data.data || [],
           farmerNames,
-          toDate
+          (date) => calculateDateRange(date).to
         );
         const farmerFilter = farmerId.trim() ? normalizeFarmerId(farmerId) : "";
         setBonusData(farmerFilter ? rows.filter((row) => row.farmer_id === farmerFilter) : rows);
@@ -329,16 +338,20 @@ const BonusReport = () => {
   const filteredData = bonusData.filter((item) =>
     item.farmer_id.toLowerCase().includes(searchTerm.toLowerCase())
   );
-  const deductionRows = filteredData.filter((row) => row.bonus_deduction > 0 || row.fixed_deduction > 0);
+  const deductionRows = filteredData.filter((row) => row.bonus_amount > 0 || row.bonus_deduction > 0 || row.fixed_deduction > 0);
 
   const totalCollection = filteredData.reduce((sum, row) => sum + row.quantity, 0);
   const bonusCollection = deductionRows.reduce((sum, row) => sum + row.bonus_quantity, 0);
   const listedCollection = deductionRows.reduce((sum, row) => sum + row.quantity, 0);
+  const totalBonusAmount = deductionRows.reduce((sum, row) => sum + row.bonus_amount, 0);
   const totalBonus = deductionRows.reduce((sum, row) => sum + row.bonus_deduction, 0);
+  const totalNotDeducted = deductionRows.reduce((sum, row) => sum + notDeducted(row), 0);
   const totalFixed = deductionRows.reduce((sum, row) => sum + row.fixed_deduction, 0);
   const totalDeducted = totalBonus + totalFixed;
 
   const displayDate = (date: string) => format(new Date(date), "dd-MM-yyyy");
+  const deductedFor = (row: BonusReportRow) =>
+    row.deducted_from ? `${displayDate(row.deducted_from)} to ${displayDate(row.deducted_to)}` : "-";
 
   const exportToExcel = () => {
     if (!reportPeriod || !deductionRows.length) {
@@ -354,24 +367,25 @@ const BonusReport = () => {
         ["Total Collection, All Farmers (L)", Number(totalCollection.toFixed(2))],
         ["Bonus Applied On (L)", Number(bonusCollection.toFixed(2))],
         [],
-        ["Farmer ID", "Farmer Name", "Billed From", "Billed To", "Total Collection (L)", "Bonus Applied On (L)", "Per Litre (Rs)", "Bonus Deduction (Rs)", "Fixed Deduction (Rs)", "Total Deduction (Rs)"],
+        ["Farmer ID", "Farmer Name", "Total Collection (L)", "Bonus Applied On (L)", "Per Litre (Rs)", "Bonus Amount (Rs)", "Bonus Deducted (Rs)", "Deducted For", "Not Deducted (Rs)", "Fixed Deducted (Rs)", "Total Deducted (Rs)"],
         ...deductionRows.map((row) => [
           row.farmer_id,
           row.farmer_name,
-          displayDate(row.billed_from),
-          displayDate(row.billed_to),
           Number(row.quantity.toFixed(2)),
           Number(row.bonus_quantity.toFixed(2)),
           row.rates.length === 1 ? row.rates[0] : formatRates(row.rates),
+          Number(row.bonus_amount.toFixed(2)),
           Number(row.bonus_deduction.toFixed(2)),
+          deductedFor(row),
+          Number(notDeducted(row).toFixed(2)),
           Number(row.fixed_deduction.toFixed(2)),
           Number((row.bonus_deduction + row.fixed_deduction).toFixed(2)),
         ]),
-        ["Total", "", "", "", Number(listedCollection.toFixed(2)), Number(bonusCollection.toFixed(2)), "", Number(totalBonus.toFixed(2)), Number(totalFixed.toFixed(2)), Number(totalDeducted.toFixed(2))],
+        ["Total", "", Number(listedCollection.toFixed(2)), Number(bonusCollection.toFixed(2)), "", Number(totalBonusAmount.toFixed(2)), Number(totalBonus.toFixed(2)), "", Number(totalNotDeducted.toFixed(2)), Number(totalFixed.toFixed(2)), Number(totalDeducted.toFixed(2))],
       ];
 
       const ws = XLSX.utils.aoa_to_sheet(sheetRows);
-      ws["!cols"] = [{ wch: 30 }, { wch: 28 }, { wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 20 }, { wch: 14 }, { wch: 20 }, { wch: 20 }, { wch: 20 }];
+      ws["!cols"] = [{ wch: 30 }, { wch: 28 }, { wch: 18 }, { wch: 20 }, { wch: 14 }, { wch: 18 }, { wch: 18 }, { wch: 26 }, { wch: 18 }, { wch: 18 }, { wch: 18 }];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Bonus Report");
       XLSX.writeFile(wb, `Bonus_Report_${reportPeriod.from}_to_${reportPeriod.to}.xlsx`);
@@ -419,27 +433,28 @@ const BonusReport = () => {
 
       doc.text(`Period: ${displayDate(reportPeriod.from)} to ${displayDate(reportPeriod.to)}`, pageW / 2, 21, { align: "center" });
       doc.text(
-        `Total Collection (All Farmers): ${totalCollection.toFixed(2)} L   |   Bonus Applied On: ${bonusCollection.toFixed(2)} L   |   Bonus Deducted: Rs ${totalBonus.toFixed(2)}   |   Fixed Deducted: Rs ${totalFixed.toFixed(2)}   |   Total Deducted: Rs ${totalDeducted.toFixed(2)}`,
+        `Total Collection (All Farmers): ${totalCollection.toFixed(2)} L   |   Bonus Applied On: ${bonusCollection.toFixed(2)} L   |   Bonus Amount: Rs ${totalBonusAmount.toFixed(2)}   |   Bonus Deducted: Rs ${totalBonus.toFixed(2)}   |   Not Deducted: Rs ${totalNotDeducted.toFixed(2)}`,
         pageW / 2,
         25,
         { align: "center" }
       );
 
       autoTable(doc, {
-        head: [["Farmer ID", "Farmer Name", "Billed From", "Billed To", "Total Collection (L)", "Bonus Applied On (L)", "Per Litre (Rs)", "Bonus Ded. (Rs)", "Fixed Ded. (Rs)", "Total Ded. (Rs)"]],
+        head: [["Farmer ID", "Farmer Name", "Total Collection (L)", "Bonus Applied On (L)", "Per Litre (Rs)", "Bonus Amount (Rs)", "Bonus Deducted (Rs)", "Deducted For", "Not Deducted (Rs)", "Fixed Ded. (Rs)", "Total Ded. (Rs)"]],
         body: deductionRows.map((row) => [
           row.farmer_id,
           row.farmer_name,
-          displayDate(row.billed_from),
-          displayDate(row.billed_to),
           row.quantity.toFixed(2),
           row.bonus_quantity.toFixed(2),
           formatRates(row.rates),
+          row.bonus_amount.toFixed(2),
           row.bonus_deduction.toFixed(2),
+          deductedFor(row),
+          notDeducted(row).toFixed(2),
           row.fixed_deduction.toFixed(2),
           (row.bonus_deduction + row.fixed_deduction).toFixed(2),
         ]),
-        foot: [["Total", "", "", "", listedCollection.toFixed(2), bonusCollection.toFixed(2), "", totalBonus.toFixed(2), totalFixed.toFixed(2), totalDeducted.toFixed(2)]],
+        foot: [["Total", "", listedCollection.toFixed(2), bonusCollection.toFixed(2), "", totalBonusAmount.toFixed(2), totalBonus.toFixed(2), "", totalNotDeducted.toFixed(2), totalFixed.toFixed(2), totalDeducted.toFixed(2)]],
         showFoot: "lastPage",
         startY: 29,
         theme: "grid",
@@ -448,15 +463,16 @@ const BonusReport = () => {
         footStyles: { font: "helvetica", fillColor: [229, 231, 235], textColor: [31, 41, 55], fontStyle: "bold", halign: "right" },
         columnStyles: {
           0: { cellWidth: 16, halign: "center" },
-          1: { cellWidth: 52 },
-          2: { halign: "center" },
-          3: { halign: "center" },
+          1: { cellWidth: 48 },
+          2: { halign: "right" },
+          3: { halign: "right" },
           4: { halign: "right" },
           5: { halign: "right" },
           6: { halign: "right" },
-          7: { halign: "right" },
+          7: { halign: "center", cellWidth: 24 },
           8: { halign: "right" },
-          9: { halign: "right", font: "helvetica", fontStyle: "bold" },
+          9: { halign: "right" },
+          10: { halign: "right", font: "helvetica", fontStyle: "bold" },
         },
         alternateRowStyles: { fillColor: [249, 250, 251] },
         didParseCell: (data) => {
@@ -613,7 +629,7 @@ const BonusReport = () => {
       </div>
 
       {reportPeriod && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4 mx-2 text-left">
+        <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-3 mb-4 mx-2 text-left">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">Total Collection (All Farmers)</CardTitle>
@@ -632,10 +648,26 @@ const BonusReport = () => {
           </Card>
           <Card>
             <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">Bonus Amount</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">₹{totalBonusAmount.toFixed(2)}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">Bonus Deducted</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-red-600">₹{totalBonus.toFixed(2)}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">Not Deducted</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-amber-600">₹{totalNotDeducted.toFixed(2)}</p>
             </CardContent>
           </Card>
           <Card>
@@ -663,7 +695,7 @@ const BonusReport = () => {
             <CardTitle>Deductions List</CardTitle>
             <p className="text-xs text-gray-500 mt-1">
               {reportPeriod && `Range: ${displayDate(reportPeriod.from)} to ${displayDate(reportPeriod.to)}. `}
-              Deducted amounts come from bills generated for cycles starting in this range.
+              Bonus Amount is the litres in this range x the rate in force. Bonus Deducted is what bills generated for cycles starting in this range recorded.
             </p>
           </div>
           <div className="relative w-64">
@@ -683,35 +715,42 @@ const BonusReport = () => {
                 <TableRow>
                   <TableHead className="font-bold text-left">Farmer ID</TableHead>
                   <TableHead className="font-bold text-left">Farmer Name</TableHead>
-                  <TableHead className="font-bold text-left">Billed From</TableHead>
-                  <TableHead className="font-bold text-left">Billed To</TableHead>
+                  <TableHead className="font-bold text-left">Period Start</TableHead>
+                  <TableHead className="font-bold text-left">Period End</TableHead>
                   <TableHead className="font-bold text-right">Total Collection (L)</TableHead>
                   <TableHead className="font-bold text-right">Bonus Applied On (L)</TableHead>
                   <TableHead className="font-bold text-right">Per Litre</TableHead>
-                  <TableHead className="font-bold text-right">Bonus Deduction</TableHead>
-                  <TableHead className="font-bold text-right">Fixed Deduction</TableHead>
-                  <TableHead className="font-bold text-right">Total Deduction</TableHead>
+                  <TableHead className="font-bold text-right">Bonus Amount</TableHead>
+                  <TableHead className="font-bold text-right">Bonus Deducted</TableHead>
+                  <TableHead className="font-bold text-right">Not Deducted</TableHead>
+                  <TableHead className="font-bold text-right">Fixed Deducted</TableHead>
+                  <TableHead className="font-bold text-right">Total Deducted</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {deductionRows.length > 0 ? (
+                {deductionRows.length > 0 && reportPeriod ? (
                   deductionRows.map((row) => (
                     <TableRow key={row.farmer_id} className="hover:bg-gray-50 transition-colors">
                       <TableCell className="font-medium text-blue-600 text-left">{row.farmer_id}</TableCell>
                       <TableCell className="text-left">{row.farmer_name}</TableCell>
-                      <TableCell className="text-left">{displayDate(row.billed_from)}</TableCell>
-                      <TableCell className="text-left">{displayDate(row.billed_to)}</TableCell>
+                      <TableCell className="text-left">{displayDate(reportPeriod.from)}</TableCell>
+                      <TableCell className="text-left">{displayDate(reportPeriod.to)}</TableCell>
                       <TableCell className="text-right font-medium">{row.quantity.toFixed(2)}</TableCell>
                       <TableCell className="text-right font-medium">{row.bonus_quantity.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{formatRates(row.rates, "₹")}</TableCell>
-                      <TableCell className="text-right text-red-500 font-medium">₹{row.bonus_deduction.toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-medium">₹{row.bonus_amount.toFixed(2)}</TableCell>
+                      <TableCell className="text-right text-red-500 font-medium">
+                        ₹{row.bonus_deduction.toFixed(2)}
+                        {row.deducted_from && <div className="text-[10px] font-normal text-gray-500">{deductedFor(row)}</div>}
+                      </TableCell>
+                      <TableCell className="text-right text-amber-600 font-medium">₹{notDeducted(row).toFixed(2)}</TableCell>
                       <TableCell className="text-right text-red-500 font-medium">₹{row.fixed_deduction.toFixed(2)}</TableCell>
                       <TableCell className="text-right font-bold">₹{(row.bonus_deduction + row.fixed_deduction).toFixed(2)}</TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-10 text-gray-500">
+                    <TableCell colSpan={12} className="text-center py-10 text-gray-500">
                       {loading ? "Fetching data..." : "No bonus deductions found for this period."}
                     </TableCell>
                   </TableRow>
@@ -724,7 +763,9 @@ const BonusReport = () => {
                     <TableCell className="text-right">{listedCollection.toFixed(2)}</TableCell>
                     <TableCell className="text-right">{bonusCollection.toFixed(2)}</TableCell>
                     <TableCell />
+                    <TableCell className="text-right">₹{totalBonusAmount.toFixed(2)}</TableCell>
                     <TableCell className="text-right text-red-500">₹{totalBonus.toFixed(2)}</TableCell>
+                    <TableCell className="text-right text-amber-600">₹{totalNotDeducted.toFixed(2)}</TableCell>
                     <TableCell className="text-right text-red-500">₹{totalFixed.toFixed(2)}</TableCell>
                     <TableCell className="text-right">₹{totalDeducted.toFixed(2)}</TableCell>
                   </TableRow>

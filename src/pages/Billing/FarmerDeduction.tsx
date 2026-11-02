@@ -39,6 +39,7 @@ import { vlcCommissionApi } from "@/services/vlcCommissionApi";
 import { buildCommissionLookup, computeTravelCommission } from "@/utils/travelCommission";
 import { useAppSelector } from "@/redux/store";
 import { toast } from "react-toastify";
+import { applyReceivedToDebts, savedDeductionAfterReceived } from "./vlcBill";
 
 const FarmerDeduction = () => {
   const { t } = useTranslation();
@@ -179,7 +180,11 @@ const FarmerDeduction = () => {
             existing.cattleFeedAmount += farmer.deductions?.cattle_feed || 0;
             existing.other1Amount += farmer.deductions?.other1 || 0;
             existing.other2Amount += farmer.deductions?.other2 || 0;
-            existing.receivedAmount += farmer.total_received || 0;
+            existing.receivedAmount += (farmer.total_received || 0) + (farmer.received?.cattle_feed || 0);
+            existing.receivedAdvance += farmer.received?.advance || 0;
+            existing.receivedCattleFeed += farmer.received?.cattle_feed || 0;
+            existing.receivedOther1 += farmer.received?.other1 || 0;
+            existing.receivedOther2 += farmer.received?.other2 || 0;
             existing.finalAmount += farmer.net_payable || 0;
 
           } else {
@@ -206,7 +211,11 @@ const FarmerDeduction = () => {
               other1Deduction: 0,
               other2Amount: (farmer.deductions?.other2 || 0) + parseFloat(farmer.previous_bill?.other2_remaining || 0),
               other2Deduction: 0,
-              receivedAmount: farmer.total_received || 0,
+              receivedAmount: (farmer.total_received || 0) + (farmer.received?.cattle_feed || 0),
+              receivedAdvance: farmer.received?.advance || 0,
+              receivedCattleFeed: farmer.received?.cattle_feed || 0,
+              receivedOther1: farmer.received?.other1 || 0,
+              receivedOther2: farmer.received?.other2 || 0,
               finalAmount: farmer.net_payable || 0,
               previousRemaining: (
                 parseFloat(farmer.previous_bill?.advance_remaining || 0) +
@@ -319,6 +328,11 @@ const FarmerDeduction = () => {
 
         processedData.forEach(farmer => {
           const billDetail = billDetailsMap.get(farmer.farmer_id);
+
+          // A finalized bill stays as it was issued
+          const isFarmerFinalized = farmer.from_bills?.is_finalized === 1 || (billDetail as any)?.is_finalized === 1;
+          if (!isFarmerFinalized) applyReceivedToDebts(farmer);
+
           if (billDetail) {
             const advTotal = parseFloat((billDetail as any).advance_total || 0);
             const advRemaining = parseFloat((billDetail as any).advance_remaining || 0);
@@ -336,11 +350,16 @@ const FarmerDeduction = () => {
               // Keep aggregated amounts — they correctly include new daily advances/deductions
               // given after the bill was last saved. Only pull the deduction amounts from the
               // saved bill so the UI shows what was already processed.
-              farmer.advanceDeduction = advTotal;
-              farmer.cattleFeedDeduction = cfTotal;
-              farmer.other1Deduction = o1Total;
-              farmer.other2Deduction = o2Total;
+              farmer.advanceDeduction = isFarmerFinalized ? advTotal : savedDeductionAfterReceived(advTotal, farmer.advance, farmer.receivedAdvance);
+              farmer.cattleFeedDeduction = isFarmerFinalized ? cfTotal : savedDeductionAfterReceived(cfTotal, farmer.cattleFeedAmount, farmer.receivedCattleFeed);
+              farmer.other1Deduction = isFarmerFinalized ? o1Total : savedDeductionAfterReceived(o1Total, farmer.other1Amount, farmer.receivedOther1);
+              farmer.other2Deduction = isFarmerFinalized ? o2Total : savedDeductionAfterReceived(o2Total, farmer.other2Amount, farmer.receivedOther2);
               farmer.hasBill = true;
+              // A repayment lowered a saved deduction, so Save has to write it back
+              if (farmer.advanceDeduction !== advTotal || farmer.cattleFeedDeduction !== cfTotal ||
+                  farmer.other1Deduction !== o1Total || farmer.other2Deduction !== o2Total) {
+                farmer.modified = true;
+              }
             }
           }
         });
