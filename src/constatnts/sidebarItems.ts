@@ -110,6 +110,7 @@ export const SECTION_ITEMS: Record<SidebarSectionKey, SidebarItemDef[]> = {
       children: [
         { key: "farmer_list_report", titleKey: "farmer_list", titleDefault: "Farmer List", href: ROUTES.REPORTS.FARMER_LIST },
         { key: "farmer_passbook_report", titleKey: "farmer_passbook", titleDefault: "Farmer Passbook", href: ROUTES.REPORTS.FARMER_PASSBOOK },
+        { key: "farmer_datewise_report", titleKey: "farmer_datewise_report", titleDefault: "Farmer Date-wise Report", href: ROUTES.REPORTS.FARMER_DATEWISE_REPORT },
         { key: "rate_chart_report", titleKey: "rate_chart_report", titleDefault: "Rate Chart Report", href: ROUTES.REPORTS.RATECHART_REPORT },
         { key: "bonus_report", titleKey: "bonus_report", titleDefault: "Bonus Report", href: ROUTES.REPORTS.BONUS_REPORT },
       ],

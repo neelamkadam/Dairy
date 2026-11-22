@@ -51,6 +51,7 @@ import FarmerBillInvoiceReport from "@/pages/Reports/FarmerBillInvoiceReport";
 import FarmerCollection from "@/pages/Reports/FarmerCollection";
 import FarmerList from "@/pages/Reports/FarmerList";
 import FarmerPassbook from "@/pages/Reports/FarmerPassbook";
+import FarmerDatewiseReport from "@/pages/Reports/FarmerDatewiseReport";
 import PaymentSummaryReport from "@/pages/Reports/PaymentSummaryReport";
 import PLStatement from "@/pages/Reports/PLStatement";
 import RateChartReport from "@/pages/Reports/RateChartReport";
@@ -271,6 +272,10 @@ export const AppRoutes = createBrowserRouter([
       {
         path: "farmer-passbook",
         element: <FarmerPassbook />,
+      },
+      {
+        path: "farmer-datewise-report",
+        element: <FarmerDatewiseReport />,
       },
       {
         path: "payment-summary",
