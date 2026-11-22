@@ -1556,5 +1556,7 @@
   "fill_all_password_fields": "तीनों पासवर्ड फ़ील्ड भरें",
   "new_passwords_do_not_match": "नए पासवर्ड मेल नहीं खाते",
   "new_password_same_as_current": "नया पासवर्ड मौजूदा पासवर्ड जैसा ही है",
-  "password_changed_devices_logged_out": "पासवर्ड बदल दिया गया। {{count}} अन्य डिवाइस लॉग आउट हुए।"
+  "password_changed_devices_logged_out": "पासवर्ड बदल दिया गया। {{count}} अन्य डिवाइस लॉग आउट हुए।",
+  "new_version_available": "ऐप का नया संस्करण उपलब्ध है।",
+  "reload": "रीलोड करें"
 }

@@ -1568,5 +1568,7 @@
   "fill_all_password_fields": "Fill in all three password fields",
   "new_passwords_do_not_match": "The new passwords do not match",
   "new_password_same_as_current": "The new password is the same as the current one",
-  "password_changed_devices_logged_out": "Password changed. {{count}} other device(s) logged out."
+  "password_changed_devices_logged_out": "Password changed. {{count}} other device(s) logged out.",
+  "new_version_available": "A new version of the app is available.",
+  "reload": "Reload"
 }

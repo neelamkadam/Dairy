@@ -1568,5 +1568,7 @@
   "fill_all_password_fields": "ಮೂರೂ ಪಾಸ್‌ವರ್ಡ್ ಕ್ಷೇತ್ರಗಳನ್ನು ಭರ್ತಿ ಮಾಡಿ",
   "new_passwords_do_not_match": "ಹೊಸ ಪಾಸ್‌ವರ್ಡ್‌ಗಳು ಹೊಂದಿಕೆಯಾಗುತ್ತಿಲ್ಲ",
   "new_password_same_as_current": "ಹೊಸ ಪಾಸ್‌ವರ್ಡ್ ಪ್ರಸ್ತುತ ಪಾಸ್‌ವರ್ಡ್‌ನಂತೆಯೇ ಇದೆ",
-  "password_changed_devices_logged_out": "ಪಾಸ್‌ವರ್ಡ್ ಬದಲಾಯಿಸಲಾಗಿದೆ. {{count}} ಇತರ ಸಾಧನ(ಗಳು) ಲಾಗ್ ಔಟ್ ಆಗಿವೆ."
+  "password_changed_devices_logged_out": "ಪಾಸ್‌ವರ್ಡ್ ಬದಲಾಯಿಸಲಾಗಿದೆ. {{count}} ಇತರ ಸಾಧನ(ಗಳು) ಲಾಗ್ ಔಟ್ ಆಗಿವೆ.",
+  "new_version_available": "ಆ್ಯಪ್‌ನ ಹೊಸ ಆವೃತ್ತಿ ಲಭ್ಯವಿದೆ.",
+  "reload": "ಮರುಲೋಡ್ ಮಾಡಿ"
 }

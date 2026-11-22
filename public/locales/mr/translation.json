@@ -1556,5 +1556,7 @@
   "fill_all_password_fields": "तिन्ही पासवर्ड फील्ड भरा",
   "new_passwords_do_not_match": "नवीन पासवर्ड जुळत नाहीत",
   "new_password_same_as_current": "नवीन पासवर्ड सध्याच्या पासवर्डसारखाच आहे",
-  "password_changed_devices_logged_out": "पासवर्ड बदलला. {{count}} इतर डिव्हाइस लॉग आउट झाली."
+  "password_changed_devices_logged_out": "पासवर्ड बदलला. {{count}} इतर डिव्हाइस लॉग आउट झाली.",
+  "new_version_available": "ॲपची नवीन आवृत्ती उपलब्ध आहे.",
+  "reload": "रीलोड करा"
 }
