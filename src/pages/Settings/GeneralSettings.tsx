@@ -31,6 +31,7 @@ import {
   ToggleLeft,
   AlertTriangle,
   Building2,
+  Wallet,
 } from "lucide-react";
 import { VLCDropdown } from "@/components/ui/vlc-dropdown";
 import { ALL_ROUTES, useRouteFilter } from "@/hooks/useRouteFilter";
@@ -281,6 +282,9 @@ const GeneralSettings = () => {
   });
   const [multipleModal, setMultipleModal] = useState(0);
   const [cc, setCc] = useState(0);
+  // Advance limit % as typed; "" = no limit.
+  const [advanceLimit, setAdvanceLimit] = useState("");
+  const limitText = (v: unknown) => (v === null || v === undefined || String(v).trim() === "" ? "" : String(Number(v)));
 
   const [showShiftReport, setShowShiftReport] = useState(0);
   const [showTotalCollection, setShowTotalCollection] = useState(0);
@@ -355,6 +359,7 @@ const GeneralSettings = () => {
     setShowWater(s.show_water ?? 0);
     setMultipleModal(s.multiple_modal ?? 0);
     setCc(s.cc ?? 0);
+    setAdvanceLimit(limitText(s.advance_limit_percent));
     const r = entry.report_settings;
     setShowShiftReport(r.show_shift_report ?? 0);
     setShowTotalCollection(r.show_total_collection ?? 0);
@@ -389,6 +394,7 @@ const GeneralSettings = () => {
         ...entry.settings,
         language: entry.settings.language || "English",
         report_language: entry.settings.report_language || "English",
+        advance_limit_percent: limitText(entry.settings.advance_limit_percent),
         ...entry.report_settings,
         ...readCcPrefs(entry.vlc),
       });
@@ -448,6 +454,7 @@ const GeneralSettings = () => {
     show_water: showWater,
     multiple_modal: multipleModal,
     cc,
+    advance_limit_percent: limitText(advanceLimit),
     show_shift_report: showShiftReport,
     show_total_collection: showTotalCollection,
     show_payment_summary: showPaymentSummary,
@@ -476,6 +483,11 @@ const GeneralSettings = () => {
   const handleSave = async () => {
     if (!orderedVlcs.length) { toast.error(t("please_select_vlc", "Please select a VLC")); return; }
     if (!hasChanges) { toast.info(t("no_changes_made", "No changes made. Please modify settings before saving.")); return; }
+    const limitPercent = advanceLimit.trim() === "" ? null : Number(advanceLimit);
+    if (limitPercent !== null && (!Number.isFinite(limitPercent) || limitPercent < 1 || limitPercent > 100)) {
+      toast.error(t("advance_limit_invalid", "Advance limit must be a % from 1 to 100, or empty for no limit."));
+      return;
+    }
     if (isMulti && !window.confirm(t("apply_settings_confirm", {
       count: orderedVlcs.length,
       defaultValue: "Apply these settings to all {{count}} selected VLCs? Their current settings will be replaced.",
@@ -491,6 +503,7 @@ const GeneralSettings = () => {
           analyser, weight_tier: weightTier, weight, printer, cc,
           show_water: showWater, multiple_modal: multipleModal,
           language, report_language: reportLanguage,
+          advance_limit_percent: limitPercent,
         },
         report_settings: {
           show_shift_report: showShiftReport, show_total_collection: showTotalCollection,
@@ -690,6 +703,35 @@ const GeneralSettings = () => {
               <FeatureRow id="feat-deduction" icon={Minus} label={t("deduction", "Deduction")} checked={deduction === 1} varies={isVaries("deduction")} onChange={(c) => setDeduction(c ? 1 : 0)} />
               <FeatureRow id="feat-payment" icon={CreditCard} label={t("payment_receipt", "Payment & Receipt")} checked={paymentReceipt === 1} varies={isVaries("payment_receipt")} onChange={(c) => setPaymentReceipt(c ? 1 : 0)} />
               <FeatureRow id="feat-bill" icon={FileText} label={t("generate_bill", "Generate Bill")} checked={generateBill === 1} varies={isVaries("generate_bill")} onChange={(c) => setGenerateBill(c ? 1 : 0)} />
+            </div>
+            {/* Advance limit: enforced by the backend on every advance / cattle feed / Other1 / Other2 entry. */}
+            <div className="px-4 pb-4">
+              <div className={cn(
+                "rounded-lg border px-3.5 py-3 space-y-2",
+                advanceLimit.trim() !== "" ? "border-blue-200 bg-blue-50/40" : "border-gray-100"
+              )}>
+                <label htmlFor="advance-limit" className="flex items-center gap-2.5 text-sm font-medium text-gray-700">
+                  <Wallet className={cn("h-4 w-4 flex-shrink-0", advanceLimit.trim() !== "" ? "text-blue-500" : "text-gray-400")} />
+                  {t("advance_limit", "Advance Limit")}
+                  <VariesBadge show={isVaries("advance_limit_percent")} />
+                </label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="advance-limit" type="number" inputMode="decimal" min={1} max={100} step="any"
+                    value={advanceLimit}
+                    onChange={(e) => setAdvanceLimit(e.target.value)}
+                    placeholder={t("no_limit", "No limit")}
+                    className="w-28 h-9 bg-white border-gray-200"
+                  />
+                  <span className="text-sm text-gray-600">{t("percent_of_milk_amount", "% of milk amount")}</span>
+                </div>
+                <p className="text-xs text-gray-500">
+                  {t(
+                    "advance_limit_hint",
+                    "Advance, cattle feed, Other1 and Other2 together can't go above this share of the farmer's milk amount since their last bill. Dues left on that bill count too; repayments free up room. Leave empty for no limit."
+                  )}
+                </p>
+              </div>
             </div>
           </SectionCard>
 

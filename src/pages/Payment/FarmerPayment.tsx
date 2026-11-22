@@ -10,7 +10,9 @@ import { useAppSelector } from "@/redux/store";
 import { cattleFeedApi, CattleFeedStock } from "@/services/cattleFeedApi";
 import { userApi } from "@/services/userApi";
 import { deductionApi } from "@/services/deductionApi";
-import { paymentApi } from "@/services/paymentApi";
+import { paymentApi, paymentErrorMessage } from "@/services/paymentApi";
+import AdvanceLimitNote from "@/components/AdvanceLimitNote";
+import { useAdvanceLimit } from "@/hooks/useAdvanceLimit";
 import { ENV_VARIABLES } from "@/services/config";
 import { authFetch } from "@/services/sessionGuard";
 import { toast } from "react-toastify";
@@ -64,6 +66,8 @@ const FarmerPayment: React.FC = () => {
 
   const [logToDelete, setLogToDelete] = useState<any>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  // What the searched farmer can still take under the VLC's advance limit.
+  const advanceLimit = useAdvanceLimit();
 
   const normalizeFarmerId = (id: string) => {
     if (!id) return "";
@@ -138,13 +142,15 @@ const FarmerPayment: React.FC = () => {
           }
         }
         setFarmerPreviousBalance(farmerBalance);
+        advanceLimit.load(vlcId, normalized);
         toast.success("Farmer found");
       } else {
         toast.error("Farmer not found");
-        setFarmerName(""); setFarmerPreviousBalance(null);
+        setFarmerName(""); setFarmerPreviousBalance(null); advanceLimit.clear();
       }
     } catch (e) {
       toast.error("Error searching farmer");
+      advanceLimit.clear();
     } finally {
       setLoading(false);
     }
@@ -227,9 +233,11 @@ const FarmerPayment: React.FC = () => {
       toast.success("Payment recorded successfully");
       setFarmerIdInput(""); setFarmerName(""); setAmountTaken(""); setEmiChecked(false); setEmiAmount("");
       setSelectedStock(null); setStockQuantity(""); setStockRate(""); setFarmerPreviousBalance(null);
+      advanceLimit.clear();
       fetchVlcStocks(vlcId); fetchGroupStocks();
     } catch (e) {
-      toast.error("Failed to save payment");
+      // e.g. the advance limit's refusal, which says how much can still be given
+      toast.error(paymentErrorMessage(e) || "Failed to save payment");
     } finally {
       setLoading(false);
     }
@@ -292,7 +300,8 @@ const FarmerPayment: React.FC = () => {
       }
     } catch (e) {
       console.error("Update log error:", e);
-      toast.error("Failed to update log");
+      // Raising a cattle feed amount can hit the advance limit; its message says why.
+      toast.error(paymentErrorMessage(e) || "Failed to update log");
     } finally {
       setLoading(false);
     }
@@ -412,6 +421,7 @@ const FarmerPayment: React.FC = () => {
                         )}
                      </div>
                    )}
+                   {farmerName && <AdvanceLimitNote limit={advanceLimit.limit} />}
                 </div>
               </div>
 

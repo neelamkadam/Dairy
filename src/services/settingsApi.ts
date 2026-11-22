@@ -47,6 +47,9 @@ export interface PageSettings {
   cc: number;
   language: string;
   report_language: string;
+  // Advance limit: advance + cattle feed + Other1 + Other2 a farmer may owe, as a %
+  // of their milk amount since their last bill. null = no limit. Older backends omit it.
+  advance_limit_percent?: number | string | null;
 }
 
 export interface PageSettingsForVlc {

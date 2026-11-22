@@ -100,4 +100,31 @@ export const paymentApi = {
   deleteFarmerPaymentLog: (id: number | string) =>
     api.delete(`/farmer-payment-logs/${id}`),
 
+  // Where the farmer stands against the VLC's advance limit; { enabled: false } with none.
+  getAdvanceLimit: (dairyId: string | number, farmerId: string) =>
+    api.get<{ success: boolean; data: AdvanceLimit }>("/payments/advance-limit", {
+      params: { dairy_id: dairyId, farmer_id: normalizeFarmerId(farmerId) },
+    }),
 };
+
+// GET /payments/advance-limit. The backend refuses (HTTP 422, code ADVANCE_LIMIT_EXCEEDED)
+// any advance / cattle feed / Other1 / Other2 entry above `available`.
+export type AdvanceLimit =
+  | { enabled: false }
+  | {
+      enabled: true;
+      percent: number;
+      since: string; // yyyy-MM-dd, the day after the farmer's last finalized bill
+      last_bill_end: string | null;
+      milk_amount: number;
+      old_dues: number;
+      taken: number;
+      received: number;
+      owed: number;
+      limit: number;
+      available: number;
+    };
+
+/** The backend's own message for a failed payment request, when it sent one. */
+export const paymentErrorMessage = (error: unknown): string | undefined =>
+  (error as { response?: { data?: { message?: string } } })?.response?.data?.message;

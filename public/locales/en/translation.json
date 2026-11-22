@@ -1590,5 +1590,14 @@
   "bill_net_payable": "Bill Net Payable",
   "not_finalized": "not finalized",
   "not_generated": "Not generated",
-  "farmer_datewise_net_note": "Net Amount = Milk Amount − Total Deduction + Received, for money taken and repaid within these dates. Bill Net Payable is the saved bill for this cycle (after bonus, commission and carried-forward dues)."
+  "farmer_datewise_net_note": "Net Amount = Milk Amount − Total Deduction + Received, for money taken and repaid within these dates. Bill Net Payable is the saved bill for this cycle (after bonus, commission and carried-forward dues).",
+  "advance_limit": "Advance Limit",
+  "no_limit": "No limit",
+  "percent_of_milk_amount": "% of milk amount",
+  "advance_limit_hint": "Advance, cattle feed, Other1 and Other2 together can't go above this share of the farmer's milk amount since their last bill. Dues left on that bill count too; repayments free up room. Leave empty for no limit.",
+  "advance_limit_invalid": "Advance limit must be a % from 1 to 100, or empty for no limit.",
+  "advance_limit_reached": "Advance limit reached: nothing more can be given now",
+  "advance_limit_can_give": "Can give up to {{amount}} more",
+  "advance_limit_detail": "Limit {{percent}}% of {{milk}} milk since {{since}} = {{limit}} · Owes {{owed}}",
+  "cattle_feed_log_failed": "Cattle feed was not recorded against the farmer, so it will not be deducted in the bill. Please check this entry."
 }

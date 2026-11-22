@@ -14,7 +14,9 @@ import { Bell, CircleUserRound, ChevronRight, ChevronLeft, Search, Trash2 } from
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format, isValid } from "date-fns";
-import { paymentApi } from "@/services/paymentApi";
+import { paymentApi, paymentErrorMessage } from "@/services/paymentApi";
+import AdvanceLimitNote from "@/components/AdvanceLimitNote";
+import { useAdvanceLimit } from "@/hooks/useAdvanceLimit";
 import { normalizeFarmerId, formatFarmerIdForDisplay } from "@/utils/farmerIdUtils";
 import { toast } from "react-toastify";
 import { useAppSelector } from "@/redux/store";
@@ -73,6 +75,8 @@ const PaymentAndReceipt: React.FC = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedGroupedRecord, setSelectedGroupedRecord] = useState<any>(null);
+  // What the searched farmer can still take under the VLC's advance limit.
+  const advanceLimit = useAdvanceLimit();
 
   useEffect(() => {
     if (formData.vlcName && formData.fromDate) {
@@ -275,6 +279,7 @@ const PaymentAndReceipt: React.FC = () => {
         toast.error(t("farmer_not_found", "Farmer not found"));
         setFormData({ ...formData, farmerCode: "", farmerName: "" });
         setFarmerPreviousBalance(null);
+        advanceLimit.clear();
         return;
       }
 
@@ -284,7 +289,8 @@ const PaymentAndReceipt: React.FC = () => {
         farmerName: farmer.fullName || farmer.name || t("unknown_farmer", "Unknown Farmer"),
       });
 
-      // Fetch previous balance
+      // Fetch previous balance, and what the advance limit still allows
+      advanceLimit.load(formData.vlcName, normalized);
       await fetchFarmerPreviousBalance(normalized);
 
       toast.success(t("farmer_found", "Farmer found"));
@@ -293,6 +299,7 @@ const PaymentAndReceipt: React.FC = () => {
       toast.error(t("farmer_not_found", "Farmer not found"));
       setFormData({ ...formData, farmerCode: "", farmerName: "" });
       setFarmerPreviousBalance(null);
+      advanceLimit.clear();
     }
   };
 
@@ -379,6 +386,11 @@ const PaymentAndReceipt: React.FC = () => {
           } catch (logError: unknown) {
             const errorWithResponse = logError as { response?: { data?: unknown } };
             console.error("⚠️ Farmer payment log failed (payment still saved):", errorWithResponse.response?.data || logError);
+            // Bills read cattle feed only from this log, so without it the farmer is not charged.
+            toast.error(paymentErrorMessage(logError) || t(
+              "cattle_feed_log_failed",
+              "Cattle feed was not recorded against the farmer, so it will not be deducted in the bill. Please check this entry."
+            ));
           }
         }
 
@@ -394,6 +406,7 @@ const PaymentAndReceipt: React.FC = () => {
       setStockQuantity("");
       setStockRate("");
       setFarmerPreviousBalance(null);
+      advanceLimit.clear();
       setFormData({
         ...formData,
         farmerCode: "",
@@ -408,7 +421,8 @@ const PaymentAndReceipt: React.FC = () => {
       fetchCattleFeedStocks();
     } catch (error) {
       console.error('❌ Failed to create payment:', error);
-      toast.error(t("failed_to_save_payment_record", "Failed to save payment record. Please try again."));
+      // e.g. the advance limit's refusal, which says how much can still be given
+      toast.error(paymentErrorMessage(error) || t("failed_to_save_payment_record", "Failed to save payment record. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -447,6 +461,7 @@ const PaymentAndReceipt: React.FC = () => {
                     setFormData({ vlcName: value, fromDate: new Date(), farmerCode: "", farmerName: "", paymentType: "", amountTaken: "", receivedAmount: "", emiChecked: false, emiAmount: "" });
                     setFarmerIdInput("");
                     setFarmerPreviousBalance(null);
+                    advanceLimit.clear();
                     setCurrentPage(1);
                   }}
                   valueKey="branch_id"
@@ -495,6 +510,8 @@ const PaymentAndReceipt: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+
+        {formData.farmerCode && formData.farmerName && <AdvanceLimitNote limit={advanceLimit.limit} />}
 
         {/* Fintech-style Financial Summaries */}
         {formData.farmerCode && formData.farmerName && (
