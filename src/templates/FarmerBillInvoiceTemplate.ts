@@ -636,12 +636,18 @@ const computeFormat1Summary = (templateData: Template2Data, labels: any, toDate:
     }
   }
 
-  // net_payable is the saved bill's. Generate Bill and Farmer Deduction already
-  // put the travel commission into it, so it is printed here, never added again.
-  const netPayable = parseFloat(templateData.current_bill?.net_payable || '0');
   const travelComm = templateData.travel_commission;
   const isTravelValid = !!travelComm && travelComm.amount > 0;
   const travelAmount = isTravelValid ? travelComm.amount : 0;
+
+  // net_payable is the saved bill's. Generate Bill and Farmer Deduction already
+  // put the travel commission into it, so it is printed here, never added again.
+  // With no bill saved for the period it is worked out the way Farmer Deduction
+  // saves it: gross - deductions - bonus/fixed + travel commission.
+  const savedNet = templateData.current_bill?.net_payable;
+  const netPayable = savedNet !== undefined && savedNet !== null && savedNet !== ''
+    ? parseFloat(savedNet)
+    : summaryTotalAmount - totalDed - bonusFixedTotal + travelAmount;
 
   return {
     cowLiters, buffaloLiters, summaryTotalAmount,
@@ -2556,9 +2562,9 @@ export const generateTemplate6 = (templateData: Template2Data, language: string 
 
   const esc = escapeHtml;
   const header = templateData.bill_header || {};
-  const companyName = header.companyName?.trim() || templateData.dairyName;
+  const companyName = templateData.dairyName;
   const companyAddress = header.companyAddress?.trim() || '';
-  const vlcName = header.vlcName?.trim() || templateData.dairyName;
+  const vlcName = templateData.dairyName;
   const vlcOwner = header.vlcOwner?.trim() || '';
   const routeName = header.routeName?.trim() || '';
   const supervisorName = header.supervisorName?.trim() || '';
@@ -2818,14 +2824,14 @@ export const generateTemplate8 = (templateData: Template2Data, language: string 
   <style>
     * { box-sizing: border-box; }
     body { font-family: Arial, sans-serif; font-size: 12px; line-height: 1.2; margin: 0; padding: 0; color: black; }
-    .page { padding: 22px 22px 18px 22px; background-color: white; }
+    .page { padding: 22px 22px 18px 22px; background-color: white; font-weight: bold; }
     .title { text-align: center; font-size: 22px; font-weight: bold; }
     .row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
     .row1 { margin-top: 8px; font-size: 13px; }
     .row2 { margin-top: 4px; font-size: 11.5px; }
     .row2 .farmer { font-size: 13.5px; font-weight: bold; }
     .milk { width: 100%; border-collapse: collapse; border: 1px solid black; margin-top: 6px; }
-    .milk th { font-weight: normal; padding: 4px 3px; font-size: 12px; text-align: center; border-bottom: 1px solid black; }
+    .milk th { font-weight: bold; padding: 4px 3px; font-size: 12px; text-align: center; border-bottom: 1px solid black; }
     .milk td { padding: 3px 4px; font-size: 11.5px; text-align: center; }
     .milk td.num { text-align: right; }
     .milk td.date, .milk th.date { text-align: left; }
@@ -2839,7 +2845,7 @@ export const generateTemplate8 = (templateData: Template2Data, language: string 
     .feed { flex: 0 0 35%; }
     .summary { flex: 1; min-width: 0; }
     .grid { width: 100%; border-collapse: collapse; }
-    .grid th { font-weight: normal; padding: 4px 3px; font-size: 11.5px; text-align: right; border-bottom: 1px solid black; white-space: nowrap; }
+    .grid th { font-weight: bold; padding: 4px 3px; font-size: 11.5px; text-align: right; border-bottom: 1px solid black; }
     .grid td { padding: 3px 3px; font-size: 11.5px; text-align: right; white-space: nowrap; }
     .grid td.item { white-space: normal; }
     .grid .lbl { text-align: left; }
@@ -2856,7 +2862,7 @@ export const generateTemplate8 = (templateData: Template2Data, language: string 
       <div>${labels.branch} : ${esc(branch)}</div>
       <div>${labels.typeLabel} : ${typeText}</div>
       <div>${labels.milkBillPeriod}</div>
-      <div>${labels.date} <b>${fmtDMY(fromDate)}</b> ${labels.periodTo} <b>${fmtDMY(toDate)}</b></div>
+      <div>${labels.date} ${fmtDMY(fromDate)} ${labels.periodTo} ${fmtDMY(toDate)}</div>
     </div>
     <div class="row row2">
       <div class="farmer">${labels.codeNo} ${esc(templateData.farmerCode)} &nbsp;${esc(templateData.farmerName)}</div>
