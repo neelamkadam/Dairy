@@ -42,29 +42,12 @@ import { webUserApi } from "@/services/webUserApi";
 import { toast } from "react-toastify";
 import { cn } from "@/lib/utils";
 import SettingsLockGate from "@/components/SettingsLockGate";
+import { SectionCard, SectionHeader } from "./SettingsSection";
+import SessionsCard from "./SessionsCard";
 
 // ─── Module-level sub-components (must be outside GeneralSettings to keep
 //     stable references across re-renders — prevents input focus loss) ─────────
-
-const SectionCard = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-  <div className={cn("bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden", className)}>
-    {children}
-  </div>
-);
-
-const SectionHeader = ({
-  icon: Icon, title, children,
-}: { icon: React.ElementType; title: string; children?: React.ReactNode }) => (
-  <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50/70">
-    <div className="flex items-center gap-2.5">
-      <div className="p-1.5 bg-blue-50 rounded-md">
-        <Icon className="h-4 w-4 text-blue-600" />
-      </div>
-      <h2 className="text-sm font-semibold text-gray-800">{title}</h2>
-    </div>
-    {children}
-  </div>
-);
+// SectionCard / SectionHeader live in ./SettingsSection, shared with SessionsCard.
 
 const SelectAllBox = ({
   allOn, onToggle,
@@ -575,6 +558,8 @@ const GeneralSettings = () => {
       <div className="w-full p-3 space-y-3">
 
         <CompanyProfileCard />
+
+        <SessionsCard />
 
         {/* Row 1: Language + VLC + System Toggles */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

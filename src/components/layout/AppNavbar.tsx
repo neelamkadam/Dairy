@@ -18,6 +18,7 @@ import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constatnts/routesConstants";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
 import { logout } from "@/redux/AuthSlice";
+import { sessionApi } from "@/services/sessionApi";
 
 interface NavbarProps {
   theme: "light" | "dark";
@@ -76,6 +77,9 @@ const AppNavbar = ({}: NavbarProps) => {
   };
 
   const handleSignOut = () => {
+    // End this device's session on the server too; it is gone from the
+    // Logged-in Devices list straight away. Sign out goes ahead either way.
+    sessionApi.logout(localStorage.getItem("token")).catch(() => {});
     localStorage.removeItem("token");
     dispatch(logout());
     navigate(ROUTES.AUTH.LOGIN);

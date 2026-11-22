@@ -3,6 +3,7 @@ import { toast } from "react-toastify";
 import { getTokenFromLocalStorage } from "@/lib/common-utils";
 import { TOASTER_CONFIG } from "@/constatnts/commonConstants";
 import { ENV_VARIABLES } from "./config";
+import { announceSessionEnded, isSessionEndedResponse } from "./sessionGuard";
 
 const AxiosClient: AxiosInstance = axios.create({
   baseURL: ENV_VARIABLES.API_BASE,
@@ -27,7 +28,11 @@ AxiosClient.interceptors.request.use(
 AxiosClient.interceptors.response.use(
   (response) => response,
   (error: any) => {
-    // Pass the error down without handling it here
+    // A logged-out session sends the browser to login (SessionEndedListener);
+    // every other error passes down without handling it here
+    if (isSessionEndedResponse(error?.response?.status, error?.response?.data)) {
+      announceSessionEnded();
+    }
     return Promise.reject(error);
   }
 );

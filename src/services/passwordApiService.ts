@@ -1,4 +1,5 @@
 import { ENV_VARIABLES } from './config';
+import { authFetch } from './sessionGuard';
 
 const BASE_URL = ENV_VARIABLES.API_BASE;
 
@@ -10,7 +11,7 @@ export interface PasswordResponse {
 export const passwordApiService = {
   checkPassword: async (vlc: string): Promise<{ success: boolean; hasPassword: boolean; password?: string }> => {
     try {
-      const response = await fetch(`${BASE_URL}/web/settings/check-password`, {
+      const response = await authFetch(`${BASE_URL}/web/settings/check-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -32,7 +33,7 @@ export const passwordApiService = {
 
   createPassword: async (vlc: string, password: string): Promise<PasswordResponse> => {
     try {
-      const response = await fetch(`${BASE_URL}/web/settings/create-password`, {
+      const response = await authFetch(`${BASE_URL}/web/settings/create-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -57,7 +58,7 @@ export const passwordApiService = {
 
   updatePassword: async (vlc: string, password: string): Promise<PasswordResponse> => {
     try {
-      const response = await fetch(`${BASE_URL}/web/settings/update-password`, {
+      const response = await authFetch(`${BASE_URL}/web/settings/update-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

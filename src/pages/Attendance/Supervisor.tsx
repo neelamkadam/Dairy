@@ -5,9 +5,11 @@ import { PlayCircle, StopCircle, RefreshCw, Activity } from "lucide-react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { ENV_VARIABLES } from "@/services/config";
+import { authHeader } from "@/services/sessionGuard";
 
 const BASE_URL = `${ENV_VARIABLES.API_BASE}/api/maintenance`;
-const HEADERS = { "x-maintenance-key": import.meta.env.VITE_MAINTENANCE_KEY };
+// Read on each call: the login token is needed too, and it changes with each login
+const headers = () => ({ "x-maintenance-key": import.meta.env.VITE_MAINTENANCE_KEY, ...authHeader() });
 
 type ServiceStatus = "running" | "stopped" | "unknown";
 
@@ -50,7 +52,7 @@ const Supervisor = () => {
   const fetchStatus = useCallback(async () => {
     setStatusLoading(true);
     try {
-      const { data } = await axios.get(`${BASE_URL}/status`, { headers: HEADERS });
+      const { data } = await axios.get(`${BASE_URL}/status`, { headers: headers() });
       setStatus({
         attendance: parseStatus(data?.attendance),
         supervision: parseStatus(data?.supervision),
@@ -66,7 +68,7 @@ const Supervisor = () => {
   const handleStart = async () => {
     setStartLoading(true);
     try {
-      await axios.post(`${BASE_URL}/start`, {}, { headers: HEADERS });
+      await axios.post(`${BASE_URL}/start`, {}, { headers: headers() });
       toast.success("Attendance started successfully");
       setStatus({ attendance: "running", supervision: "running" });
     } catch {
@@ -79,7 +81,7 @@ const Supervisor = () => {
   const handleStop = async () => {
     setStopLoading(true);
     try {
-      await axios.post(`${BASE_URL}/stop`, {}, { headers: HEADERS });
+      await axios.post(`${BASE_URL}/stop`, {}, { headers: headers() });
       toast.success("Attendance stopped successfully");
       setStatus({ attendance: "stopped", supervision: "stopped" });
     } catch {

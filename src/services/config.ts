@@ -1,4 +1,5 @@
 import axios from "axios";
+import { guardSession } from "./sessionGuard";
 
 export const CURRENT_ENVIRONMENT: string = "development";
 type VariableType = {
@@ -30,3 +31,5 @@ export const api = axios.create({
     "Content-Type": "application/json",
   },
 });
+// Login token on every request; an ended session sends the browser to login
+guardSession(api);

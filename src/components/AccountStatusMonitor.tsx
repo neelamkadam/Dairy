@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { ENV_VARIABLES } from "@/services/config";
+import { announceSessionEnded, sessionIdFromToken } from "@/services/sessionGuard";
 
 interface AccountStatusMonitorProps {
   userId: string | number;
@@ -12,13 +13,21 @@ const AccountStatusMonitor = ({ userId }: AccountStatusMonitorProps) => {
   useEffect(() => {
     if (!userId) return;
 
-    const url = `${ENV_VARIABLES.API_BASE}/web-users/user-status/${userId}`;
+    // With the session id the stream also says when this device was logged out
+    const sid = sessionIdFromToken();
+    const url = `${ENV_VARIABLES.API_BASE}/web-users/user-status/${userId}${sid ? `?sid=${encodeURIComponent(sid)}` : ""}`;
     const eventSource = new EventSource(url);
 
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        
+
+        if (data.session_ended === true) {
+          eventSource.close();
+          announceSessionEnded();
+          return;
+        }
+
         if (data.user_exists === false || data.is_active === 0) {
           setShowModal(true);
         } else if (data.is_active === 1) {

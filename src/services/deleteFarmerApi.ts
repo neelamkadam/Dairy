@@ -1,4 +1,5 @@
 import { ENV_VARIABLES } from './config';
+import { authFetch } from './sessionGuard';
 
 const BASE_URL = ENV_VARIABLES.API_BASE;
 
@@ -11,13 +12,13 @@ export interface DeleteFarmerResponse {
 export const deleteFarmerApi = {
   deleteFarmer: async (dairy_id: string, farmer_id: string): Promise<DeleteFarmerResponse> => {
     try {
-      console.log('📞 Delete Farmer API Request:', {
+      console.log('ðŸ“ž Delete Farmer API Request:', {
         url: `${BASE_URL}/auth/delete-farmer`,
         method: 'POST',
         body: { dairy_id, farmer_id }
       });
       
-      const response = await fetch(`${BASE_URL}/auth/delete-farmer`, {
+      const response = await authFetch(`${BASE_URL}/auth/delete-farmer`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -28,19 +29,19 @@ export const deleteFarmerApi = {
         }),
       });
 
-      console.log('📞 Delete Farmer API Response Status:', response.status, response.statusText);
+      console.log('ðŸ“ž Delete Farmer API Response Status:', response.status, response.statusText);
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.log('❌ Delete Farmer API Error Response:', errorText);
+        console.log('âŒ Delete Farmer API Error Response:', errorText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('✅ Delete Farmer API Success Response:', data);
+      console.log('âœ… Delete Farmer API Success Response:', data);
       return data;
     } catch (error) {
-      console.error('❌ Delete farmer API error:', error);
+      console.error('âŒ Delete farmer API error:', error);
       return { success: false, message: 'Failed to delete farmer' };
     }
   },

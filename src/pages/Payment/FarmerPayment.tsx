@@ -12,6 +12,7 @@ import { userApi } from "@/services/userApi";
 import { deductionApi } from "@/services/deductionApi";
 import { paymentApi } from "@/services/paymentApi";
 import { ENV_VARIABLES } from "@/services/config";
+import { authFetch } from "@/services/sessionGuard";
 import { toast } from "react-toastify";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
@@ -244,7 +245,7 @@ const FarmerPayment: React.FC = () => {
     try {
       const dateStr = format(fromDate, "yyyy-MM-dd");
       // Use the provided API endpoint with dairy_id and date
-      const response = await fetch(`${ENV_VARIABLES.API_BASE}/farmer-payment-logs?dairy_id=${vlcId}&date=${dateStr}`);
+      const response = await authFetch(`${ENV_VARIABLES.API_BASE}/farmer-payment-logs?dairy_id=${vlcId}&date=${dateStr}`);
       const data = await response.json();
       
       if (data.data) {

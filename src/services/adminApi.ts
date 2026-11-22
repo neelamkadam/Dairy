@@ -1,5 +1,6 @@
 import axios from "axios";
 import { api, ENV_VARIABLES } from "./config";
+import { authHeader } from "./sessionGuard";
 
 export const adminApi = {
   getAllUsers: () => api.get("/web/admin/users"),
@@ -16,7 +17,8 @@ export const adminApi = {
   getTrialStartDate: (username: string) => api.get(`/auth/trial-start-date?username=${username}`),
   updateTrialDays: (username: string, days: number) => api.put("/auth/update-trial-days", { username, days }),
   getTrialDetails: (payload: { usernames?: string[], username?: string }) => api.post("/auth/get-trial-details", payload),
-  uploadImage: (formData: FormData) => axios.post(`${ENV_VARIABLES.API_BASE}/dairy/images/upload`, formData),
+  // Plain axios: `api` sends JSON, which would turn the FormData into JSON
+  uploadImage: (formData: FormData) => axios.post(`${ENV_VARIABLES.API_BASE}/dairy/images/upload`, formData, { headers: authHeader() }),
   getImages: (params: { dairy_id?: string; ref_id?: string; ref_type?: string }) => 
     api.get("/dairy/images", { params }),
   getSignedUrl: (key: string) => api.get(`/dairy/images/url?key=${key}`),
