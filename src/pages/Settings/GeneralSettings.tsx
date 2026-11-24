@@ -38,7 +38,7 @@ import { ALL_ROUTES, useRouteFilter } from "@/hooks/useRouteFilter";
 import RouteSelect from "@/components/RouteSelect";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { settingsApi, type PageSettingsForVlc } from "@/services/settingsApi";
+import { settingsApi, type PageSettings, type PageSettingsForVlc } from "@/services/settingsApi";
 import { webUserApi } from "@/services/webUserApi";
 import { toast } from "react-toastify";
 import { cn } from "@/lib/utils";
@@ -65,12 +65,60 @@ const SelectAllBox = ({
   </label>
 );
 
+// The page's fields, as the API names them. Settings and report settings go to
+// /web/settings/apply (advance_limit_percent too, but as a number or null); the CC
+// preferences live in localStorage per VLC.
+const SETTINGS_FIELDS = [
+  "add_farmer", "rate_chart", "deduction", "payment_receipt", "generate_bill",
+  "analyser", "weight_tier", "weight", "printer", "cc", "show_water", "multiple_modal",
+  "language", "report_language",
+];
+const REPORT_FIELDS = [
+  "show_shift_report", "show_total_collection", "show_payment_summary", "show_rate_chart",
+  "show_farmer_bill", "show_farmer_list", "show_difference_report", "show_bonus_deduction",
+  "show_collection_history", "show_cattle_feed",
+];
+const CC_PREF_FIELDS = ["cc_search_type", "cc_analysis_type"];
+const FEATURE_FIELDS = ["add_farmer", "rate_chart", "deduction", "payment_receipt", "generate_bill"];
+const SWITCH_FIELDS = ["analyser", "weight_tier", "cc", "weight", "printer"];
+
+// Names for the multi-VLC confirm dialog: [translation key, English fallback].
+const FIELD_LABELS: Record<string, [string, string]> = {
+  add_farmer: ["add_farmer", "Add Farmer"],
+  rate_chart: ["rate_chart", "Rate Chart"],
+  deduction: ["deduction", "Deduction"],
+  payment_receipt: ["payment_receipt", "Payment & Receipt"],
+  generate_bill: ["generate_bill", "Generate Bill"],
+  analyser: ["analyser", "Analyser"],
+  weight_tier: ["weight_tier", "Weight Tier"],
+  cc: ["cc", "CC"],
+  weight: ["weight", "Weight"],
+  printer: ["printer", "Printer"],
+  show_water: ["show_water", "Show Water"],
+  multiple_modal: ["multiple_modal", "Multiple Modal"],
+  language: ["app_language", "App Language"],
+  report_language: ["report_language", "Report Language"],
+  advance_limit_percent: ["advance_limit", "Advance Limit"],
+  show_shift_report: ["shift_report", "Shift Report"],
+  show_total_collection: ["total_collection", "Total Collection"],
+  show_payment_summary: ["payment_summary", "Payment Summary"],
+  show_rate_chart: ["rate_chart", "Rate Chart"],
+  show_farmer_bill: ["farmer_bill", "Farmer Bill"],
+  show_farmer_list: ["farmer_list", "Farmer List"],
+  show_difference_report: ["difference_report", "Difference Report"],
+  show_bonus_deduction: ["bonus_deduction", "Bonus Deduction"],
+  show_collection_history: ["collection_history", "Collection History"],
+  show_cattle_feed: ["cattle_feed", "Cattle Feed"],
+  cc_search_type: ["search_preference", "Search Preference"],
+  cc_analysis_type: ["analysis_mode", "Analysis Mode"],
+};
+
 // Marks a setting whose value differs between the selected VLCs.
 const VariesBadge = ({ show }: { show?: boolean }) =>
   show ? (
     <span
       className="ml-1.5 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-700"
-      title="Differs between the selected VLCs — saving applies the value shown to all"
+      title="Differs between the selected VLCs — each keeps its own value unless you change this setting"
     >
       Varies
     </span>
@@ -254,7 +302,24 @@ const GeneralSettings = () => {
 
   // Settings whose values differ between the selected VLCs (API field names).
   const [varies, setVaries] = useState<Set<string>>(new Set());
-  const isVaries = (key: string) => isMulti && varies.has(key);
+  // Settings the user has edited since the selection loaded. Only edited settings are
+  // saved; a "Varies" setting left alone keeps each VLC's own value.
+  const [touched, setTouched] = useState<Set<string>>(new Set());
+  const touch = (...keys: string[]) =>
+    setTouched((prev) => {
+      if (keys.every((k) => prev.has(k))) return prev;
+      const next = new Set(prev);
+      keys.forEach((k) => next.add(k));
+      return next;
+    });
+  // Once edited, a setting gets the value shown in every selected VLC, so it no longer varies.
+  const isVaries = (key: string) => isMulti && varies.has(key) && !touched.has(key);
+  const variesLeft = [...varies].filter((k) => !touched.has(k)).length;
+  // onChange for a 0/1 setting: records the edit, then sets the value.
+  const flag = (key: string, set: (v: number) => void) => (checked: boolean) => {
+    touch(key);
+    set(checked ? 1 : 0);
+  };
   // How many of the selected VLCs already have a settings password.
   const [passwordStatus, setPasswordStatus] = useState({ withPassword: 0, total: 0 });
   const [saving, setSaving] = useState(false);
@@ -317,18 +382,21 @@ const GeneralSettings = () => {
   const someReportsOn = reportValues.some((v) => v === 1) && !allReportsOn;
 
   const handleSelectAllFeatures = (checked: boolean) => {
+    touch(...FEATURE_FIELDS);
     const val = checked ? 1 : 0;
     setAddFarmer(val); setRateChart(val); setDeduction(val);
     setPaymentReceipt(val); setGenerateBill(val);
   };
 
   const handleSelectAllSwitches = (checked: boolean) => {
+    touch(...SWITCH_FIELDS);
     const val = checked ? 1 : 0;
     setAnalyser(val); setWeightTier(val); setCc(val);
     setWeight(val); setPrinter(val);
   };
 
   const handleSelectAllReports = (checked: boolean) => {
+    touch(...REPORT_FIELDS);
     const val = checked ? 1 : 0;
     setShowShiftReport(val); setShowTotalCollection(val);
     setShowPaymentSummary(val); setShowReportRateChart(val);
@@ -383,6 +451,7 @@ const GeneralSettings = () => {
     const requestId = ++loadRef.current;
     savedSnapshot.current = {}; // reset so a new selection always allows saving
     setVaries(new Set());
+    setTouched(new Set());
     setPassword("");
     try {
       const { data } = await settingsApi.getMany(vlcs);
@@ -439,7 +508,7 @@ const GeneralSettings = () => {
   };
 
   // Build a snapshot object from current state for comparison
-  const buildCurrentSnapshot = () => ({
+  const buildCurrentSnapshot = (): Record<string, unknown> => ({
     add_farmer: addFarmer,
     rate_chart: rateChart,
     deduction,
@@ -470,57 +539,84 @@ const GeneralSettings = () => {
     cattle_feed_lump_sum: cattleFeedLumpSum,
   });
 
-  // True when current values differ from the last-saved snapshot — or, with
-  // several VLCs, when they do not all have the same settings yet.
-  const hasChanges = Object.keys(savedSnapshot.current).length > 0 && (
-    (isMulti && varies.size > 0) ||
-    Object.entries(buildCurrentSnapshot()).some(([k, v]) => savedSnapshot.current[k] !== v)
-  );
+  // The settings a save writes: those whose value differs from what was loaded,
+  // plus any "Varies" setting the user set by hand (even back to the value shown).
+  // Every other setting is left as each selected VLC already has it.
+  const current = buildCurrentSnapshot();
+  const changedKeys = Object.keys(savedSnapshot.current).length === 0
+    ? []
+    : Object.keys(current).filter((k) =>
+        current[k] !== savedSnapshot.current[k] || (varies.has(k) && touched.has(k)));
+  const hasChanges = changedKeys.length > 0;
 
-  // Applies the whole set shown on the page to every selected VLC, replacing
-  // their current values. Goes through /web/settings/apply, which writes only
-  // these fields — device, SMS and template settings of each VLC stay as they are.
+  // How a changed setting reads in the confirm dialog, e.g. "Multiple Modal: ON".
+  const describeChange = (key: string) => {
+    const [labelKey, fallback] = FIELD_LABELS[key] ?? [key, key];
+    const name = REPORT_FIELDS.includes(key)
+      ? `${t("report_visibility", "Report Visibility")} – ${t(labelKey, fallback)}`
+      : t(labelKey, fallback);
+    const v = current[key];
+    const value =
+      key === "advance_limit_percent" ? (v === "" ? t("no_limit", "No limit") : `${v}%`)
+      : key === "cc_search_type" ? (v === 1 ? t("sample_id", "Sample ID") : t("farmer_id", "Farmer ID"))
+      : key === "cc_analysis_type" ? (v === 1 ? t("fat_clr", "FAT / CLR") : t("fat_snf", "FAT / SNF"))
+      : typeof v === "number" ? (v === 1 ? "ON" : "OFF")
+      : String(v);
+    return `• ${name}: ${value}`;
+  };
+
+  // Writes only the changed settings, the same value to every selected VLC.
+  // Goes through /web/settings/apply, which writes only the fields it is sent —
+  // everything else (other page settings, device, SMS, templates) stays as it is.
   const handleSave = async () => {
     if (!orderedVlcs.length) { toast.error(t("please_select_vlc", "Please select a VLC")); return; }
     if (!hasChanges) { toast.info(t("no_changes_made", "No changes made. Please modify settings before saving.")); return; }
+    const changed = new Set(changedKeys);
     const limitPercent = advanceLimit.trim() === "" ? null : Number(advanceLimit);
-    if (limitPercent !== null && (!Number.isFinite(limitPercent) || limitPercent < 1 || limitPercent > 100)) {
+    if (changed.has("advance_limit_percent") && limitPercent !== null &&
+        (!Number.isFinite(limitPercent) || limitPercent < 1 || limitPercent > 100)) {
       toast.error(t("advance_limit_invalid", "Advance limit must be a % from 1 to 100, or empty for no limit."));
       return;
     }
-    if (isMulti && !window.confirm(t("apply_settings_confirm", {
+
+    const pick = (fields: string[]) =>
+      Object.fromEntries(fields.filter((f) => changed.has(f)).map((f) => [f, current[f]]));
+    const settings: Record<string, unknown> = pick(SETTINGS_FIELDS);
+    if (changed.has("advance_limit_percent")) settings.advance_limit_percent = limitPercent;
+    const reportSettings = pick(REPORT_FIELDS);
+    const ccPrefs = CC_PREF_FIELDS.filter((f) => changed.has(f));
+    const apiFields = [...Object.keys(settings), ...Object.keys(reportSettings)];
+    // Per-VLC changes; cattle_feed_lump_sum is browser-wide and already saved on toggle.
+    const vlcChanges = [...apiFields, ...ccPrefs];
+
+    if (isMulti && vlcChanges.length && !window.confirm(t("apply_settings_confirm", {
       count: orderedVlcs.length,
-      defaultValue: "Apply these settings to all {{count}} selected VLCs? Their current settings will be replaced.",
+      changes: vlcChanges.map(describeChange).join("\n"),
+      defaultValue: "Change these settings on all {{count}} selected VLCs?\n\n{{changes}}\n\nEvery other setting stays as each VLC has it.",
+      interpolation: { escapeValue: false },
     }))) return;
 
     setSaving(true);
     try {
-      const { data } = await settingsApi.apply({
-        vlcs: orderedVlcs,
-        settings: {
-          add_farmer: addFarmer, rate_chart: rateChart, deduction,
-          payment_receipt: paymentReceipt, generate_bill: generateBill,
-          analyser, weight_tier: weightTier, weight, printer, cc,
-          show_water: showWater, multiple_modal: multipleModal,
-          language, report_language: reportLanguage,
-          advance_limit_percent: limitPercent,
-        },
-        report_settings: {
-          show_shift_report: showShiftReport, show_total_collection: showTotalCollection,
-          show_payment_summary: showPaymentSummary, show_rate_chart: showReportRateChart,
-          show_farmer_bill: showFarmerBill, show_farmer_list: showFarmerList,
-          show_difference_report: showDifferenceReport, show_bonus_deduction: showBonusDeduction,
-          show_collection_history: showCollectionHistory, show_cattle_feed: showCattleFeed,
-        },
+      if (apiFields.length) {
+        const { data } = await settingsApi.apply({
+          vlcs: orderedVlcs,
+          settings: settings as Partial<PageSettings>,
+          report_settings: reportSettings,
+        });
+        if (!data.success) throw new Error(data.message);
+      }
+      orderedVlcs.forEach((vlc) =>
+        ccPrefs.forEach((f) => localStorage.setItem(`${f}_${vlc}`, String(current[f]))));
+      // The form still shows the first VLC as it now is: changed settings took the
+      // values shown, the rest kept theirs. Only the changed ones are now the same everywhere.
+      savedSnapshot.current = current;
+      setVaries((prev) => {
+        const next = new Set(prev);
+        vlcChanges.forEach((k) => next.delete(k));
+        return next;
       });
-      if (!data.success) throw new Error(data.message);
-      orderedVlcs.forEach((vlc) => {
-        localStorage.setItem(`cc_search_type_${vlc}`, ccSearchType.toString());
-        localStorage.setItem(`cc_analysis_type_${vlc}`, ccAnalysisType.toString());
-      });
-      // Every selected VLC now has exactly these values.
-      savedSnapshot.current = buildCurrentSnapshot();
-      setVaries(new Set());
+      setTouched(new Set());
       toast.success(isMulti
         ? t("settings_applied_to_vlcs", { count: orderedVlcs.length, defaultValue: "Settings applied to {{count}} VLCs" })
         : t("settings_updated_successfully", "Settings updated successfully"));
@@ -533,7 +629,7 @@ const GeneralSettings = () => {
 
   const handleShowWaterChange = (checked: boolean) => {
     if (!orderedVlcs.length) { toast.error(t("please_select_vlc_first", "Please select a VLC first")); return; }
-    setShowWater(checked ? 1 : 0);
+    flag("show_water", setShowWater)(checked);
   };
 
 
@@ -585,7 +681,7 @@ const GeneralSettings = () => {
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center">{t("app_language", "App Language")}<VariesBadge show={isVaries("language")} /></p>
                 <RadioGroup
                   value={language.toLowerCase()}
-                  onValueChange={(val) => setLanguage(val.charAt(0).toUpperCase() + val.slice(1))}
+                  onValueChange={(val) => { touch("language"); setLanguage(val.charAt(0).toUpperCase() + val.slice(1)); }}
                   className="grid grid-cols-2 gap-2"
                 >
                   {["english", "hindi", "marathi", "kannada"].map((lang) => (
@@ -608,7 +704,7 @@ const GeneralSettings = () => {
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center">{t("report_language", "Report Language")}<VariesBadge show={isVaries("report_language")} /></p>
                 <RadioGroup
                   value={reportLanguage.toLowerCase()}
-                  onValueChange={(val) => setReportLanguage(val.charAt(0).toUpperCase() + val.slice(1))}
+                  onValueChange={(val) => { touch("report_language"); setReportLanguage(val.charAt(0).toUpperCase() + val.slice(1)); }}
                   className="grid grid-cols-2 gap-2"
                 >
                   {["english", "hindi", "marathi", "kannada"].map((lang) => (
@@ -657,17 +753,17 @@ const GeneralSettings = () => {
                     {t("settings_multi_hint", {
                       count: orderedVlcs.length,
                       first: primaryBranch ? `${primaryBranch.username} — ${primaryBranch.name}` : primaryVlc,
-                      defaultValue: "Showing the settings of {{first}}. Saving applies them to all {{count}} selected VLCs.",
+                      defaultValue: "Showing the settings of {{first}}. Saving applies only the settings you change to all {{count}} selected VLCs; the rest stay as each VLC has them.",
                       interpolation: { escapeValue: false },
                     })}
                   </p>
                 )}
-                {isMulti && varies.size > 0 && (
+                {isMulti && variesLeft > 0 && (
                   <p className="text-xs text-amber-700 flex items-start gap-1.5">
                     <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                     {t("settings_varies_hint", {
-                      count: varies.size,
-                      defaultValue: "{{count}} settings differ between these VLCs (marked Varies). Saving makes them the same.",
+                      count: variesLeft,
+                      defaultValue: "{{count}} settings differ between these VLCs (marked Varies). Each VLC keeps its own value unless you change it.",
                     })}
                   </p>
                 )}
@@ -680,11 +776,11 @@ const GeneralSettings = () => {
                 <SelectAllBox allOn={allSwitchesOn} someOn={someSwitchesOn} onToggle={handleSelectAllSwitches} />
               </SectionHeader>
               <div className="p-4 grid grid-cols-1 gap-2.5">
-                <SwitchRow icon={BarChart3} label={t("analyser", "Analyser")} checked={analyser === 1} varies={isVaries("analyser")} onChange={(c) => setAnalyser(c ? 1 : 0)} />
-                <SwitchRow icon={Layers} label={t("weight_tier", "Weight Tier")} checked={weightTier === 1} varies={isVaries("weight_tier")} onChange={(c) => setWeightTier(c ? 1 : 0)} />
-                <SwitchRow icon={MessageCircle} label={t("cc", "CC")} checked={cc === 1} varies={isVaries("cc")} onChange={(c) => setCc(c ? 1 : 0)} />
-                <SwitchRow icon={Scale} label={t("weight", "Weight")} checked={weight === 1} varies={isVaries("weight")} onChange={(c) => setWeight(c ? 1 : 0)} />
-                <SwitchRow icon={Printer} label={t("printer", "Printer")} checked={printer === 1} varies={isVaries("printer")} onChange={(c) => setPrinter(c ? 1 : 0)} />
+                <SwitchRow icon={BarChart3} label={t("analyser", "Analyser")} checked={analyser === 1} varies={isVaries("analyser")} onChange={flag("analyser", setAnalyser)} />
+                <SwitchRow icon={Layers} label={t("weight_tier", "Weight Tier")} checked={weightTier === 1} varies={isVaries("weight_tier")} onChange={flag("weight_tier", setWeightTier)} />
+                <SwitchRow icon={MessageCircle} label={t("cc", "CC")} checked={cc === 1} varies={isVaries("cc")} onChange={flag("cc", setCc)} />
+                <SwitchRow icon={Scale} label={t("weight", "Weight")} checked={weight === 1} varies={isVaries("weight")} onChange={flag("weight", setWeight)} />
+                <SwitchRow icon={Printer} label={t("printer", "Printer")} checked={printer === 1} varies={isVaries("printer")} onChange={flag("printer", setPrinter)} />
               </div>
             </SectionCard>
           </div>
@@ -698,11 +794,11 @@ const GeneralSettings = () => {
               <SelectAllBox allOn={allFeaturesOn} someOn={someFeaturesOn} onToggle={handleSelectAllFeatures} />
             </SectionHeader>
             <div className="p-4 grid grid-cols-1 gap-2.5">
-              <FeatureRow id="feat-add-farmer" icon={UserPlus} label={t("add_farmer", "Add Farmer")} checked={addFarmer === 1} varies={isVaries("add_farmer")} onChange={(c) => setAddFarmer(c ? 1 : 0)} />
-              <FeatureRow id="feat-rate-chart" icon={TrendingUp} label={t("rate_chart", "Rate Chart")} checked={rateChart === 1} varies={isVaries("rate_chart")} onChange={(c) => setRateChart(c ? 1 : 0)} />
-              <FeatureRow id="feat-deduction" icon={Minus} label={t("deduction", "Deduction")} checked={deduction === 1} varies={isVaries("deduction")} onChange={(c) => setDeduction(c ? 1 : 0)} />
-              <FeatureRow id="feat-payment" icon={CreditCard} label={t("payment_receipt", "Payment & Receipt")} checked={paymentReceipt === 1} varies={isVaries("payment_receipt")} onChange={(c) => setPaymentReceipt(c ? 1 : 0)} />
-              <FeatureRow id="feat-bill" icon={FileText} label={t("generate_bill", "Generate Bill")} checked={generateBill === 1} varies={isVaries("generate_bill")} onChange={(c) => setGenerateBill(c ? 1 : 0)} />
+              <FeatureRow id="feat-add-farmer" icon={UserPlus} label={t("add_farmer", "Add Farmer")} checked={addFarmer === 1} varies={isVaries("add_farmer")} onChange={flag("add_farmer", setAddFarmer)} />
+              <FeatureRow id="feat-rate-chart" icon={TrendingUp} label={t("rate_chart", "Rate Chart")} checked={rateChart === 1} varies={isVaries("rate_chart")} onChange={flag("rate_chart", setRateChart)} />
+              <FeatureRow id="feat-deduction" icon={Minus} label={t("deduction", "Deduction")} checked={deduction === 1} varies={isVaries("deduction")} onChange={flag("deduction", setDeduction)} />
+              <FeatureRow id="feat-payment" icon={CreditCard} label={t("payment_receipt", "Payment & Receipt")} checked={paymentReceipt === 1} varies={isVaries("payment_receipt")} onChange={flag("payment_receipt", setPaymentReceipt)} />
+              <FeatureRow id="feat-bill" icon={FileText} label={t("generate_bill", "Generate Bill")} checked={generateBill === 1} varies={isVaries("generate_bill")} onChange={flag("generate_bill", setGenerateBill)} />
             </div>
             {/* Advance limit: enforced by the backend on every advance / cattle feed / Other1 / Other2 entry. */}
             <div className="px-4 pb-4">
@@ -719,7 +815,7 @@ const GeneralSettings = () => {
                   <Input
                     id="advance-limit" type="number" inputMode="decimal" min={1} max={100} step="any"
                     value={advanceLimit}
-                    onChange={(e) => setAdvanceLimit(e.target.value)}
+                    onChange={(e) => { touch("advance_limit_percent"); setAdvanceLimit(e.target.value); }}
                     placeholder={t("no_limit", "No limit")}
                     className="w-28 h-9 bg-white border-gray-200"
                   />
@@ -741,16 +837,16 @@ const GeneralSettings = () => {
               <SelectAllBox allOn={allReportsOn} someOn={someReportsOn} onToggle={handleSelectAllReports} />
             </SectionHeader>
             <div className="p-4 grid grid-cols-2 gap-2.5">
-              <SwitchRow icon={ClipboardList} label={t("shift_report", "Shift Report")} checked={showShiftReport === 1} varies={isVaries("show_shift_report")} onChange={(c) => setShowShiftReport(c ? 1 : 0)} />
-              <SwitchRow icon={BarChart3} label={t("total_collection", "Total Collection")} checked={showTotalCollection === 1} varies={isVaries("show_total_collection")} onChange={(c) => setShowTotalCollection(c ? 1 : 0)} />
-              <SwitchRow icon={PieChart} label={t("payment_summary", "Payment Summary")} checked={showPaymentSummary === 1} varies={isVaries("show_payment_summary")} onChange={(c) => setShowPaymentSummary(c ? 1 : 0)} />
-              <SwitchRow icon={ListOrdered} label={t("rate_chart", "Rate Chart")} checked={showReportRateChart === 1} varies={isVaries("show_rate_chart")} onChange={(c) => setShowReportRateChart(c ? 1 : 0)} />
-              <SwitchRow icon={FileText} label={t("farmer_bill", "Farmer Bill")} checked={showFarmerBill === 1} varies={isVaries("show_farmer_bill")} onChange={(c) => setShowFarmerBill(c ? 1 : 0)} />
-              <SwitchRow icon={Users} label={t("farmer_list", "Farmer List")} checked={showFarmerList === 1} varies={isVaries("show_farmer_list")} onChange={(c) => setShowFarmerList(c ? 1 : 0)} />
-              <SwitchRow icon={Diff} label={t("difference_report", "Difference Report")} checked={showDifferenceReport === 1} varies={isVaries("show_difference_report")} onChange={(c) => setShowDifferenceReport(c ? 1 : 0)} />
-              <SwitchRow icon={Minus} label={t("bonus_deduction", "Bonus Deduction")} checked={showBonusDeduction === 1} varies={isVaries("show_bonus_deduction")} onChange={(c) => setShowBonusDeduction(c ? 1 : 0)} />
-              <SwitchRow icon={History} label={t("collection_history", "Collection History")} checked={showCollectionHistory === 1} varies={isVaries("show_collection_history")} onChange={(c) => setShowCollectionHistory(c ? 1 : 0)} />
-              <SwitchRow icon={Package} label={t("cattle_feed", "Cattle Feed")} checked={showCattleFeed === 1} varies={isVaries("show_cattle_feed")} onChange={(c) => setShowCattleFeed(c ? 1 : 0)} />
+              <SwitchRow icon={ClipboardList} label={t("shift_report", "Shift Report")} checked={showShiftReport === 1} varies={isVaries("show_shift_report")} onChange={flag("show_shift_report", setShowShiftReport)} />
+              <SwitchRow icon={BarChart3} label={t("total_collection", "Total Collection")} checked={showTotalCollection === 1} varies={isVaries("show_total_collection")} onChange={flag("show_total_collection", setShowTotalCollection)} />
+              <SwitchRow icon={PieChart} label={t("payment_summary", "Payment Summary")} checked={showPaymentSummary === 1} varies={isVaries("show_payment_summary")} onChange={flag("show_payment_summary", setShowPaymentSummary)} />
+              <SwitchRow icon={ListOrdered} label={t("rate_chart", "Rate Chart")} checked={showReportRateChart === 1} varies={isVaries("show_rate_chart")} onChange={flag("show_rate_chart", setShowReportRateChart)} />
+              <SwitchRow icon={FileText} label={t("farmer_bill", "Farmer Bill")} checked={showFarmerBill === 1} varies={isVaries("show_farmer_bill")} onChange={flag("show_farmer_bill", setShowFarmerBill)} />
+              <SwitchRow icon={Users} label={t("farmer_list", "Farmer List")} checked={showFarmerList === 1} varies={isVaries("show_farmer_list")} onChange={flag("show_farmer_list", setShowFarmerList)} />
+              <SwitchRow icon={Diff} label={t("difference_report", "Difference Report")} checked={showDifferenceReport === 1} varies={isVaries("show_difference_report")} onChange={flag("show_difference_report", setShowDifferenceReport)} />
+              <SwitchRow icon={Minus} label={t("bonus_deduction", "Bonus Deduction")} checked={showBonusDeduction === 1} varies={isVaries("show_bonus_deduction")} onChange={flag("show_bonus_deduction", setShowBonusDeduction)} />
+              <SwitchRow icon={History} label={t("collection_history", "Collection History")} checked={showCollectionHistory === 1} varies={isVaries("show_collection_history")} onChange={flag("show_collection_history", setShowCollectionHistory)} />
+              <SwitchRow icon={Package} label={t("cattle_feed", "Cattle Feed")} checked={showCattleFeed === 1} varies={isVaries("show_cattle_feed")} onChange={flag("show_cattle_feed", setShowCattleFeed)} />
             </div>
           </SectionCard>
         </div>
@@ -804,7 +900,7 @@ const GeneralSettings = () => {
                 checked={cattleFeedLumpSum === 1}
                 onChange={(c) => { const v = c ? 1 : 0; setCattleFeedLumpSum(v); localStorage.setItem("cattleFeedLumpSum", v.toString()); }}
               />
-              <SwitchRow icon={Layers} label={t("multiple_modal", "Multiple Modal")} checked={multipleModal === 1} varies={isVaries("multiple_modal")} onChange={(c) => setMultipleModal(c ? 1 : 0)} />
+              <SwitchRow icon={Layers} label={t("multiple_modal", "Multiple Modal")} checked={multipleModal === 1} varies={isVaries("multiple_modal")} onChange={flag("multiple_modal", setMultipleModal)} />
             </div>
           </SectionCard>
 
@@ -815,14 +911,14 @@ const GeneralSettings = () => {
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center">{t("search_preference", "Search Preference")}<VariesBadge show={isVaries("cc_search_type")} /></p>
                 <SegmentControl
-                  value={ccSearchType} onChange={setCcSearchType}
+                  value={ccSearchType} onChange={(v) => { touch("cc_search_type"); setCcSearchType(v); }}
                   options={[{ label: t("farmer_id", "Farmer ID"), val: 0 }, { label: t("sample_id", "Sample ID"), val: 1 }]}
                 />
               </div>
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center">{t("analysis_mode", "Analysis Mode")}<VariesBadge show={isVaries("cc_analysis_type")} /></p>
                 <SegmentControl
-                  value={ccAnalysisType} onChange={setCcAnalysisType}
+                  value={ccAnalysisType} onChange={(v) => { touch("cc_analysis_type"); setCcAnalysisType(v); }}
                   options={[{ label: t("fat_snf", "FAT / SNF"), val: 0 }, { label: t("fat_clr", "FAT / CLR"), val: 1 }]}
                 />
               </div>
